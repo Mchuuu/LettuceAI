@@ -12,7 +12,11 @@ import type {
   SystemPromptTemplate,
 } from "../../../../core/storage/schemas";
 import { processBackgroundImage } from "../../../../core/utils/image";
-import { convertToImageRef, deleteImageRef } from "../../../../core/storage/images";
+import {
+  convertToImageRef,
+  convertToImageUrl,
+  deleteImageRef,
+} from "../../../../core/storage/images";
 import { saveAvatar, loadAvatar, recalculateGradient } from "../../../../core/storage/avatars";
 import { listPromptTemplates } from "../../../../core/prompts/service";
 import { invalidateAvatarCache } from "../../../hooks/useAvatar";
@@ -295,7 +299,6 @@ export function useEditCharacterForm(characterId: string | undefined) {
         backgroundImage.length === 36
       ) {
         try {
-          const { convertToImageUrl } = await import("../../../../core/storage/images");
           const assetUrl = await convertToImageUrl(backgroundImage);
           backgroundImage = assetUrl || backgroundImage;
         } catch (err) {

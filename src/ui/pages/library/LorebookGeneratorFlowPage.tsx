@@ -41,6 +41,7 @@ import {
   lorebookGenRunCoherence,
   lorebookGenRunPlanner,
   lorebookGenSetDraftApproved,
+  lorebookGenUpdateOutline,
   readFileAsBase64,
   type LorebookGeneratorEntryPlan,
   type LorebookGeneratorJobState,
@@ -314,7 +315,6 @@ export function LorebookGeneratorFlowPage() {
     setError(null);
     setBusy(true);
     try {
-      const { lorebookGenUpdateOutline } = await import("../../../core/lorebook/generator");
       const updated = await lorebookGenUpdateOutline({
         jobId: job.id,
         outline: job.outline,
