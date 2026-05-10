@@ -661,6 +661,10 @@ fn build_scene_generation_request(
         quality: None,
         style: None,
         n: Some(1),
+        session_id: None,
+        character_id: None,
+        character_name: None,
+        usage_source: Some("scene".to_string()),
     }
 }
 
@@ -1504,7 +1508,7 @@ pub async fn chat_generate_scene_image(
     };
 
     let reference_images = build_scene_reference_images(&app, &session, character, persona);
-    let request = build_scene_generation_request(
+    let mut request = build_scene_generation_request(
         &scene_prompt,
         model,
         credential,
@@ -1512,6 +1516,9 @@ pub async fn chat_generate_scene_image(
         persona,
         reference_images,
     );
+    request.session_id = Some(session.id.clone());
+    request.character_id = Some(character.id.clone());
+    request.character_name = Some(character.name.clone());
     let response = generate_scene_image_with_retry(&app, request, 3).await?;
     let generated = response
         .images

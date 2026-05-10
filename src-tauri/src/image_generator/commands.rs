@@ -36,13 +36,30 @@ fn record_image_generation_usage(
             .to_string(),
     );
     metadata.insert("output_image_count".to_string(), image_count.to_string());
+    if let Some(source) = request.usage_source.as_deref() {
+        metadata.insert("usage_source".to_string(), source.to_string());
+    }
+
+    let session_id = request
+        .session_id
+        .clone()
+        .unwrap_or_else(|| "image_generation".to_string());
+    let character_id = request
+        .character_id
+        .clone()
+        .unwrap_or_else(|| "image_generation".to_string());
+    let character_name = request
+        .character_name
+        .clone()
+        .filter(|name| !name.trim().is_empty())
+        .unwrap_or_else(|| "Image Generation".to_string());
 
     let usage = RequestUsage {
         id: Uuid::new_v4().to_string(),
         timestamp: now_millis().unwrap_or(0),
-        session_id: "image_generation".to_string(),
-        character_id: "image_generation".to_string(),
-        character_name: "Image Generation".to_string(),
+        session_id,
+        character_id,
+        character_name,
         model_id: request.model.clone(),
         model_name: request.model.clone(),
         provider_id: request.provider_id.clone(),

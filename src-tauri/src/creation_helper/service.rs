@@ -2342,6 +2342,10 @@ fn build_image_request(
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string()),
             n: Some(1),
+            session_id: None,
+            character_id: None,
+            character_name: None,
+            usage_source: Some("creation_helper".to_string()),
         },
         ImageGenerationMeta {
             model_id: model_id.to_string(),

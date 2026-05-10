@@ -29,6 +29,14 @@ export interface ImageGenerationRequest {
   quality?: string;
   style?: string;
   n?: number;
+  /** Optional usage attribution: when set, recorded usage is associated
+   *  with the originating chat session/character instead of the generic
+   *  "Image Generation" placeholder. */
+  sessionId?: string;
+  characterId?: string;
+  characterName?: string;
+  /** Sub-flow tag stored in usage metadata (e.g. "scene", "manual"). */
+  usageSource?: string;
 }
 
 /**
