@@ -2419,8 +2419,14 @@ export const enMessages = {
     },
   },
   installedModels: {
-    title: "Local GGUF inventory",
+    title: "Installed models",
+    subtitle: "Browse and manage models on this device or on a remote Ollama instance.",
+    tabs: {
+      local: "Local GGUF",
+      ollama: "Ollama",
+    },
     fileCount: "{{count}} files",
+    modelCount: "{{count}} models",
     searchPlaceholder: "Search model name, filename, path, quantization, or architecture",
     loading: "Scanning installed models...",
     loadFailed: "Failed to load installed models: {{error}}",
@@ -2447,6 +2453,35 @@ export const enMessages = {
       copyFailed: "Copy failed",
       modelDeleted: "Model deleted",
       deleteFailed: "Delete failed",
+    },
+    ollama: {
+      pickProvider: "Choose an Ollama provider",
+      pickProviderHint: "Pick a configured Ollama instance to inspect its installed models.",
+      noProviders: "No Ollama providers configured. Add one in Settings → Providers.",
+      empty: {
+        title: "No models installed on this Ollama instance",
+        description:
+          "Pull a model from the browser or use `ollama pull` on the host to populate this list.",
+      },
+      searchPlaceholder: "Search by model name, family, or quantization",
+      columns: {
+        family: "Family",
+        params: "Params",
+        quant: "Quant",
+        size: "Size",
+        modified: "Modified",
+        action: "Action",
+      },
+      confirm: {
+        deleteTitle: "Delete model",
+        deleteMessage:
+          "Delete {{name}} from {{provider}}? This frees the disk space on the Ollama host and cannot be undone.",
+      },
+      toasts: {
+        modelDeleted: "Model deleted",
+        deleteFailed: "Delete failed",
+        loadFailed: "Failed to load Ollama models",
+      },
     },
   },
   editModel: {
@@ -2770,6 +2805,21 @@ export const enMessages = {
     createModel: "Create Model",
     backToSearch: "Back to search",
     backToFiles: "Back to files",
+    pullToOllama: "Pull to",
+    destination: "Destination",
+    destinationLocal: "Local library",
+    destinationLocalHint: "Save the GGUF file to this device.",
+    destinationOllama: "Ollama provider",
+    destinationLocalSection: "On this device",
+    destinationOllamaSection: "Remote Ollama",
+    destinationPickerTitle: "Where should models go?",
+    destinationPickerSubtitle:
+      "Pick where to send the next download. You can change this any time.",
+    destinationNoOllama:
+      "No Ollama providers configured. Add one in Settings → Providers to pull models to a remote instance.",
+    ollamaModeNoticeTitle: "Recommendations unavailable",
+    ollamaModeNoticeBody:
+      "Hardware-aware suggestions are disabled while a remote Ollama provider is selected. The model will run on the host's hardware, which the app cannot inspect to estimate runnability.",
     sortTrending: "Trending",
     sortDownloads: "Most Downloaded",
     sortLikes: "Most Liked",

@@ -683,6 +683,406 @@ fn inject_missing_tool_call_ids(value: &mut Value) {
     }
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct OllamaInstalledModel {
+    pub name: String,
+    pub size: Option<u64>,
+    pub modified_at: Option<String>,
+    pub digest: Option<String>,
+    pub parameter_size: Option<String>,
+    pub quantization_level: Option<String>,
+    pub family: Option<String>,
+}
+
+#[tauri::command]
+pub async fn ollama_inventory_list(
+    app: tauri::AppHandle,
+    credential_id: String,
+) -> Result<Vec<OllamaInstalledModel>, String> {
+    let credential =
+        crate::storage_manager::providers::get_provider_credential(&app, &credential_id)?;
+    if !is_ollama_provider(Some(credential.provider_id.as_str())) {
+        return Err("Selected provider is not an Ollama provider".to_string());
+    }
+
+    let base_url = normalize_base_url(
+        credential
+            .base_url
+            .as_deref()
+            .unwrap_or(DEFAULT_OLLAMA_BASE_URL),
+    )?;
+    let url = format!("{}api/tags", base_url);
+    let client = build_http_client(
+        &app,
+        Some(&credential_runtime_headers(&credential)),
+        Some(DEFAULT_REQUEST_TIMEOUT_MS),
+        false,
+        credential_allows_invalid_tls(&credential),
+    )?;
+
+    let request = client.get(&url);
+    let response = transport::send_with_retries(&app, "ollama_inventory_list", request, 2, None)
+        .await
+        .map_err(|err| err.to_string())?;
+    let status = response.status();
+    let text = response
+        .text()
+        .await
+        .map_err(|err| crate::utils::err_to_string(module_path!(), line!(), err))?;
+    if !status.is_success() {
+        return Err(format!("Ollama returned {}: {}", status, text));
+    }
+
+    let payload = serde_json::from_str::<Value>(&text)
+        .map_err(|err| crate::utils::err_to_string(module_path!(), line!(), err))?;
+
+    let mut out = Vec::new();
+    let Some(list) = payload.get("models").and_then(Value::as_array) else {
+        return Ok(out);
+    };
+    for item in list {
+        let Some(name) = item.get("name").and_then(Value::as_str) else {
+            continue;
+        };
+        let details = item.get("details");
+        out.push(OllamaInstalledModel {
+            name: name.to_string(),
+            size: item.get("size").and_then(Value::as_u64),
+            modified_at: item
+                .get("modified_at")
+                .and_then(Value::as_str)
+                .map(str::to_string),
+            digest: item
+                .get("digest")
+                .and_then(Value::as_str)
+                .map(str::to_string),
+            parameter_size: details
+                .and_then(|d| d.get("parameter_size"))
+                .and_then(Value::as_str)
+                .map(str::to_string),
+            quantization_level: details
+                .and_then(|d| d.get("quantization_level"))
+                .and_then(Value::as_str)
+                .map(str::to_string),
+            family: details
+                .and_then(|d| d.get("family"))
+                .and_then(Value::as_str)
+                .map(str::to_string),
+        });
+    }
+    Ok(out)
+}
+
+#[tauri::command]
+pub async fn ollama_inventory_delete(
+    app: tauri::AppHandle,
+    credential_id: String,
+    model_name: String,
+) -> Result<(), String> {
+    let credential =
+        crate::storage_manager::providers::get_provider_credential(&app, &credential_id)?;
+    if !is_ollama_provider(Some(credential.provider_id.as_str())) {
+        return Err("Selected provider is not an Ollama provider".to_string());
+    }
+
+    let base_url = normalize_base_url(
+        credential
+            .base_url
+            .as_deref()
+            .unwrap_or(DEFAULT_OLLAMA_BASE_URL),
+    )?;
+    let url = format!("{}api/delete", base_url);
+    let client = build_http_client(
+        &app,
+        Some(&credential_runtime_headers(&credential)),
+        Some(DEFAULT_REQUEST_TIMEOUT_MS),
+        false,
+        credential_allows_invalid_tls(&credential),
+    )?;
+
+    let body = json!({ "name": model_name });
+    let response = client
+        .delete(&url)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|err| format!("Ollama delete request failed: {err}"))?;
+    let status = response.status();
+    if !status.is_success() {
+        let text = response.text().await.unwrap_or_default();
+        return Err(format!("Ollama returned {}: {}", status, text));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn ollama_pull_model(
+    app: tauri::AppHandle,
+    credential_id: String,
+    model_ref: String,
+    metadata: Option<crate::hf_browser::QueueDownloadMetadata>,
+) -> Result<String, String> {
+    let credential =
+        crate::storage_manager::providers::get_provider_credential(&app, &credential_id)?;
+    if !is_ollama_provider(Some(credential.provider_id.as_str())) {
+        return Err("Selected provider is not an Ollama provider".to_string());
+    }
+    let trimmed_ref = model_ref.trim();
+    if trimmed_ref.is_empty() {
+        return Err("Model reference is empty".to_string());
+    }
+
+    let queue_id = uuid::Uuid::new_v4().to_string();
+    let metadata = metadata.unwrap_or_default();
+    let display_name = metadata
+        .display_name
+        .clone()
+        .unwrap_or_else(|| trimmed_ref.to_string());
+
+    let item = crate::hf_browser::QueuedDownload {
+        id: queue_id.clone(),
+        model_id: trimmed_ref.to_string(),
+        filename: display_name.clone(),
+        status: "queued".to_string(),
+        downloaded: 0,
+        total: 0,
+        speed_bytes_per_sec: 0,
+        error: None,
+        result_path: None,
+        create_model_when_finished: metadata.create_model_when_finished,
+        mmproj_file: metadata.mmproj_file.clone(),
+        install_id: metadata.install_id.clone(),
+        display_name: Some(display_name.clone()),
+        context_length: metadata.context_length,
+        kv_type: metadata.kv_type.clone(),
+        llama_offload_kqv: metadata.llama_offload_kqv,
+        llama_gpu_layers: metadata.llama_gpu_layers,
+        llama_model_offload_mode: metadata.llama_model_offload_mode.clone(),
+        download_role: metadata.download_role.clone(),
+        queue_kind: Some("ollama".to_string()),
+        asset_root: metadata.asset_root.clone(),
+        install_kind: metadata.install_kind.clone(),
+        variant: metadata.variant.clone(),
+        voice_id: metadata.voice_id.clone(),
+        download_url: Some(format!("ollama://{}/{}", credential.id, trimmed_ref)),
+        destination_path: metadata.destination_path.clone(),
+        force_redownload: metadata.force_redownload,
+    };
+
+    crate::hf_browser::enqueue_external_item(&app, item).await;
+
+    let model_ref_owned = trimmed_ref.to_string();
+    let queue_id_clone = queue_id.clone();
+    let app_clone = app.clone();
+    tokio::spawn(async move {
+        let result =
+            run_ollama_pull(&app_clone, &credential, &queue_id_clone, &model_ref_owned).await;
+        match result {
+            Ok(()) => {
+                crate::hf_browser::finish_external_item(&app_clone, &queue_id_clone, true, None)
+                    .await;
+            }
+            Err(err) => {
+                if err == "__cancelled__" {
+                    crate::hf_browser::cancel_external_item(&app_clone, &queue_id_clone).await;
+                } else {
+                    crate::hf_browser::finish_external_item(
+                        &app_clone,
+                        &queue_id_clone,
+                        false,
+                        Some(err),
+                    )
+                    .await;
+                }
+            }
+        }
+    });
+
+    Ok(queue_id)
+}
+
+async fn run_ollama_pull(
+    app: &tauri::AppHandle,
+    credential: &ProviderCredential,
+    queue_id: &str,
+    model_ref: &str,
+) -> Result<(), String> {
+    let base_url = normalize_base_url(
+        credential
+            .base_url
+            .as_deref()
+            .unwrap_or(DEFAULT_OLLAMA_BASE_URL),
+    )?;
+    let url = format!("{}api/pull", base_url);
+    let client = build_http_client(
+        app,
+        Some(&credential_runtime_headers(credential)),
+        None,
+        true,
+        credential_allows_invalid_tls(credential),
+    )?;
+
+    let body = json!({ "model": model_ref, "stream": true });
+    let response = client
+        .post(&url)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|err| format!("Ollama pull request failed: {err}"))?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let text = response.text().await.unwrap_or_default();
+        return Err(format!("Ollama returned {}: {}", status, text));
+    }
+
+    let mut stream = response.bytes_stream();
+    let mut buffer = String::new();
+    let mut last_emit = std::time::Instant::now();
+    let mut last_completed = 0u64;
+    let mut last_total = 0u64;
+    let mut last_status_label = String::from("downloading");
+    let mut speed_anchor = std::time::Instant::now();
+    let mut speed_anchor_bytes = 0u64;
+    let mut speed_bytes_per_sec = 0u64;
+
+    loop {
+        if crate::hf_browser::external_item_cancel_requested(queue_id).await {
+            return Err("__cancelled__".to_string());
+        }
+
+        let next = match stream.next().await {
+            Some(item) => item,
+            None => break,
+        };
+        let chunk = next.map_err(|err| format!("Ollama pull stream error: {err}"))?;
+        let chunk_str = String::from_utf8_lossy(&chunk);
+        buffer.push_str(&chunk_str);
+
+        while let Some(idx) = buffer.find('\n') {
+            let line = buffer[..idx].trim().to_string();
+            buffer = buffer[idx + 1..].to_string();
+            if line.is_empty() {
+                continue;
+            }
+            let value: Value = match serde_json::from_str(&line) {
+                Ok(value) => value,
+                Err(_) => continue,
+            };
+
+            if let Some(error_text) = value.get("error").and_then(Value::as_str) {
+                return Err(error_text.to_string());
+            }
+
+            let status_label = value
+                .get("status")
+                .and_then(Value::as_str)
+                .unwrap_or(last_status_label.as_str())
+                .to_string();
+            let completed = value
+                .get("completed")
+                .and_then(Value::as_u64)
+                .unwrap_or(last_completed);
+            let total = value
+                .get("total")
+                .and_then(Value::as_u64)
+                .unwrap_or(last_total);
+
+            if completed >= speed_anchor_bytes {
+                let elapsed = speed_anchor.elapsed().as_millis() as u64;
+                if elapsed >= 1_000 {
+                    let delta = completed.saturating_sub(speed_anchor_bytes);
+                    speed_bytes_per_sec = delta * 1_000 / elapsed.max(1);
+                    speed_anchor = std::time::Instant::now();
+                    speed_anchor_bytes = completed;
+                }
+            } else {
+                speed_anchor = std::time::Instant::now();
+                speed_anchor_bytes = completed;
+                speed_bytes_per_sec = 0;
+            }
+
+            last_completed = completed;
+            last_total = total;
+            last_status_label = status_label.clone();
+
+            if status_label.eq_ignore_ascii_case("success") {
+                update_pull_progress(
+                    app,
+                    queue_id,
+                    "complete",
+                    last_completed,
+                    last_total,
+                    0,
+                )
+                .await;
+                return Ok(());
+            }
+
+            let mapped_status = map_ollama_status(&status_label);
+            let should_emit =
+                last_emit.elapsed().as_millis() > 150 || mapped_status != "downloading";
+            if should_emit {
+                update_pull_progress(
+                    app,
+                    queue_id,
+                    mapped_status,
+                    last_completed,
+                    last_total,
+                    speed_bytes_per_sec,
+                )
+                .await;
+                last_emit = std::time::Instant::now();
+            }
+        }
+    }
+
+    let trailing = buffer.trim();
+    if !trailing.is_empty() {
+        if let Ok(value) = serde_json::from_str::<Value>(trailing) {
+            if let Some(error_text) = value.get("error").and_then(Value::as_str) {
+                return Err(error_text.to_string());
+            }
+            if value
+                .get("status")
+                .and_then(Value::as_str)
+                .map(|s| s.eq_ignore_ascii_case("success"))
+                .unwrap_or(false)
+            {
+                return Ok(());
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn update_pull_progress(
+    app: &tauri::AppHandle,
+    queue_id: &str,
+    status_label: &str,
+    downloaded: u64,
+    total: u64,
+    speed: u64,
+) {
+    crate::hf_browser::update_external_progress(app, queue_id, status_label, downloaded, total)
+        .await;
+    crate::hf_browser::update_external_speed(app, queue_id, speed).await;
+}
+
+fn map_ollama_status(raw: &str) -> &'static str {
+    let lower = raw.to_ascii_lowercase();
+    if lower.starts_with("pulling") || lower.starts_with("downloading") {
+        "downloading"
+    } else if lower.contains("verify") || lower.contains("writing") {
+        "downloading"
+    } else if lower == "success" {
+        "complete"
+    } else {
+        "downloading"
+    }
+}
+
 fn parse_models_list(payload: &Value) -> Vec<ModelInfo> {
     let mut models = Vec::new();
     if let Some(list) = payload.get("models").and_then(Value::as_array) {

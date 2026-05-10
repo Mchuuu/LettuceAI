@@ -1,11 +1,31 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { ArrowUpDown, Copy, Cpu, HardDrive, RefreshCw, Search, Trash2 } from "lucide-react";
+import { motion } from "framer-motion";
+import {
+  AlertCircle,
+  ArrowUpDown,
+  ChevronDown,
+  Copy,
+  Cpu,
+  HardDrive,
+  Loader,
+  RefreshCw,
+  Search,
+  Server,
+  Trash2,
+} from "lucide-react";
 
 import { cn } from "../../design-tokens";
 import { confirmBottomMenu } from "../../components/ConfirmBottomMenu";
 import { toast } from "../../components/toast";
 import { useI18n } from "../../../core/i18n/context";
+import { BottomMenu } from "../../components/BottomMenu";
+import {
+  readSettings,
+  readSettingsCached,
+  SETTINGS_UPDATED_EVENT,
+} from "../../../core/storage/repo";
+import type { ProviderCredential } from "../../../core/storage/schemas";
 
 type InstalledGgufModel = {
   modelId: string;
@@ -17,6 +37,18 @@ type InstalledGgufModel = {
   architecture?: string | null;
   contextLength?: number | null;
 };
+
+type OllamaInstalledModel = {
+  name: string;
+  size: number | null;
+  modified_at: string | null;
+  digest: string | null;
+  parameter_size: string | null;
+  quantization_level: string | null;
+  family: string | null;
+};
+
+type Tab = "local" | "ollama";
 
 type SortField = "params" | "arch" | "context" | "size";
 type SortDirection = "desc" | "asc";
@@ -62,12 +94,28 @@ function formatContextLength(contextLength?: number | null): string {
   return `${contextLength.toLocaleString()} ctx`;
 }
 
-function getModelTypeLabel(model: InstalledGgufModel): "MMPROJ" | "LLM" {
-  return model.isMmproj ? "MMPROJ" : "LLM";
+function relativeTime(iso: string | null): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return "—";
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}y ago`;
 }
 
 export function InstalledModelsPage() {
   const { t } = useI18n();
+  const [tab, setTab] = useState<Tab>("local");
+
+  // ---- Local state ----
   const [query, setQuery] = useState("");
   const [modelsDir, setModelsDir] = useState("");
   const [models, setModels] = useState<InstalledGgufModel[]>([]);
@@ -78,13 +126,26 @@ export function InstalledModelsPage() {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection | null>(null);
 
-  const loadModels = useCallback(async (mode: "initial" | "refresh" = "initial") => {
-    if (mode === "initial") {
-      setLoading(true);
-    } else {
-      setRefreshing(true);
-    }
+  // ---- Ollama state ----
+  const [ollamaProviders, setOllamaProviders] = useState<ProviderCredential[]>([]);
+  const [selectedOllamaProviderId, setSelectedOllamaProviderId] = useState<string | null>(null);
+  const [showProviderPicker, setShowProviderPicker] = useState(false);
+  const [ollamaQuery, setOllamaQuery] = useState("");
+  const [ollamaModels, setOllamaModels] = useState<OllamaInstalledModel[]>([]);
+  const [ollamaLoading, setOllamaLoading] = useState(false);
+  const [ollamaRefreshing, setOllamaRefreshing] = useState(false);
+  const [ollamaError, setOllamaError] = useState<string | null>(null);
+  const [deletingOllama, setDeletingOllama] = useState<string | null>(null);
 
+  const selectedOllamaProvider = useMemo(
+    () => ollamaProviders.find((p) => p.id === selectedOllamaProviderId) ?? null,
+    [ollamaProviders, selectedOllamaProviderId],
+  );
+
+  // ---- Local: load ----
+  const loadModels = useCallback(async (mode: "initial" | "refresh" = "initial") => {
+    if (mode === "initial") setLoading(true);
+    else setRefreshing(true);
     try {
       const [dir, downloaded] = await Promise.all([
         invoke<string>("hf_get_gguf_models_dir"),
@@ -92,12 +153,11 @@ export function InstalledModelsPage() {
       ]);
       setModelsDir(dir);
       setModels(
-        [...downloaded].sort((left, right) => {
-          if (left.modelId !== right.modelId) {
-            return left.modelId.localeCompare(right.modelId);
-          }
-          return left.filename.localeCompare(right.filename);
-        }),
+        [...downloaded].sort((l, r) =>
+          l.modelId !== r.modelId
+            ? l.modelId.localeCompare(r.modelId)
+            : l.filename.localeCompare(r.filename),
+        ),
       );
       setError(null);
     } catch (err) {
@@ -112,81 +172,151 @@ export function InstalledModelsPage() {
     void loadModels("initial");
   }, [loadModels]);
 
+  // ---- Ollama: provider sync ----
+  useEffect(() => {
+    const sync = async () => {
+      const settings = await readSettings();
+      const list = settings.providerCredentials.filter((p) => p.providerId === "ollama");
+      setOllamaProviders(list);
+      setSelectedOllamaProviderId((prev) => {
+        if (prev && list.some((p) => p.id === prev)) return prev;
+        return list[0]?.id ?? null;
+      });
+    };
+
+    const cached = readSettingsCached();
+    if (cached) {
+      const list = cached.providerCredentials.filter((p) => p.providerId === "ollama");
+      setOllamaProviders(list);
+      setSelectedOllamaProviderId((prev) => {
+        if (prev && list.some((p) => p.id === prev)) return prev;
+        return list[0]?.id ?? null;
+      });
+    }
+
+    void sync();
+    const handler = () => void sync();
+    window.addEventListener(SETTINGS_UPDATED_EVENT, handler);
+    return () => window.removeEventListener(SETTINGS_UPDATED_EVENT, handler);
+  }, []);
+
+  // ---- Ollama: load ----
+  const loadOllama = useCallback(
+    async (mode: "initial" | "refresh" = "initial") => {
+      if (!selectedOllamaProviderId) {
+        setOllamaModels([]);
+        setOllamaError(null);
+        return;
+      }
+      if (mode === "initial") setOllamaLoading(true);
+      else setOllamaRefreshing(true);
+      try {
+        const list = await invoke<OllamaInstalledModel[]>("ollama_inventory_list", {
+          credentialId: selectedOllamaProviderId,
+        });
+        setOllamaModels(list);
+        setOllamaError(null);
+      } catch (err) {
+        setOllamaError(typeof err === "string" ? err : err instanceof Error ? err.message : String(err));
+        setOllamaModels([]);
+      } finally {
+        setOllamaLoading(false);
+        setOllamaRefreshing(false);
+      }
+    },
+    [selectedOllamaProviderId],
+  );
+
+  useEffect(() => {
+    void loadOllama("initial");
+  }, [loadOllama]);
+
+  // ---- Local: derived ----
   const filteredModels = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return models;
-    return models.filter((model) => {
+    return models.filter((m) => {
       return (
-        model.modelId.toLowerCase().includes(needle) ||
-        model.filename.toLowerCase().includes(needle) ||
-        model.path.toLowerCase().includes(needle) ||
-        (model.architecture ?? "").toLowerCase().includes(needle) ||
-        model.quantization.toLowerCase().includes(needle)
+        m.modelId.toLowerCase().includes(needle) ||
+        m.filename.toLowerCase().includes(needle) ||
+        m.path.toLowerCase().includes(needle) ||
+        (m.architecture ?? "").toLowerCase().includes(needle) ||
+        m.quantization.toLowerCase().includes(needle)
       );
     });
   }, [models, query]);
 
   const sortedModels = useMemo(() => {
     if (!sortField || !sortDirection) return filteredModels;
-
-    const compareNullableNumbers = (left: number | null, right: number | null) => {
-      if (left === null && right === null) return 0;
-      if (left === null) return 1;
-      if (right === null) return -1;
-      return left - right;
+    const compareN = (a: number | null, b: number | null) => {
+      if (a === null && b === null) return 0;
+      if (a === null) return 1;
+      if (b === null) return -1;
+      return a - b;
     };
-
-    const compareNullableStrings = (left: string | null, right: string | null) => {
-      if (!left && !right) return 0;
-      if (!left) return 1;
-      if (!right) return -1;
-      return left.localeCompare(right);
+    const compareS = (a: string | null, b: string | null) => {
+      if (!a && !b) return 0;
+      if (!a) return 1;
+      if (!b) return -1;
+      return a.localeCompare(b);
     };
-
-    const direction = sortDirection === "desc" ? -1 : 1;
-    return [...filteredModels].sort((left, right) => {
-      let comparison = 0;
-
+    const dir = sortDirection === "desc" ? -1 : 1;
+    return [...filteredModels].sort((l, r) => {
+      let c = 0;
       if (sortField === "params") {
-        comparison = compareNullableNumbers(
-          paramSizeToNumber(extractParamSize(left.modelId, left.filename)),
-          paramSizeToNumber(extractParamSize(right.modelId, right.filename)),
+        c = compareN(
+          paramSizeToNumber(extractParamSize(l.modelId, l.filename)),
+          paramSizeToNumber(extractParamSize(r.modelId, r.filename)),
         );
       } else if (sortField === "arch") {
-        comparison = compareNullableStrings(left.architecture ?? null, right.architecture ?? null);
+        c = compareS(l.architecture ?? null, r.architecture ?? null);
       } else if (sortField === "context") {
-        comparison = compareNullableNumbers(
-          left.contextLength ?? null,
-          right.contextLength ?? null,
-        );
+        c = compareN(l.contextLength ?? null, r.contextLength ?? null);
       } else if (sortField === "size") {
-        comparison = left.size - right.size;
+        c = l.size - r.size;
       }
-
-      if (comparison === 0) {
-        return left.filename.localeCompare(right.filename);
-      }
-
-      return comparison * direction;
+      if (c === 0) return l.filename.localeCompare(r.filename);
+      return c * dir;
     });
   }, [filteredModels, sortDirection, sortField]);
 
   const totalSize = useMemo(
-    () => sortedModels.reduce((sum, model) => sum + model.size, 0),
+    () => sortedModels.reduce((s, m) => s + m.size, 0),
     [sortedModels],
   );
 
-  const handleCopyPath = useCallback(async (path: string) => {
-    try {
-      await navigator.clipboard.writeText(path);
-      toast.success(t("installedModels.toasts.pathCopied"), path);
-    } catch (err) {
-      toast.error(
-        t("installedModels.toasts.copyFailed"),
-        err instanceof Error ? err.message : String(err),
-      );
-    }
-  }, []);
+  const filteredOllamaModels = useMemo(() => {
+    const needle = ollamaQuery.trim().toLowerCase();
+    const sorted = [...ollamaModels].sort((l, r) => l.name.localeCompare(r.name));
+    if (!needle) return sorted;
+    return sorted.filter(
+      (m) =>
+        m.name.toLowerCase().includes(needle) ||
+        (m.family ?? "").toLowerCase().includes(needle) ||
+        (m.quantization_level ?? "").toLowerCase().includes(needle),
+    );
+  }, [ollamaModels, ollamaQuery]);
+
+  const ollamaTotalSize = useMemo(
+    () => filteredOllamaModels.reduce((s, m) => s + (m.size ?? 0), 0),
+    [filteredOllamaModels],
+  );
+
+  // ---- Handlers ----
+  const handleCopyPath = useCallback(
+    async (path: string) => {
+      try {
+        await navigator.clipboard.writeText(path);
+        toast.success(t("installedModels.toasts.pathCopied"), path);
+      } catch (err) {
+        toast.error(
+          t("installedModels.toasts.copyFailed"),
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    },
+    [t],
+  );
 
   const handleDeleteModel = useCallback(
     async (model: InstalledGgufModel) => {
@@ -197,7 +327,6 @@ export function InstalledModelsPage() {
         destructive: true,
       });
       if (!confirmed) return;
-
       try {
         setDeletingPath(model.path);
         await invoke("hf_delete_downloaded_model", { filePath: model.path });
@@ -212,7 +341,40 @@ export function InstalledModelsPage() {
         setDeletingPath(null);
       }
     },
-    [loadModels],
+    [loadModels, t],
+  );
+
+  const handleDeleteOllama = useCallback(
+    async (model: OllamaInstalledModel) => {
+      if (!selectedOllamaProvider) return;
+      const confirmed = await confirmBottomMenu({
+        title: t("installedModels.ollama.confirm.deleteTitle"),
+        message: t("installedModels.ollama.confirm.deleteMessage", {
+          name: model.name,
+          provider: selectedOllamaProvider.label,
+        }),
+        confirmLabel: t("common.buttons.delete"),
+        destructive: true,
+      });
+      if (!confirmed) return;
+      try {
+        setDeletingOllama(model.name);
+        await invoke("ollama_inventory_delete", {
+          credentialId: selectedOllamaProvider.id,
+          modelName: model.name,
+        });
+        toast.success(t("installedModels.ollama.toasts.modelDeleted"), model.name);
+        await loadOllama("refresh");
+      } catch (err) {
+        toast.error(
+          t("installedModels.ollama.toasts.deleteFailed"),
+          err instanceof Error ? err.message : String(err),
+        );
+      } finally {
+        setDeletingOllama(null);
+      }
+    },
+    [loadOllama, selectedOllamaProvider, t],
   );
 
   const cycleSort = useCallback(
@@ -226,20 +388,16 @@ export function InstalledModelsPage() {
         setSortDirection("asc");
         return;
       }
-      if (sortDirection === "asc") {
-        setSortField(null);
-        setSortDirection(null);
-        return;
-      }
-      setSortDirection("desc");
+      setSortField(null);
+      setSortDirection(null);
     },
     [sortDirection, sortField],
   );
 
   const sortIndicator = useCallback(
     (field: SortField) => {
-      if (sortField !== field || !sortDirection) return "";
-      return sortDirection === "desc" ? " ↓" : " ↑";
+      if (sortField !== field || !sortDirection) return null;
+      return sortDirection === "desc" ? "↓" : "↑";
     },
     [sortDirection, sortField],
   );
@@ -251,22 +409,18 @@ export function InstalledModelsPage() {
         <button
           onClick={() => cycleSort(field)}
           className={cn(
-            "group flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition",
-            isActive ? "bg-fg/[0.06] text-fg/80" : "text-fg/35 hover:text-fg/65 hover:bg-fg/[0.03]",
+            "group flex w-full items-center justify-between gap-1.5 rounded-md px-1.5 py-1 text-left transition",
+            isActive ? "text-fg/85" : "text-fg/40 hover:text-fg/70",
           )}
         >
           <span>{label}</span>
           <span
             className={cn(
-              "inline-flex items-center text-[10px] transition",
-              isActive ? "text-fg/75" : "text-fg/25 group-hover:text-fg/50",
+              "inline-flex items-center text-[11px] transition",
+              isActive ? "text-accent" : "text-fg/30 group-hover:text-fg/50",
             )}
           >
-            {isActive ? (
-              sortIndicator(field)
-            ) : (
-              <ArrowUpDown size={11} strokeWidth={2} className="translate-y-[0.5px]" />
-            )}
+            {isActive ? sortIndicator(field) : <ArrowUpDown size={11} strokeWidth={2} />}
           </span>
         </button>
       );
@@ -274,192 +428,701 @@ export function InstalledModelsPage() {
     [cycleSort, sortDirection, sortField, sortIndicator],
   );
 
+  // ---- Render helpers ----
+  const tabs: Array<{ key: Tab; label: string; count: number; size: number }> = [
+    {
+      key: "local",
+      label: t("installedModels.tabs.local"),
+      count: models.length,
+      size: models.reduce((s, m) => s + m.size, 0),
+    },
+    {
+      key: "ollama",
+      label: t("installedModels.tabs.ollama"),
+      count: ollamaModels.length,
+      size: ollamaModels.reduce((s, m) => s + (m.size ?? 0), 0),
+    },
+  ];
+
   return (
-    <div className="mx-auto flex h-full w-full max-w-[1440px] flex-col gap-4 pb-6">
-      <section className="space-y-3 rounded-xl border border-fg/10 bg-fg/[0.03] p-4">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 text-sm font-medium text-fg">
-              <HardDrive size={15} className="text-fg/60" />
-              <span>{t("installedModels.title")}</span>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-fg/55">
-              <button
-                onClick={() => void handleCopyPath(modelsDir)}
-                className="inline-flex max-w-full items-center gap-2 rounded-md border border-fg/10 px-2.5 py-1.5 text-left transition hover:bg-fg/[0.05] hover:text-fg"
-              >
-                <Copy size={12} />
-                <span className="truncate font-mono text-[12px]">{modelsDir || "…"}</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="rounded-md border border-fg/10 px-3 py-2 text-sm text-fg/70">
-              {t("installedModels.fileCount", { count: sortedModels.length })}
-            </div>
-            <div className="rounded-md border border-fg/10 px-3 py-2 text-sm text-fg/70">
-              {formatBytes(totalSize)}
-            </div>
-            <button
-              onClick={() => void loadModels("refresh")}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-md border border-fg/10 px-3 py-2 text-sm font-medium text-fg/80 transition hover:bg-fg/[0.06]",
-              )}
-            >
-              <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
-              {t("common.buttons.refresh")}
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 rounded-md border border-fg/10 bg-bg px-3 py-2.5">
-          <Search size={15} className="text-fg/35" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t("installedModels.searchPlaceholder")}
-            className="w-full bg-transparent text-sm text-fg outline-none placeholder:text-fg/35"
-          />
-        </div>
-      </section>
-
-      {loading ? (
-        <div className="rounded-xl border border-fg/10 bg-fg/[0.03] px-4 py-10 text-sm text-fg/55">
-          {t("installedModels.loading")}
-        </div>
-      ) : error ? (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-4 text-sm text-red-200">
-          {t("installedModels.loadFailed", { error })}
-        </div>
-      ) : sortedModels.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-fg/10 bg-fg/[0.02] px-4 py-12 text-center">
-          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg border border-fg/10 bg-fg/[0.03]">
-            <Cpu size={18} className="text-fg/45" />
-          </div>
-          <div className="text-sm font-medium text-fg">{t("installedModels.empty.title")}</div>
-          <p className="mt-1 text-sm text-fg/50">
-            {t("installedModels.empty.description")}
+    <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-5 pb-10 pt-5 sm:px-8">
+      {/* Header */}
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-[16px] font-semibold tracking-tight text-fg">
+            {t("installedModels.title")}
+          </h1>
+          <p className="mt-1 text-[12.5px] text-fg/50">
+            {t("installedModels.subtitle")}
           </p>
         </div>
+
+        {/* Tab pills (left-aligned, content-sized) */}
+        <div className="flex items-center gap-1 rounded-full border border-fg/8 bg-fg/[0.025] p-0.5">
+          {tabs.map(({ key, label, count }) => {
+            const active = tab === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={cn(
+                  "relative flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[12.5px] font-medium transition-colors",
+                  active ? "text-fg" : "text-fg/55 hover:text-fg/85",
+                )}
+              >
+                {active && (
+                  <motion.span
+                    layoutId="installedTabIndicator"
+                    className="absolute inset-0 rounded-full bg-fg/[0.09] ring-1 ring-inset ring-fg/15"
+                    transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.6 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-2">
+                  {key === "local" ? <HardDrive size={12} /> : <Server size={12} />}
+                  {label}
+                  <span
+                    className={cn(
+                      "rounded px-1.5 text-[10px] tabular-nums leading-[1.4]",
+                      active ? "bg-fg/12 text-fg/75" : "bg-fg/5 text-fg/40",
+                    )}
+                  >
+                    {count}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </header>
+
+      {tab === "local" ? (
+        <LocalView
+          modelsDir={modelsDir}
+          query={query}
+          setQuery={setQuery}
+          loading={loading}
+          refreshing={refreshing}
+          error={error}
+          totalSize={totalSize}
+          sortedModels={sortedModels}
+          deletingPath={deletingPath}
+          onCopyPath={handleCopyPath}
+          onDelete={handleDeleteModel}
+          onRefresh={() => void loadModels("refresh")}
+          renderSortHeader={renderSortHeader}
+          t={t}
+        />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-fg/10 bg-fg/[0.03]">
-          <div className="hidden grid-cols-[minmax(0,1.45fr)_86px_110px_110px_130px_120px_168px] items-center gap-3 border-b border-fg/10 px-4 py-3 text-[11px] font-medium uppercase tracking-[0.16em] text-fg/35 lg:grid">
-            <div>{t("common.labels.name")}</div>
+        <OllamaView
+          providers={ollamaProviders}
+          selectedProvider={selectedOllamaProvider}
+          onPickProvider={() => setShowProviderPicker(true)}
+          query={ollamaQuery}
+          setQuery={setOllamaQuery}
+          loading={ollamaLoading}
+          refreshing={ollamaRefreshing}
+          error={ollamaError}
+          models={filteredOllamaModels}
+          totalCount={ollamaModels.length}
+          totalSize={ollamaTotalSize}
+          deletingName={deletingOllama}
+          onDelete={handleDeleteOllama}
+          onRefresh={() => void loadOllama("refresh")}
+          t={t}
+        />
+      )}
+
+      <BottomMenu
+        isOpen={showProviderPicker}
+        onClose={() => setShowProviderPicker(false)}
+        title={t("installedModels.ollama.pickProvider")}
+      >
+        <div>
+          <p className="mb-4 text-[12.5px] leading-relaxed text-fg/55">
+            {t("installedModels.ollama.pickProviderHint")}
+          </p>
+          {ollamaProviders.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-fg/10 bg-fg/2 px-4 py-6 text-center">
+              <Server size={18} className="mx-auto mb-2 text-fg/30" />
+              <p className="text-[12px] leading-snug text-fg/55">
+                {t("installedModels.ollama.noProviders")}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {ollamaProviders.map((p) => {
+                const active = p.id === selectedOllamaProviderId;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      setSelectedOllamaProviderId(p.id);
+                      setShowProviderPicker(false);
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition",
+                      active
+                        ? "border-emerald-400/35 bg-emerald-500/8"
+                        : "border-fg/10 bg-fg/3 hover:border-fg/20 hover:bg-fg/5",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-9 w-9 items-center justify-center rounded-lg",
+                        active ? "bg-emerald-500/15 text-emerald-300" : "bg-fg/8 text-fg/55",
+                      )}
+                    >
+                      <Server size={15} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13px] font-medium text-fg">{p.label}</div>
+                      {p.baseUrl && (
+                        <div className="truncate font-mono text-[11px] text-fg/45">
+                          {p.baseUrl}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </BottomMenu>
+    </div>
+  );
+}
+
+// =============================================================================
+// Local view
+// =============================================================================
+
+interface LocalViewProps {
+  modelsDir: string;
+  query: string;
+  setQuery: (v: string) => void;
+  loading: boolean;
+  refreshing: boolean;
+  error: string | null;
+  totalSize: number;
+  sortedModels: InstalledGgufModel[];
+  deletingPath: string | null;
+  onCopyPath: (p: string) => void;
+  onDelete: (m: InstalledGgufModel) => void;
+  onRefresh: () => void;
+  renderSortHeader: (field: SortField, label: string) => React.ReactElement;
+  t: (k: any, v?: any) => string;
+}
+
+function LocalView({
+  modelsDir,
+  query,
+  setQuery,
+  loading,
+  refreshing,
+  error,
+  totalSize,
+  sortedModels,
+  deletingPath,
+  onCopyPath,
+  onDelete,
+  onRefresh,
+  renderSortHeader,
+  t,
+}: LocalViewProps) {
+  return (
+    <>
+      {/* Toolbar */}
+      <Toolbar
+        leading={
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder={t("installedModels.searchPlaceholder")}
+          />
+        }
+        meta={[
+          { value: String(sortedModels.length), unit: "files" },
+          { value: formatBytes(totalSize), tone: "accent" },
+        ]}
+        onRefresh={onRefresh}
+        refreshing={refreshing}
+        refreshLabel={t("common.buttons.refresh")}
+      />
+
+      {/* Path hint */}
+      <PathHint
+        icon={<HardDrive size={11} />}
+        path={modelsDir}
+        onCopy={() => void onCopyPath(modelsDir)}
+      />
+
+      {loading ? (
+        <SkeletonList />
+      ) : error ? (
+        <ErrorBox message={t("installedModels.loadFailed", { error })} />
+      ) : sortedModels.length === 0 ? (
+        <EmptyState
+          icon={<Cpu size={18} className="text-fg/45" />}
+          title={t("installedModels.empty.title")}
+          description={t("installedModels.empty.description")}
+        />
+      ) : (
+        <div>
+          <div className="hidden grid-cols-[minmax(0,1.6fr)_70px_80px_90px_120px_100px_160px] items-center gap-3 border-b border-fg/10 px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-fg/35 lg:grid">
+            <div className="pl-0.5">{t("common.labels.name")}</div>
             <div>{t("installedModels.columns.type")}</div>
             {renderSortHeader("params", t("installedModels.columns.params"))}
             {renderSortHeader("arch", t("installedModels.columns.arch"))}
             {renderSortHeader("context", t("installedModels.columns.context"))}
             {renderSortHeader("size", t("installedModels.columns.size"))}
-            <div className="text-right">{t("installedModels.columns.action")}</div>
+            <div className="pr-0.5 text-right">{t("installedModels.columns.action")}</div>
           </div>
-          {sortedModels.map((model, index) => {
-            const paramSize = extractParamSize(model.modelId, model.filename);
-            return (
-              <div
-                key={`${model.path}-${model.filename}`}
-                className={cn(
-                  "px-4 py-4",
-                  index !== sortedModels.length - 1 && "border-b border-fg/8",
-                )}
-              >
-                <div className="grid gap-3 lg:grid-cols-[minmax(0,1.45fr)_86px_110px_110px_130px_120px_168px] lg:items-center">
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-fg">
-                      {deriveDisplayName(model.filename)}
+          <div>
+            {sortedModels.map((model) => {
+              const paramSize = extractParamSize(model.modelId, model.filename);
+              const isMmproj = model.isMmproj;
+              return (
+                <div
+                  key={`${model.path}-${model.filename}`}
+                  className="group border-b border-fg/[0.05] px-2 py-2.5 transition hover:bg-fg/[0.02]"
+                >
+                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_70px_80px_90px_120px_100px_160px] lg:items-center">
+                    <div className="min-w-0">
+                      <div className="truncate text-[13px] font-medium text-fg">
+                        {deriveDisplayName(model.filename)}
+                      </div>
+                      <div className="mt-0.5 truncate text-[11px] text-fg/40">
+                        {model.modelId}
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5 lg:hidden">
+                        <TypeBadge isMmproj={isMmproj} />
+                        <Pill>{model.quantization}</Pill>
+                        {paramSize && <Pill>{paramSize}</Pill>}
+                        <Pill>{model.architecture?.toUpperCase() || "—"}</Pill>
+                        <Pill>{formatContextLength(model.contextLength)}</Pill>
+                        <Pill>{formatBytes(model.size)}</Pill>
+                      </div>
                     </div>
-                    <div className="truncate text-xs text-fg/45">{model.modelId}</div>
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5 lg:hidden">
-                      <span
-                        className={cn(
-                          "rounded-md border px-2 py-0.5 text-[11px] font-medium",
-                          model.isMmproj
-                            ? "border-blue-400/20 bg-blue-400/10 text-blue-300"
-                            : "border-emerald-400/20 bg-emerald-400/10 text-emerald-300",
-                        )}
-                      >
-                        {getModelTypeLabel(model)}
-                      </span>
-                      <span className="rounded-md border border-fg/10 px-2 py-0.5 text-[11px] text-fg/60">
+
+                    <div className="hidden lg:block">
+                      <TypeBadge isMmproj={isMmproj} />
+                    </div>
+                    <div className="hidden text-[12.5px] text-fg/70 lg:block">
+                      {paramSize || "—"}
+                    </div>
+                    <div className="hidden text-[12.5px] text-fg/70 lg:block">
+                      {model.architecture?.toUpperCase() || "—"}
+                    </div>
+                    <div className="hidden text-[12.5px] text-fg/70 lg:block">
+                      {formatContextLength(model.contextLength)}
+                    </div>
+                    <div className="hidden text-[12.5px] font-medium tabular-nums text-fg lg:block">
+                      {formatBytes(model.size)}
+                    </div>
+
+                    <div className="flex items-center justify-end gap-1">
+                      <span className="hidden rounded bg-fg/6 px-1.5 py-0.5 font-mono text-[10px] text-fg/55 lg:inline-flex">
                         {model.quantization}
                       </span>
-                      {paramSize ? (
-                        <span className="rounded-md border border-fg/10 px-2 py-0.5 text-[11px] text-fg/60">
-                          {paramSize}
-                        </span>
-                      ) : null}
-                      <span className="rounded-md border border-fg/10 px-2 py-0.5 text-[11px] text-fg/60">
-                        {model.architecture?.toUpperCase() || "—"}
-                      </span>
-                      <span className="rounded-md border border-fg/10 px-2 py-0.5 text-[11px] text-fg/60">
-                        {formatContextLength(model.contextLength)}
-                      </span>
-                      <span className="rounded-md border border-fg/10 px-2 py-0.5 text-[11px] text-fg/60">
-                        {formatBytes(model.size)}
-                      </span>
+                      <RowAction
+                        icon={<Copy size={12} />}
+                        label={t("common.buttons.copy")}
+                        onClick={() => void onCopyPath(model.path)}
+                      />
+                      <RowAction
+                        icon={<Trash2 size={12} />}
+                        label={t("common.buttons.delete")}
+                        onClick={() => void onDelete(model)}
+                        disabled={deletingPath === model.path}
+                        destructive
+                      />
                     </div>
-                    <div className="mt-2 truncate font-mono text-[11px] text-fg/32">
-                      {model.path}
-                    </div>
-                  </div>
-
-                  <div className="hidden lg:block">
-                    <span
-                      className={cn(
-                        "inline-flex rounded-md border px-2 py-1 text-[11px] font-medium",
-                        model.isMmproj
-                          ? "border-blue-400/20 bg-blue-400/10 text-blue-300"
-                          : "border-emerald-400/20 bg-emerald-400/10 text-emerald-300",
-                      )}
-                    >
-                      {getModelTypeLabel(model)}
-                    </span>
-                  </div>
-                  <div className="hidden lg:block text-sm text-fg/70">{paramSize || "—"}</div>
-                  <div className="hidden lg:block text-sm text-fg/70">
-                    {model.architecture?.toUpperCase() || "—"}
-                  </div>
-                  <div className="hidden lg:block text-sm text-fg/70">
-                    {formatContextLength(model.contextLength)}
-                  </div>
-                  <div className="hidden lg:block text-sm font-medium text-fg">
-                    {formatBytes(model.size)}
-                  </div>
-
-                  <div className="flex items-center justify-end gap-3">
-                    <span className="hidden rounded-md border border-fg/10 px-2 py-1 text-[11px] text-fg/55 lg:inline-flex">
-                      {model.quantization}
-                    </span>
-                    <button
-                      onClick={() => void handleCopyPath(model.path)}
-                      className="inline-flex items-center gap-1 rounded-md border border-fg/10 bg-fg/[0.02] px-2.5 py-1.5 text-xs text-fg/65 transition hover:bg-fg/[0.06] hover:text-fg"
-                    >
-                      <Copy size={12} />
-                      {t("common.buttons.copy")}
-                    </button>
-                    <button
-                      onClick={() => void handleDeleteModel(model)}
-                      disabled={deletingPath === model.path}
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs transition",
-                        deletingPath === model.path
-                          ? "cursor-not-allowed border-red-500/10 text-red-200/45"
-                          : "border-red-500/20 bg-red-500/[0.08] text-red-200/85 hover:bg-red-500/[0.14]",
-                      )}
-                    >
-                      <Trash2 size={12} />
-                      {deletingPath === model.path
-                        ? t("common.buttons.deleting")
-                        : t("common.buttons.delete")}
-                    </button>
                   </div>
                 </div>
-                <div className="mt-3 h-px bg-fg/0 lg:hidden" />
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
+    </>
+  );
+}
+
+// =============================================================================
+// Ollama view
+// =============================================================================
+
+interface OllamaViewProps {
+  providers: ProviderCredential[];
+  selectedProvider: ProviderCredential | null;
+  onPickProvider: () => void;
+  query: string;
+  setQuery: (v: string) => void;
+  loading: boolean;
+  refreshing: boolean;
+  error: string | null;
+  models: OllamaInstalledModel[];
+  totalCount: number;
+  totalSize: number;
+  deletingName: string | null;
+  onDelete: (m: OllamaInstalledModel) => void;
+  onRefresh: () => void;
+  t: (k: any, v?: any) => string;
+}
+
+function OllamaView({
+  providers,
+  selectedProvider,
+  onPickProvider,
+  query,
+  setQuery,
+  loading,
+  refreshing,
+  error,
+  models,
+  totalCount,
+  totalSize,
+  deletingName,
+  onDelete,
+  onRefresh,
+  t,
+}: OllamaViewProps) {
+  if (providers.length === 0) {
+    return (
+      <EmptyState
+        icon={<Server size={18} className="text-fg/45" />}
+        title={t("installedModels.ollama.noProviders")}
+        description={t("installedModels.ollama.pickProviderHint")}
+      />
+    );
+  }
+
+  return (
+    <>
+      <Toolbar
+        leading={
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder={t("installedModels.ollama.searchPlaceholder")}
+          />
+        }
+        meta={[
+          { value: String(totalCount), unit: "models" },
+          { value: formatBytes(totalSize), tone: "accent" },
+        ]}
+        onRefresh={onRefresh}
+        refreshing={refreshing}
+        refreshLabel={t("common.buttons.refresh")}
+      />
+
+      {/* Provider selector strip */}
+      <button
+        onClick={onPickProvider}
+        className="group flex items-center gap-2.5 rounded-lg border border-fg/8 bg-fg/[0.02] px-3 py-2 text-left transition hover:border-fg/20 hover:bg-fg/[0.05]"
+      >
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-300">
+          <Server size={11} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[12px] font-medium text-fg">
+            {selectedProvider?.label ?? "—"}
+          </div>
+          {selectedProvider?.baseUrl && (
+            <div className="truncate font-mono text-[10.5px] text-fg/45">
+              {selectedProvider.baseUrl}
+            </div>
+          )}
+        </div>
+        <ChevronDown
+          size={13}
+          className="shrink-0 text-fg/30 transition group-hover:text-fg/60"
+        />
+      </button>
+
+      {loading ? (
+        <SkeletonList />
+      ) : error ? (
+        <ErrorBox message={error} />
+      ) : models.length === 0 ? (
+        <EmptyState
+          icon={<Server size={18} className="text-fg/45" />}
+          title={t("installedModels.ollama.empty.title")}
+          description={t("installedModels.ollama.empty.description")}
+        />
+      ) : (
+        <div>
+          <div className="hidden grid-cols-[minmax(0,1.6fr)_92px_80px_90px_92px_104px_120px] items-center gap-3 border-b border-fg/10 px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-fg/35 lg:grid">
+            <div className="pl-0.5">{t("common.labels.name")}</div>
+            <div>{t("installedModels.ollama.columns.family")}</div>
+            <div>{t("installedModels.ollama.columns.params")}</div>
+            <div>{t("installedModels.ollama.columns.quant")}</div>
+            <div>{t("installedModels.ollama.columns.size")}</div>
+            <div>{t("installedModels.ollama.columns.modified")}</div>
+            <div className="pr-0.5 text-right">{t("installedModels.ollama.columns.action")}</div>
+          </div>
+          <div>
+            {models.map((model) => (
+              <div
+                key={model.name}
+                className="group border-b border-fg/[0.05] px-2 py-2.5 transition hover:bg-fg/[0.02]"
+              >
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_92px_80px_90px_92px_104px_120px] lg:items-center">
+                  <div className="min-w-0">
+                    <div className="truncate text-[13px] font-medium text-fg">{model.name}</div>
+                    {model.digest && (
+                      <div className="mt-0.5 truncate font-mono text-[10.5px] text-fg/35">
+                        {model.digest.slice(0, 12)}
+                      </div>
+                    )}
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5 lg:hidden">
+                      {model.family && <Pill>{model.family.toUpperCase()}</Pill>}
+                      {model.parameter_size && <Pill>{model.parameter_size}</Pill>}
+                      {model.quantization_level && <Pill>{model.quantization_level}</Pill>}
+                      <Pill>{formatBytes(model.size ?? 0)}</Pill>
+                      <Pill>{relativeTime(model.modified_at)}</Pill>
+                    </div>
+                  </div>
+                  <div className="hidden text-[12.5px] text-fg/70 lg:block">
+                    {model.family?.toUpperCase() ?? "—"}
+                  </div>
+                  <div className="hidden text-[12.5px] text-fg/70 lg:block">
+                    {model.parameter_size ?? "—"}
+                  </div>
+                  <div className="hidden lg:block">
+                    {model.quantization_level ? (
+                      <span className="rounded bg-fg/6 px-1.5 py-0.5 font-mono text-[10px] text-fg/70">
+                        {model.quantization_level}
+                      </span>
+                    ) : (
+                      <span className="text-[12.5px] text-fg/40">—</span>
+                    )}
+                  </div>
+                  <div className="hidden text-[12.5px] font-medium tabular-nums text-fg lg:block">
+                    {model.size ? formatBytes(model.size) : "—"}
+                  </div>
+                  <div className="hidden text-[11.5px] text-fg/55 lg:block">
+                    {relativeTime(model.modified_at)}
+                  </div>
+                  <div className="flex items-center justify-end gap-1">
+                    <RowAction
+                      icon={<Trash2 size={12} />}
+                      label={t("common.buttons.delete")}
+                      onClick={() => void onDelete(model)}
+                      disabled={deletingName === model.name}
+                      destructive
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// =============================================================================
+// Shared atoms
+// =============================================================================
+
+function Toolbar({
+  leading,
+  meta,
+  onRefresh,
+  refreshing,
+  refreshLabel,
+}: {
+  leading: React.ReactNode;
+  meta: Array<{ value: string; unit?: string; tone?: "accent" }>;
+  onRefresh: () => void;
+  refreshing: boolean;
+  refreshLabel: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <div className="min-w-0 flex-1">{leading}</div>
+      <div className="flex items-center gap-1 text-[12px] text-fg/55">
+        {meta.map((m, idx) => (
+          <span key={idx} className="flex items-center gap-1">
+            <span
+              className={cn(
+                "tabular-nums",
+                m.tone === "accent" ? "font-medium text-accent" : "text-fg/75",
+              )}
+            >
+              {m.value}
+            </span>
+            {m.unit && <span className="text-fg/40">{m.unit}</span>}
+            {idx < meta.length - 1 && <span className="px-0.5 text-fg/25">·</span>}
+          </span>
+        ))}
+      </div>
+      <button
+        onClick={onRefresh}
+        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[12px] font-medium text-fg/65 transition hover:bg-fg/6 hover:text-fg"
+      >
+        <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} />
+        {refreshLabel}
+      </button>
+    </div>
+  );
+}
+
+function PathHint({
+  icon,
+  path,
+  onCopy,
+}: {
+  icon: React.ReactNode;
+  path: string;
+  onCopy: () => void;
+}) {
+  if (!path) return null;
+  return (
+    <button
+      onClick={onCopy}
+      className="group flex items-center gap-2 text-left text-fg/45 transition hover:text-fg/75"
+    >
+      <span className="shrink-0">{icon}</span>
+      <span className="truncate font-mono text-[11px]">{path}</span>
+      <Copy size={11} className="ml-1 shrink-0 text-fg/25 transition group-hover:text-fg/55" />
+    </button>
+  );
+}
+
+function RowAction({
+  icon,
+  label,
+  onClick,
+  disabled,
+  destructive,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  destructive?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+      aria-label={label}
+      className={cn(
+        "flex h-7 w-7 items-center justify-center rounded-md transition",
+        destructive
+          ? disabled
+            ? "cursor-not-allowed text-rose-200/30"
+            : "text-fg/40 hover:bg-rose-500/10 hover:text-rose-300"
+          : disabled
+            ? "cursor-not-allowed text-fg/20"
+            : "text-fg/40 hover:bg-fg/8 hover:text-fg/85",
+      )}
+    >
+      {icon}
+    </button>
+  );
+}
+
+function Pill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-md bg-fg/6 px-2 py-0.5 text-[10.5px] text-fg/65">{children}</span>
+  );
+}
+
+function TypeBadge({ isMmproj }: { isMmproj: boolean }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-md px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider",
+        isMmproj
+          ? "bg-blue-400/12 text-blue-300 ring-1 ring-inset ring-blue-400/20"
+          : "bg-emerald-400/12 text-emerald-300 ring-1 ring-inset ring-emerald-400/20",
+      )}
+    >
+      {isMmproj ? "MMPROJ" : "LLM"}
+    </span>
+  );
+}
+
+function SearchInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div className="relative">
+      <Search
+        size={14}
+        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg/40"
+      />
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="h-9 w-full rounded-lg border border-fg/10 bg-fg/3 pl-9 pr-3 text-[13px] text-fg outline-none transition placeholder:text-fg/35 focus:border-accent/40 focus:bg-fg/5 focus:ring-1 focus:ring-accent/20"
+      />
+    </div>
+  );
+}
+
+function SkeletonList() {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div
+          key={i}
+          className="flex items-center gap-3 rounded-xl border border-fg/8 bg-fg/[0.025] px-4 py-3.5"
+        >
+          <div className="h-9 w-9 shrink-0 animate-pulse rounded-lg bg-fg/8" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-3 w-1/2 animate-pulse rounded bg-fg/8" />
+            <div className="h-2.5 w-1/3 animate-pulse rounded bg-fg/6" />
+          </div>
+          <div className="hidden h-3 w-16 animate-pulse rounded bg-fg/6 lg:block" />
+        </div>
+      ))}
+      <div className="flex items-center justify-center gap-2 py-2 text-[12px] text-fg/45">
+        <Loader size={12} className="animate-spin" />
+        Loading…
+      </div>
+    </div>
+  );
+}
+
+function ErrorBox({ message }: { message: string }) {
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-[13px] text-rose-200">
+      <AlertCircle size={15} className="mt-0.5 shrink-0" />
+      <span>{message}</span>
+    </div>
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-xl border border-dashed border-fg/10 bg-fg/[0.02] px-4 py-12 text-center">
+      <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg border border-fg/10 bg-fg/[0.04]">
+        {icon}
+      </div>
+      <div className="text-[13px] font-medium text-fg">{title}</div>
+      <p className="mx-auto mt-1 max-w-md text-[12.5px] text-fg/55">{description}</p>
     </div>
   );
 }

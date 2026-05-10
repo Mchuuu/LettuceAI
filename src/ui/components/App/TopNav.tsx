@@ -255,7 +255,12 @@ export function TopNav({
   }, [basePath]);
 
   const showLayoutToggle = useMemo(() => {
-    return basePath === "/chat" || basePath === "/" || basePath === "/settings/models";
+    return (
+      basePath === "/chat" ||
+      basePath === "/" ||
+      basePath === "/settings/models" ||
+      basePath === "/settings/models/browse"
+    );
   }, [basePath]);
 
   const [layoutViewMode, setLayoutViewMode] = useState<string>("hero");
@@ -267,12 +272,23 @@ export function TopNav({
         if (mode) setLayoutViewMode(mode);
         return;
       }
+      if (basePath === "/settings/models/browse") {
+        const mode =
+          (window as any).__hfBrowserViewMode ||
+          window.localStorage.getItem("hfBrowser:viewMode");
+        if (mode) setLayoutViewMode(mode);
+        return;
+      }
       const mode = (window as any).__chatsViewMode;
       if (mode) setLayoutViewMode(mode);
     };
     sync();
     const eventName =
-      basePath === "/settings/models" ? "models:viewModeChanged" : "chats:viewModeChanged";
+      basePath === "/settings/models"
+        ? "models:viewModeChanged"
+        : basePath === "/settings/models/browse"
+          ? "hfBrowser:viewModeChanged"
+          : "chats:viewModeChanged";
     window.addEventListener(eventName, sync);
     return () => window.removeEventListener(eventName, sync);
   }, [basePath, showLayoutToggle]);
@@ -282,11 +298,17 @@ export function TopNav({
       ? layoutViewMode === "grid"
         ? LayoutList
         : LayoutGrid
-      : layoutViewMode === "hero"
-        ? LayoutGrid
-        : layoutViewMode === "gallery"
-          ? Grid3X3
-          : LayoutList;
+      : basePath === "/settings/models/browse"
+        ? layoutViewMode === "list"
+          ? LayoutList
+          : layoutViewMode === "grid"
+            ? LayoutGrid
+            : Grid3X3
+        : layoutViewMode === "hero"
+          ? LayoutGrid
+          : layoutViewMode === "gallery"
+            ? Grid3X3
+            : LayoutList;
 
   const showAddButton = useMemo(() => {
     if (basePath.startsWith("/settings/providers")) return true;
@@ -700,7 +722,9 @@ export function TopNav({
                   new CustomEvent(
                     basePath === "/settings/models"
                       ? "models:cycleViewMode"
-                      : "chats:cycleViewMode",
+                      : basePath === "/settings/models/browse"
+                        ? "hfBrowser:cycleViewMode"
+                        : "chats:cycleViewMode",
                   ),
                 )
               }

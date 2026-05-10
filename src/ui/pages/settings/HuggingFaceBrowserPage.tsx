@@ -20,6 +20,11 @@ import {
   Monitor,
   Info,
   ArrowRight,
+  Server,
+  Check,
+  HardDrive,
+  ChevronDown,
+  SlidersHorizontal,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -41,6 +46,7 @@ import {
   SETTINGS_UPDATED_EVENT,
 } from "../../../core/storage/repo";
 import { createDefaultAdvancedModelSettings } from "../../../core/storage/schemas";
+import type { ProviderCredential } from "../../../core/storage/schemas";
 
 interface HfSearchResult {
   modelId: string;
@@ -666,6 +672,35 @@ function extractParamSize(tags: string[], modelId: string): string | null {
   return null;
 }
 
+/** Convert a param size string ("7B", "120M", "1.5K") into a value in billions. */
+function paramSizeToBillions(value: string | null): number | null {
+  if (!value) return null;
+  const match = value.match(/^(\d+(?:\.\d+)?)([KMBT])$/i);
+  if (!match) return null;
+  const numeric = Number(match[1]);
+  const unit = match[2].toUpperCase();
+  const multipliers: Record<string, number> = {
+    K: 1e-6,
+    M: 1e-3,
+    B: 1,
+    T: 1e3,
+  };
+  return numeric * multipliers[unit];
+}
+
+const COMMON_PIPELINE_TAGS = [
+  "text-generation",
+  "text-to-text",
+  "image-text-to-text",
+  "text-to-image",
+  "text-to-video",
+  "image-to-text",
+  "automatic-speech-recognition",
+  "text-to-speech",
+  "feature-extraction",
+  "sentence-similarity",
+];
+
 /** Generate a deterministic color from a string for avatar fallback */
 function authorColor(name: string): string {
   const colors = [
@@ -1151,6 +1186,11 @@ export function HuggingFaceBrowserPage() {
     const syncLocalModelState = async () => {
       const settings = await readSettings();
       setHasPersistedLocalModel(settings.models.some((model) => model.providerId === "llamacpp"));
+      const ollama = settings.providerCredentials.filter((p) => p.providerId === "ollama");
+      setOllamaProviders(ollama);
+      setSelectedOllamaProviderId((prev) =>
+        prev && ollama.some((p) => p.id === prev) ? prev : null,
+      );
     };
 
     void syncLocalModelState();
@@ -1197,6 +1237,55 @@ export function HuggingFaceBrowserPage() {
     [setSearchParams, preserveParams],
   );
 
+  const [ollamaProviders, setOllamaProviders] = useState<ProviderCredential[]>([]);
+  const [selectedOllamaProviderId, setSelectedOllamaProviderId] = useState<string | null>(null);
+  const [showOllamaProviderMenu, setShowOllamaProviderMenu] = useState(false);
+
+  // Filter state
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [filterPipelineTags, setFilterPipelineTags] = useState<Set<string>>(new Set());
+  const [filterParamMin, setFilterParamMin] = useState<string>("");
+  const [filterParamMax, setFilterParamMax] = useState<string>("");
+
+  const filterParamMinNum = filterParamMin ? Number(filterParamMin) : null;
+  const filterParamMaxNum = filterParamMax ? Number(filterParamMax) : null;
+  const activeFilterCount =
+    filterPipelineTags.size +
+    (filterParamMinNum != null && !isNaN(filterParamMinNum) ? 1 : 0) +
+    (filterParamMaxNum != null && !isNaN(filterParamMaxNum) ? 1 : 0);
+
+  type HfBrowserViewMode = "list" | "grid" | "gallery";
+  const HF_VIEW_STORAGE_KEY = "hfBrowser:viewMode";
+  const [browserViewMode, setBrowserViewMode] = useState<HfBrowserViewMode>(() => {
+    if (typeof window === "undefined") return "grid";
+    const stored = window.localStorage.getItem(HF_VIEW_STORAGE_KEY);
+    return stored === "list" || stored === "grid" || stored === "gallery" ? stored : "grid";
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(HF_VIEW_STORAGE_KEY, browserViewMode);
+    (window as any).__hfBrowserViewMode = browserViewMode;
+    window.dispatchEvent(new CustomEvent("hfBrowser:viewModeChanged"));
+  }, [browserViewMode]);
+
+  useEffect(() => {
+    const handler = () => {
+      setBrowserViewMode((prev) => {
+        const order: HfBrowserViewMode[] = ["list", "grid", "gallery"];
+        return order[(order.indexOf(prev) + 1) % order.length];
+      });
+    };
+    window.addEventListener("hfBrowser:cycleViewMode", handler);
+    return () => window.removeEventListener("hfBrowser:cycleViewMode", handler);
+  }, []);
+
+  const selectedOllamaProvider = useMemo(
+    () => ollamaProviders.find((p) => p.id === selectedOllamaProviderId) ?? null,
+    [ollamaProviders, selectedOllamaProviderId],
+  );
+  const isOllamaMode = !!selectedOllamaProvider;
+
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("trending");
@@ -1206,6 +1295,38 @@ export function HuggingFaceBrowserPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+
+  const displayedResults = useMemo(() => {
+    if (filterPipelineTags.size === 0 && filterParamMinNum == null && filterParamMaxNum == null) {
+      return results;
+    }
+    return results.filter((r) => {
+      if (filterPipelineTags.size > 0) {
+        if (!r.pipelineTag || !filterPipelineTags.has(r.pipelineTag)) return false;
+      }
+      if (filterParamMinNum != null || filterParamMaxNum != null) {
+        const sizeStr = extractParamSize(r.tags, r.modelId);
+        const sizeB = paramSizeToBillions(sizeStr);
+        if (sizeB == null) return false;
+        if (filterParamMinNum != null && !isNaN(filterParamMinNum) && sizeB < filterParamMinNum) {
+          return false;
+        }
+        if (filterParamMaxNum != null && !isNaN(filterParamMaxNum) && sizeB > filterParamMaxNum) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [results, filterPipelineTags, filterParamMinNum, filterParamMaxNum]);
+
+  // Pipeline tags present in current results (to surface relevant options)
+  const availablePipelineTags = useMemo(() => {
+    const tags = new Set<string>();
+    for (const r of results) {
+      if (r.pipelineTag) tags.add(r.pipelineTag);
+    }
+    return tags;
+  }, [results]);
 
   const PAGE_SIZE = 30;
 
@@ -1401,8 +1522,8 @@ export function HuggingFaceBrowserPage() {
       setReadmeLoading(true);
       setRunabilityScores({});
       setRecData(null);
-      setRecLoading(true);
-      setFilesPanelTab("recommended");
+      setRecLoading(!isOllamaMode);
+      setFilesPanelTab(isOllamaMode ? "files" : "recommended");
       setCompareOpen(false);
       setCompareSelections([]);
       setRecImageSupport(false);
@@ -1411,9 +1532,9 @@ export function HuggingFaceBrowserPage() {
       const filesPromise = invoke<HfModelInfo>("hf_get_model_files", { modelId })
         .then((info) => {
           setModelInfo(info);
-          // Fetch runability scores in background
+          // Fetch runability scores in background (skipped in Ollama mode — host hardware unknown)
           const runnableFiles = info.files.filter((f) => f.size > 0 && !f.isMmproj);
-          if (runnableFiles.length > 0) {
+          if (runnableFiles.length > 0 && !isOllamaMode) {
             invoke<RunabilityScore[]>("hf_compute_runability", {
               modelId: info.modelId,
               files: runnableFiles.map((f) => ({
@@ -1450,11 +1571,16 @@ export function HuggingFaceBrowserPage() {
 
       await Promise.allSettled([filesPromise, readmePromise]);
     },
-    [setView],
+    [setView, isOllamaMode],
   );
 
   useEffect(() => {
     if (view.kind !== "model" || !modelInfo) return;
+    if (isOllamaMode) {
+      setRecLoading(false);
+      setRecData(null);
+      return;
+    }
     const files = modelInfo.files.filter((f) => f.size > 0 && !f.isMmproj);
     if (files.length === 0) {
       setRecLoading(false);
@@ -1494,7 +1620,7 @@ export function HuggingFaceBrowserPage() {
     return () => {
       cancelled = true;
     };
-  }, [view.kind, modelInfo]);
+  }, [view.kind, modelInfo, isOllamaMode]);
 
   const filesWithSize = modelInfo?.files.filter((f) => f.size > 0) ?? [];
   const runnableFilesWithSize = useMemo(
@@ -1644,8 +1770,29 @@ export function HuggingFaceBrowserPage() {
   );
 
   const queueTrackedDownload = useCallback(
-    async (modelId: string, filename: string, metadata: QueueDownloadMetadata | null = null) => {
+    async (
+      modelId: string,
+      filename: string,
+      metadata: QueueDownloadMetadata | null = null,
+      ollamaContext?: { providerId: string; quantization: string | null } | null,
+    ) => {
       try {
+        if (ollamaContext) {
+          const tag =
+            ollamaContext.quantization && ollamaContext.quantization.trim().length > 0
+              ? `:${ollamaContext.quantization}`
+              : "";
+          const modelRef = `hf.co/${modelId}${tag}`;
+          const augmentedMetadata: QueueDownloadMetadata = {
+            ...(metadata ?? {}),
+            displayName: metadata?.displayName ?? filename,
+          };
+          return await invoke<string>("ollama_pull_model", {
+            credentialId: ollamaContext.providerId,
+            modelRef,
+            metadata: augmentedMetadata,
+          });
+        }
         return await invoke<string>("hf_queue_download", {
           modelId,
           filename,
@@ -1850,10 +1997,15 @@ export function HuggingFaceBrowserPage() {
           }
         : null;
 
-      await queueTrackedDownload(modelInfo.modelId, file.filename, metadata);
+      const ollamaContext =
+        isOllamaMode && selectedOllamaProviderId
+          ? { providerId: selectedOllamaProviderId, quantization: file.quantization }
+          : null;
+      await queueTrackedDownload(modelInfo.modelId, file.filename, metadata, ollamaContext);
     },
     [
       gpuOptionsEnabled,
+      isOllamaMode,
       modelInfo,
       queueTrackedDownload,
       recContext,
@@ -1864,6 +2016,7 @@ export function HuggingFaceBrowserPage() {
       recModelOffload,
       recommendedMixedGpuLayers,
       returnTo,
+      selectedOllamaProviderId,
     ],
   );
 
@@ -1943,36 +2096,92 @@ export function HuggingFaceBrowserPage() {
               transition={{ duration: 0.15 }}
               className="flex flex-col"
             >
-              {/* Search bar */}
-              <div className="sticky top-0 z-10 border-b border-fg/5 bg-surface px-4 py-3 space-y-3">
-                <div className="relative">
-                  <Search
-                    size={16}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-fg/40"
-                  />
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder={t("hfBrowser.searchPlaceholder")}
-                    className={cn(
-                      "w-full rounded-xl border border-fg/10 bg-fg/5 py-2.5 pl-9 pr-9 text-sm text-fg placeholder-fg/40",
-                      "focus:border-fg/25 focus:outline-none transition",
+              {/* Search + filters */}
+              <div className="sticky top-0 z-10 border-b border-fg/5 bg-surface/95 backdrop-blur px-4 py-3 space-y-3">
+                {/* Search bar with inline destination */}
+                <div className="flex items-stretch gap-2">
+                  <div className="relative flex-1">
+                    <Search
+                      size={15}
+                      strokeWidth={2.25}
+                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg/40"
+                    />
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder={t("hfBrowser.searchPlaceholder")}
+                      className={cn(
+                        "h-10 w-full rounded-xl border border-fg/10 bg-fg/4 pl-10 pr-9 text-[13px] text-fg placeholder-fg/35",
+                        "transition focus:border-accent/40 focus:bg-fg/6 focus:outline-none focus:ring-1 focus:ring-accent/20",
+                      )}
+                    />
+                    {query && (
+                      <button
+                        onClick={() => setQuery("")}
+                        className="absolute right-2.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-fg/40 transition hover:bg-fg/8 hover:text-fg/80"
+                        aria-label="Clear search"
+                      >
+                        <X size={13} />
+                      </button>
                     )}
-                  />
-                  {query && (
-                    <button
-                      onClick={() => setQuery("")}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-fg/40 hover:text-fg/70"
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
+                  </div>
+
+                  {/* Filter button */}
+                  <button
+                    onClick={() => setShowFilterMenu(true)}
+                    className={cn(
+                      "relative flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[13px] font-medium transition",
+                      activeFilterCount > 0
+                        ? "border-accent/40 bg-accent/12 text-accent hover:border-accent/55"
+                        : "border-fg/10 bg-fg/4 text-fg/70 hover:border-fg/25 hover:text-fg",
+                    )}
+                    aria-haspopup="menu"
+                    aria-expanded={showFilterMenu}
+                    aria-label="Filters"
+                    title="Filters"
+                  >
+                    <SlidersHorizontal size={14} />
+                    {activeFilterCount > 0 && (
+                      <span className="rounded-full bg-accent/25 px-1.5 text-[10px] font-semibold leading-[1.4] tabular-nums">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Destination picker (single-line, search-bar height) */}
+                  <button
+                    onClick={() => setShowOllamaProviderMenu(true)}
+                    className={cn(
+                      "group flex h-10 shrink-0 items-center gap-2 rounded-xl border px-3 text-[13px] font-medium transition",
+                      isOllamaMode
+                        ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-200 hover:border-emerald-400/55 hover:bg-emerald-500/15"
+                        : "border-fg/10 bg-fg/4 text-fg/70 hover:border-fg/25 hover:text-fg",
+                    )}
+                    aria-haspopup="menu"
+                    aria-expanded={showOllamaProviderMenu}
+                    aria-label={t("hfBrowser.destination")}
+                  >
+                    {isOllamaMode ? (
+                      <Server size={14} className="text-emerald-300" />
+                    ) : (
+                      <HardDrive size={14} className="text-fg/55" />
+                    )}
+                    <span className="max-w-[9rem] truncate">
+                      {isOllamaMode
+                        ? (selectedOllamaProvider?.label ?? t("hfBrowser.destinationOllama"))
+                        : t("hfBrowser.destinationLocal")}
+                    </span>
+                    <ChevronDown
+                      size={13}
+                      className="shrink-0 opacity-50 transition group-hover:opacity-90"
+                    />
+                  </button>
                 </div>
 
-                {/* Sort pills */}
-                <div className="flex gap-2 overflow-x-auto pb-0.5 no-scrollbar">
+                {/* Sort segmented bar with sliding indicator */}
+                <div className="flex gap-1 overflow-x-auto rounded-xl border border-fg/8 bg-fg/3 p-1 no-scrollbar">
                   {(
                     [
                       { key: "trending", icon: TrendingUp, label: t("hfBrowser.sortTrending") },
@@ -1984,27 +2193,37 @@ export function HuggingFaceBrowserPage() {
                       { key: "likes", icon: ThumbsUp, label: t("hfBrowser.sortLikes") },
                       { key: "lastModified", icon: Clock, label: t("hfBrowser.sortRecent") },
                     ] as const
-                  ).map(({ key, icon: Icon, label }) => (
-                    <button
-                      key={key}
-                      onClick={() => setSortMode(key)}
-                      className={cn(
-                        "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition",
-                        sortMode === key
-                          ? "border-accent/40 bg-accent/15 text-accent"
-                          : "border-fg/10 bg-fg/5 text-fg/60 hover:border-fg/20",
-                      )}
-                    >
-                      <Icon size={12} />
-                      {label}
-                    </button>
-                  ))}
+                  ).map(({ key, icon: Icon, label }) => {
+                    const active = sortMode === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => setSortMode(key)}
+                        className={cn(
+                          "relative flex flex-1 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors",
+                          active ? "text-accent" : "text-fg/55 hover:text-fg/85",
+                        )}
+                      >
+                        {active && (
+                          <motion.span
+                            layoutId="hfSortIndicator"
+                            className="absolute inset-0 rounded-lg bg-accent/15 ring-1 ring-inset ring-accent/30"
+                            transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.6 }}
+                          />
+                        )}
+                        <span className="relative z-10 flex items-center gap-1.5">
+                          <Icon size={12} />
+                          {label}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Content area */}
               <div className="px-4 py-3 space-y-2">
-                {/* Inline download cards */}
+{/* Inline download cards */}
                 {hasDownloads && (
                   <InlineDownloadCards
                     showDivider={results.length > 0 || searching}
@@ -2014,23 +2233,20 @@ export function HuggingFaceBrowserPage() {
 
                 {/* Loading state  */}
                 {searching && !hasSearched && (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-1.5 md:grid-cols-2 xl:grid-cols-3">
                     {Array.from({ length: 12 }).map((_, i) => (
                       <div
                         key={i}
-                        className="rounded-xl border border-fg/5 bg-fg/2 px-3 py-2.5 animate-pulse"
+                        className="flex items-center gap-2.5 rounded-lg border border-fg/8 bg-fg/[0.02] px-2.5 py-2 animate-pulse"
                       >
-                        <div className="flex items-center gap-2">
-                          <div className="h-5 w-5 rounded-full bg-fg/8" />
-                          <div className="h-3 flex-1 rounded bg-fg/8" />
+                        <div className="h-6 w-6 shrink-0 rounded-full bg-fg/8" />
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <div className="h-3 w-3/4 rounded bg-fg/8" />
+                          <div className="h-2 w-1/2 rounded bg-fg/5" />
                         </div>
-                        <div className="mt-2 flex gap-2">
-                          <div className="h-2.5 w-20 rounded bg-fg/5" />
-                          <div className="h-2.5 w-10 rounded bg-fg/5" />
-                        </div>
-                        <div className="mt-1.5 flex gap-2">
-                          <div className="h-2.5 w-10 rounded bg-fg/5" />
+                        <div className="hidden sm:flex shrink-0 gap-2">
                           <div className="h-2.5 w-8 rounded bg-fg/5" />
+                          <div className="h-2.5 w-6 rounded bg-fg/5" />
                         </div>
                       </div>
                     ))}
@@ -2060,22 +2276,44 @@ export function HuggingFaceBrowserPage() {
                   </div>
                 )}
 
-                {!searching && results.length > 0 && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {results.map((model) => {
+                {!searching && results.length > 0 && displayedResults.length === 0 && (
+                  <div className="flex flex-col items-center gap-2 py-12 text-center">
+                    <SlidersHorizontal size={20} className="text-fg/30" />
+                    <p className="text-sm text-fg/60">No results match your filters</p>
+                    <button
+                      onClick={() => {
+                        setFilterPipelineTags(new Set());
+                        setFilterParamMin("");
+                        setFilterParamMax("");
+                      }}
+                      className="mt-1 rounded-full border border-fg/15 bg-fg/5 px-3 py-1 text-[11px] font-medium text-fg/70 transition hover:border-fg/30"
+                    >
+                      Clear filters
+                    </button>
+                  </div>
+                )}
+
+                {!searching && displayedResults.length > 0 && (
+                  <div
+                    className={cn(
+                      browserViewMode === "list" && "flex flex-col",
+                      browserViewMode === "grid" &&
+                        "grid grid-cols-1 gap-1.5 md:grid-cols-2 xl:grid-cols-3",
+                      browserViewMode === "gallery" &&
+                        "grid grid-cols-1 gap-2.5 md:grid-cols-2",
+                    )}
+                  >
+                    {displayedResults.map((model) => {
                       const paramSize = extractParamSize(model.tags, model.modelId);
                       const avatarUrl = avatars[model.author];
-                      return (
-                        <button
-                          key={model.modelId}
-                          onClick={() => openModel(model.modelId)}
-                          className={cn(
-                            "group rounded-xl border border-fg/10 bg-fg/3 px-3 py-2.5 text-left transition",
-                            "hover:border-fg/20 hover:bg-fg/6 active:scale-[0.98]",
-                          )}
-                        >
-                          {/* Model name with author avatar */}
-                          <div className="flex items-center gap-2 min-w-0">
+
+                      if (browserViewMode === "list") {
+                        return (
+                          <button
+                            key={model.modelId}
+                            onClick={() => openModel(model.modelId)}
+                            className="group flex items-center gap-2.5 border-b border-fg/[0.05] px-1.5 py-2 text-left transition hover:bg-fg/[0.03]"
+                          >
                             {avatarUrl ? (
                               <img
                                 src={avatarUrl}
@@ -2086,50 +2324,171 @@ export function HuggingFaceBrowserPage() {
                             ) : (
                               <div
                                 className={cn(
-                                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-fg/70",
+                                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-fg/75",
                                   authorColor(model.author),
                                 )}
                               >
                                 {model.author.charAt(0).toUpperCase()}
                               </div>
                             )}
-                            <span className="truncate text-[13px] font-semibold text-fg">
+                            <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-fg">
                               {model.modelId}
                             </span>
-                          </div>
+                            <div className="hidden shrink-0 items-center gap-1.5 text-[10.5px] text-fg/45 md:flex">
+                              {model.pipelineTag && (
+                                <span className="truncate max-w-[8rem]">{model.pipelineTag}</span>
+                              )}
+                              {paramSize && (
+                                <>
+                                  <span className="text-fg/20">·</span>
+                                  <span>{paramSize}</span>
+                                </>
+                              )}
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2 text-[10.5px] tabular-nums text-fg/50">
+                              <span className="flex items-center gap-0.5" title="Downloads">
+                                <ArrowDownToLine size={10} className="text-fg/35" />
+                                {formatNumber(model.downloads)}
+                              </span>
+                              <span className="flex items-center gap-0.5" title="Likes">
+                                <Heart size={10} className="text-fg/35" />
+                                {formatNumber(model.likes)}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      }
 
-                          {/* Meta: pipeline tag · param size · updated */}
-                          <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-fg/50 overflow-hidden">
-                            {model.pipelineTag && (
-                              <>
-                                <Cpu size={10} className="shrink-0 text-fg/40" />
-                                <span className="truncate">{model.pipelineTag}</span>
-                              </>
+                      if (browserViewMode === "gallery") {
+                        return (
+                          <button
+                            key={model.modelId}
+                            onClick={() => openModel(model.modelId)}
+                            className={cn(
+                              "group flex items-stretch gap-3 rounded-xl border border-fg/10 bg-fg/[0.025] p-3 text-left transition",
+                              "hover:border-fg/25 hover:bg-fg/[0.05] active:scale-[0.99]",
                             )}
-                            {paramSize && (
-                              <>
-                                <span className="text-fg/20 shrink-0">·</span>
-                                <Layers size={10} className="shrink-0 text-fg/40" />
-                                <span className="shrink-0">{paramSize}</span>
-                              </>
+                          >
+                            {avatarUrl ? (
+                              <img
+                                src={avatarUrl}
+                                alt={model.author}
+                                className="h-12 w-12 shrink-0 self-center rounded-lg object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div
+                                className={cn(
+                                  "flex h-12 w-12 shrink-0 self-center items-center justify-center rounded-lg text-[18px] font-bold text-fg/75",
+                                  authorColor(model.author),
+                                )}
+                              >
+                                {model.author.charAt(0).toUpperCase()}
+                              </div>
                             )}
-                            {model.lastModified && (
-                              <>
-                                <span className="text-fg/20 shrink-0">·</span>
-                                <span className="truncate">
-                                  {formatTimeAgo(model.lastModified)}
+
+                            <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
+                              <div className="flex items-baseline gap-2 min-w-0">
+                                <span className="truncate text-[13px] font-semibold text-fg">
+                                  {model.modelId.split("/").pop()}
                                 </span>
-                              </>
-                            )}
+                                <span className="truncate text-[10.5px] text-fg/40">
+                                  {model.author}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-2 text-[10.5px] text-fg/55">
+                                {model.pipelineTag && (
+                                  <span className="truncate rounded bg-fg/8 px-1.5 py-0.5 font-medium">
+                                    {model.pipelineTag}
+                                  </span>
+                                )}
+                                {paramSize && (
+                                  <span className="shrink-0 rounded bg-fg/8 px-1.5 py-0.5 font-medium">
+                                    {paramSize}
+                                  </span>
+                                )}
+                                {model.lastModified && (
+                                  <span className="shrink-0 text-fg/40">
+                                    {formatTimeAgo(model.lastModified)}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-3 text-[10.5px] tabular-nums text-fg/50">
+                                <span className="flex items-center gap-1" title="Downloads">
+                                  <ArrowDownToLine size={10} className="text-fg/35" />
+                                  {formatNumber(model.downloads)}
+                                </span>
+                                <span className="flex items-center gap-1" title="Likes">
+                                  <Heart size={10} className="text-fg/35" />
+                                  {formatNumber(model.likes)}
+                                </span>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      }
+
+                      // grid (default compact card)
+                      return (
+                        <button
+                          key={model.modelId}
+                          onClick={() => openModel(model.modelId)}
+                          className={cn(
+                            "group flex items-center gap-2.5 rounded-lg border border-fg/8 bg-fg/[0.02] px-2.5 py-2 text-left transition",
+                            "hover:border-fg/20 hover:bg-fg/[0.05] active:scale-[0.99]",
+                          )}
+                        >
+                          {avatarUrl ? (
+                            <img
+                              src={avatarUrl}
+                              alt={model.author}
+                              className="h-6 w-6 shrink-0 rounded-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div
+                              className={cn(
+                                "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-fg/75",
+                                authorColor(model.author),
+                              )}
+                            >
+                              {model.author.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-[12.5px] font-medium text-fg">
+                              {model.modelId}
+                            </div>
+                            <div className="mt-0.5 flex items-center gap-1 truncate text-[10.5px] text-fg/45">
+                              {model.pipelineTag && (
+                                <span className="truncate">{model.pipelineTag}</span>
+                              )}
+                              {paramSize && (
+                                <>
+                                  <span className="text-fg/20">·</span>
+                                  <span className="shrink-0">{paramSize}</span>
+                                </>
+                              )}
+                              {model.lastModified && (
+                                <>
+                                  <span className="text-fg/20">·</span>
+                                  <span className="shrink-0 truncate">
+                                    {formatTimeAgo(model.lastModified)}
+                                  </span>
+                                </>
+                              )}
+                            </div>
                           </div>
 
-                          {/* Stats: downloads · likes */}
-                          <div className="mt-1.5 flex items-center gap-3 text-[11px] text-fg/45">
-                            <span className="flex items-center gap-1">
+                          <div className="flex shrink-0 items-center gap-2.5 text-[10.5px] tabular-nums text-fg/50">
+                            <span className="flex items-center gap-1" title="Downloads">
                               <ArrowDownToLine size={10} className="text-fg/35" />
                               {formatNumber(model.downloads)}
                             </span>
-                            <span className="flex items-center gap-1">
+                            <span className="flex items-center gap-1" title="Likes">
                               <Heart size={10} className="text-fg/35" />
                               {formatNumber(model.likes)}
                             </span>
@@ -2294,33 +2653,54 @@ export function HuggingFaceBrowserPage() {
                         ref={filesPanelRef}
                         className="flex flex-col overflow-hidden will-change-transform rounded-b-xl"
                       >
-                        <div className="border-b border-fg/10 px-3 py-2">
-                          <div className="grid grid-cols-2 gap-1 rounded-lg border border-fg/10 bg-fg/5 p-1">
-                            <button
-                              type="button"
-                              onClick={() => setFilesPanelTab("recommended")}
-                              className={cn(
-                                "rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors",
-                                filesPanelTab === "recommended"
-                                  ? "bg-emerald-400/15 text-emerald-400"
-                                  : "text-fg/50 hover:text-fg/70",
-                              )}
-                            >
-                              {t("hfBrowser.recommendedSettings")}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setFilesPanelTab("files")}
-                              className={cn(
-                                "rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors",
-                                filesPanelTab === "files"
-                                  ? "bg-emerald-400/15 text-emerald-400"
-                                  : "text-fg/50 hover:text-fg/70",
-                              )}
-                            >
-                              {t("hfBrowser.files")} ({filesWithSize.length})
-                            </button>
-                          </div>
+                        <div className="border-b border-fg/10 px-3 py-2 space-y-2">
+                          {isOllamaMode ? (
+                            <>
+                              <div className="rounded-md border border-amber-400/20 bg-amber-500/5 px-3 py-2 text-[12px] leading-relaxed text-amber-300/95">
+                                <div className="flex items-start gap-2">
+                                  <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                                  <div className="space-y-0.5">
+                                    <div className="font-medium">
+                                      {t("hfBrowser.ollamaModeNoticeTitle")}
+                                    </div>
+                                    <div className="text-amber-300/80">
+                                      {t("hfBrowser.ollamaModeNoticeBody")}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-center text-[12px] font-medium text-fg/60">
+                                {t("hfBrowser.files")} ({filesWithSize.length})
+                              </div>
+                            </>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-1 rounded-lg border border-fg/10 bg-fg/5 p-1">
+                              <button
+                                type="button"
+                                onClick={() => setFilesPanelTab("recommended")}
+                                className={cn(
+                                  "rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors",
+                                  filesPanelTab === "recommended"
+                                    ? "bg-emerald-400/15 text-emerald-400"
+                                    : "text-fg/50 hover:text-fg/70",
+                                )}
+                              >
+                                {t("hfBrowser.recommendedSettings")}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setFilesPanelTab("files")}
+                                className={cn(
+                                  "rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors",
+                                  filesPanelTab === "files"
+                                    ? "bg-emerald-400/15 text-emerald-400"
+                                    : "text-fg/50 hover:text-fg/70",
+                                )}
+                              >
+                                {t("hfBrowser.files")} ({filesWithSize.length})
+                              </button>
+                            </div>
+                          )}
                         </div>
 
                         {/* Recommended settings tab */}
@@ -3000,10 +3380,12 @@ export function HuggingFaceBrowserPage() {
                                       "hover:bg-accent/25 active:scale-[0.97]",
                                     )}
                                   >
-                                    <Download size={12} />
-                                    {returnTo && !file.isMmproj
-                                      ? "Download and Use"
-                                      : t("hfBrowser.download")}
+                                    {isOllamaMode ? <Server size={12} /> : <Download size={12} />}
+                                    {isOllamaMode
+                                      ? `${t("hfBrowser.pullToOllama")} ${selectedOllamaProvider?.label ?? ""}`.trim()
+                                      : returnTo && !file.isMmproj
+                                        ? "Download and Use"
+                                        : t("hfBrowser.download")}
                                   </button>
                                 </div>
                               );
@@ -3192,7 +3574,6 @@ export function HuggingFaceBrowserPage() {
         </div>
       )}
 
-      {/* Detailed resource report bottom sheet */}
       <BottomMenu
         isOpen={detailSheetOpen}
         onClose={() => setDetailSheetOpen(false)}
@@ -3217,7 +3598,299 @@ export function HuggingFaceBrowserPage() {
           })()}
       </BottomMenu>
 
-      {/* Continue Setup button when coming from onboarding */}
+      <BottomMenu
+        isOpen={showFilterMenu}
+        onClose={() => setShowFilterMenu(false)}
+        title="Filter results"
+      >
+        <div>
+          <p className="mb-4 text-[12.5px] leading-relaxed text-fg/55">
+            Refine the result list. Filters apply to the loaded results below.
+          </p>
+
+          {/* Pipeline tags */}
+          <div className="mb-2 flex items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-fg/40">
+              Pipeline
+            </span>
+            <div className="h-px flex-1 bg-fg/8" />
+            {filterPipelineTags.size > 0 && (
+              <button
+                onClick={() => setFilterPipelineTags(new Set())}
+                className="text-[10.5px] text-fg/45 hover:text-fg/75"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <div className="mb-5 flex flex-wrap gap-1.5">
+            {[
+              ...new Set([...availablePipelineTags, ...COMMON_PIPELINE_TAGS]),
+            ].map((tag) => {
+              const active = filterPipelineTags.has(tag);
+              const inResults = availablePipelineTags.has(tag);
+              return (
+                <button
+                  key={tag}
+                  onClick={() => {
+                    setFilterPipelineTags((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(tag)) next.delete(tag);
+                      else next.add(tag);
+                      return next;
+                    });
+                  }}
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-[11px] font-medium transition",
+                    active
+                      ? "border-accent/40 bg-accent/15 text-accent"
+                      : inResults
+                        ? "border-fg/12 bg-fg/4 text-fg/70 hover:border-fg/25"
+                        : "border-fg/8 bg-transparent text-fg/40 hover:border-fg/20 hover:text-fg/65",
+                  )}
+                >
+                  {tag}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Param size */}
+          <div className="mb-2 flex items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-fg/40">
+              Parameter size (B)
+            </span>
+            <div className="h-px flex-1 bg-fg/8" />
+            {(filterParamMin || filterParamMax) && (
+              <button
+                onClick={() => {
+                  setFilterParamMin("");
+                  setFilterParamMax("");
+                }}
+                className="text-[10.5px] text-fg/45 hover:text-fg/75"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <div className="mb-2 grid grid-cols-2 gap-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-[10.5px] text-fg/55">Min</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step={0.1}
+                value={filterParamMin}
+                onChange={(e) => setFilterParamMin(e.target.value)}
+                placeholder="e.g. 2"
+                className="h-9 rounded-lg border border-fg/10 bg-fg/4 px-2.5 text-[13px] text-fg outline-none transition placeholder:text-fg/35 focus:border-accent/40 focus:ring-1 focus:ring-accent/20"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10.5px] text-fg/55">Max</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step={0.1}
+                value={filterParamMax}
+                onChange={(e) => setFilterParamMax(e.target.value)}
+                placeholder="e.g. 12"
+                className="h-9 rounded-lg border border-fg/10 bg-fg/4 px-2.5 text-[13px] text-fg outline-none transition placeholder:text-fg/35 focus:border-accent/40 focus:ring-1 focus:ring-accent/20"
+              />
+            </label>
+          </div>
+          <p className="mb-5 text-[10.5px] text-fg/40">
+            Models without a detectable parameter size are excluded when this filter is active.
+          </p>
+
+          {/* Quick presets */}
+          <div className="mb-2 flex items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-fg/40">
+              Quick presets
+            </span>
+            <div className="h-px flex-1 bg-fg/8" />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { label: "≤ 3B", min: "", max: "3" },
+              { label: "3–8B", min: "3", max: "8" },
+              { label: "8–14B", min: "8", max: "14" },
+              { label: "14–34B", min: "14", max: "34" },
+              { label: "≥ 34B", min: "34", max: "" },
+            ].map((p) => {
+              const active = filterParamMin === p.min && filterParamMax === p.max;
+              return (
+                <button
+                  key={p.label}
+                  onClick={() => {
+                    setFilterParamMin(p.min);
+                    setFilterParamMax(p.max);
+                  }}
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-[11px] font-medium transition",
+                    active
+                      ? "border-accent/40 bg-accent/15 text-accent"
+                      : "border-fg/12 bg-fg/4 text-fg/70 hover:border-fg/25",
+                  )}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {activeFilterCount > 0 && (
+            <button
+              onClick={() => {
+                setFilterPipelineTags(new Set());
+                setFilterParamMin("");
+                setFilterParamMax("");
+              }}
+              className="mt-5 w-full rounded-lg border border-fg/10 bg-fg/4 py-2 text-[12px] font-medium text-fg/75 transition hover:border-fg/20 hover:text-fg"
+            >
+              Reset all filters
+            </button>
+          )}
+        </div>
+      </BottomMenu>
+
+      <BottomMenu
+        isOpen={showOllamaProviderMenu}
+        onClose={() => setShowOllamaProviderMenu(false)}
+        title={t("hfBrowser.destinationPickerTitle")}
+      >
+          <p className="mb-5 text-[12.5px] leading-relaxed text-fg/55">
+            {t("hfBrowser.destinationPickerSubtitle")}
+          </p>
+
+          {/* Local section */}
+          <div className="mb-2 flex items-center gap-2 px-1">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-fg/35">
+              {t("hfBrowser.destinationLocalSection")}
+            </span>
+            <div className="h-px flex-1 bg-fg/8" />
+          </div>
+          <button
+            onClick={() => {
+              setSelectedOllamaProviderId(null);
+              setShowOllamaProviderMenu(false);
+            }}
+            className={cn(
+              "group relative w-full overflow-hidden rounded-xl border px-3.5 py-3 text-left transition",
+              !isOllamaMode
+                ? "border-accent/35 bg-accent/8"
+                : "border-fg/10 bg-fg/3 hover:border-fg/20 hover:bg-fg/5",
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <span
+                className={cn(
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                  !isOllamaMode ? "bg-accent/15 text-accent" : "bg-fg/8 text-fg/55",
+                )}
+              >
+                <HardDrive size={15} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[13px] font-medium text-fg">
+                  {t("hfBrowser.destinationLocal")}
+                </div>
+                <div className="truncate text-[11.5px] text-fg/45">
+                  {t("hfBrowser.destinationLocalHint")}
+                </div>
+              </div>
+              <span
+                className={cn(
+                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition",
+                  !isOllamaMode
+                    ? "border-accent/50 bg-accent/15 text-accent"
+                    : "border-fg/15 text-transparent",
+                )}
+              >
+                <Check size={11} strokeWidth={3} />
+              </span>
+            </div>
+          </button>
+
+          {/* Ollama section */}
+          <div className="mb-2 mt-5 flex items-center gap-2 px-1">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-fg/35">
+              {t("hfBrowser.destinationOllamaSection")}
+            </span>
+            <div className="h-px flex-1 bg-fg/8" />
+            {ollamaProviders.length > 0 && (
+              <span className="text-[10px] font-medium tabular-nums text-fg/40">
+                {ollamaProviders.length}
+              </span>
+            )}
+          </div>
+
+          {ollamaProviders.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-fg/10 bg-fg/2 px-4 py-5 text-center">
+              <Server size={18} className="mx-auto mb-2 text-fg/30" />
+              <p className="text-[12px] leading-snug text-fg/55">
+                {t("hfBrowser.destinationNoOllama")}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {ollamaProviders.map((provider) => {
+                const isSelected = provider.id === selectedOllamaProviderId;
+                return (
+                  <button
+                    key={provider.id}
+                    onClick={() => {
+                      setSelectedOllamaProviderId(provider.id);
+                      setShowOllamaProviderMenu(false);
+                    }}
+                    className={cn(
+                      "group relative w-full overflow-hidden rounded-xl border px-3.5 py-3 text-left transition",
+                      isSelected
+                        ? "border-emerald-400/35 bg-emerald-500/8"
+                        : "border-fg/10 bg-fg/3 hover:border-fg/20 hover:bg-fg/5",
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={cn(
+                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                          isSelected
+                            ? "bg-emerald-500/15 text-emerald-300"
+                            : "bg-fg/8 text-fg/55",
+                        )}
+                      >
+                        <Server size={15} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[13px] font-medium text-fg">
+                          {provider.label}
+                        </div>
+                        {provider.baseUrl && (
+                          <div className="truncate font-mono text-[11px] text-fg/45">
+                            {provider.baseUrl}
+                          </div>
+                        )}
+                      </div>
+                      <span
+                        className={cn(
+                          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition",
+                          isSelected
+                            ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-300"
+                            : "border-fg/15 text-transparent",
+                        )}
+                      >
+                        <Check size={11} strokeWidth={3} />
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+      </BottomMenu>
+
       {returnTo && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
           <button

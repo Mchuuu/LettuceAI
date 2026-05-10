@@ -331,6 +331,70 @@ fn emit_queue(app: &AppHandle, queue: &[QueuedDownload]) {
     let _ = app.emit("hf_download_queue", queue);
 }
 
+pub(crate) async fn enqueue_external_item(app: &AppHandle, item: QueuedDownload) {
+    let mut state = HF_DOWNLOAD_QUEUE.lock().await;
+    state.queue.push(item);
+    emit_queue(app, &state.queue);
+}
+
+pub(crate) async fn update_external_progress(
+    app: &AppHandle,
+    queue_id: &str,
+    status_label: &str,
+    downloaded: u64,
+    total: u64,
+) {
+    let mut state = HF_DOWNLOAD_QUEUE.lock().await;
+    if let Some(item) = state.queue.iter_mut().find(|d| d.id == queue_id) {
+        item.status = status_label.to_string();
+        item.downloaded = downloaded;
+        item.total = total;
+    }
+    emit_queue(app, &state.queue);
+}
+
+pub(crate) async fn update_external_speed(app: &AppHandle, queue_id: &str, speed_bytes_per_sec: u64) {
+    let mut state = HF_DOWNLOAD_QUEUE.lock().await;
+    if let Some(item) = state.queue.iter_mut().find(|d| d.id == queue_id) {
+        item.speed_bytes_per_sec = speed_bytes_per_sec;
+    }
+    emit_queue(app, &state.queue);
+}
+
+pub(crate) async fn finish_external_item(
+    app: &AppHandle,
+    queue_id: &str,
+    success: bool,
+    error: Option<String>,
+) {
+    let mut state = HF_DOWNLOAD_QUEUE.lock().await;
+    if let Some(item) = state.queue.iter_mut().find(|d| d.id == queue_id) {
+        item.status = if success { "complete" } else { "error" }.to_string();
+        item.error = error;
+        if success && item.total > 0 {
+            item.downloaded = item.total;
+        }
+        item.speed_bytes_per_sec = 0;
+    }
+    state.cancel_ids.remove(queue_id);
+    emit_queue(app, &state.queue);
+}
+
+pub(crate) async fn cancel_external_item(app: &AppHandle, queue_id: &str) {
+    let mut state = HF_DOWNLOAD_QUEUE.lock().await;
+    if let Some(item) = state.queue.iter_mut().find(|d| d.id == queue_id) {
+        item.status = "cancelled".to_string();
+        item.speed_bytes_per_sec = 0;
+    }
+    state.cancel_ids.remove(queue_id);
+    emit_queue(app, &state.queue);
+}
+
+pub(crate) async fn external_item_cancel_requested(queue_id: &str) -> bool {
+    let state = HF_DOWNLOAD_QUEUE.lock().await;
+    state.cancel_ids.contains(queue_id)
+}
+
 fn hf_models_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let lettuce_dir = crate::utils::lettuce_dir(app)?;
     let dir = lettuce_dir.join("models").join("gguf");

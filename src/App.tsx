@@ -776,8 +776,6 @@ function AppContent() {
     [location.pathname],
   );
 
-  // Track the last non-settings path so the desktop back button can
-  // exit settings instead of cycling between sidebar items in history.
   const preSettingsPathRef = useRef<string>("/");
   useEffect(() => {
     if (!isSettingRoute) {
@@ -990,7 +988,7 @@ function AppContent() {
 
         <main
           ref={mainRef}
-          className={`flex-1 ${showTopNav ? "pt-(--topnav-h,72px)" : ""} ${
+          className={`flex-1 ${showTopNav ? "pt-[var(--topnav-h,72px)]" : ""} ${
             isOnboardingRoute
               ? `overflow-y-auto ${isDesktop ? "" : "px-0 pt-5 pb-5"}`
               : isChatDetailRoute
