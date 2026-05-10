@@ -135,6 +135,10 @@ pub struct AudioProvider {
     pub location: Option<String>,
     pub base_url: Option<String>,
     pub request_path: Option<String>,
+    #[serde(default)]
+    pub kokoro_variant: Option<String>,
+    #[serde(default)]
+    pub asset_root: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -261,6 +265,8 @@ pub struct Character {
     #[serde(default)]
     pub voice_autoplay: i64,
     pub disable_avatar_gradient: i64,
+    #[serde(default)]
+    pub avatar_gradient_source: Option<String>,
     pub custom_gradient_enabled: Option<i64>,
     pub custom_gradient_colors: Option<String>,
     pub custom_text_color: Option<String>,
@@ -288,6 +294,8 @@ pub struct Scene {
     pub content: String,
     #[serde(default)]
     pub direction: Option<String>,
+    #[serde(default)]
+    pub background_image_path: Option<String>,
     pub created_at: i64,
     pub selected_variant_id: Option<String>,
 }
@@ -375,6 +383,10 @@ pub struct Message {
     pub role: String,
     pub content: String,
     pub created_at: i64,
+    #[serde(default)]
+    pub visible_in_chat: i64,
+    #[serde(default)]
+    pub scene_edited: i64,
     pub prompt_tokens: Option<i64>,
     pub completion_tokens: Option<i64>,
     pub total_tokens: Option<i64>,

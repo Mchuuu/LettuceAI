@@ -417,7 +417,7 @@ fn export_characters(app: &tauri::AppHandle) -> Result<Vec<JsonValue>, String> {
 
     // Get all characters
     let mut stmt = conn
-        .prepare("SELECT id, name, avatar_path, avatar_crop_x, avatar_crop_y, avatar_crop_scale, design_description, design_reference_image_ids, background_image_path, description, definition, nickname, scenario, creator_notes, creator, creator_notes_multilingual, source, tags, default_scene_id, default_model_id, fallback_model_id, COALESCE(mode, 'roleplay'), companion, memory_type, COALESCE(active_lorebook_ids, '[]'), prompt_template_id, group_chat_prompt_template_id, group_chat_roleplay_prompt_template_id, system_prompt, voice_config, voice_autoplay, disable_avatar_gradient, custom_gradient_enabled, custom_gradient_colors, custom_text_color, custom_text_secondary, chat_appearance, default_chat_template_id, created_at, updated_at FROM characters")
+        .prepare("SELECT id, name, avatar_path, avatar_crop_x, avatar_crop_y, avatar_crop_scale, design_description, design_reference_image_ids, background_image_path, description, definition, nickname, scenario, creator_notes, creator, creator_notes_multilingual, source, tags, default_scene_id, default_model_id, fallback_model_id, COALESCE(mode, 'roleplay'), companion, memory_type, COALESCE(active_lorebook_ids, '[]'), prompt_template_id, group_chat_prompt_template_id, group_chat_roleplay_prompt_template_id, system_prompt, voice_config, voice_autoplay, disable_avatar_gradient, COALESCE(avatar_gradient_source, 'base'), custom_gradient_enabled, custom_gradient_colors, custom_text_color, custom_text_secondary, chat_appearance, default_chat_template_id, created_at, updated_at FROM characters")
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
     let characters: Vec<(String, JsonValue)> = stmt
@@ -456,14 +456,15 @@ fn export_characters(app: &tauri::AppHandle) -> Result<Vec<JsonValue>, String> {
                 "voice_config": r.get::<_, Option<String>>(29)?,
                 "voice_autoplay": r.get::<_, Option<i64>>(30)?.unwrap_or(0) != 0,
                 "disable_avatar_gradient": r.get::<_, i64>(31)? != 0,
-                "custom_gradient_enabled": r.get::<_, i64>(32)? != 0,
-                "custom_gradient_colors": r.get::<_, Option<String>>(33)?,
-                "custom_text_color": r.get::<_, Option<String>>(34)?,
-                "custom_text_secondary": r.get::<_, Option<String>>(35)?,
-                "chat_appearance": r.get::<_, Option<String>>(36)?,
-                "default_chat_template_id": r.get::<_, Option<String>>(37)?,
-                "created_at": r.get::<_, i64>(38)?,
-                "updated_at": r.get::<_, i64>(39)?,
+                "avatar_gradient_source": r.get::<_, String>(32)?,
+                "custom_gradient_enabled": r.get::<_, i64>(33)? != 0,
+                "custom_gradient_colors": r.get::<_, Option<String>>(34)?,
+                "custom_text_color": r.get::<_, Option<String>>(35)?,
+                "custom_text_secondary": r.get::<_, Option<String>>(36)?,
+                "chat_appearance": r.get::<_, Option<String>>(37)?,
+                "default_chat_template_id": r.get::<_, Option<String>>(38)?,
+                "created_at": r.get::<_, i64>(39)?,
+                "updated_at": r.get::<_, i64>(40)?,
             });
             Ok((id, json))
         })
@@ -614,7 +615,7 @@ fn export_sessions(app: &tauri::AppHandle) -> Result<Vec<JsonValue>, String> {
     let mut result = Vec::new();
     for (session_id, mut session_json) in sessions {
         let mut messages_stmt = conn
-            .prepare("SELECT id, role, content, created_at, prompt_tokens, completion_tokens, total_tokens,
+            .prepare("SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens,
                              selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning FROM messages
                       WHERE session_id = ? ORDER BY created_at ASC")
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -627,15 +628,17 @@ fn export_sessions(app: &tauri::AppHandle) -> Result<Vec<JsonValue>, String> {
                     "role": r.get::<_, String>(1)?,
                     "content": r.get::<_, String>(2)?,
                     "created_at": r.get::<_, i64>(3)?,
-                    "prompt_tokens": r.get::<_, Option<i64>>(4)?,
-                    "completion_tokens": r.get::<_, Option<i64>>(5)?,
-                    "total_tokens": r.get::<_, Option<i64>>(6)?,
-                    "selected_variant_id": r.get::<_, Option<String>>(7)?,
-                    "is_pinned": r.get::<_, i64>(8)? != 0,
-                    "memory_refs": r.get::<_, String>(9)?,
-                    "used_lorebook_entries": r.get::<_, String>(10)?,
-                    "attachments": r.get::<_, String>(11)?,
-                    "reasoning": r.get::<_, Option<String>>(12)?,
+                    "visible_in_chat": r.get::<_, i64>(4)? != 0,
+                    "scene_edited": r.get::<_, i64>(5)? != 0,
+                    "prompt_tokens": r.get::<_, Option<i64>>(6)?,
+                    "completion_tokens": r.get::<_, Option<i64>>(7)?,
+                    "total_tokens": r.get::<_, Option<i64>>(8)?,
+                    "selected_variant_id": r.get::<_, Option<String>>(9)?,
+                    "is_pinned": r.get::<_, i64>(10)? != 0,
+                    "memory_refs": r.get::<_, String>(11)?,
+                    "used_lorebook_entries": r.get::<_, String>(12)?,
+                    "attachments": r.get::<_, String>(13)?,
+                    "reasoning": r.get::<_, Option<String>>(14)?,
                 });
                 Ok((msg_id, json))
             })
@@ -1127,6 +1130,64 @@ fn export_model_pricing_cache(app: &tauri::AppHandle) -> Result<Vec<JsonValue>, 
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
 }
 
+fn export_audio_providers(app: &tauri::AppHandle) -> Result<Vec<JsonValue>, String> {
+    let conn = open_db(app)?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, provider_type, label, api_key, project_id, location, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at FROM audio_providers",
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    let rows = stmt
+        .query_map([], |r| {
+            Ok(serde_json::json!({
+                "id": r.get::<_, String>(0)?,
+                "provider_type": r.get::<_, String>(1)?,
+                "label": r.get::<_, String>(2)?,
+                "api_key": r.get::<_, Option<String>>(3)?,
+                "project_id": r.get::<_, Option<String>>(4)?,
+                "location": r.get::<_, Option<String>>(5)?,
+                "base_url": r.get::<_, Option<String>>(6)?,
+                "request_path": r.get::<_, Option<String>>(7)?,
+                "kokoro_variant": r.get::<_, Option<String>>(8)?,
+                "asset_root": r.get::<_, Option<String>>(9)?,
+                "created_at": r.get::<_, i64>(10)?,
+                "updated_at": r.get::<_, i64>(11)?,
+            }))
+        })
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
+}
+
+fn export_user_voices(app: &tauri::AppHandle) -> Result<Vec<JsonValue>, String> {
+    let conn = open_db(app)?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, provider_id, name, model_id, voice_id, prompt, created_at, updated_at FROM user_voices",
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    let rows = stmt
+        .query_map([], |r| {
+            Ok(serde_json::json!({
+                "id": r.get::<_, String>(0)?,
+                "provider_id": r.get::<_, String>(1)?,
+                "name": r.get::<_, String>(2)?,
+                "model_id": r.get::<_, String>(3)?,
+                "voice_id": r.get::<_, String>(4)?,
+                "prompt": r.get::<_, Option<String>>(5)?,
+                "created_at": r.get::<_, i64>(6)?,
+                "updated_at": r.get::<_, i64>(7)?,
+            }))
+        })
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
+}
+
 /// Export full app backup to a .lettuce file
 #[tauri::command]
 pub async fn backup_export(
@@ -1221,6 +1282,24 @@ pub async fn backup_export(
     log_info(&app, "backup", "Exporting models...");
     let models = export_models(&app)?;
     add_json_to_zip(&mut zip, "models", &serde_json::json!(models), &encryption)?;
+
+    log_info(&app, "backup", "Exporting audio providers...");
+    let audio_providers = export_audio_providers(&app)?;
+    add_json_to_zip(
+        &mut zip,
+        "audio_providers",
+        &serde_json::json!(audio_providers),
+        &encryption,
+    )?;
+
+    log_info(&app, "backup", "Exporting user voices...");
+    let user_voices = export_user_voices(&app)?;
+    add_json_to_zip(
+        &mut zip,
+        "user_voices",
+        &serde_json::json!(user_voices),
+        &encryption,
+    )?;
 
     log_info(&app, "backup", "Exporting model pricing cache...");
     let pricing_cache = export_model_pricing_cache(&app)?;
@@ -1851,9 +1930,9 @@ fn import_characters(app: &tauri::AppHandle, data: &JsonValue) -> Result<(), Str
                 "INSERT INTO characters (id, name, avatar_path, avatar_crop_x, avatar_crop_y, avatar_crop_scale, design_description, design_reference_image_ids, background_image_path, description, definition,
                  nickname, scenario, creator_notes, creator, creator_notes_multilingual, source, tags,
                  default_scene_id, default_model_id, fallback_model_id, mode, companion, memory_type, active_lorebook_ids, prompt_template_id, group_chat_prompt_template_id, group_chat_roleplay_prompt_template_id, system_prompt,
-                 voice_config, voice_autoplay, disable_avatar_gradient, custom_gradient_enabled, custom_gradient_colors,
+                 voice_config, voice_autoplay, disable_avatar_gradient, avatar_gradient_source, custom_gradient_enabled, custom_gradient_colors,
                  custom_text_color, custom_text_secondary, chat_appearance, default_chat_template_id, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38, ?39, ?40)",
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38, ?39, ?40, ?41)",
                 params![
                     char_id,
                     item.get("name").and_then(|v| v.as_str()),
@@ -1897,6 +1976,7 @@ fn import_characters(app: &tauri::AppHandle, data: &JsonValue) -> Result<(), Str
                         .or_else(|| item.get("voice_autoplay").and_then(|v| v.as_bool()).map(|b| if b { 1 } else { 0 }))
                         .unwrap_or(0),
                     item.get("disable_avatar_gradient").and_then(|v| v.as_bool()).unwrap_or(false) as i64,
+                    item.get("avatar_gradient_source").and_then(|v| v.as_str()).unwrap_or("base"),
                     item.get("custom_gradient_enabled").and_then(|v| v.as_bool()).unwrap_or(false) as i64,
                     item.get("custom_gradient_colors").and_then(|v| v.as_str()),
                     item.get("custom_text_color").and_then(|v| v.as_str()),
@@ -2080,15 +2160,17 @@ fn import_sessions(app: &tauri::AppHandle, data: &JsonValue) -> Result<(), Strin
                     let msg_id = msg.get("id").and_then(|v| v.as_str()).unwrap_or("");
 
                     conn.execute(
-                        "INSERT INTO messages (id, session_id, role, content, created_at, prompt_tokens,
+                        "INSERT INTO messages (id, session_id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens,
                          completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning)
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
                         params![
                             msg_id,
                             session_id,
                             msg.get("role").and_then(|v| v.as_str()),
                             msg.get("content").and_then(|v| v.as_str()),
                             msg.get("created_at").and_then(|v| v.as_i64()),
+                            msg.get("visible_in_chat").and_then(|v| v.as_bool()).unwrap_or(false) as i64,
+                            msg.get("scene_edited").and_then(|v| v.as_bool()).unwrap_or(false) as i64,
                             msg.get("prompt_tokens").and_then(|v| v.as_i64()),
                             msg.get("completion_tokens").and_then(|v| v.as_i64()),
                             msg.get("total_tokens").and_then(|v| v.as_i64()),
@@ -2638,6 +2720,66 @@ fn import_model_pricing_cache(app: &tauri::AppHandle, data: &JsonValue) -> Resul
     Ok(())
 }
 
+fn import_audio_providers(app: &tauri::AppHandle, data: &JsonValue) -> Result<(), String> {
+    let conn = open_db(app)?;
+    conn.execute("DELETE FROM audio_providers", [])
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    if let Some(arr) = data.as_array() {
+        for item in arr {
+            conn.execute(
+                "INSERT INTO audio_providers (id, provider_type, label, api_key, project_id, location, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                params![
+                    item.get("id").and_then(|v| v.as_str()),
+                    item.get("provider_type").and_then(|v| v.as_str()),
+                    item.get("label").and_then(|v| v.as_str()),
+                    item.get("api_key").and_then(|v| v.as_str()),
+                    item.get("project_id").and_then(|v| v.as_str()),
+                    item.get("location").and_then(|v| v.as_str()),
+                    item.get("base_url").and_then(|v| v.as_str()),
+                    item.get("request_path").and_then(|v| v.as_str()),
+                    item.get("kokoro_variant").and_then(|v| v.as_str()),
+                    item.get("asset_root").and_then(|v| v.as_str()),
+                    item.get("created_at").and_then(|v| v.as_i64()),
+                    item.get("updated_at").and_then(|v| v.as_i64()),
+                ],
+            )
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        }
+    }
+
+    Ok(())
+}
+
+fn import_user_voices(app: &tauri::AppHandle, data: &JsonValue) -> Result<(), String> {
+    let conn = open_db(app)?;
+    conn.execute("DELETE FROM user_voices", [])
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    if let Some(arr) = data.as_array() {
+        for item in arr {
+            conn.execute(
+                "INSERT INTO user_voices (id, provider_id, name, model_id, voice_id, prompt, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    item.get("id").and_then(|v| v.as_str()),
+                    item.get("provider_id").and_then(|v| v.as_str()),
+                    item.get("name").and_then(|v| v.as_str()),
+                    item.get("model_id").and_then(|v| v.as_str()),
+                    item.get("voice_id").and_then(|v| v.as_str()),
+                    item.get("prompt").and_then(|v| v.as_str()),
+                    item.get("created_at").and_then(|v| v.as_i64()),
+                    item.get("updated_at").and_then(|v| v.as_i64()),
+                ],
+            )
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        }
+    }
+
+    Ok(())
+}
+
 /// Check if a backup file requires a password
 #[tauri::command]
 pub fn backup_check_encrypted(app: tauri::AppHandle, backup_path: String) -> Result<bool, String> {
@@ -2991,6 +3133,13 @@ pub async fn backup_import(
         &encryption_params,
     )?;
     let models_data = read_backup_file(&mut archive, "data/models.json", &encryption_params)?;
+    let audio_providers_data = read_backup_file(
+        &mut archive,
+        "data/audio_providers.json",
+        &encryption_params,
+    )?;
+    let user_voices_data =
+        read_backup_file(&mut archive, "data/user_voices.json", &encryption_params)?;
     let model_pricing_cache_data = read_backup_file(
         &mut archive,
         "data/model_pricing_cache.json",
@@ -3101,6 +3250,40 @@ pub async fn backup_import(
         log_info(&app, "backup", "Models imported");
     } else {
         log_info(&app, "backup", "No models data found");
+    }
+
+    if let Some(data) = audio_providers_data {
+        log_info(&app, "backup", "Found audio_providers data");
+        let json_str = String::from_utf8(data)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let json_value: serde_json::Value = serde_json::from_str(&json_str).map_err(|e| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!("Failed to parse audio_providers JSON: {}", e),
+            )
+        })?;
+        import_audio_providers(&app, &json_value)?;
+        log_info(&app, "backup", "Audio providers imported");
+    } else {
+        log_info(&app, "backup", "No audio_providers data found");
+    }
+
+    if let Some(data) = user_voices_data {
+        log_info(&app, "backup", "Found user_voices data");
+        let json_str = String::from_utf8(data)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let json_value: serde_json::Value = serde_json::from_str(&json_str).map_err(|e| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!("Failed to parse user_voices JSON: {}", e),
+            )
+        })?;
+        import_user_voices(&app, &json_value)?;
+        log_info(&app, "backup", "User voices imported");
+    } else {
+        log_info(&app, "backup", "No user_voices data found");
     }
 
     if let Some(data) = model_pricing_cache_data {
@@ -4012,6 +4195,10 @@ pub async fn backup_import_from_bytes(
     let provider_credentials_data =
         read_backup_file_bytes(&data, "data/provider_credentials.json", &encryption_params)?;
     let models_data = read_backup_file_bytes(&data, "data/models.json", &encryption_params)?;
+    let audio_providers_data =
+        read_backup_file_bytes(&data, "data/audio_providers.json", &encryption_params)?;
+    let user_voices_data =
+        read_backup_file_bytes(&data, "data/user_voices.json", &encryption_params)?;
     let model_pricing_cache_data =
         read_backup_file_bytes(&data, "data/model_pricing_cache.json", &encryption_params)?;
     let secrets_data = read_backup_file_bytes(&data, "data/secrets.json", &encryption_params)?;
@@ -4095,6 +4282,34 @@ pub async fn backup_import_from_bytes(
         })?;
         import_models(&app, &json_value)?;
         log_info(&app, "backup", "Models imported");
+    }
+
+    if let Some(file_data) = audio_providers_data {
+        let json_str = String::from_utf8(file_data)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let json_value: serde_json::Value = serde_json::from_str(&json_str).map_err(|e| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!("Failed to parse audio_providers JSON: {}", e),
+            )
+        })?;
+        import_audio_providers(&app, &json_value)?;
+        log_info(&app, "backup", "Audio providers imported");
+    }
+
+    if let Some(file_data) = user_voices_data {
+        let json_str = String::from_utf8(file_data)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let json_value: serde_json::Value = serde_json::from_str(&json_str).map_err(|e| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!("Failed to parse user_voices JSON: {}", e),
+            )
+        })?;
+        import_user_voices(&app, &json_value)?;
+        log_info(&app, "backup", "User voices imported");
     }
 
     if let Some(file_data) = model_pricing_cache_data {
