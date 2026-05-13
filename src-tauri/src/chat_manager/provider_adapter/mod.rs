@@ -99,6 +99,15 @@ pub trait ProviderAdapter {
                             .and_then(|d| d.as_str())
                             .map(|s| s.to_string()),
                         context_length: item.get("context_length").and_then(|c| c.as_u64()),
+                        input_modalities: item
+                            .get("input_modalities")
+                            .and_then(|v| serde_json::from_value(v.clone()).ok()),
+                        output_modalities: item
+                            .get("output_modalities")
+                            .and_then(|v| serde_json::from_value(v.clone()).ok()),
+                        supported_endpoints: item
+                            .get("supported_endpoints")
+                            .and_then(|v| serde_json::from_value(v.clone()).ok()),
                         input_price,
                         output_price,
                     });
@@ -116,6 +125,12 @@ pub struct ModelInfo {
     pub display_name: Option<String>,
     pub description: Option<String>,
     pub context_length: Option<u64>,
+    #[serde(default)]
+    pub input_modalities: Option<Vec<String>>,
+    #[serde(default)]
+    pub output_modalities: Option<Vec<String>>,
+    #[serde(default)]
+    pub supported_endpoints: Option<Vec<String>>,
     // Pricing per 1M tokens or similar, strictly for display/estimation if available
     pub input_price: Option<f64>,
     pub output_price: Option<f64>,
@@ -270,6 +285,7 @@ mod nanogpt;
 mod nvidia;
 mod ollama;
 mod openai;
+mod pollinations;
 mod qwen;
 mod stability;
 mod xai;
@@ -304,6 +320,7 @@ pub fn adapter_for(credential: &ProviderCredential) -> Box<dyn ProviderAdapter +
         "qwen" => Box::new(qwen::QwenAdapter),
         "stability" => Box::new(stability::StabilityAdapter),
         "openrouter" => Box::new(openai::OpenRouterAdapter),
+        "pollinations" => Box::new(pollinations::PollinationsAdapter),
         "lettuce-host" => Box::new(openai::OpenAIAdapter),
         "lettuce-engine" => Box::new(lettuce_engine::LettuceEngineAdapter),
         _ => Box::new(openai::OpenAIAdapter),

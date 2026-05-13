@@ -1624,12 +1624,46 @@ export function EditModelPage() {
     updateEditorModel({ [key]: next } as any);
   };
 
+  const inferScopesFromFetchedModel = (model: (typeof fetchedModels)[number]) => {
+    const inputModalities = new Set(model.inputModalities ?? []);
+    const outputModalities = new Set(model.outputModalities ?? []);
+    const supportedEndpoints = model.supportedEndpoints ?? [];
+
+    const supportsImageInput =
+      inputModalities.has("image") ||
+      supportedEndpoints.some((endpoint) => endpoint.includes("/images/edits"));
+    const supportsImageOutput =
+      outputModalities.has("image") ||
+      supportedEndpoints.some((endpoint) => endpoint.includes("/images/"));
+    const supportsAudioInput = inputModalities.has("audio");
+    const supportsAudioOutput = outputModalities.has("audio");
+
+    return {
+      inputScopes: scopeOrder.filter(
+        (scope) =>
+          scope === "text" ||
+          (scope === "image" && supportsImageInput) ||
+          (scope === "audio" && supportsAudioInput),
+      ),
+      outputScopes: scopeOrder.filter(
+        (scope) =>
+          scope === "text" ||
+          (scope === "image" && supportsImageOutput) ||
+          (scope === "audio" && supportsAudioOutput),
+      ),
+    };
+  };
+
   const handleSelectModel = (modelId: string, displayName?: string) => {
+    const fetchedModel = fetchedModels.find((model) => model.id === modelId);
     handleModelNameChange(modelId);
     if (displayName) {
       handleDisplayNameChange(displayName);
     } else {
       handleDisplayNameChange(modelId);
+    }
+    if (fetchedModel) {
+      updateEditorModel(inferScopesFromFetchedModel(fetchedModel));
     }
     setShowModelSelector(false);
   };

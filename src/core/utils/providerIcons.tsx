@@ -20,11 +20,13 @@ import LMStudioIcon from "../../assets/lmstudio_light.png";
 import LlamaCppIcon from "../../assets/llama-cpp.svg";
 import IntenserpIcon from "../../assets/intenserp.png";
 import GroqIcon from "../../assets/groq.svg";
+import PollinationsIcon from "../../assets/pollinations.svg";
 
 const ICON_MAP: Record<string, ReactElement> = {
   openai: <img src={OpenAIIcon} alt="OpenAI" className="h-6 w-6" />,
   anthropic: <img src={AnthropicIcon} alt="Anthropic" className="h-6 w-6" />,
   openrouter: <img src={OpenRouterIcon} alt="OpenRouter" className="h-6 w-6" />,
+  pollinations: <img src={PollinationsIcon} alt="Pollinations AI" className="h-6 w-6" />,
   mistral: <img src={MistralAIIcon} alt="MistralAI" className="h-6 w-6" />,
   deepseek: <img src={DeepseekIcon} alt="Deepseek" className="h-6 w-6" />,
   nanogpt: <img src={NanoGPTIcon} alt="NanoGPT" className="h-6 w-6" />,

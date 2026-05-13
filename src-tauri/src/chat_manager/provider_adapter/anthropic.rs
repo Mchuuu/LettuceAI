@@ -256,6 +256,9 @@ impl ProviderAdapter for AnthropicAdapter {
                             .map(|s| s.to_string()),
                         description: None,
                         context_length: None, // Anthropic doesn't explicitly send context_length in this list usually
+                        input_modalities: None,
+                        output_modalities: None,
+                        supported_endpoints: None,
                         input_price: None,
                         output_price: None,
                     });

@@ -99,6 +99,9 @@ impl ProviderAdapter for Automatic1111Adapter {
                         .and_then(|value| value.as_str())
                         .map(|value| value.to_string()),
                     context_length: None,
+                    input_modalities: None,
+                    output_modalities: None,
+                    supported_endpoints: None,
                     input_price: None,
                     output_price: None,
                 })

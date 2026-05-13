@@ -1100,6 +1100,9 @@ fn parse_models_list(payload: &Value) -> Vec<ModelInfo> {
                 display_name: Some(name.to_string()),
                 description,
                 context_length: None,
+                input_modalities: None,
+                output_modalities: None,
+                supported_endpoints: None,
                 input_price: None,
                 output_price: None,
             });

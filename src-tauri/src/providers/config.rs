@@ -86,6 +86,11 @@ fn get_all_provider_configs_internal() -> Vec<ProviderConfig> {
         ("openai", "OpenAI", "https://api.openai.com"),
         ("anthropic", "Anthropic", "https://api.anthropic.com"),
         ("openrouter", "OpenRouter", "https://openrouter.ai/api"),
+        (
+            "pollinations",
+            "Pollinations AI",
+            "https://gen.pollinations.ai",
+        ),
         ("mistral", "Mistral AI", "https://api.mistral.ai"),
         ("deepseek", "DeepSeek", "https://api.deepseek.com"),
         ("nanogpt", "NanoGPT", "https://nano-gpt.com/api"),

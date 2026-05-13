@@ -44,6 +44,7 @@ pub async fn verify_model_exists(
             | "groq"
             | "mistral"
             | "openrouter"
+            | "pollinations"
     );
 
     if !supports_model_list {

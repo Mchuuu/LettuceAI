@@ -402,6 +402,9 @@ impl ProviderAdapter for GoogleGeminiAdapter {
                             .and_then(|n| n.as_str())
                             .map(|s| s.to_string()),
                         context_length: item.get("inputTokenLimit").and_then(|c| c.as_u64()),
+                        input_modalities: None,
+                        output_modalities: None,
+                        supported_endpoints: None,
                         input_price: None,
                         output_price: None,
                     });

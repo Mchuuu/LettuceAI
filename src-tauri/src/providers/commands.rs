@@ -209,6 +209,9 @@ fn parse_custom_models_list(config: Option<&Value>, payload: &Value) -> Option<V
             display_name,
             description,
             context_length,
+            input_modalities: None,
+            output_modalities: None,
+            supported_endpoints: None,
             input_price: None,
             output_price: None,
         });

@@ -142,6 +142,9 @@ impl ProviderAdapter for OllamaAdapter {
                             .and_then(|s| s.as_str())
                             .map(|s| format!("{} parameters", s)),
                         context_length: None,
+                        input_modalities: None,
+                        output_modalities: None,
+                        supported_endpoints: None,
                         input_price: None,
                         output_price: None,
                     });

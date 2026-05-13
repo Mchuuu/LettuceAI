@@ -6,6 +6,9 @@ export type ModelInfo = {
   displayName?: string;
   description?: string;
   contextLength?: number;
+  inputModalities?: string[];
+  outputModalities?: string[];
+  supportedEndpoints?: string[];
   inputPrice?: number;
   outputPrice?: number;
 };
@@ -117,4 +120,3 @@ export function modelEditorReducer(
       return state;
   }
 }
-
