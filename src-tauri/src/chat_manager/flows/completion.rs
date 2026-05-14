@@ -290,17 +290,21 @@ impl CompletionFlow {
             let promoted = promote_cold_memories(&mut session.memory_embeddings, &memory_ids, now);
             let access_updates =
                 mark_memories_accessed(&mut session.memory_embeddings, &memory_ids, now);
-            // Persist the changes through narrow DB updates so the per-turn
-            // hot path is O(K) instead of going through `save_session` ->
-            // `replace_all` (O(N)).
-            if !promoted.is_empty() {
-                let _ = crate::storage_manager::memory_embeddings::set_cold_many_app(
+            let owner =
+                crate::storage_manager::companion_shared_memory::resolve_effective_memory_owner_for_session_app(
                     &app,
                     &session.id,
-                    crate::storage_manager::memory_embeddings::SessionKind::Session,
-                    &promoted,
-                    false,
                 );
+            if !promoted.is_empty() {
+                if let Ok(owner) = &owner {
+                    let _ = crate::storage_manager::memory_embeddings::set_cold_many_app(
+                        &app,
+                        &owner.owner_id,
+                        owner.kind,
+                        &promoted,
+                        false,
+                    );
+                }
                 log_info(
                     &app,
                     "dynamic_memory",
@@ -308,12 +312,14 @@ impl CompletionFlow {
                 );
             }
             if !access_updates.is_empty() {
-                let _ = crate::storage_manager::memory_embeddings::apply_access_updates_app(
-                    &app,
-                    &session.id,
-                    crate::storage_manager::memory_embeddings::SessionKind::Session,
-                    &access_updates,
-                );
+                if let Ok(owner) = &owner {
+                    let _ = crate::storage_manager::memory_embeddings::apply_access_updates_app(
+                        &app,
+                        &owner.owner_id,
+                        owner.kind,
+                        &access_updates,
+                    );
+                }
                 log_info(
                     &app,
                     "dynamic_memory",

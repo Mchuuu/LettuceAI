@@ -269,6 +269,13 @@ struct CompanionPromptingConfig {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
+struct CompanionMemoryConfig {
+    #[serde(default)]
+    shared_across_sessions: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 struct CompanionContextConfig {
     #[serde(default)]
     time_awareness: bool,
@@ -352,6 +359,8 @@ struct CompanionConfig {
     soul: SoulConfig,
     #[serde(default)]
     relationship_defaults: RelationshipDefaults,
+    #[serde(default)]
+    memory: CompanionMemoryConfig,
     #[serde(default)]
     prompting: CompanionPromptingConfig,
     #[serde(default)]
@@ -608,6 +617,16 @@ pub fn initial_session_state_from_companion_json(companion_json: &str) -> Option
     let companion_value = serde_json::from_str::<Value>(companion_json).ok()?;
     let config = serde_json::from_value::<CompanionConfig>(companion_value).ok()?;
     serde_json::to_value(default_state(&config)).ok()
+}
+
+pub fn shared_memory_across_sessions_enabled_from_companion_json(companion_json: &str) -> bool {
+    let companion_value = match serde_json::from_str::<Value>(companion_json) {
+        Ok(value) => value,
+        Err(_) => return false,
+    };
+    serde_json::from_value::<CompanionConfig>(companion_value)
+        .map(|config| config.memory.shared_across_sessions)
+        .unwrap_or(false)
 }
 
 fn companion_config(character: &Character) -> CompanionConfig {

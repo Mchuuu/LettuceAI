@@ -48,6 +48,7 @@ export function createDefaultCompanionConfig(
       prioritizeRelationship: true,
       prioritizeEpisodic: true,
       useEmotionalSnapshots: true,
+      sharedAcrossSessions: false,
     },
     prompting: {
       promptTemplateId,

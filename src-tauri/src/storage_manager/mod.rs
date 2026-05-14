@@ -1,5 +1,6 @@
 pub mod backup;
 pub mod characters;
+pub mod companion_shared_memory;
 pub mod companion_scheduled_notes;
 pub mod jsonl;
 pub mod companion_turn_effects;

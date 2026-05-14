@@ -24,6 +24,17 @@ const ALLOWED_MEMORY_CATEGORIES: &[&str] = &[
     "other",
 ];
 
+struct LoadedMemoryFields {
+    memories_json: String,
+    memory_embeddings: Vec<MemoryEmbedding>,
+    memory_summary: Option<String>,
+    memory_summary_token_count: i64,
+    memory_tool_events_json: String,
+    memory_status: Option<String>,
+    memory_error: Option<String>,
+    memory_progress_step: Option<i64>,
+}
+
 fn resolve_companion_state_json(
     conn: &rusqlite::Connection,
     character_id: &str,
@@ -53,13 +64,10 @@ fn resolve_companion_state_json(
     }
 }
 
-/// Read the current memory embeddings for a single-character session,
-/// preferring the normalised `memory_embeddings` table when populated.
-/// Falls back to the legacy JSON column for sessions that haven't been saved
-/// under the new schema yet.
-fn read_session_embeddings_with_fallback(
+fn local_session_embeddings_from_legacy(
     conn: &rusqlite::Connection,
     session_id: &str,
+    legacy_json: &str,
 ) -> Result<Vec<MemoryEmbedding>, String> {
     let count = crate::storage_manager::memory_embeddings::count_for_session(
         conn,
@@ -74,16 +82,131 @@ fn read_session_embeddings_with_fallback(
             crate::storage_manager::memory_embeddings::SessionKind::Session,
         );
     }
-    let json: String = conn
+    Ok(serde_json::from_str(legacy_json).unwrap_or_default())
+}
+
+fn load_resolved_memory_fields(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+    character_id: &str,
+    mode: &str,
+    local_memories_json: &str,
+    local_memory_embeddings_json: &str,
+    local_memory_summary: Option<String>,
+    local_memory_summary_token_count: i64,
+    local_memory_tool_events_json: &str,
+    local_memory_status: Option<String>,
+    local_memory_error: Option<String>,
+    local_memory_progress_step: Option<i64>,
+) -> Result<LoadedMemoryFields, String> {
+    let owner = crate::storage_manager::companion_shared_memory::resolve_effective_memory_owner(
+        conn,
+        session_id,
+        character_id,
+        mode,
+    )?;
+
+    if !owner.shared {
+        return Ok(LoadedMemoryFields {
+            memories_json: local_memories_json.to_string(),
+            memory_embeddings: local_session_embeddings_from_legacy(
+                conn,
+                session_id,
+                local_memory_embeddings_json,
+            )?,
+            memory_summary: local_memory_summary,
+            memory_summary_token_count: local_memory_summary_token_count.max(0),
+            memory_tool_events_json: local_memory_tool_events_json.to_string(),
+            memory_status: local_memory_status,
+            memory_error: local_memory_error,
+            memory_progress_step: local_memory_progress_step,
+        });
+    }
+
+    let shared_state =
+        crate::storage_manager::companion_shared_memory::load_state(conn, character_id)?;
+    let memory_embeddings = crate::storage_manager::memory_embeddings::load_for_session(
+        conn,
+        character_id,
+        crate::storage_manager::memory_embeddings::SessionKind::CompanionShared,
+    )
+    .unwrap_or_default();
+
+    Ok(LoadedMemoryFields {
+        memories_json: shared_state.memories_json,
+        memory_embeddings,
+        memory_summary: shared_state.memory_summary,
+        memory_summary_token_count: shared_state.memory_summary_token_count.max(0),
+        memory_tool_events_json: shared_state.memory_tool_events_json,
+        memory_status: shared_state.memory_status,
+        memory_error: shared_state.memory_error,
+        memory_progress_step: shared_state.memory_progress_step,
+    })
+}
+
+/// Read the current memory embeddings for a single-character session,
+/// preferring the normalised `memory_embeddings` table when populated.
+/// Falls back to the legacy JSON column for sessions that haven't been saved
+/// under the new schema yet.
+fn read_session_embeddings_with_fallback(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+) -> Result<Vec<MemoryEmbedding>, String> {
+    let (character_id, mode, legacy_json): (String, String, String) = conn
         .query_row(
-            "SELECT memory_embeddings FROM sessions WHERE id = ?",
+            "SELECT character_id, mode, memory_embeddings FROM sessions WHERE id = ?",
             params![session_id],
-            |r| r.get(0),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         )
         .optional()
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
-        .unwrap_or_else(|| "[]".to_string());
-    Ok(serde_json::from_str(&json).unwrap_or_default())
+        .unwrap_or_else(|| (String::new(), "roleplay".to_string(), "[]".to_string()));
+
+    let owner = crate::storage_manager::companion_shared_memory::resolve_effective_memory_owner(
+        conn,
+        session_id,
+        &character_id,
+        &mode,
+    )?;
+    if owner.shared {
+        return crate::storage_manager::memory_embeddings::load_for_session(
+            conn,
+            &owner.owner_id,
+            owner.kind,
+        );
+    }
+
+    local_session_embeddings_from_legacy(conn, session_id, &legacy_json)
+}
+
+fn read_session_memories_json_with_resolution(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+) -> Result<String, String> {
+    let (character_id, mode, local_memories_json): (String, String, String) = conn
+        .query_row(
+            "SELECT character_id, mode, memories FROM sessions WHERE id = ?1",
+            params![session_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+        .unwrap_or_else(|| (String::new(), "roleplay".to_string(), "[]".to_string()));
+
+    let owner = crate::storage_manager::companion_shared_memory::resolve_effective_memory_owner(
+        conn,
+        session_id,
+        &character_id,
+        &mode,
+    )?;
+    if owner.shared {
+        return Ok(
+            crate::storage_manager::companion_shared_memory::load_state(conn, &character_id)?
+                .memories_json,
+        );
+    }
+
+    Ok(local_memories_json)
 }
 
 /// Persist memory embeddings for a single-character session through the new
@@ -94,19 +217,111 @@ fn write_session_embeddings_through_table(
     session_id: &str,
     embeddings: &[MemoryEmbedding],
 ) -> Result<(), String> {
-    crate::storage_manager::memory_embeddings::replace_all(
+    let (character_id, mode): (String, String) = conn
+        .query_row(
+            "SELECT character_id, mode FROM sessions WHERE id = ?1",
+            params![session_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let owner = crate::storage_manager::companion_shared_memory::resolve_effective_memory_owner(
         conn,
         session_id,
-        crate::storage_manager::memory_embeddings::SessionKind::Session,
+        &character_id,
+        &mode,
+    )?;
+    crate::storage_manager::memory_embeddings::replace_all(
+        conn,
+        &owner.owner_id,
+        owner.kind,
         embeddings,
     )?;
-    let now = now_ms() as i64;
-    conn.execute(
-        "UPDATE sessions SET memory_embeddings = '[]', updated_at = ? WHERE id = ?",
-        params![now, session_id],
-    )
-    .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    if !owner.shared {
+        let now = now_ms() as i64;
+        conn.execute(
+            "UPDATE sessions SET memory_embeddings = '[]', updated_at = ? WHERE id = ?",
+            params![now, session_id],
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    }
     Ok(())
+}
+
+fn write_resolved_memories_json(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+    memories_json: &str,
+) -> Result<(), String> {
+    let (character_id, mode): (String, String) = conn
+        .query_row(
+            "SELECT character_id, mode FROM sessions WHERE id = ?1",
+            params![session_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let owner = crate::storage_manager::companion_shared_memory::resolve_effective_memory_owner(
+        conn,
+        session_id,
+        &character_id,
+        &mode,
+    )?;
+
+    if owner.shared {
+        let mut state = crate::storage_manager::companion_shared_memory::load_state(conn, &character_id)?;
+        state.memories_json = memories_json.to_string();
+        crate::storage_manager::companion_shared_memory::upsert_state(conn, &character_id, &state)?;
+    } else {
+        let now = now_ms() as i64;
+        conn.execute(
+            "UPDATE sessions SET memories = ?, updated_at = ? WHERE id = ?",
+            params![memories_json, now, session_id],
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    }
+    Ok(())
+}
+
+fn persist_shared_memory_from_session_json(
+    conn: &mut rusqlite::Connection,
+    session_id: &str,
+    character_id: &str,
+    mode: &str,
+    memories_json: &str,
+    memory_embeddings_json: &str,
+    memory_summary: Option<String>,
+    memory_summary_token_count: i64,
+    memory_tool_events_json: &str,
+    memory_status: Option<String>,
+    memory_error: Option<String>,
+    memory_progress_step: Option<i64>,
+) -> Result<bool, String> {
+    let owner = crate::storage_manager::companion_shared_memory::resolve_effective_memory_owner(
+        conn,
+        session_id,
+        character_id,
+        mode,
+    )?;
+    if !owner.shared {
+        return Ok(false);
+    }
+
+    let shared_state = crate::storage_manager::companion_shared_memory::SharedMemoryState {
+        memories_json: memories_json.to_string(),
+        memory_summary,
+        memory_summary_token_count: memory_summary_token_count.max(0),
+        memory_tool_events_json: memory_tool_events_json.to_string(),
+        memory_status,
+        memory_error,
+        memory_progress_step,
+    };
+    crate::storage_manager::companion_shared_memory::upsert_state(conn, character_id, &shared_state)?;
+    crate::storage_manager::memory_embeddings::replace_all_from_json(
+        conn,
+        character_id,
+        crate::storage_manager::memory_embeddings::SessionKind::CompanionShared,
+        Some(memory_embeddings_json),
+    )?;
+    Ok(true)
 }
 
 fn normalize_memory_category(category: Option<String>) -> Result<Option<String>, String> {
@@ -355,6 +570,21 @@ fn read_session_meta_typed_internal(
         return Ok(None);
     };
 
+    let loaded_memory = load_resolved_memory_fields(
+        conn,
+        id,
+        &character_id,
+        &mode,
+        &memories_json,
+        &memory_embeddings_json,
+        memory_summary,
+        memory_summary_token_count,
+        &memory_tool_events_json,
+        memory_status.clone(),
+        memory_error.clone(),
+        memory_progress_step,
+    )?;
+
     Ok(Some(Session {
         id: id.to_string(),
         character_id,
@@ -383,14 +613,14 @@ fn read_session_meta_typed_internal(
         companion_state: companion_state_json
             .as_deref()
             .and_then(|value| serde_json::from_str(value).ok()),
-        memories: parse_json_or_default(&memories_json),
-        memory_embeddings: parse_json_or_default::<Vec<MemoryEmbedding>>(&memory_embeddings_json),
-        memory_summary,
-        memory_summary_token_count: memory_summary_token_count.max(0) as u32,
-        memory_tool_events: parse_json_or_default(&memory_tool_events_json),
-        memory_status,
-        memory_error,
-        memory_progress_step: memory_progress_step.map(|v| v as u32),
+        memories: parse_json_or_default(&loaded_memory.memories_json),
+        memory_embeddings: loaded_memory.memory_embeddings,
+        memory_summary: loaded_memory.memory_summary,
+        memory_summary_token_count: loaded_memory.memory_summary_token_count as u32,
+        memory_tool_events: parse_json_or_default(&loaded_memory.memory_tool_events_json),
+        memory_status: loaded_memory.memory_status,
+        memory_error: loaded_memory.memory_error,
+        memory_progress_step: loaded_memory.memory_progress_step.map(|v| v as u32),
         messages: Vec::new(),
         archived: archived != 0,
         created_at: created_at as u64,
@@ -767,7 +997,7 @@ fn fetch_pinned_messages_typed(
 }
 
 fn upsert_session_meta_value(app: &tauri::AppHandle, s: &JsonValue) -> Result<(), String> {
-    let conn = open_db(app)?;
+    let mut conn = open_db(app)?;
     let id = s
         .get("id")
         .and_then(|v| v.as_str())
@@ -851,6 +1081,60 @@ fn upsert_session_meta_value(app: &tauri::AppHandle, s: &JsonValue) -> Result<()
         .and_then(|v| v.as_str())
         .map(|value| value.to_string());
     let memory_progress_step = s.get("memoryProgressStep").and_then(|v| v.as_i64());
+    let shared_memory_enabled = persist_shared_memory_from_session_json(
+        &mut conn,
+        &id,
+        &character_id,
+        &mode,
+        &memories_json,
+        &memory_embeddings_json,
+        memory_summary.clone(),
+        memory_summary_token_count,
+        &memory_tool_events_json,
+        memory_status.clone(),
+        memory_error.clone(),
+        memory_progress_step,
+    )?;
+    let session_memories_json = if shared_memory_enabled {
+        "[]".to_string()
+    } else {
+        memories_json.clone()
+    };
+    let session_memory_embeddings_json = if shared_memory_enabled {
+        "[]".to_string()
+    } else {
+        memory_embeddings_json.clone()
+    };
+    let session_memory_summary = if shared_memory_enabled {
+        None
+    } else {
+        memory_summary.clone()
+    };
+    let session_memory_summary_token_count = if shared_memory_enabled {
+        0
+    } else {
+        memory_summary_token_count
+    };
+    let session_memory_tool_events_json = if shared_memory_enabled {
+        "[]".to_string()
+    } else {
+        memory_tool_events_json.clone()
+    };
+    let session_memory_status = if shared_memory_enabled {
+        None
+    } else {
+        memory_status.clone()
+    };
+    let session_memory_error = if shared_memory_enabled {
+        None
+    } else {
+        memory_error.clone()
+    };
+    let session_memory_progress_step = if shared_memory_enabled {
+        None
+    } else {
+        memory_progress_step
+    };
 
     let adv = s.get("advancedModelSettings");
     let advanced_model_settings_json = serialize_session_advanced_model_settings(adv);
@@ -925,14 +1209,14 @@ fn upsert_session_meta_value(app: &tauri::AppHandle, s: &JsonValue) -> Result<()
             top_k,
             advanced_model_settings_json,
             companion_state_json,
-            &memories_json,
-            &memory_embeddings_json,
-            memory_summary,
-            memory_summary_token_count,
-            &memory_tool_events_json,
-            memory_status,
-            memory_error,
-            memory_progress_step,
+            &session_memories_json,
+            &session_memory_embeddings_json,
+            session_memory_summary,
+            session_memory_summary_token_count,
+            &session_memory_tool_events_json,
+            session_memory_status,
+            session_memory_error,
+            session_memory_progress_step,
             archived,
             created_at,
             updated_at
@@ -1220,33 +1504,27 @@ fn read_session_meta(conn: &rusqlite::Connection, id: &str) -> Result<Option<Jso
     )
     .and_then(|value| serde_json::to_value(value).ok());
 
-    let memories: JsonValue =
-        serde_json::from_str(&memories_json).unwrap_or_else(|_| JsonValue::Array(vec![]));
-    // Prefer the normalised `memory_embeddings` table when populated; fall back
-    // to the legacy JSON column for sessions that haven't been saved under the
-    // new schema yet.
-    let memory_embeddings: JsonValue = {
-        let new_table_count = crate::storage_manager::memory_embeddings::count_for_session(
-            conn,
-            id,
-            crate::storage_manager::memory_embeddings::SessionKind::Session,
-        )
-        .unwrap_or(0);
-        if new_table_count > 0 {
-            let typed = crate::storage_manager::memory_embeddings::load_for_session(
-                conn,
-                id,
-                crate::storage_manager::memory_embeddings::SessionKind::Session,
-            )
-            .unwrap_or_default();
-            serde_json::to_value(typed).unwrap_or_else(|_| JsonValue::Array(vec![]))
-        } else {
-            serde_json::from_str(&memory_embeddings_json)
-                .unwrap_or_else(|_| JsonValue::Array(vec![]))
-        }
-    };
-    let memory_tool_events: JsonValue =
-        serde_json::from_str(&memory_tool_events_json).unwrap_or_else(|_| JsonValue::Array(vec![]));
+    let loaded_memory = load_resolved_memory_fields(
+        conn,
+        id,
+        &character_id,
+        &mode,
+        &memories_json,
+        &memory_embeddings_json,
+        memory_summary,
+        memory_summary_token_count,
+        &memory_tool_events_json,
+        memory_status.clone(),
+        memory_error.clone(),
+        memory_progress_step,
+    )?;
+
+    let memories: JsonValue = serde_json::from_str(&loaded_memory.memories_json)
+        .unwrap_or_else(|_| JsonValue::Array(vec![]));
+    let memory_embeddings =
+        serde_json::to_value(loaded_memory.memory_embeddings).unwrap_or_else(|_| JsonValue::Array(vec![]));
+    let memory_tool_events: JsonValue = serde_json::from_str(&loaded_memory.memory_tool_events_json)
+        .unwrap_or_else(|_| JsonValue::Array(vec![]));
 
     let session = serde_json::json!({
         "id": id,
@@ -1266,12 +1544,12 @@ fn read_session_meta(conn: &rusqlite::Connection, id: &str) -> Result<Option<Jso
         "companionState": companion_state_json.as_deref().and_then(|value| serde_json::from_str::<JsonValue>(value).ok()),
         "memories": memories,
         "memoryEmbeddings": memory_embeddings,
-        "memorySummary": memory_summary.unwrap_or_default(),
-        "memorySummaryTokenCount": memory_summary_token_count,
+        "memorySummary": loaded_memory.memory_summary.unwrap_or_default(),
+        "memorySummaryTokenCount": loaded_memory.memory_summary_token_count,
         "memoryToolEvents": memory_tool_events,
-        "memoryStatus": memory_status,
-        "memoryError": memory_error,
-        "memoryProgressStep": memory_progress_step,
+        "memoryStatus": loaded_memory.memory_status,
+        "memoryError": loaded_memory.memory_error,
+        "memoryProgressStep": loaded_memory.memory_progress_step,
         "messages": [],
         "archived": archived != 0,
         "createdAt": created_at,
@@ -1455,33 +1733,27 @@ fn read_session(conn: &rusqlite::Connection, id: &str) -> Result<Option<JsonValu
     )
     .and_then(|value| serde_json::to_value(value).ok());
 
-    // Parse memories JSON array
-    let memories: JsonValue =
-        serde_json::from_str(&memories_json).unwrap_or_else(|_| JsonValue::Array(vec![]));
-    // Prefer the normalised `memory_embeddings` table when populated; fall back
-    // to the legacy JSON column otherwise.
-    let memory_embeddings: JsonValue = {
-        let new_table_count = crate::storage_manager::memory_embeddings::count_for_session(
-            conn,
-            id,
-            crate::storage_manager::memory_embeddings::SessionKind::Session,
-        )
-        .unwrap_or(0);
-        if new_table_count > 0 {
-            let typed = crate::storage_manager::memory_embeddings::load_for_session(
-                conn,
-                id,
-                crate::storage_manager::memory_embeddings::SessionKind::Session,
-            )
-            .unwrap_or_default();
-            serde_json::to_value(typed).unwrap_or_else(|_| JsonValue::Array(vec![]))
-        } else {
-            serde_json::from_str(&memory_embeddings_json)
-                .unwrap_or_else(|_| JsonValue::Array(vec![]))
-        }
-    };
-    let memory_tool_events: JsonValue =
-        serde_json::from_str(&memory_tool_events_json).unwrap_or_else(|_| JsonValue::Array(vec![]));
+    let loaded_memory = load_resolved_memory_fields(
+        conn,
+        id,
+        &character_id,
+        &mode,
+        &memories_json,
+        &memory_embeddings_json,
+        memory_summary,
+        memory_summary_token_count,
+        &memory_tool_events_json,
+        memory_status.clone(),
+        memory_error.clone(),
+        memory_progress_step,
+    )?;
+
+    let memories: JsonValue = serde_json::from_str(&loaded_memory.memories_json)
+        .unwrap_or_else(|_| JsonValue::Array(vec![]));
+    let memory_embeddings =
+        serde_json::to_value(loaded_memory.memory_embeddings).unwrap_or_else(|_| JsonValue::Array(vec![]));
+    let memory_tool_events: JsonValue = serde_json::from_str(&loaded_memory.memory_tool_events_json)
+        .unwrap_or_else(|_| JsonValue::Array(vec![]));
 
     let session = serde_json::json!({
         "id": id,
@@ -1501,12 +1773,12 @@ fn read_session(conn: &rusqlite::Connection, id: &str) -> Result<Option<JsonValu
         "companionState": companion_state_json.as_deref().and_then(|value| serde_json::from_str::<JsonValue>(value).ok()),
         "memories": memories,
         "memoryEmbeddings": memory_embeddings,
-        "memorySummary": memory_summary.unwrap_or_default(),
-        "memorySummaryTokenCount": memory_summary_token_count,
+        "memorySummary": loaded_memory.memory_summary.unwrap_or_default(),
+        "memorySummaryTokenCount": loaded_memory.memory_summary_token_count,
         "memoryToolEvents": memory_tool_events,
-        "memoryStatus": memory_status,
-        "memoryError": memory_error,
-        "memoryProgressStep": memory_progress_step,
+        "memoryStatus": loaded_memory.memory_status,
+        "memoryError": loaded_memory.memory_error,
+        "memoryProgressStep": loaded_memory.memory_progress_step,
         "messages": messages,
         "archived": archived != 0,
         "createdAt": created_at,
@@ -2182,7 +2454,7 @@ pub fn messages_list_pinned(app: tauri::AppHandle, session_id: String) -> Result
 
 #[tauri::command]
 pub fn session_upsert_meta(app: tauri::AppHandle, session_json: String) -> Result<(), String> {
-    let conn = open_db(&app)?;
+    let mut conn = open_db(&app)?;
     let s: JsonValue = serde_json::from_str(&session_json)
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     let id = s
@@ -2268,6 +2540,60 @@ pub fn session_upsert_meta(app: tauri::AppHandle, session_json: String) -> Resul
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
     let memory_progress_step = s.get("memoryProgressStep").and_then(|v| v.as_i64());
+    let shared_memory_enabled = persist_shared_memory_from_session_json(
+        &mut conn,
+        &id,
+        &character_id,
+        &mode,
+        &memories_json,
+        &memory_embeddings_json,
+        memory_summary.clone(),
+        memory_summary_token_count,
+        &memory_tool_events_json,
+        memory_status.clone(),
+        memory_error.clone(),
+        memory_progress_step,
+    )?;
+    let session_memories_json = if shared_memory_enabled {
+        "[]".to_string()
+    } else {
+        memories_json.clone()
+    };
+    let session_memory_embeddings_json = if shared_memory_enabled {
+        "[]".to_string()
+    } else {
+        memory_embeddings_json.clone()
+    };
+    let session_memory_summary = if shared_memory_enabled {
+        None
+    } else {
+        memory_summary.clone()
+    };
+    let session_memory_summary_token_count = if shared_memory_enabled {
+        0
+    } else {
+        memory_summary_token_count
+    };
+    let session_memory_tool_events_json = if shared_memory_enabled {
+        "[]".to_string()
+    } else {
+        memory_tool_events_json.clone()
+    };
+    let session_memory_status = if shared_memory_enabled {
+        None
+    } else {
+        memory_status.clone()
+    };
+    let session_memory_error = if shared_memory_enabled {
+        None
+    } else {
+        memory_error.clone()
+    };
+    let session_memory_progress_step = if shared_memory_enabled {
+        None
+    } else {
+        memory_progress_step
+    };
 
     let adv = s.get("advancedModelSettings");
     let advanced_model_settings_json = serialize_session_advanced_model_settings(adv);
@@ -2342,14 +2668,14 @@ pub fn session_upsert_meta(app: tauri::AppHandle, session_json: String) -> Resul
             top_k,
             advanced_model_settings_json,
             companion_state_json,
-            &memories_json,
-            &memory_embeddings_json,
-            memory_summary,
-            memory_summary_token_count,
-            &memory_tool_events_json,
-            memory_status,
-            memory_error,
-            memory_progress_step,
+            &session_memories_json,
+            &session_memory_embeddings_json,
+            session_memory_summary,
+            session_memory_summary_token_count,
+            &session_memory_tool_events_json,
+            session_memory_status,
+            session_memory_error,
+            session_memory_progress_step,
             archived,
             created_at,
             updated_at
@@ -2730,6 +3056,45 @@ pub fn session_upsert(app: tauri::AppHandle, session_json: String) -> Result<(),
         None => "[]".to_string(),
     };
     let companion_state_json = resolve_companion_state_json(&conn, &character_id, &mode, &s)?;
+    let shared_memory_enabled = persist_shared_memory_from_session_json(
+        &mut conn,
+        &id,
+        &character_id,
+        &mode,
+        &memories_json,
+        &memory_embeddings_json,
+        memory_summary.clone(),
+        memory_summary_token_count,
+        &memory_tool_events_json,
+        None,
+        None,
+        None,
+    )?;
+    let session_memories_json = if shared_memory_enabled {
+        "[]".to_string()
+    } else {
+        memories_json.clone()
+    };
+    let session_memory_embeddings_json = if shared_memory_enabled {
+        "[]".to_string()
+    } else {
+        memory_embeddings_json.clone()
+    };
+    let session_memory_summary = if shared_memory_enabled {
+        None
+    } else {
+        memory_summary.clone()
+    };
+    let session_memory_summary_token_count = if shared_memory_enabled {
+        0
+    } else {
+        memory_summary_token_count
+    };
+    let session_memory_tool_events_json = if shared_memory_enabled {
+        "[]".to_string()
+    } else {
+        memory_tool_events_json.clone()
+    };
 
     let adv = s.get("advancedModelSettings");
     let advanced_model_settings_json = serialize_session_advanced_model_settings(adv);
@@ -2782,7 +3147,7 @@ pub fn session_upsert(app: tauri::AppHandle, session_json: String) -> Result<(),
               memory_tool_events=excluded.memory_tool_events,
               archived=excluded.archived,
               updated_at=excluded.updated_at"#,
-        params![&id, character_id, title, background_image_path, system_prompt, mode, selected_scene_id, prompt_template_id, lorebook_ids_override_json, author_note, persona_id, persona_disabled, voice_autoplay, temperature, top_p, max_output_tokens, frequency_penalty, presence_penalty, top_k, advanced_model_settings_json, companion_state_json, &memories_json, &memory_embeddings_json, memory_summary, memory_summary_token_count, &memory_tool_events_json, archived, created_at, updated_at],
+        params![&id, character_id, title, background_image_path, system_prompt, mode, selected_scene_id, prompt_template_id, lorebook_ids_override_json, author_note, persona_id, persona_disabled, voice_autoplay, temperature, top_p, max_output_tokens, frequency_penalty, presence_penalty, top_k, advanced_model_settings_json, companion_state_json, &session_memories_json, &session_memory_embeddings_json, session_memory_summary, session_memory_summary_token_count, &session_memory_tool_events_json, archived, created_at, updated_at],
     ).map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
     if let Some(msgs) = s.get("messages").and_then(|v| v.as_array()) {
@@ -3073,15 +3438,7 @@ pub async fn session_add_memory(
 
     // Read current memories (legacy column) and embeddings (new table or
     // legacy fallback).
-    let current_memories_json: String = conn
-        .query_row(
-            "SELECT memories FROM sessions WHERE id = ?",
-            params![&session_id],
-            |r| r.get(0),
-        )
-        .optional()
-        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
-        .unwrap_or_else(|| "[]".to_string());
+    let current_memories_json = read_session_memories_json_with_resolution(&conn, &session_id)?;
 
     let mut memories: Vec<String> =
         serde_json::from_str(&current_memories_json).unwrap_or_else(|_| vec![]);
@@ -3143,12 +3500,7 @@ pub async fn session_add_memory(
     write_session_embeddings_through_table(&mut *conn, &session_id, &memory_embeddings)?;
     let new_memories_json = serde_json::to_string(&memories)
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-    let now = now_ms() as i64;
-    conn.execute(
-        "UPDATE sessions SET memories = ?, updated_at = ? WHERE id = ?",
-        params![new_memories_json, now, &session_id],
-    )
-    .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    write_resolved_memories_json(&conn, &session_id, &new_memories_json)?;
 
     if let Some(json) = read_session_meta(&conn, &session_id)? {
         return Ok(Some(serde_json::to_string(&json).map_err(|e| {
@@ -3166,15 +3518,7 @@ pub fn session_remove_memory(
 ) -> Result<Option<String>, String> {
     let mut conn = open_db(&app)?;
 
-    let current_memories_json: String = conn
-        .query_row(
-            "SELECT memories FROM sessions WHERE id = ?",
-            params![&session_id],
-            |r| r.get(0),
-        )
-        .optional()
-        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
-        .unwrap_or_else(|| "[]".to_string());
+    let current_memories_json = read_session_memories_json_with_resolution(&conn, &session_id)?;
 
     let mut memories: Vec<String> =
         serde_json::from_str(&current_memories_json).unwrap_or_else(|_| vec![]);
@@ -3188,12 +3532,7 @@ pub fn session_remove_memory(
         write_session_embeddings_through_table(&mut *conn, &session_id, &memory_embeddings)?;
         let new_memories_json = serde_json::to_string(&memories)
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-        let now = now_ms() as i64;
-        conn.execute(
-            "UPDATE sessions SET memories = ?, updated_at = ? WHERE id = ?",
-            params![new_memories_json, now, &session_id],
-        )
-        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        write_resolved_memories_json(&conn, &session_id, &new_memories_json)?;
     }
 
     if let Some(json) = read_session_meta(&conn, &session_id)? {
@@ -3214,15 +3553,7 @@ pub async fn session_update_memory(
 ) -> Result<Option<String>, String> {
     let mut conn = open_db(&app)?;
 
-    let current_memories_json: String = conn
-        .query_row(
-            "SELECT memories FROM sessions WHERE id = ?",
-            params![&session_id],
-            |r| r.get(0),
-        )
-        .optional()
-        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
-        .unwrap_or_else(|| "[]".to_string());
+    let current_memories_json = read_session_memories_json_with_resolution(&conn, &session_id)?;
 
     let mut memories: Vec<String> =
         serde_json::from_str(&current_memories_json).unwrap_or_else(|_| vec![]);
@@ -3290,12 +3621,7 @@ pub async fn session_update_memory(
         write_session_embeddings_through_table(&mut *conn, &session_id, &memory_embeddings)?;
         let new_memories_json = serde_json::to_string(&memories)
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-        let now = now_ms() as i64;
-        conn.execute(
-            "UPDATE sessions SET memories = ?, updated_at = ? WHERE id = ?",
-            params![new_memories_json, now, &session_id],
-        )
-        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        write_resolved_memories_json(&conn, &session_id, &new_memories_json)?;
     }
 
     if let Some(json) = read_session_meta(&conn, &session_id)? {
@@ -3346,15 +3672,7 @@ pub fn session_set_memory_cold_state(
 ) -> Result<Option<String>, String> {
     let mut conn = open_db(&app)?;
 
-    let memories_json: String = conn
-        .query_row(
-            "SELECT memories FROM sessions WHERE id = ?",
-            params![&session_id],
-            |r| r.get(0),
-        )
-        .optional()
-        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
-        .unwrap_or_else(|| "[]".to_string());
+    let memories_json = read_session_memories_json_with_resolution(&conn, &session_id)?;
     let memories: Vec<String> = serde_json::from_str(&memories_json).unwrap_or_default();
     let mut memory_embeddings = read_session_embeddings_with_fallback(&conn, &session_id)?;
 

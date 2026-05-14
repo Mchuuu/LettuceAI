@@ -3902,12 +3902,14 @@ async fn run_memory_tool_update(
         // session-level `save_session` later in this cycle will re-sync the
         // remaining rows but the narrow DELETE here keeps them gone if the
         // save fails partway.
-        let _ = crate::storage_manager::memory_embeddings::delete_many_app(
-            app,
-            &session.id,
-            crate::storage_manager::memory_embeddings::SessionKind::Session,
-            &trimmed,
-        );
+        if let Ok(owner) = crate::storage_manager::companion_shared_memory::resolve_effective_memory_owner_for_session_app(app, &session.id) {
+            let _ = crate::storage_manager::memory_embeddings::delete_many_app(
+                app,
+                &owner.owner_id,
+                owner.kind,
+                &trimmed,
+            );
+        }
         log_info(
             app,
             "dynamic_memory",

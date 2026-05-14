@@ -7,7 +7,7 @@ use crate::storage_manager::settings::{read_settings_typed, write_settings_typed
 use crate::utils::log_info;
 
 /// Current migration version
-pub const CURRENT_MIGRATION_VERSION: u32 = 65;
+pub const CURRENT_MIGRATION_VERSION: u32 = 66;
 
 pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
     log_info(app, "migrations", "Starting migration check");
@@ -687,6 +687,16 @@ pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
         );
         migrate_v64_to_v65(app)?;
         version = 65;
+    }
+
+    if version < 66 {
+        log_info(
+            app,
+            "migrations",
+            "Running migration v65 -> v66: Add companion shared memory storage",
+        );
+        migrate_v65_to_v66(app)?;
+        version = 66;
     }
 
     // Update the stored version
@@ -3673,6 +3683,89 @@ fn migrate_v64_to_v65(app: &AppHandle) -> Result<(), String> {
 
         CREATE INDEX IF NOT EXISTS idx_companion_scheduled_notes_character
           ON companion_scheduled_notes(character_id);
+        "#,
+    )
+    .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    Ok(())
+}
+
+fn migrate_v65_to_v66(app: &AppHandle) -> Result<(), String> {
+    let conn = crate::storage_manager::db::open_db(app)?;
+    conn.execute_batch(
+        r#"
+        CREATE TABLE IF NOT EXISTS memory_embeddings_v66 (
+          session_id          TEXT NOT NULL,
+          session_kind        TEXT NOT NULL CHECK (session_kind IN ('session', 'group_session', 'companion_shared')),
+          memory_id           TEXT NOT NULL,
+          embedding           BLOB NOT NULL,
+          embedding_dim       INTEGER NOT NULL,
+          embedding_model     TEXT,
+          text                TEXT NOT NULL,
+          token_count         INTEGER NOT NULL DEFAULT 0,
+          category            TEXT,
+          importance_score    REAL NOT NULL DEFAULT 1.0,
+          persistence_importance REAL NOT NULL DEFAULT 1.0,
+          prompt_importance   REAL NOT NULL DEFAULT 1.0,
+          volatility          REAL NOT NULL DEFAULT 0.4,
+          is_cold             INTEGER NOT NULL DEFAULT 0,
+          is_pinned           INTEGER NOT NULL DEFAULT 0,
+          access_count        INTEGER NOT NULL DEFAULT 0,
+          fact_signature      TEXT,
+          fact_polarity       INTEGER,
+          source_role         TEXT,
+          source_message_id   TEXT,
+          superseded_by       TEXT,
+          superseded_at       INTEGER,
+          supersedes_json     TEXT,
+          canonical_entities_json TEXT,
+          observed_at         INTEGER,
+          observed_time_precision TEXT,
+          created_at          INTEGER NOT NULL,
+          last_accessed_at    INTEGER NOT NULL,
+          updated_at          INTEGER NOT NULL,
+          PRIMARY KEY (session_id, session_kind, memory_id)
+        );
+
+        INSERT INTO memory_embeddings_v66 (
+          session_id, session_kind, memory_id, embedding, embedding_dim, embedding_model, text,
+          token_count, category, importance_score, persistence_importance, prompt_importance,
+          volatility, is_cold, is_pinned, access_count, fact_signature, fact_polarity,
+          source_role, source_message_id, superseded_by, superseded_at, supersedes_json,
+          canonical_entities_json, observed_at, observed_time_precision, created_at,
+          last_accessed_at, updated_at
+        )
+        SELECT
+          session_id, session_kind, memory_id, embedding, embedding_dim, embedding_model, text,
+          token_count, category, importance_score, persistence_importance, prompt_importance,
+          volatility, is_cold, is_pinned, access_count, fact_signature, fact_polarity,
+          source_role, source_message_id, superseded_by, superseded_at, supersedes_json,
+          canonical_entities_json, observed_at, observed_time_precision, created_at,
+          last_accessed_at, updated_at
+        FROM memory_embeddings;
+
+        DROP TABLE memory_embeddings;
+        ALTER TABLE memory_embeddings_v66 RENAME TO memory_embeddings;
+
+        CREATE INDEX IF NOT EXISTS idx_memory_embeddings_session
+          ON memory_embeddings (session_id, session_kind);
+
+        CREATE INDEX IF NOT EXISTS idx_memory_embeddings_session_cold
+          ON memory_embeddings (session_id, session_kind, is_cold);
+
+        CREATE TABLE IF NOT EXISTS companion_shared_memory_state (
+          character_id TEXT PRIMARY KEY,
+          memories TEXT NOT NULL DEFAULT '[]',
+          memory_summary TEXT,
+          memory_summary_token_count INTEGER NOT NULL DEFAULT 0,
+          memory_tool_events TEXT NOT NULL DEFAULT '[]',
+          memory_status TEXT,
+          memory_error TEXT,
+          memory_progress_step INTEGER,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY(character_id) REFERENCES characters(id) ON DELETE CASCADE
+        );
         "#,
     )
     .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;

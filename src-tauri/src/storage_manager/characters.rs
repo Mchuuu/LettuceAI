@@ -1021,6 +1021,11 @@ pub fn character_delete(app: tauri::AppHandle, id: String) -> Result<(), String>
         format!("Deleting character {}", id),
     );
     let conn = open_db(&app)?;
+    let _ = crate::storage_manager::memory_embeddings::delete_all_for_session_app(
+        &app,
+        &id,
+        crate::storage_manager::memory_embeddings::SessionKind::CompanionShared,
+    );
     conn.execute("DELETE FROM characters WHERE id = ?", params![id])
         .map_err(|e| {
             log_error(

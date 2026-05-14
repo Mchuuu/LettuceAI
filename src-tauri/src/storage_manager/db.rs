@@ -399,7 +399,7 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
 
         CREATE TABLE IF NOT EXISTS memory_embeddings (
           session_id          TEXT NOT NULL,
-          session_kind        TEXT NOT NULL CHECK (session_kind IN ('session', 'group_session')),
+          session_kind        TEXT NOT NULL CHECK (session_kind IN ('session', 'group_session', 'companion_shared')),
           memory_id           TEXT NOT NULL,
           embedding           BLOB NOT NULL,
           embedding_dim       INTEGER NOT NULL,
@@ -708,6 +708,20 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
 
         CREATE INDEX IF NOT EXISTS idx_companion_scheduled_notes_character
           ON companion_scheduled_notes(character_id);
+
+        CREATE TABLE IF NOT EXISTS companion_shared_memory_state (
+          character_id TEXT PRIMARY KEY,
+          memories TEXT NOT NULL DEFAULT '[]',
+          memory_summary TEXT,
+          memory_summary_token_count INTEGER NOT NULL DEFAULT 0,
+          memory_tool_events TEXT NOT NULL DEFAULT '[]',
+          memory_status TEXT,
+          memory_error TEXT,
+          memory_progress_step INTEGER,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY(character_id) REFERENCES characters(id) ON DELETE CASCADE
+        );
 
         CREATE TABLE IF NOT EXISTS message_variants (
           id TEXT PRIMARY KEY,

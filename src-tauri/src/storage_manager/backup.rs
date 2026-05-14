@@ -570,6 +570,29 @@ fn export_companion_scheduled_notes(app: &tauri::AppHandle) -> Result<Vec<JsonVa
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
 }
 
+fn export_companion_shared_memory(app: &tauri::AppHandle) -> Result<Vec<JsonValue>, String> {
+    let conn = open_db(app)?;
+    let mut rows = crate::storage_manager::companion_shared_memory::export_all(app)?;
+    for item in &mut rows {
+        let Some(character_id) = item.get("character_id").and_then(|value| value.as_str()) else {
+            continue;
+        };
+        let embeddings = crate::storage_manager::memory_embeddings::canonical_json_for_session(
+            &conn,
+            character_id,
+            crate::storage_manager::memory_embeddings::SessionKind::CompanionShared,
+            Some("[]"),
+        )?;
+        if let Some(obj) = item.as_object_mut() {
+            obj.insert(
+                "memory_embeddings".to_string(),
+                JsonValue::String(embeddings),
+            );
+        }
+    }
+    Ok(rows)
+}
+
 fn export_sessions(app: &tauri::AppHandle) -> Result<Vec<JsonValue>, String> {
     let conn = open_db(app)?;
 
@@ -1395,6 +1418,15 @@ pub async fn backup_export(
         &mut zip,
         "companion_scheduled_notes",
         &serde_json::json!(companion_scheduled_notes),
+        &encryption,
+    )?;
+
+    log_info(&app, "backup", "Exporting companion shared memory...");
+    let companion_shared_memory = export_companion_shared_memory(&app)?;
+    add_json_to_zip(
+        &mut zip,
+        "companion_shared_memory",
+        &serde_json::json!(companion_shared_memory),
         &encryption,
     )?;
 
@@ -2332,6 +2364,68 @@ fn import_sessions(app: &tauri::AppHandle, data: &JsonValue) -> Result<(), Strin
     Ok(())
 }
 
+fn import_companion_shared_memory(app: &tauri::AppHandle, data: &JsonValue) -> Result<(), String> {
+    let mut conn = open_db(app)?;
+    conn.execute("DELETE FROM companion_shared_memory_state", [])
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    conn.execute(
+        "DELETE FROM memory_embeddings WHERE session_kind = 'companion_shared'",
+        [],
+    )
+    .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    let Some(arr) = data.as_array() else {
+        return Ok(());
+    };
+
+    for item in arr {
+        conn.execute(
+            r#"
+            INSERT INTO companion_shared_memory_state (
+                character_id, memories, memory_summary, memory_summary_token_count,
+                memory_tool_events, memory_status, memory_error, memory_progress_step,
+                created_at, updated_at
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            "#,
+            params![
+                item.get("character_id").and_then(|v| v.as_str()),
+                item.get("memories")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("[]"),
+                item.get("memory_summary").and_then(|v| v.as_str()),
+                item.get("memory_summary_token_count")
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0),
+                item.get("memory_tool_events")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("[]"),
+                item.get("memory_status").and_then(|v| v.as_str()),
+                item.get("memory_error").and_then(|v| v.as_str()),
+                item.get("memory_progress_step").and_then(|v| v.as_i64()),
+                item.get("created_at").and_then(|v| v.as_i64()),
+                item.get("updated_at").and_then(|v| v.as_i64()),
+            ],
+        )
+        .map_err(|e| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!("Failed to insert companion shared memory row: {}", e),
+            )
+        })?;
+
+        crate::storage_manager::memory_embeddings::replace_all_from_json(
+            &mut conn,
+            item.get("character_id").and_then(|v| v.as_str()).unwrap_or_default(),
+            crate::storage_manager::memory_embeddings::SessionKind::CompanionShared,
+            item.get("memory_embeddings").and_then(|v| v.as_str()),
+        )?;
+    }
+
+    Ok(())
+}
+
 fn import_group_sessions(app: &tauri::AppHandle, data: &JsonValue) -> Result<(), String> {
     let mut conn = open_db(app)?;
 
@@ -3262,6 +3356,11 @@ pub async fn backup_import(
         "data/companion_scheduled_notes.json",
         &encryption_params,
     )?;
+    let companion_shared_memory_data = read_backup_file(
+        &mut archive,
+        "data/companion_shared_memory.json",
+        &encryption_params,
+    )?;
     let sessions_data = read_backup_file(&mut archive, "data/sessions.json", &encryption_params)?;
     let creation_helper_sessions_data = read_backup_file(
         &mut archive,
@@ -3496,6 +3595,23 @@ pub async fn backup_import(
         log_info(&app, "backup", "Companion scheduled notes imported");
     } else {
         log_info(&app, "backup", "No companion_scheduled_notes data found");
+    }
+
+    if let Some(data) = companion_shared_memory_data {
+        log_info(&app, "backup", "Found companion_shared_memory data");
+        let json_str = String::from_utf8(data)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let json_value: serde_json::Value = serde_json::from_str(&json_str).map_err(|e| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!("Failed to parse companion_shared_memory JSON: {}", e),
+            )
+        })?;
+        import_companion_shared_memory(&app, &json_value)?;
+        log_info(&app, "backup", "Companion shared memory imported");
+    } else {
+        log_info(&app, "backup", "No companion_shared_memory data found");
     }
 
     if let Some(data) = chat_templates_data {
@@ -4337,6 +4453,11 @@ pub async fn backup_import_from_bytes(
         "data/companion_scheduled_notes.json",
         &encryption_params,
     )?;
+    let companion_shared_memory_data = read_backup_file_bytes(
+        &data,
+        "data/companion_shared_memory.json",
+        &encryption_params,
+    )?;
     let sessions_data = read_backup_file_bytes(&data, "data/sessions.json", &encryption_params)?;
     let creation_helper_sessions_data = read_backup_file_bytes(
         &data,
@@ -4522,6 +4643,20 @@ pub async fn backup_import_from_bytes(
         })?;
         import_companion_scheduled_notes(&app, &json_value)?;
         log_info(&app, "backup", "Companion scheduled notes imported");
+    }
+
+    if let Some(file_data) = companion_shared_memory_data {
+        let json_str = String::from_utf8(file_data)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let json_value: serde_json::Value = serde_json::from_str(&json_str).map_err(|e| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!("Failed to parse companion_shared_memory JSON: {}", e),
+            )
+        })?;
+        import_companion_shared_memory(&app, &json_value)?;
+        log_info(&app, "backup", "Companion shared memory imported");
     }
 
     if let Some(file_data) = chat_templates_data {

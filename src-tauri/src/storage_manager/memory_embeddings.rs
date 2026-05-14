@@ -21,6 +21,7 @@ use crate::storage_manager::db::open_db;
 pub enum SessionKind {
     Session,
     GroupSession,
+    CompanionShared,
 }
 
 impl SessionKind {
@@ -28,6 +29,7 @@ impl SessionKind {
         match self {
             SessionKind::Session => "session",
             SessionKind::GroupSession => "group_session",
+            SessionKind::CompanionShared => "companion_shared",
         }
     }
 }
