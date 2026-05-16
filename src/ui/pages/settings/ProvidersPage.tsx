@@ -15,6 +15,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 
 import { useProvidersPageController } from "./hooks/useProvidersPageController";
 import { AudioProviderEditor } from "./components/AudioProviderEditor";
+import { TextField, SelectField, ToggleRow } from "./components/Field";
 
 import type { ProviderCapabilitiesCamel } from "../../../core/providers/capabilities";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
@@ -430,21 +431,36 @@ export function ProvidersPage() {
           >
             {editorProvider && (
               <div className="space-y-4 pb-2">
-                <div>
-                  <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                    Provider Type
-                  </label>
-                  <select
-                    value={editorProvider.providerId}
-                    onChange={(e) => {
-                      const providerId = e.target.value;
-                      // Reset config when switching providers
-                      updateEditorProvider({
-                        providerId,
-                        config:
-                          providerId === "custom"
+                <SelectField
+                  label="Provider Type"
+                  value={editorProvider.providerId}
+                  onChange={(providerId) => {
+                    updateEditorProvider({
+                      providerId,
+                      config:
+                        providerId === "custom"
+                          ? {
+                              chatEndpoint: "/v1/chat/completions",
+                              modelsEndpoint: "",
+                              fetchModelsEnabled: false,
+                              modelsListPath: "data",
+                              modelsIdPath: "id",
+                              modelsDisplayNamePath: "name",
+                              modelsDescriptionPath: "description",
+                              modelsContextLengthPath: "",
+                              authMode: "header",
+                              authHeaderName: "x-api-key",
+                              authQueryParamName: "api_key",
+                              systemRole: "system",
+                              userRole: "user",
+                              assistantRole: "assistant",
+                              toolChoiceMode: "auto",
+                              supportsStream: true,
+                              mergeSameRoleMessages: true,
+                            }
+                          : providerId === "custom-anthropic"
                             ? {
-                                chatEndpoint: "/v1/chat/completions",
+                                chatEndpoint: "/v1/messages",
                                 modelsEndpoint: "",
                                 fetchModelsEnabled: false,
                                 modelsListPath: "data",
@@ -458,486 +474,314 @@ export function ProvidersPage() {
                                 systemRole: "system",
                                 userRole: "user",
                                 assistantRole: "assistant",
-                                toolChoiceMode: "auto",
                                 supportsStream: true,
                                 mergeSameRoleMessages: true,
                               }
-                            : providerId === "custom-anthropic"
-                              ? {
-                                  chatEndpoint: "/v1/messages",
-                                  modelsEndpoint: "",
-                                  fetchModelsEnabled: false,
-                                  modelsListPath: "data",
-                                  modelsIdPath: "id",
-                                  modelsDisplayNamePath: "name",
-                                  modelsDescriptionPath: "description",
-                                  modelsContextLengthPath: "",
-                                  authMode: "header",
-                                  authHeaderName: "x-api-key",
-                                  authQueryParamName: "api_key",
-                                  systemRole: "system",
-                                  userRole: "user",
-                                  assistantRole: "assistant",
-                                  supportsStream: true,
-                                  mergeSameRoleMessages: true,
-                                }
-                              : undefined,
-                      });
-                      setValidationError(null);
-                    }}
-                    className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg focus:border-fg/30 focus:outline-none"
-                  >
-                    {visibleCapabilities.map((p) => (
-                      <option key={p.id} value={p.id} className="bg-surface-el">
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-[11px] font-medium text-fg/70">Label</label>
-                  <input
-                    type="text"
-                    value={editorProvider.label}
-                    onChange={(e) => updateEditorProvider({ label: e.target.value })}
-                    placeholder={`My ${visibleCapabilities.find((p) => p.id === editorProvider.providerId)?.name || "Provider"}`}
-                    className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
-                  />
-                </div>
+                            : undefined,
+                    });
+                    setValidationError(null);
+                  }}
+                >
+                  {visibleCapabilities.map((p) => (
+                    <option key={p.id} value={p.id} className="bg-surface-el">
+                      {p.name}
+                    </option>
+                  ))}
+                </SelectField>
+                <TextField
+                  label="Label"
+                  value={editorProvider.label}
+                  onChange={(value) => updateEditorProvider({ label: value })}
+                  placeholder={`My ${visibleCapabilities.find((p) => p.id === editorProvider.providerId)?.name || "Provider"}`}
+                />
                 {showApiKeyInput && (
-                  <div>
-                    <label className="mb-1 block text-[11px] font-medium text-fg/70">API Key</label>
-                    <input
-                      type="password"
-                      value={apiKey}
-                      onChange={(e) => {
-                        setApiKey(e.target.value);
-                        if (validationError) setValidationError(null);
-                      }}
-                      placeholder="Enter your API key"
-                      className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
-                    />
-                  </div>
+                  <TextField
+                    label="API Key"
+                    type="password"
+                    value={apiKey}
+                    onChange={(value) => {
+                      setApiKey(value);
+                      if (validationError) setValidationError(null);
+                    }}
+                    placeholder="Enter your API key"
+                  />
                 )}
                 {showBaseUrl && (
-                  <div>
-                    <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                      Base URL
-                    </label>
-                    <input
-                      type="url"
-                      value={editorProvider.baseUrl || ""}
-                      onChange={(e) => {
-                        updateEditorProvider({ baseUrl: e.target.value || undefined });
-                        if (validationError) setValidationError(null);
-                      }}
-                      placeholder={
-                        isEngineProvider
-                          ? "http://localhost:8000"
-                          : isHostProvider
-                            ? "http://192.168.1.10:3333"
-                            : editorProvider.providerId === "intenserp"
-                              ? "http://127.0.0.1:7777/v1"
-                              : isLocalProvider
-                                ? "http://localhost:11434"
-                                : "https://api.provider.com"
-                      }
-                      className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
-                    />
-                  </div>
+                  <TextField
+                    label="Base URL"
+                    type="url"
+                    value={editorProvider.baseUrl || ""}
+                    onChange={(value) => {
+                      updateEditorProvider({ baseUrl: value || undefined });
+                      if (validationError) setValidationError(null);
+                    }}
+                    placeholder={
+                      isEngineProvider
+                        ? "http://localhost:8000"
+                        : isHostProvider
+                          ? "http://192.168.1.10:3333"
+                          : editorProvider.providerId === "intenserp"
+                            ? "http://127.0.0.1:7777/v1"
+                            : isLocalProvider
+                              ? "http://localhost:11434"
+                              : "https://api.provider.com"
+                    }
+                  />
                 )}
                 {isEngineProvider && (
-                  <div>
-                    <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                      API Key (optional)
-                    </label>
-                    <input
-                      type="password"
-                      value={apiKey}
-                      onChange={(e) => {
-                        setApiKey(e.target.value);
-                        if (validationError) setValidationError(null);
-                      }}
-                      placeholder="Bearer token for auth"
-                      className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
-                    />
-                  </div>
+                  <TextField
+                    label="API Key (optional)"
+                    type="password"
+                    value={apiKey}
+                    onChange={(value) => {
+                      setApiKey(value);
+                      if (validationError) setValidationError(null);
+                    }}
+                    placeholder="Bearer token for auth"
+                  />
                 )}
                 {showOfficialProviderStreamingToggle && (
-                  <div className="rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-fg/80">Streaming</p>
-                        <p className="text-[11px] text-fg/45">
-                          Stream responses for this provider when a feature allows it
-                        </p>
-                      </div>
-                      <Switch
-                        id="providerStreamingEnabled"
-                        checked={providerStreamingEnabled}
-                        onChange={(next) =>
-                          updateEditorProvider({
-                            config: {
-                              ...editorProvider.config,
-                              streamingEnabled: next,
-                            },
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
+                  <ToggleRow
+                    id="providerStreamingEnabled"
+                    title="Streaming"
+                    description="Stream responses for this provider when a feature allows it"
+                    checked={providerStreamingEnabled}
+                    onChange={(next) =>
+                      updateEditorProvider({
+                        config: { ...editorProvider.config, streamingEnabled: next },
+                      })
+                    }
+                  />
                 )}
                 {allowsTlsException && (
-                  <div className="rounded-lg border border-warning/20 bg-warning/5 px-3 py-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-fg/80">Allow Invalid TLS</p>
-                        <p className="text-[11px] text-fg/45">
-                          Ignore certificate validation errors for this self-hosted endpoint
-                        </p>
-                      </div>
-                      <Switch
-                        id="providerAllowInvalidTls"
-                        checked={providerAllowInvalidTls}
-                        onChange={(next) =>
-                          updateEditorProvider({
-                            config: {
-                              ...editorProvider.config,
-                              allowInvalidTls: next,
-                            },
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
+                  <ToggleRow
+                    id="providerAllowInvalidTls"
+                    title="Allow Invalid TLS"
+                    description="Ignore certificate validation errors for this self-hosted endpoint"
+                    checked={providerAllowInvalidTls}
+                    onChange={(next) =>
+                      updateEditorProvider({
+                        config: { ...editorProvider.config, allowInvalidTls: next },
+                      })
+                    }
+                    variant="warning"
+                  />
                 )}
                 {isCustomProvider && (
                   <>
-                    <div>
-                      <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                        Chat Endpoint
-                      </label>
-                      <input
-                        type="text"
-                        value={
-                          (customConfig.chatEndpoint as string | undefined) ??
-                          "/v1/chat/completions"
-                        }
-                        onChange={(e) =>
+                    <TextField
+                      label="Chat Endpoint"
+                      value={
+                        (customConfig.chatEndpoint as string | undefined) ?? "/v1/chat/completions"
+                      }
+                      onChange={(value) =>
+                        updateEditorProvider({
+                          config: { ...editorProvider.config, chatEndpoint: value },
+                        })
+                      }
+                      placeholder="/v1/chat/completions"
+                    />
+                    <ToggleRow
+                      id="fetchModelsEnabled"
+                      title="Fetch Models"
+                      description="Enable model discovery for this custom endpoint"
+                      checked={customFetchModelsEnabled}
+                      onChange={(next) =>
+                        updateEditorProvider({
+                          config: { ...editorProvider.config, fetchModelsEnabled: next },
+                        })
+                      }
+                    />
+                    <SelectField
+                      label="Auth Mode"
+                      value={customAuthMode}
+                      onChange={(value) =>
+                        updateEditorProvider({
+                          config: { ...editorProvider.config, authMode: value },
+                        })
+                      }
+                    >
+                      <option value="bearer" className="bg-surface-el">
+                        Bearer Token
+                      </option>
+                      <option value="header" className="bg-surface-el">
+                        API Key Header
+                      </option>
+                      <option value="query" className="bg-surface-el">
+                        Query Param
+                      </option>
+                      <option value="none" className="bg-surface-el">
+                        None
+                      </option>
+                    </SelectField>
+                    {editorProvider.providerId === "custom" && (
+                      <SelectField
+                        label="Tool Choice Mode"
+                        value={(customConfig.toolChoiceMode as string | undefined) ?? "auto"}
+                        onChange={(value) =>
                           updateEditorProvider({
-                            config: { ...editorProvider.config, chatEndpoint: e.target.value },
+                            config: { ...editorProvider.config, toolChoiceMode: value },
                           })
                         }
-                        placeholder="/v1/chat/completions"
-                        className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
-                      />
-                    </div>
-                    <div className="rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-fg/80">Fetch Models</p>
-                          <p className="text-[11px] text-fg/45">
-                            Enable model discovery for this custom endpoint
-                          </p>
-                        </div>
-                        <Switch
-                          id="fetchModelsEnabled"
-                          checked={customFetchModelsEnabled}
-                          onChange={(next) =>
-                            updateEditorProvider({
-                              config: {
-                                ...editorProvider.config,
-                                fetchModelsEnabled: next,
-                              },
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                        Auth Mode
-                      </label>
-                      <select
-                        value={customAuthMode}
-                        onChange={(e) =>
-                          updateEditorProvider({
-                            config: {
-                              ...editorProvider.config,
-                              authMode: e.target.value,
-                            },
-                          })
-                        }
-                        className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg focus:border-fg/30 focus:outline-none"
                       >
-                        <option value="bearer" className="bg-surface-el">
-                          Bearer Token
+                        <option value="auto" className="bg-surface-el">
+                          Auto
                         </option>
-                        <option value="header" className="bg-surface-el">
-                          API Key Header
-                        </option>
-                        <option value="query" className="bg-surface-el">
-                          Query Param
+                        <option value="required" className="bg-surface-el">
+                          Required
                         </option>
                         <option value="none" className="bg-surface-el">
                           None
                         </option>
-                      </select>
-                    </div>
-                    {editorProvider.providerId === "custom" && (
-                      <div>
-                        <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                          Tool Choice Mode
-                        </label>
-                        <select
-                          value={(customConfig.toolChoiceMode as string | undefined) ?? "auto"}
-                          onChange={(e) =>
-                            updateEditorProvider({
-                              config: {
-                                ...editorProvider.config,
-                                toolChoiceMode: e.target.value,
-                              },
-                            })
-                          }
-                          className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg focus:border-fg/30 focus:outline-none"
-                        >
-                          <option value="auto" className="bg-surface-el">
-                            Auto
-                          </option>
-                          <option value="required" className="bg-surface-el">
-                            Required
-                          </option>
-                          <option value="none" className="bg-surface-el">
-                            None
-                          </option>
-                          <option value="omit" className="bg-surface-el">
-                            Omit Field
-                          </option>
-                          <option value="passthrough" className="bg-surface-el">
-                            Passthrough (Tool Config)
-                          </option>
-                        </select>
-                      </div>
+                        <option value="omit" className="bg-surface-el">
+                          Omit Field
+                        </option>
+                        <option value="passthrough" className="bg-surface-el">
+                          Passthrough (Tool Config)
+                        </option>
+                      </SelectField>
                     )}
                     {customAuthMode === "header" && (
-                      <div>
-                        <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                          Auth Header Name
-                        </label>
-                        <input
-                          type="text"
-                          value={(customConfig.authHeaderName as string | undefined) ?? "x-api-key"}
-                          onChange={(e) =>
-                            updateEditorProvider({
-                              config: { ...editorProvider.config, authHeaderName: e.target.value },
-                            })
-                          }
-                          placeholder="x-api-key"
-                          className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
-                        />
-                      </div>
+                      <TextField
+                        label="Auth Header Name"
+                        value={(customConfig.authHeaderName as string | undefined) ?? "x-api-key"}
+                        onChange={(value) =>
+                          updateEditorProvider({
+                            config: { ...editorProvider.config, authHeaderName: value },
+                          })
+                        }
+                        placeholder="x-api-key"
+                      />
                     )}
                     {customAuthMode === "query" && (
-                      <div>
-                        <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                          Auth Query Param Name
-                        </label>
-                        <input
-                          type="text"
-                          value={
-                            (customConfig.authQueryParamName as string | undefined) ?? "api_key"
-                          }
-                          onChange={(e) =>
-                            updateEditorProvider({
-                              config: {
-                                ...editorProvider.config,
-                                authQueryParamName: e.target.value,
-                              },
-                            })
-                          }
-                          placeholder="api_key"
-                          className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
-                        />
-                      </div>
+                      <TextField
+                        label="Auth Query Param Name"
+                        value={
+                          (customConfig.authQueryParamName as string | undefined) ?? "api_key"
+                        }
+                        onChange={(value) =>
+                          updateEditorProvider({
+                            config: { ...editorProvider.config, authQueryParamName: value },
+                          })
+                        }
+                        placeholder="api_key"
+                      />
                     )}
                     {customFetchModelsEnabled && (
                       <>
-                        <div>
-                          <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                            Models Endpoint
-                          </label>
-                          <input
-                            type="text"
-                            value={(customConfig.modelsEndpoint as string | undefined) ?? ""}
-                            onChange={(e) =>
+                        <TextField
+                          label="Models Endpoint"
+                          value={(customConfig.modelsEndpoint as string | undefined) ?? ""}
+                          onChange={(value) =>
+                            updateEditorProvider({
+                              config: { ...editorProvider.config, modelsEndpoint: value },
+                            })
+                          }
+                          placeholder="/v1/models"
+                        />
+                        <div className="grid grid-cols-2 gap-3">
+                          <TextField
+                            label="List Path"
+                            value={(customConfig.modelsListPath as string | undefined) ?? "data"}
+                            onChange={(value) =>
                               updateEditorProvider({
-                                config: {
-                                  ...editorProvider.config,
-                                  modelsEndpoint: e.target.value,
-                                },
+                                config: { ...editorProvider.config, modelsListPath: value },
                               })
                             }
-                            placeholder="/v1/models"
-                            className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
+                            placeholder="data"
+                          />
+                          <TextField
+                            label="Model ID Path"
+                            value={(customConfig.modelsIdPath as string | undefined) ?? "id"}
+                            onChange={(value) =>
+                              updateEditorProvider({
+                                config: { ...editorProvider.config, modelsIdPath: value },
+                              })
+                            }
+                            placeholder="id"
                           />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                              List Path
-                            </label>
-                            <input
-                              type="text"
-                              value={(customConfig.modelsListPath as string | undefined) ?? "data"}
-                              onChange={(e) =>
-                                updateEditorProvider({
-                                  config: {
-                                    ...editorProvider.config,
-                                    modelsListPath: e.target.value,
-                                  },
-                                })
-                              }
-                              placeholder="data"
-                              className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                              Model ID Path
-                            </label>
-                            <input
-                              type="text"
-                              value={(customConfig.modelsIdPath as string | undefined) ?? "id"}
-                              onChange={(e) =>
-                                updateEditorProvider({
-                                  config: {
-                                    ...editorProvider.config,
-                                    modelsIdPath: e.target.value,
-                                  },
-                                })
-                              }
-                              placeholder="id"
-                              className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                              Display Name Path
-                            </label>
-                            <input
-                              type="text"
-                              value={
-                                (customConfig.modelsDisplayNamePath as string | undefined) ?? "name"
-                              }
-                              onChange={(e) =>
-                                updateEditorProvider({
-                                  config: {
-                                    ...editorProvider.config,
-                                    modelsDisplayNamePath: e.target.value,
-                                  },
-                                })
-                              }
-                              placeholder="name"
-                              className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                              Description Path
-                            </label>
-                            <input
-                              type="text"
-                              value={
-                                (customConfig.modelsDescriptionPath as string | undefined) ??
-                                "description"
-                              }
-                              onChange={(e) =>
-                                updateEditorProvider({
-                                  config: {
-                                    ...editorProvider.config,
-                                    modelsDescriptionPath: e.target.value,
-                                  },
-                                })
-                              }
-                              placeholder="description"
-                              className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                            Context Length Path (Optional)
-                          </label>
-                          <input
-                            type="text"
+                          <TextField
+                            label="Display Name Path"
                             value={
-                              (customConfig.modelsContextLengthPath as string | undefined) ?? ""
+                              (customConfig.modelsDisplayNamePath as string | undefined) ?? "name"
                             }
-                            onChange={(e) =>
+                            onChange={(value) =>
                               updateEditorProvider({
                                 config: {
                                   ...editorProvider.config,
-                                  modelsContextLengthPath: e.target.value,
+                                  modelsDisplayNamePath: value,
                                 },
                               })
                             }
-                            placeholder="context_length"
-                            className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
+                            placeholder="name"
+                          />
+                          <TextField
+                            label="Description Path"
+                            value={
+                              (customConfig.modelsDescriptionPath as string | undefined) ??
+                              "description"
+                            }
+                            onChange={(value) =>
+                              updateEditorProvider({
+                                config: {
+                                  ...editorProvider.config,
+                                  modelsDescriptionPath: value,
+                                },
+                              })
+                            }
+                            placeholder="description"
                           />
                         </div>
+                        <TextField
+                          label="Context Length Path (Optional)"
+                          value={
+                            (customConfig.modelsContextLengthPath as string | undefined) ?? ""
+                          }
+                          onChange={(value) =>
+                            updateEditorProvider({
+                              config: {
+                                ...editorProvider.config,
+                                modelsContextLengthPath: value,
+                              },
+                            })
+                          }
+                          placeholder="context_length"
+                        />
                       </>
                     )}
-                    <div>
-                      <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                        System Role
-                      </label>
-                      <input
-                        type="text"
-                        value={(customConfig.systemRole as string | undefined) ?? "system"}
-                        onChange={(e) =>
+                    <TextField
+                      label="System Role"
+                      value={(customConfig.systemRole as string | undefined) ?? "system"}
+                      onChange={(value) =>
+                        updateEditorProvider({
+                          config: { ...editorProvider.config, systemRole: value },
+                        })
+                      }
+                      placeholder="system"
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <TextField
+                        label="User Role"
+                        value={(customConfig.userRole as string | undefined) ?? "user"}
+                        onChange={(value) =>
                           updateEditorProvider({
-                            config: { ...editorProvider.config, systemRole: e.target.value },
+                            config: { ...editorProvider.config, userRole: value },
                           })
                         }
-                        placeholder="system"
-                        className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
+                        placeholder="user"
                       />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                          User Role
-                        </label>
-                        <input
-                          type="text"
-                          value={(customConfig.userRole as string | undefined) ?? "user"}
-                          onChange={(e) =>
-                            updateEditorProvider({
-                              config: { ...editorProvider.config, userRole: e.target.value },
-                            })
-                          }
-                          placeholder="user"
-                          className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                          Assistant Role
-                        </label>
-                        <input
-                          type="text"
-                          value={(customConfig.assistantRole as string | undefined) ?? "assistant"}
-                          onChange={(e) =>
-                            updateEditorProvider({
-                              config: { ...editorProvider.config, assistantRole: e.target.value },
-                            })
-                          }
-                          placeholder="assistant"
-                          className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
-                        />
-                      </div>
+                      <TextField
+                        label="Assistant Role"
+                        value={(customConfig.assistantRole as string | undefined) ?? "assistant"}
+                        onChange={(value) =>
+                          updateEditorProvider({
+                            config: { ...editorProvider.config, assistantRole: value },
+                          })
+                        }
+                        placeholder="assistant"
+                      />
                     </div>
                     <div className="flex items-center justify-between pt-1">
                       <span className="text-sm font-medium text-fg/70">
