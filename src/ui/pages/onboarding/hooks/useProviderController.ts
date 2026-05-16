@@ -152,6 +152,7 @@ export function useProviderController(): ControllerReturn {
 
       const requiresVerification = [
         "openai",
+        "cerebras",
         "anthropic",
         "openrouter",
         "gemini",

@@ -278,7 +278,7 @@ export function useOnboardingController(): OnboardingController {
       const trimmedKey = apiKey.trim();
       const requiresVerification =
         !isLocalProvider &&
-        ["openai", "anthropic", "openrouter", "gemini", "lettuce-host"].includes(
+        ["openai", "cerebras", "anthropic", "openrouter", "gemini", "lettuce-host"].includes(
           selectedProviderId,
         );
 
@@ -386,7 +386,9 @@ export function useOnboardingController(): OnboardingController {
     dispatch({ type: "SET_MODEL_ERROR", payload: null });
 
     try {
-      const shouldVerify = ["openai", "anthropic"].includes(selectedCredential.providerId);
+      const shouldVerify = ["openai", "cerebras", "anthropic"].includes(
+        selectedCredential.providerId,
+      );
 
       if (shouldVerify) {
         const verification = await invoke<{ exists: boolean; error?: string }>(

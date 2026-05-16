@@ -1257,7 +1257,9 @@ export function useModelEditorController(): ControllerReturn {
         return false;
       }
 
-      const shouldVerify = ["openai", "anthropic"].includes(providerCred.providerId);
+      const shouldVerify = ["openai", "cerebras", "anthropic"].includes(
+        providerCred.providerId,
+      );
       if (shouldVerify) {
         try {
           dispatch({ type: "set_verifying", payload: true });

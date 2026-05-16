@@ -84,6 +84,7 @@ fn get_all_provider_configs_internal() -> Vec<ProviderConfig> {
     let base_configs = vec![
         ("chutes", "Chutes", "https://llm.chutes.ai"),
         ("openai", "OpenAI", "https://api.openai.com"),
+        ("cerebras", "Cerebras", "https://api.cerebras.ai/v1"),
         ("anthropic", "Anthropic", "https://api.anthropic.com"),
         ("openrouter", "OpenRouter", "https://openrouter.ai/api"),
         (

@@ -271,6 +271,7 @@ pub(crate) fn visible_chat_system_instruction_text(message: &Value) -> Option<St
 mod anannas;
 mod anthropic;
 mod automatic1111;
+mod cerebras;
 mod chutes;
 mod deepseek;
 mod featherless;
@@ -304,6 +305,7 @@ pub fn adapter_for(credential: &ProviderCredential) -> Box<dyn ProviderAdapter +
         "llamacpp" => Box::new(llamacpp::LlamaCppAdapter),
         "lmstudio" => Box::new(lmstudio::LMStudioAdapter),
         "automatic1111" => Box::new(automatic1111::Automatic1111Adapter),
+        "cerebras" | "cerebras.ai" => Box::new(cerebras::CerebrasAdapter),
         "chutes" | "chutes.ai" => Box::new(chutes::ChutesAdapter),
         "anthropic" => Box::new(anthropic::AnthropicAdapter),
         "mistral" => Box::new(mistral::MistralAdapter),

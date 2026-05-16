@@ -478,6 +478,8 @@ function getProviderDisplayName(providerId: string): string {
       return "IntenseRP Next";
     case "openai":
       return "OpenAI";
+    case "cerebras":
+      return "Cerebras";
     case "anthropic":
       return "Anthropic";
     case "openrouter":

@@ -31,6 +31,16 @@ const guides: Record<string, Guide> = {
     ],
     url: "https://platform.openai.com/api-keys",
   },
+  cerebras: {
+    title: "How to find your Cerebras API key",
+    steps: [
+      "Go to cloud.cerebras.ai and sign in.",
+      "Open the API keys section from your account or developer settings.",
+      "Create a new key if needed.",
+      "Copy the key and paste it into LettuceAI.",
+    ],
+    url: "https://cloud.cerebras.ai/",
+  },
   anthropic: {
     title: "How to find your Anthropic API key",
     steps: [

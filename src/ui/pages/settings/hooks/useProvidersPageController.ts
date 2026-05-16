@@ -184,9 +184,16 @@ export function useProvidersPageController(): ControllerReturn {
       const requiresVerification =
         !isLocalProvider &&
         !isEngineProvider &&
-        ["openai", "anthropic", "openrouter", "groq", "mistral", "gemini", "lettuce-host"].includes(
-          editorProvider.providerId,
-        );
+        [
+          "openai",
+          "cerebras",
+          "anthropic",
+          "openrouter",
+          "groq",
+          "mistral",
+          "gemini",
+          "lettuce-host",
+        ].includes(editorProvider.providerId);
       const trimmedKey = apiKey.trim();
 
       // Engine requires a base URL

@@ -74,6 +74,8 @@ export function getDefaultBaseUrl(providerId: string): string {
       return "https://openrouter.ai/api";
     case "openai":
       return "https://api.openai.com";
+    case "cerebras":
+      return "https://api.cerebras.ai/v1";
     case "anthropic":
       return "https://api.anthropic.com";
     default:

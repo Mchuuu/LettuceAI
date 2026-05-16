@@ -32,6 +32,7 @@ pub async fn verify_model_exists(
     let supports_model_list = matches!(
         provider_id.as_str(),
         "openai"
+            | "cerebras"
             | "anthropic"
             | "deepseek"
             | "qwen"

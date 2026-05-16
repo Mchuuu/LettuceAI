@@ -106,7 +106,9 @@ export function useModelController(): ControllerReturn {
     dispatch({ type: "SET_VERIFICATION_ERROR", payload: null });
 
     try {
-      const shouldVerify = ["openai", "anthropic"].includes(selectedProvider.providerId);
+      const shouldVerify = ["openai", "cerebras", "anthropic"].includes(
+        selectedProvider.providerId,
+      );
 
       if (shouldVerify) {
         try {
