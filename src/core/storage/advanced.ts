@@ -33,6 +33,8 @@ export interface AdvancedSettings {
     coldThreshold: number;
     contextEnrichmentEnabled?: boolean;
   };
+  dynamicMemorySummarizerPromptTemplateId?: string;
+  dynamicMemoryManagerPromptTemplateId?: string;
   groupDynamicMemory?: {
     enabled: boolean;
     summaryMessageInterval: number;

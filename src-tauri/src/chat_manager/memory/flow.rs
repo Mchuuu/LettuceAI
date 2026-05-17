@@ -71,6 +71,34 @@ const ALLOWED_MEMORY_CATEGORIES: &[&str] = &[
 ];
 const HARD_DELETE_CONFIDENCE_THRESHOLD: f32 = 0.7;
 
+fn dynamic_memory_summary_template_id(settings: &Settings) -> String {
+    settings
+        .advanced_settings
+        .as_ref()
+        .and_then(|advanced| advanced.dynamic_memory_summarizer_prompt_template_id.clone())
+        .filter(|id| !id.trim().is_empty())
+        .unwrap_or_else(|| APP_DYNAMIC_SUMMARY_TEMPLATE_ID.to_string())
+}
+
+fn dynamic_memory_manager_template_id(
+    settings: &Settings,
+    provider_cred: &ProviderCredential,
+    model: &Model,
+) -> String {
+    settings
+        .advanced_settings
+        .as_ref()
+        .and_then(|advanced| advanced.dynamic_memory_manager_prompt_template_id.clone())
+        .filter(|id| !id.trim().is_empty())
+        .unwrap_or_else(|| {
+            if uses_local_dynamic_memory_model(provider_cred, model) {
+                APP_DYNAMIC_MEMORY_LOCAL_TEMPLATE_ID.to_string()
+            } else {
+                APP_DYNAMIC_MEMORY_TEMPLATE_ID.to_string()
+            }
+        })
+}
+
 fn response_preview(provider_id: &str, value: &Value) -> String {
     if let Some(text) =
         extract_text(value, Some(provider_id)).filter(|text| !text.trim().is_empty())
@@ -3033,13 +3061,9 @@ async fn run_memory_tool_update(
     let mut messages_for_api = Vec::new();
     let system_role = request_builder::system_role_for(provider_cred);
 
-    let template_id = if uses_local_dynamic_memory_model(provider_cred, model) {
-        APP_DYNAMIC_MEMORY_LOCAL_TEMPLATE_ID
-    } else {
-        APP_DYNAMIC_MEMORY_TEMPLATE_ID
-    };
+    let template_id = dynamic_memory_manager_template_id(settings, provider_cred, model);
 
-    let base_template = prompts::get_template(app, template_id).ok().flatten();
+    let base_template = prompts::get_template(app, &template_id).ok().flatten();
 
     let pinned_fixed = ensure_pinned_hot(&mut session.memory_embeddings);
     if pinned_fixed > 0 {
@@ -4296,7 +4320,10 @@ async fn summarize_messages(
     let mut messages_for_api = Vec::new();
     let system_role = request_builder::system_role_for(provider_cred);
 
-    let summary_template = prompts::get_template(app, APP_DYNAMIC_SUMMARY_TEMPLATE_ID)
+    let summary_template = prompts::get_template(
+        app,
+        &dynamic_memory_summary_template_id(settings),
+    )
         .ok()
         .flatten();
     let recent_text = convo_window

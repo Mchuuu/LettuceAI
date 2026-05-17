@@ -2818,6 +2818,8 @@ export const SettingsSchema = z.object({
   advancedSettings: z
     .object({
       summarisationModelId: z.string().optional(),
+      dynamicMemorySummarizerPromptTemplateId: z.string().optional(),
+      dynamicMemoryManagerPromptTemplateId: z.string().optional(),
       dynamicMemoryStructuredFallbackFormat:
         DynamicMemoryStructuredFallbackFormatSchema.optional(),
       dynamicMemoryLlamaSamplerOverwriteEnabled: z.boolean().optional(),

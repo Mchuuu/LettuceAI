@@ -8,6 +8,7 @@ import {
   Sparkles,
   Users,
   Cpu,
+  BookOpen,
   Check,
   Zap,
   Scale,
@@ -20,14 +21,21 @@ import {
   saveAdvancedSettings,
   getEmbeddingModelInfo,
 } from "../../../core/storage/repo";
+import { listPromptTemplates } from "../../../core/prompts/service";
 import { storageBridge } from "../../../core/storage/files";
 import type {
   DynamicMemorySettings,
   DynamicMemoryStructuredFallbackFormat,
   Model,
   Settings,
+  SystemPromptTemplate,
 } from "../../../core/storage/schemas";
-import { cn, typography, interactive } from "../../design-tokens";
+import {
+  APP_DYNAMIC_MEMORY_LOCAL_TEMPLATE_ID,
+  APP_DYNAMIC_MEMORY_TEMPLATE_ID,
+  APP_DYNAMIC_SUMMARY_TEMPLATE_ID,
+} from "../../../core/prompts/constants";
+import { cn, interactive } from "../../design-tokens";
 import { useNavigate } from "react-router-dom";
 import {
   EmbeddingUpgradePrompt,
@@ -181,6 +189,69 @@ const ensureAdvancedSettings = (settings: Settings): NonNullable<Settings["advan
 
 const normalizeModelId = (value?: string | null) => (value && value.trim() ? value : null);
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <h4 className="px-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-fg/40">
+      {children}
+    </h4>
+  );
+}
+
+function FieldRow({
+  label,
+  helper,
+  children,
+}: {
+  label: string;
+  helper?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="px-1 text-xs font-medium text-fg/65">{label}</p>
+      {children}
+      {helper ? (
+        <p className="px-1 text-[11px] leading-relaxed text-fg/45">{helper}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function SegmentedRow<T extends string | number>({
+  options,
+  value,
+  onChange,
+  formatLabel,
+}: {
+  options: ReadonlyArray<T>;
+  value: T;
+  onChange: (next: T) => void;
+  formatLabel?: (option: T) => string;
+}) {
+  return (
+    <div className="grid w-full rounded-lg border border-fg/10 bg-fg/5 p-1" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+      {options.map((option) => {
+        const active = option === value;
+        return (
+          <button
+            key={String(option)}
+            type="button"
+            onClick={() => onChange(option)}
+            className={cn(
+              "rounded-md px-3 py-2 text-sm font-medium transition",
+              active
+                ? "bg-info text-fg shadow-sm"
+                : "text-fg/55 hover:text-fg",
+            )}
+          >
+            {formatLabel ? formatLabel(option) : String(option)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function detectPreset(settings: DynamicMemorySettings): MemoryPreset {
   for (const [key, preset] of Object.entries(PRESETS) as [
     Exclude<MemoryPreset, "custom">,
@@ -228,6 +299,12 @@ export function DynamicMemoryPage() {
   // Shared settings
   const [summarisationModelId, setSummarisationModelId] = useState<string | null>(null);
   const [models, setModels] = useState<Model[]>([]);
+  const [templates, setTemplates] = useState<SystemPromptTemplate[]>([]);
+  const [selectedSummaryPromptTemplateId, setSelectedSummaryPromptTemplateId] = useState<
+    string | null
+  >(null);
+  const [selectedMemoryManagerPromptTemplateId, setSelectedMemoryManagerPromptTemplateId] =
+    useState<string | null>(null);
   const [embeddingMaxTokens, setEmbeddingMaxTokens] = useState<number>(2048);
   const [embeddingDimensions, setEmbeddingDimensions] = useState<number>(768);
   const [embeddingKeepModelLoaded, setEmbeddingKeepModelLoaded] = useState(false);
@@ -248,7 +325,11 @@ export function DynamicMemoryPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [settings, modelInfo] = await Promise.all([readSettings(), getEmbeddingModelInfo()]);
+        const [settings, modelInfo, promptTemplates] = await Promise.all([
+          readSettings(),
+          getEmbeddingModelInfo(),
+          listPromptTemplates(),
+        ]);
 
         const dynamicSettings = hydrateDynamicMemorySettings(
           settings.advancedSettings?.dynamicMemory,
@@ -274,6 +355,13 @@ export function DynamicMemoryPage() {
             ? null
             : summarisationModelValue,
         );
+        setSelectedSummaryPromptTemplateId(
+          settings.advancedSettings?.dynamicMemorySummarizerPromptTemplateId ?? null,
+        );
+        setSelectedMemoryManagerPromptTemplateId(
+          settings.advancedSettings?.dynamicMemoryManagerPromptTemplateId ?? null,
+        );
+        setTemplates(promptTemplates);
         setStructuredFallbackFormat(
           settings.advancedSettings?.dynamicMemoryStructuredFallbackFormat ?? "xml",
         );
@@ -411,6 +499,20 @@ export function DynamicMemoryPage() {
     }, "Failed to save summarisation model:");
   };
 
+  const handleSummaryPromptTemplateChange = async (templateId: string | null) => {
+    setSelectedSummaryPromptTemplateId(templateId);
+    await updateAdvancedSettings((advanced) => {
+      advanced.dynamicMemorySummarizerPromptTemplateId = templateId ?? undefined;
+    }, "Failed to save dynamic memory summary prompt:");
+  };
+
+  const handleMemoryManagerPromptTemplateChange = async (templateId: string | null) => {
+    setSelectedMemoryManagerPromptTemplateId(templateId);
+    await updateAdvancedSettings((advanced) => {
+      advanced.dynamicMemoryManagerPromptTemplateId = templateId ?? undefined;
+    }, "Failed to save dynamic memory manager prompt:");
+  };
+
   const handleDynamicMemoryLlamaSamplerOverwriteChange = async (enabled: boolean) => {
     setDynamicMemoryLlamaSamplerOverwriteEnabled(enabled);
     await updateAdvancedSettings((advanced) => {
@@ -541,6 +643,17 @@ export function DynamicMemoryPage() {
   const effectiveEmbeddingDimensions = supportsMatryoshkaDimensions ? embeddingDimensions : 512;
   const selectedSummarisationModelLabel =
     selectedSummarisationModel?.displayName || t("dynamicMemory.page.selectedModel");
+  const summaryPromptTemplates = templates.filter(
+    (template) =>
+      template.promptType === "dynamicMemorySummarizer" &&
+      template.id !== APP_DYNAMIC_SUMMARY_TEMPLATE_ID,
+  );
+  const memoryManagerPromptTemplates = templates.filter(
+    (template) =>
+      template.promptType === "dynamicMemoryManager" &&
+      template.id !== APP_DYNAMIC_MEMORY_TEMPLATE_ID &&
+      template.id !== APP_DYNAMIC_MEMORY_LOCAL_TEMPLATE_ID,
+  );
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -635,24 +748,13 @@ export function DynamicMemoryPage() {
                         {t("dynamicMemory.page.enableDirectChats")}
                       </span>
                     </div>
-                    <button
-                      onClick={async () => {
-                        const next = !enabled;
+                    <Switch
+                      checked={enabled}
+                      onChange={async (next) => {
                         setEnabled(next);
                         await handleDirectSettingChange("enabled", next);
                       }}
-                      className={cn(
-                        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors",
-                        enabled ? "bg-accent" : "bg-fg/20",
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
-                          enabled ? "translate-x-6" : "translate-x-1",
-                        )}
-                      />
-                    </button>
+                    />
                   </div>
                 </div>
               )}
@@ -739,65 +841,77 @@ export function DynamicMemoryPage() {
                 </div>
 
                 {/* Context Enrichment (v2/v3) */}
-                {supportsExtendedTokenCapacity && currentEnabled && (
-                  <div className={cn("rounded-xl border border-fg/10 bg-fg/5 px-4 py-3")}>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-medium text-fg">
-                            {t("dynamicMemory.page.contextEnrichment")}
-                          </span>
-                          <span className="rounded-md border border-info/30 bg-info/10 px-1.5 py-0.5 text-[10px] font-medium text-info/80">
-                            {t("dynamicMemory.page.experimental")}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-fg/45 leading-relaxed">
-                          {t("dynamicMemory.page.contextEnrichmentDescription")}
-                        </div>
-                      </div>
-                      <Switch
-                        checked={currentSettings.contextEnrichmentEnabled}
-                        onChange={(next) => {
-                          if (activeTab === "direct") {
-                            handleDirectSettingChange("contextEnrichmentEnabled", next);
-                          } else {
-                            handleGroupSettingChange("contextEnrichmentEnabled", next);
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-
                 {currentEnabled && (
-                  <div className={cn("rounded-xl border border-fg/10 bg-fg/5 px-4 py-3")}>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-medium text-fg">
-                            Recursive Memory Loops
-                          </span>
-                          <span className="rounded-md border border-info/30 bg-info/10 px-1.5 py-0.5 text-[10px] font-medium text-info/80">
-                            {t("dynamicMemory.page.experimental")}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-fg/45 leading-relaxed">
-                          When enabled, Dynamic Memory sends tool results back to the model and
-                          keeps looping until it calls <span className="font-mono">done</span>.
-                          This can help weaker models extract multiple memories, but increases
-                          latency and token usage.
+                  <div className="flex flex-col gap-3 lg:flex-row">
+                    {supportsExtendedTokenCapacity && (
+                      <div
+                        className={cn(
+                          "rounded-xl border border-fg/10 bg-fg/5 px-4 py-3",
+                          "lg:min-w-0 lg:flex-1",
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-medium text-fg">
+                                {t("dynamicMemory.page.contextEnrichment")}
+                              </span>
+                              <span className="rounded-md border border-info/30 bg-info/10 px-1.5 py-0.5 text-[10px] font-medium text-info/80">
+                                {t("dynamicMemory.page.experimental")}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-fg/45 leading-relaxed">
+                              {t("dynamicMemory.page.contextEnrichmentDescription")}
+                            </div>
+                          </div>
+                          <Switch
+                            checked={currentSettings.contextEnrichmentEnabled}
+                            onChange={(next) => {
+                              if (activeTab === "direct") {
+                                handleDirectSettingChange("contextEnrichmentEnabled", next);
+                              } else {
+                                handleGroupSettingChange("contextEnrichmentEnabled", next);
+                              }
+                            }}
+                          />
                         </div>
                       </div>
-                      <Switch
-                        checked={currentSettings.recursiveMemoryLoops}
-                        onChange={(next) => {
-                          if (activeTab === "direct") {
-                            handleDirectSettingChange("recursiveMemoryLoops", next);
-                          } else {
-                            handleGroupSettingChange("recursiveMemoryLoops", next);
-                          }
-                        }}
-                      />
+                    )}
+
+                    <div
+                      className={cn(
+                        "rounded-xl border border-fg/10 bg-fg/5 px-4 py-3",
+                        "lg:min-w-0 lg:flex-1",
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-medium text-fg">
+                              Recursive Memory Loops
+                            </span>
+                            <span className="rounded-md border border-info/30 bg-info/10 px-1.5 py-0.5 text-[10px] font-medium text-info/80">
+                              {t("dynamicMemory.page.experimental")}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-fg/45 leading-relaxed">
+                            When enabled, Dynamic Memory sends tool results back to the model and
+                            keeps looping until it calls <span className="font-mono">done</span>.
+                            This can help weaker models extract multiple memories, but increases
+                            latency and token usage.
+                          </div>
+                        </div>
+                        <Switch
+                          checked={currentSettings.recursiveMemoryLoops}
+                          onChange={(next) => {
+                            if (activeTab === "direct") {
+                              handleDirectSettingChange("recursiveMemoryLoops", next);
+                            } else {
+                              handleGroupSettingChange("recursiveMemoryLoops", next);
+                            }
+                          }}
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1068,15 +1182,18 @@ export function DynamicMemoryPage() {
             </motion.div>
           </AnimatePresence>
 
-          {/* Shared Settings (always visible) - Desktop: Two Column Grid */}
+          {/* Shared Settings (always visible) */}
           {isAnyEnabled && (
-            <div className="space-y-4 pt-2">
+            <div className="space-y-6 pt-2">
               <h3 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35 px-1">
                 {t("dynamicMemory.page.sharedSettings")}
               </h3>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Left: Summarisation Model */}
+              {/* Summarisation */}
+              <section className="space-y-4">
+                <SectionLabel>Summarisation</SectionLabel>
+
+                {/* Model selector */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <div className="rounded-lg border border-warning/30 bg-warning/10 p-1.5">
@@ -1116,283 +1233,246 @@ export function DynamicMemoryPage() {
                       </p>
                     </div>
                   )}
-                  <p className="text-xs text-fg/50">
+                  <p className="px-1 text-xs leading-relaxed text-fg/50">
                     {t("dynamicMemory.page.summarisationModelDescription")}
                   </p>
+                </div>
 
+                {/* Prompts side-by-side on lg */}
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <div className="rounded-lg border border-info/30 bg-info/10 p-1.5">
-                        <Code2 className="h-4 w-4 text-info" />
+                      <div className="rounded-lg border border-warning/30 bg-warning/10 p-1.5">
+                        <BookOpen className="h-4 w-4 text-warning" />
                       </div>
-                      <h3 className="text-sm font-semibold text-fg">Structured Fallback</h3>
+                      <h3 className="text-sm font-semibold text-fg">Summary Prompt</h3>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      {(
-                        [
-                          {
-                            value: "json" as const,
-                            title: "JSON",
-                            description:
-                              "Compact structured output when tool calling is unavailable.",
-                          },
-                          {
-                            value: "xml" as const,
-                            title: "XML",
-                            description: "Use when the model formats XML more reliably than JSON.",
-                          },
-                        ]
-                      ).map((option) => {
-                        const active = structuredFallbackFormat === option.value;
-                        return (
-                          <button
-                            key={option.value}
-                            type="button"
-                            onClick={() =>
-                              void handleStructuredFallbackFormatChange(option.value)
-                            }
-                            className={cn(
-                              "flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition",
-                              active
-                                ? "border-info/40 bg-info/10"
-                                : "border-fg/10 bg-fg/5 hover:border-fg/20",
-                            )}
-                          >
-                            <div className="flex w-full items-center justify-between">
-                              <span
-                                className={cn(
-                                  "text-sm font-semibold",
-                                  active ? "text-info" : "text-fg/80",
-                                )}
-                              >
-                                {option.title}
-                              </span>
-                              {active && (
-                                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-info">
-                                  <Check className="h-3 w-3 text-fg" />
-                                </div>
-                              )}
-                            </div>
-                            <span className="text-[11px] leading-relaxed text-fg/50">
-                              {option.description}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <p className="px-1 text-xs text-fg/50">
-                      Used only when the model can&apos;t call tools directly.
+                    <select
+                      value={selectedSummaryPromptTemplateId ?? ""}
+                      onChange={(e) =>
+                        void handleSummaryPromptTemplateChange(e.target.value || null)
+                      }
+                      className="w-full appearance-none rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-sm text-fg transition focus:border-fg/25 focus:outline-none"
+                    >
+                      <option value="">Use built-in default</option>
+                      {summaryPromptTemplates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="px-1 text-xs leading-relaxed text-fg/50">
+                      Used to summarize recent conversation turns into durable context.
                     </p>
                   </div>
 
-                  {isLocalLlamaSummaryModel && (
-                    <div className="rounded-xl border border-fg/10 bg-fg/5 px-4 py-3 space-y-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm font-medium text-fg">
-                            Overwrite Model Sampler Configuration
-                          </div>
-                          <div className="mt-1 text-[11px] leading-relaxed text-fg/45">
-                            Use a fixed llama.cpp sampler setup for dynamic memory instead of the
-                            summarisation model&apos;s saved sampler configuration.
-                          </div>
-                        </div>
-                        <Switch
-                          checked={dynamicMemoryLlamaSamplerOverwriteEnabled}
-                          onChange={handleDynamicMemoryLlamaSamplerOverwriteChange}
-                        />
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="rounded-lg border border-warning/30 bg-warning/10 p-1.5">
+                        <BookOpen className="h-4 w-4 text-warning" />
                       </div>
-
-                      {dynamicMemoryLlamaSamplerOverwriteEnabled && (
-                        <div className="rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2.5 space-y-2">
-                          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-fg/35">
-                            Overwrite Values
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-xs text-fg/65">
-                            <div>Temperature: 0.4</div>
-                            <div>Top P: 1.0</div>
-                            <div>Top K: 40</div>
-                            <div>Frequency Penalty: 0.0</div>
-                            <div>Presence Penalty: 0.0</div>
-                            <div>Min P: disabled</div>
-                            <div>Typical P: disabled</div>
-                          </div>
-                          <div className="text-xs text-fg/55">
-                            Order:{" "}
-                            <span className="font-mono text-[11px] text-fg/70">
-                              {DYNAMIC_MEMORY_LLAMA_OVERWRITE_ORDER.join(" -> ")}
-                            </span>
-                          </div>
-                        </div>
-                      )}
+                      <h3 className="text-sm font-semibold text-fg">Memory Manager Prompt</h3>
                     </div>
-                  )}
-
-                  {/* Desktop: Model Management under Summarisation to avoid large left-column gap */}
-                  <div className="hidden lg:block space-y-3 pt-4">
-                    <h3 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35 px-1">
-                      {t("dynamicMemory.page.modelManagement")}
-                    </h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        onClick={() => navigate("/settings/embedding-test")}
-                        className={cn(
-                          "flex items-center justify-center gap-2 rounded-xl",
-                          "border border-fg/10 bg-fg/5 px-4 py-3",
-                          "text-sm font-medium text-fg",
-                          interactive.transition.fast,
-                          "hover:bg-fg/10",
-                        )}
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                        {t("dynamicMemory.page.testModel")}
-                      </button>
-                      {(!hasBothMajorEmbeddingVersionsInstalled || !installBundleComplete) && (
-                        <button
-                          onClick={() => setShowDownloadModelMenu(true)}
-                          className={cn(
-                            "flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium",
-                            "border-info/25 bg-info/10 text-info",
-                            interactive.transition.fast,
-                            "hover:bg-info/20",
-                          )}
-                        >
-                          <Sparkles className="h-4 w-4" />
-                          {t("dynamicMemory.page.downloadModel")}
-                        </button>
-                      )}
-                      <button
-                        onClick={handleDeleteSelectedEmbeddingModel}
-                        className={cn(
-                          "flex items-center justify-center gap-2 rounded-xl",
-                          "border border-danger/20 bg-danger/10 px-4 py-3",
-                          "text-sm font-medium text-danger/80",
-                          interactive.transition.fast,
-                          "hover:bg-danger/20",
-                        )}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        {t("dynamicMemory.page.delete")}
-                      </button>
-                    </div>
+                    <select
+                      value={selectedMemoryManagerPromptTemplateId ?? ""}
+                      onChange={(e) =>
+                        void handleMemoryManagerPromptTemplateChange(e.target.value || null)
+                      }
+                      className="w-full appearance-none rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-sm text-fg transition focus:border-fg/25 focus:outline-none"
+                    >
+                      <option value="">Use built-in default</option>
+                      {memoryManagerPromptTemplates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="px-1 text-xs leading-relaxed text-fg/50">
+                      Used to add, update, and delete memories for both direct and group chats.
+                    </p>
                   </div>
                 </div>
 
-                {/* Right: Token Capacity (v2/v3) or Model Info */}
+                {/* Structured Fallback */}
                 <div className="space-y-3">
-                  {availableEmbeddingVersions.filter((v) => v === "v3" || v === "v4").length >
-                    1 && (
-                    <div className="rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
-                      <div className="mb-2 text-sm font-medium text-fg">
-                        {t("dynamicMemory.page.embeddingModel")}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {(["v3", "v4"] as const)
-                          .filter((version) => availableEmbeddingVersions.includes(version))
-                          .map((version) => (
-                            <button
-                              key={version}
-                              onClick={() => handleEmbeddingModelVersionChange(version)}
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-lg border border-info/30 bg-info/10 p-1.5">
+                      <Code2 className="h-4 w-4 text-info" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-fg">Structured Fallback</h3>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {(
+                      [
+                        {
+                          value: "json" as const,
+                          title: "JSON",
+                          description:
+                            "Compact structured output when tool calling is unavailable.",
+                        },
+                        {
+                          value: "xml" as const,
+                          title: "XML",
+                          description: "Use when the model formats XML more reliably than JSON.",
+                        },
+                      ]
+                    ).map((option) => {
+                      const active = structuredFallbackFormat === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() =>
+                            void handleStructuredFallbackFormatChange(option.value)
+                          }
+                          className={cn(
+                            "flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition",
+                            active
+                              ? "border-info/40 bg-info/10"
+                              : "border-fg/10 bg-fg/5 hover:border-fg/20",
+                          )}
+                        >
+                          <div className="flex w-full items-center justify-between">
+                            <span
                               className={cn(
-                                "px-3 py-2.5 rounded-lg text-sm font-medium transition-all uppercase",
-                                selectedEmbeddingVersion === version
-                                  ? "bg-info text-fg"
-                                  : "border border-fg/10 bg-fg/5 text-fg/70 hover:border-fg/20",
+                                "text-sm font-semibold",
+                                active ? "text-info" : "text-fg/80",
                               )}
                             >
-                              {version}
-                            </button>
-                          ))}
+                              {option.title}
+                            </span>
+                            {active && (
+                              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-info">
+                                <Check className="h-3 w-3 text-fg" />
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-[11px] leading-relaxed text-fg/50">
+                            {option.description}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="px-1 text-xs leading-relaxed text-fg/50">
+                    Used only when the model can&apos;t call tools directly.
+                  </p>
+                </div>
+
+                {/* Sampler overwrite (conditional) */}
+                {isLocalLlamaSummaryModel && (
+                  <div className="rounded-xl border border-fg/10 bg-fg/5 px-4 py-3 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-fg">
+                          Overwrite Sampler Configuration
+                        </div>
+                        <div className="mt-1 text-[11px] leading-relaxed text-fg/45">
+                          Use a fixed llama.cpp sampler setup for dynamic memory instead of the
+                          summarisation model&apos;s saved configuration.
+                        </div>
                       </div>
-                      <p className="mt-2 text-[11px] text-fg/45">
-                        {selectedEmbeddingVersion === "v3"
-                          ? "v3 remains usable but is deprecated."
-                          : "v4 is the latest memory model and supports Matryoshka dimensions."}
-                      </p>
+                      <Switch
+                        checked={dynamicMemoryLlamaSamplerOverwriteEnabled}
+                        onChange={handleDynamicMemoryLlamaSamplerOverwriteChange}
+                      />
                     </div>
+
+                    {dynamicMemoryLlamaSamplerOverwriteEnabled && (
+                      <div className="rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2.5 space-y-2">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-fg/40">
+                          Overwrite Values
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-fg/65">
+                          <div>Temperature: 0.4</div>
+                          <div>Top P: 1.0</div>
+                          <div>Top K: 40</div>
+                          <div>Frequency Penalty: 0.0</div>
+                          <div>Presence Penalty: 0.0</div>
+                          <div>Min P: disabled</div>
+                          <div>Typical P: disabled</div>
+                        </div>
+                        <div className="text-[11px] text-fg/55">
+                          Order:{" "}
+                          <span className="font-mono text-fg/70">
+                            {DYNAMIC_MEMORY_LLAMA_OVERWRITE_ORDER.join(" → ")}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+
+              {/* Embedding Model */}
+              {(availableEmbeddingVersions.filter((v) => v === "v3" || v === "v4").length > 1 ||
+                supportsExtendedTokenCapacity ||
+                supportsMatryoshkaDimensions ||
+                modelVersion) && (
+                <section className="space-y-4">
+                  <SectionLabel>Embedding Model</SectionLabel>
+
+                  {availableEmbeddingVersions.filter((v) => v === "v3" || v === "v4").length >
+                    1 && (
+                    <FieldRow
+                      label={t("dynamicMemory.page.embeddingModel")}
+                      helper={
+                        selectedEmbeddingVersion === "v3"
+                          ? "v3 remains usable but is deprecated."
+                          : "v4 is the latest memory model and supports Matryoshka dimensions."
+                      }
+                    >
+                      <SegmentedRow
+                        options={(["v3", "v4"] as const).filter((version) =>
+                          availableEmbeddingVersions.includes(version),
+                        )}
+                        value={selectedEmbeddingVersion ?? "v4"}
+                        onChange={(next) =>
+                          handleEmbeddingModelVersionChange(next as SelectableEmbeddingVersion)
+                        }
+                        formatLabel={(v) => v.toUpperCase()}
+                      />
+                    </FieldRow>
                   )}
 
                   {supportsExtendedTokenCapacity && (
-                    <div className="rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-sm font-medium text-fg">
-                          {t("dynamicMemory.page.tokenCapacity")}
-                        </span>
-                        <span
-                          className={cn(
-                            "rounded-md border border-fg/10 bg-fg/10 px-2 py-1",
-                            typography.caption.size,
-                            "text-fg/70",
-                          )}
-                        >
-                          {embeddingMaxTokens} {t("dynamicMemory.page.tokensUnit")}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-fg/45 mb-3">
-                        {t("dynamicMemory.page.tokenCapacityDescription")}
-                      </p>
-                      <div className="grid grid-cols-3 gap-2">
-                        {[1024, 2048, 4096].map((val) => (
-                          <button
-                            key={val}
-                            onClick={() => handleEmbeddingMaxTokensChange(val)}
-                            className={cn(
-                              "px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
-                              embeddingMaxTokens === val
-                                ? "bg-info text-fg"
-                                : "border border-fg/10 bg-fg/5 text-fg/70 hover:border-fg/20",
-                            )}
-                          >
-                            {val / 1024}K
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    <FieldRow
+                      label={t("dynamicMemory.page.tokenCapacity")}
+                      helper={t("dynamicMemory.page.tokenCapacityDescription")}
+                    >
+                      <SegmentedRow
+                        options={[1024, 2048, 4096] as const}
+                        value={embeddingMaxTokens}
+                        onChange={(next) => handleEmbeddingMaxTokensChange(next)}
+                        formatLabel={(v) => `${v / 1024}K`}
+                      />
+                    </FieldRow>
                   )}
 
                   {supportsMatryoshkaDimensions && (
-                    <div className="rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-sm font-medium text-fg">Embedding dimensions</span>
-                        <span
-                          className={cn(
-                            "rounded-md border border-fg/10 bg-fg/10 px-2 py-1",
-                            typography.caption.size,
-                            "text-fg/70",
-                          )}
-                        >
-                          {embeddingDimensions}d
-                        </span>
-                      </div>
-                      <p className="mb-3 text-[11px] leading-relaxed text-fg/45">
-                        v4 supports Matryoshka slicing. Lower dimensions use less storage and run
-                        faster; higher dimensions preserve more recall.
-                      </p>
-                      <div className="grid grid-cols-5 gap-2">
-                        {V4_DIMENSION_OPTIONS.map((value) => (
-                          <button
-                            key={value}
-                            onClick={() => handleEmbeddingDimensionsChange(value)}
-                            className={cn(
-                              "px-2 py-2 rounded-lg text-sm font-medium transition-all",
-                              embeddingDimensions === value
-                                ? "bg-info text-fg"
-                                : "border border-fg/10 bg-fg/5 text-fg/70 hover:border-fg/20",
-                            )}
-                          >
-                            {value}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    <FieldRow
+                      label="Embedding dimensions"
+                      helper="v4 supports Matryoshka slicing. Lower dimensions use less storage and run faster; higher dimensions preserve more recall."
+                    >
+                      <SegmentedRow
+                        options={V4_DIMENSION_OPTIONS}
+                        value={embeddingDimensions}
+                        onChange={(next) =>
+                          handleEmbeddingDimensionsChange(
+                            next as (typeof V4_DIMENSION_OPTIONS)[number],
+                          )
+                        }
+                        formatLabel={(v) => `${v}d`}
+                      />
+                    </FieldRow>
                   )}
 
                   {supportsExtendedTokenCapacity && (
-                    <div className={cn("rounded-xl border border-fg/10 bg-fg/5 px-4 py-3")}>
+                    <div className="rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-fg">
                               {t("dynamicMemory.page.keepModelLoaded")}
                             </span>
@@ -1400,9 +1480,9 @@ export function DynamicMemoryPage() {
                               {t("dynamicMemory.page.experimental")}
                             </span>
                           </div>
-                          <div className="text-[11px] text-fg/45 leading-relaxed">
+                          <p className="mt-1 text-[11px] leading-relaxed text-fg/45">
                             {t("dynamicMemory.page.keepModelLoadedDescription")}
-                          </div>
+                          </p>
                         </div>
                         <Switch
                           checked={embeddingKeepModelLoaded}
@@ -1412,69 +1492,62 @@ export function DynamicMemoryPage() {
                     </div>
                   )}
 
-                  {/* Model info */}
                   {modelVersion && (
-                    <div className="text-xs text-fg/40 px-1">
-                      Installed memory model {(modelSourceVersion ?? modelVersion).toUpperCase()} ·{" "}
-                      {embeddingMaxTokens} tokens · {effectiveEmbeddingDimensions}d
-                    </div>
+                    <p className="px-1 text-[11px] text-fg/40">
+                      Installed memory model{" "}
+                      {(modelSourceVersion ?? modelVersion).toUpperCase()} · {embeddingMaxTokens}{" "}
+                      tokens · {effectiveEmbeddingDimensions}d
+                    </p>
                   )}
+                </section>
+              )}
 
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Model Management */}
-          {isAnyEnabled && (
-            <div className="space-y-3 pt-2 lg:hidden">
-              <h3 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35 px-1">
-                {t("dynamicMemory.page.modelManagement")}
-              </h3>
-
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <button
-                  onClick={() => navigate("/settings/embedding-test")}
-                  className={cn(
-                    "flex items-center justify-center gap-2 rounded-xl",
-                    "border border-fg/10 bg-fg/5 px-4 py-3",
-                    "text-sm font-medium text-fg",
-                    interactive.transition.fast,
-                    "hover:bg-fg/10",
-                  )}
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  {t("dynamicMemory.page.testModel")}
-                </button>
-                {(!hasBothMajorEmbeddingVersionsInstalled || !installBundleComplete) && (
+              {/* Model Management */}
+              <section className="space-y-3">
+                <SectionLabel>{t("dynamicMemory.page.modelManagement")}</SectionLabel>
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
                   <button
-                    onClick={() => setShowDownloadModelMenu(true)}
+                    onClick={() => navigate("/settings/embedding-test")}
                     className={cn(
-                      "flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium",
-                      "border-info/25 bg-info/10 text-info",
+                      "flex items-center justify-center gap-2 rounded-xl",
+                      "border border-fg/10 bg-fg/5 px-4 py-3",
+                      "text-sm font-medium text-fg",
                       interactive.transition.fast,
-                      "hover:bg-info/20",
+                      "hover:bg-fg/10",
                     )}
                   >
-                    <Sparkles className="h-4 w-4" />
-                    {t("dynamicMemory.page.downloadModel")}
+                    <RefreshCw className="h-4 w-4" />
+                    {t("dynamicMemory.page.testModel")}
                   </button>
-                )}
-
-                <button
-                  onClick={handleDeleteSelectedEmbeddingModel}
-                  className={cn(
-                    "flex items-center justify-center gap-2 rounded-xl",
-                    "border border-danger/20 bg-danger/10 px-4 py-3",
-                    "text-sm font-medium text-danger/80",
-                    interactive.transition.fast,
-                    "hover:bg-danger/20",
+                  {(!hasBothMajorEmbeddingVersionsInstalled || !installBundleComplete) && (
+                    <button
+                      onClick={() => setShowDownloadModelMenu(true)}
+                      className={cn(
+                        "flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium",
+                        "border-info/25 bg-info/10 text-info",
+                        interactive.transition.fast,
+                        "hover:bg-info/20",
+                      )}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      {t("dynamicMemory.page.downloadModel")}
+                    </button>
                   )}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  {t("dynamicMemory.page.delete")}
-                </button>
-              </div>
+                  <button
+                    onClick={handleDeleteSelectedEmbeddingModel}
+                    className={cn(
+                      "flex items-center justify-center gap-2 rounded-xl",
+                      "border border-danger/20 bg-danger/10 px-4 py-3",
+                      "text-sm font-medium text-danger/80",
+                      interactive.transition.fast,
+                      "hover:bg-danger/20",
+                    )}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {t("dynamicMemory.page.delete")}
+                  </button>
+                </div>
+              </section>
             </div>
           )}
         </div>

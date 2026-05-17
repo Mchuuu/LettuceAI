@@ -381,6 +381,10 @@ pub struct AdvancedSettings {
     pub companion_soul_writer_structured_fallback_format:
         Option<DynamicMemoryStructuredFallbackFormat>,
     #[serde(default)]
+    pub dynamic_memory_summarizer_prompt_template_id: Option<String>,
+    #[serde(default)]
+    pub dynamic_memory_manager_prompt_template_id: Option<String>,
+    #[serde(default)]
     pub dynamic_memory: Option<DynamicMemorySettings>,
     #[serde(default)]
     pub group_dynamic_memory: Option<DynamicMemorySettings>,
