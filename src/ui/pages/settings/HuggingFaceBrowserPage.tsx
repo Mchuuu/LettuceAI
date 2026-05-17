@@ -216,8 +216,10 @@ function calcScore(
   const vramBudget = availableVram * 0.9;
   const modelFitsRam = availableRam > 0 && modelSize + overhead <= ramBudget;
   const kvFitsVram = availableVram > 0 && kvCacheBytes + overhead <= vramBudget;
+  const kvFitsRam = availableRam > 0 && kvCacheBytes + overhead <= ramBudget;
   const kvOnVramRequested = kvPlacement === "vram";
   const kvOnRamRequested = kvPlacement === "ram";
+  const effectiveVramNeed = modelSize + overhead + (kvOnRamRequested ? 0 : kvCacheBytes);
 
   // Memory fitness (25%)
   let memoryScore: number;
@@ -266,7 +268,19 @@ function calcScore(
       if (modelSize > vramBudget) {
         return { score: 8, fitsVram: false, gpuMode: "gpuUnavailable", priority: 2 };
       }
-      if (totalNeeded <= vramBudget) {
+      if (kvOnRamRequested) {
+        const ramCtxFitRatio =
+          kvCacheBytes + overhead > 0
+            ? Math.min(ramBudget / (kvCacheBytes + overhead), 1.0)
+            : 1.0;
+        return {
+          score: 80 + ramCtxFitRatio * (kvFitsRam ? 12 : 4),
+          fitsVram: false,
+          gpuMode: kvFitsRam ? "kvSpill" : "kvHeavySpill",
+          priority: 2,
+        };
+      }
+      if (effectiveVramNeed <= vramBudget) {
         return { score: 100, fitsVram: true, gpuMode: "full", priority: 2 };
       }
       const remaining = vramBudget - modelSize;
@@ -284,7 +298,17 @@ function calcScore(
       };
     }
 
-    if (totalNeeded <= vramBudget) {
+    if (kvOnRamRequested && modelSize <= vramBudget) {
+      const ramCtxFitRatio =
+        kvCacheBytes + overhead > 0 ? Math.min(ramBudget / (kvCacheBytes + overhead), 1.0) : 1.0;
+      return {
+        score: Math.max(12, 78 + ramCtxFitRatio * (kvFitsRam ? 14 : 6)),
+        fitsVram: false,
+        gpuMode: kvFitsRam ? "kvSpill" : "kvHeavySpill",
+        priority: 1,
+      };
+    }
+    if (effectiveVramNeed <= vramBudget) {
       return { score: 96, fitsVram: true, gpuMode: "full", priority: 1 };
     }
     if (modelSize === 0) {
@@ -792,6 +816,7 @@ function DetailReportContent({
   const kvBytes = recData.kvBasePerToken ? recData.kvBasePerToken * bpv * effectiveKvCtx : 0;
   const overhead = computeOverhead(selectedFile.size);
   const totalNeeded = selectedFile.size + kvBytes + overhead;
+  const gpuResidentBytes = selectedFile.size + overhead + (kvPlacement === "ram" ? 0 : kvBytes);
   const headroom = Math.max(totalAvail - totalNeeded, 0);
   const vramBudget = recData.availableVram * 0.9;
   const { score, gpuMode, gpuScore } = calcScore(
@@ -850,22 +875,23 @@ function DetailReportContent({
     if (modelOffload === "mixed") {
       return Math.min(Math.round((vramBudget / selectedFile.size) * 100), 100);
     }
-    if (totalNeeded <= vramBudget) return 100;
-    return Math.min(Math.round((vramBudget / totalNeeded) * 100), 99);
+    if (gpuResidentBytes <= vramBudget) return 100;
+    return Math.min(Math.round((vramBudget / gpuResidentBytes) * 100), 99);
   })();
 
   const detailTotalLayers = recData.arch?.blockCount;
   const detailRecLayers = (() => {
     if (!detailTotalLayers || detailTotalLayers <= 0) return null;
     if (!showGpuPlanning) return 0;
-    if (totalNeeded <= vramBudget) return detailTotalLayers;
+    if (gpuResidentBytes <= vramBudget) return detailTotalLayers;
     if (recData.availableVram <= 0) return null;
-    const layers = Math.floor((vramBudget / totalNeeded) * detailTotalLayers);
+    const layers = Math.floor((vramBudget / gpuResidentBytes) * detailTotalLayers);
     return Math.max(Math.min(layers, detailTotalLayers), 0);
   })();
 
   const fullGpuCtx = (() => {
     if (recData.availableVram <= 0 || !recData.kvBasePerToken) return null;
+    if (kvPlacement === "ram") return null;
     if (totalNeeded <= vramBudget) return null;
     if (selectedFile.size + overhead >= vramBudget) return null;
     const vramForKv = vramBudget - selectedFile.size - overhead;
