@@ -332,9 +332,19 @@ pub struct AdvancedSettings {
     #[serde(default)]
     pub scene_writer_model_id: Option<String>,
     #[serde(default)]
+    pub app_update_checks_enabled: Option<bool>,
+    #[serde(default)]
     pub creation_helper_enabled: Option<bool>,
     #[serde(default)]
     pub creation_helper_model_id: Option<String>,
+    #[serde(default)]
+    pub creation_helper_streaming: Option<bool>,
+    #[serde(default)]
+    pub creation_helper_image_model_id: Option<String>,
+    #[serde(default)]
+    pub creation_helper_smart_tool_selection: Option<bool>,
+    #[serde(default)]
+    pub creation_helper_enabled_tools: Option<Vec<String>>,
     #[serde(default)]
     pub help_me_reply_enabled: Option<bool>,
     #[serde(default)]
@@ -398,9 +408,17 @@ pub struct AdvancedSettings {
     #[serde(default)]
     pub embedding_max_tokens: Option<u32>,
     #[serde(default)]
+    pub embedding_model_version: Option<String>,
+    #[serde(default)]
+    pub embedding_dimensions: Option<u32>,
+    #[serde(default)]
+    pub embedding_keep_model_loaded: Option<bool>,
+    #[serde(default)]
     pub host_api: Option<HostApiSettings>,
     #[serde(default)]
     pub accessibility: Option<AccessibilitySettings>,
+    #[serde(default)]
+    pub chat_appearance: Option<Value>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Copy, Debug, PartialEq, Eq)]
