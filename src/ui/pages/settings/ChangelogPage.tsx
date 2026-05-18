@@ -18,6 +18,55 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
     {
+        version: "1.8.0 / 1.5.0",
+        date: "2026-05-18",
+        title: "Sync Onboarding, Banner Cards & Shared Memory",
+        description:
+            "A feature-heavy release that adds device-to-device sync onboarding with readiness checks, introduces a new persisted banner card system for characters, expands companion memory with shared state and scheduled notes, broadens provider and TTS coverage, and hardens migrations, imports, backups, and chat appearance persistence.",
+        changes: [
+            {
+                type: "feature",
+                description: "Added a new device-to-device sync onboarding flow with embedding checks and a readiness handshake before transfer begins.",
+            },
+            {
+                type: "feature",
+                description: "Added a first-class banner character card system with a persisted card type, dedicated banner media asset, separate crop state, editor controls, and chat-list rendering path.",
+            },
+            {
+                type: "feature",
+                description: "Added shared companion memory across sessions, scheduled notes, and custom summarizer and memory-manager prompts.",
+            },
+            {
+                type: "feature",
+                description: "Added Fish cloud and local audio TTS providers, plus Cerebras and Pollinations provider integrations.",
+            },
+            {
+                type: "improvement",
+                description: "Reworked desktop settings surfaces, including provider editing, prompt editors, chat appearance tooling, and reusable numeric inputs.",
+            },
+            {
+                type: "improvement",
+                description: "Improved chat and library performance with deferred gradients, cached list state, lazy avatar loading, and faster page-load behavior.",
+            },
+            {
+                type: "improvement",
+                description: "Replaced chatpkg zip export with SillyTavern JSONL and preserved banner crop metadata across imports and character transfers.",
+            },
+            {
+                type: "bugfix",
+                description: "Hardened sync, backups, and character loading by preserving memory embeddings and advanced settings while skipping invalid stored characters safely.",
+            },
+            {
+                type: "bugfix",
+                description: "Repaired missing character schema fields on migration and startup, including banner crop columns and newer character metadata.",
+            },
+            {
+                type: "bugfix",
+                description: "Fixed chat appearance persistence and background styling regressions, including stale per-character overrides after reset-and-save flows.",
+            },
+        ],
+    },
+    {
         version: "1.7.2 / 1.4.1",
         date: "2026-05-11",
         title: "Provider Leak Fixes, Groq Compatibility & Linux Packaging",
