@@ -57,9 +57,13 @@ export function ProviderStep({
   const platform = getPlatform();
   const isDesktop = platform.type === "desktop";
   const [showLocalLLMMenu, setShowLocalLLMMenu] = useState(false);
-  const visibleCapabilities = isDesktop
+  const visibleCapabilities = (isDesktop
     ? capabilities
-    : capabilities.filter((provider) => provider.id !== "llamacpp");
+    : capabilities.filter((provider) => provider.id !== "llamacpp")
+  ).filter(
+    (provider) =>
+      !["lettuce-engine", "stability", "automatic1111"].includes(provider.id),
+  );
 
   const selectedProvider = visibleCapabilities.find((p) => p.id === selectedProviderId);
   const showForm = Boolean(selectedProvider);
@@ -134,7 +138,7 @@ export function ProviderStep({
               I want to use Local LLMs
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto px-6">
+          <div className="flex-1 overflow-y-auto px-6 pb-10">
             <div className="grid grid-cols-2 xl:grid-cols-3 gap-2">
               {visibleCapabilities.map((provider) => (
                 <ProviderCard

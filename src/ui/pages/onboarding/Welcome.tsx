@@ -24,7 +24,12 @@ import { useI18n } from "../../../core/i18n/context";
 import { LocaleSelector } from "../../components/LocaleSelector";
 import { DynamicMemoryEmbeddingPrompt } from "./components/DynamicMemoryEmbeddingPrompt";
 
-export function WelcomePage() {
+interface WelcomePageProps {
+  onContinue?: () => void;
+  onGoToSync?: () => void;
+}
+
+export function WelcomePage({ onContinue, onGoToSync }: WelcomePageProps = {}) {
   const { locale, setLocale, t } = useI18n();
   const navigate = useNavigate();
   const [showSkipWarning, setShowSkipWarning] = useState(false);
@@ -60,7 +65,8 @@ export function WelcomePage() {
   }, []);
 
   const handleAddProvider = () => {
-    navigate("/onboarding/provider");
+    if (onContinue) onContinue();
+    else navigate("/onboarding/provider");
   };
 
   const handleConfirmSkip = async () => {
@@ -183,7 +189,7 @@ export function WelcomePage() {
             <span className="lai-link-sep" />
 
             <button
-              onClick={() => navigate("/onboarding/sync")}
+              onClick={() => (onGoToSync ? onGoToSync() : navigate("/onboarding/sync"))}
               className="lai-link group inline-flex items-center gap-1.5 py-1"
             >
               <Smartphone size={13} strokeWidth={2} />

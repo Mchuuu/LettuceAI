@@ -144,7 +144,8 @@ export function ProviderSetupPage() {
 
   const visibleCapabilities = React.useMemo(
     () =>
-      isDesktop ? capabilities : capabilities.filter((provider) => provider.id !== "llamacpp"),
+      (isDesktop ? capabilities : capabilities.filter((provider) => provider.id !== "llamacpp"))
+        .filter((provider) => provider.id !== "lettuce-engine"),
     [capabilities, isDesktop],
   );
   const selectedProvider = visibleCapabilities.find((p) => p.id === selectedProviderId);
@@ -168,7 +169,7 @@ export function ProviderSetupPage() {
             handleLabelChange(pastedText);
           }}
           placeholder={`My ${selectedProvider?.name}`}
-          className="w-full min-h-11 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-white placeholder-white/40 transition-colors focus:border-white/30 focus:outline-none"
+          className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-white placeholder-white/40 transition-colors focus:border-white/30 focus:outline-none"
         />
         <p className="text-[12px] text-white/55">How this provider will appear in your menus</p>
       </div>
@@ -192,7 +193,7 @@ export function ProviderSetupPage() {
           value={apiKey}
           onChange={(e) => handleApiKeyChange(e.target.value)}
           placeholder={isLocalProvider ? "Usually not required" : "sk-..."}
-          className="w-full min-h-11 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-white placeholder-white/40 transition-colors focus:border-white/30 focus:outline-none"
+          className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-white placeholder-white/40 transition-colors focus:border-white/30 focus:outline-none"
         />
         <p className="text-[12px] text-white/55">Keys are encrypted locally</p>
       </div>
@@ -218,7 +219,7 @@ export function ProviderSetupPage() {
                     ? "http://localhost:11434"
                     : "https://api.provider.com"
             }
-            className="w-full min-h-11 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-white placeholder-white/40 transition-colors focus:border-white/30 focus:outline-none"
+            className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-white placeholder-white/40 transition-colors focus:border-white/30 focus:outline-none"
           />
           <p className="text-[12px] text-white/55">
             {isLocalProvider
@@ -246,7 +247,7 @@ export function ProviderSetupPage() {
         <button
           onClick={handleTestConnection}
           disabled={!canTest || isTesting}
-          className="w-full min-h-11 rounded-xl border border-white/20 bg-white/10 px-4 py-3 font-medium text-white transition-all duration-200 hover:border-white/30 hover:bg-white/15 active:scale-[0.98] disabled:cursor-not-allowed disabled:border-white/5 disabled:bg-white/5 disabled:text-white/55"
+          className="w-full min-h-11 rounded-xl border border-white/25 bg-white/20 px-4 py-3 font-medium text-white transition-all duration-200 hover:border-white/35 hover:bg-white/25 active:scale-[0.98] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/10 disabled:text-white/55"
         >
           {isTesting ? (
             <div className="flex items-center justify-center gap-2">
@@ -264,7 +265,7 @@ export function ProviderSetupPage() {
         <button
           onClick={handleSaveProvider}
           disabled={!canSave || isSubmitting}
-          className="w-full min-h-12 rounded-xl border border-emerald-400/40 bg-emerald-400/20 px-4 py-3 font-semibold text-emerald-100 transition-all duration-200 hover:border-emerald-300/80 hover:bg-emerald-400/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:border-emerald-400/10 disabled:bg-emerald-400/5 disabled:text-emerald-400"
+          className="w-full min-h-12 rounded-xl border border-emerald-400/60 bg-emerald-500/40 px-4 py-3 font-semibold text-emerald-50 transition-all duration-200 hover:border-emerald-300/90 hover:bg-emerald-500/50 active:scale-[0.98] disabled:cursor-not-allowed disabled:border-emerald-400/20 disabled:bg-emerald-400/10 disabled:text-emerald-400"
         >
           {isSubmitting ? (
             <div className="flex items-center justify-center gap-2">
@@ -307,7 +308,7 @@ export function ProviderSetupPage() {
               <h2 className="text-[15px] font-medium text-white/70">Available Providers</h2>
               <p className="text-[13px] text-white/55 mt-0.5">Click to select a provider</p>
             </div>
-            <div className="flex-1 overflow-y-auto px-6">
+            <div className="flex-1 overflow-y-auto px-6 pb-10">
               <div className="grid grid-cols-2 xl:grid-cols-3 gap-2">
                 {visibleCapabilities.map((provider) => (
                   <ProviderCardCompact

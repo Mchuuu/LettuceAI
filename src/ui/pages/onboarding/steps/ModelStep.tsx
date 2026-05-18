@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Settings, Check, HelpCircle, Loader } from "lucide-react";
+import { Settings, Check, Loader } from "lucide-react";
 import type { ProviderCredential } from "../../../../core/storage/schemas";
 import { ModelConfigForm } from "../components/ConfigForm";
 import { getPlatform } from "../../../../core/utils/platform";
@@ -115,8 +115,8 @@ export function ModelStep({
                     key={provider.id}
                     className={`w-full rounded-xl border px-4 py-3 text-left transition-all duration-200 ${
                       isActive
-                        ? "border-emerald-400/40 bg-emerald-400/10 ring-1 ring-emerald-400/30"
-                        : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8 active:scale-[0.98]"
+                        ? "border-emerald-400/50 bg-emerald-500/20 ring-1 ring-emerald-400/40"
+                        : "border-white/15 bg-black/35 hover:border-white/25 hover:bg-black/45 active:scale-[0.98]"
                     }`}
                     onClick={() => onSelectCredential(provider)}
                   >
@@ -168,13 +168,6 @@ export function ModelStep({
                 ? "Define the API identifier and the label you'll see inside the app."
                 : "Select a provider from the list to configure your model."}
             </p>
-            <button
-              onClick={onShowRecommendations}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-indigo-400/30 bg-indigo-400/10 px-3 py-1.5 text-[13px] font-medium text-indigo-300 transition hover:border-indigo-400/50 hover:bg-indigo-400/20 active:scale-95"
-            >
-              <HelpCircle size={14} />
-              Which model should I use?
-            </button>
           </div>
 
           {selectedCredential ? (
@@ -210,13 +203,6 @@ export function ModelStep({
           Choose which provider and model name LettuceAI should use by default. You'll be able to
           add more later.
         </p>
-        <button
-          onClick={onShowRecommendations}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-400/30 bg-indigo-400/10 px-3 py-1.5 text-[13px] font-medium text-indigo-300 transition hover:border-indigo-400/50 hover:bg-indigo-400/20 active:scale-95"
-        >
-          <HelpCircle size={14} />
-          Which model should I use?
-        </button>
       </div>
 
       {/* Provider Selection */}
@@ -228,8 +214,8 @@ export function ModelStep({
               key={provider.id}
               className={`w-full min-h-15 rounded-2xl border px-4 py-3 text-left transition-all duration-200 ${
                 isActive
-                  ? "border-white/25 bg-white/15 shadow-lg"
-                  : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10 active:scale-[0.98]"
+                  ? "border-white/30 bg-black/50 shadow-lg"
+                  : "border-white/15 bg-black/35 hover:border-white/25 hover:bg-black/45 active:scale-[0.98]"
               }`}
               onClick={() => onSelectCredential(provider)}
             >

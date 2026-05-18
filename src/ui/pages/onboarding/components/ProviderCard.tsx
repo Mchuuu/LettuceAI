@@ -22,8 +22,8 @@ export function ProviderCard({
       <button
         className={`relative group rounded-xl border px-4 py-3 text-left transition-all duration-200 ${
           isActive
-            ? "border-emerald-400/40 bg-emerald-400/10 ring-1 ring-emerald-400/30"
-            : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8 active:scale-[0.98]"
+            ? "border-emerald-400/50 bg-emerald-500/20 ring-1 ring-emerald-400/40"
+            : "border-white/15 bg-black/35 hover:border-white/25 hover:bg-black/45 active:scale-[0.98]"
         }`}
         onClick={onClick}
         aria-label={`${t("onboarding.steps.provider")}: ${provider.name}`}
@@ -65,8 +65,8 @@ export function ProviderCard({
     <button
       className={`relative group min-h-[88px] rounded-2xl border px-3 py-3 text-left transition-all duration-200 ${
         isActive
-          ? "border-white/25 bg-white/15 shadow-lg"
-          : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10 active:scale-[0.98]"
+          ? "border-white/30 bg-black/50 shadow-lg"
+          : "border-white/15 bg-black/35 hover:border-white/25 hover:bg-black/45 active:scale-[0.98]"
       }`}
       onClick={onClick}
       aria-label={`${t("onboarding.steps.provider")}: ${provider.name}`}

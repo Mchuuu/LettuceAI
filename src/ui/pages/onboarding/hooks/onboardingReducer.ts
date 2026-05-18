@@ -225,13 +225,13 @@ export function getDefaultModelName(providerId: string): string {
   switch (providerId) {
     case "intenserp":
       return "deepseek-auto";
-    case "openai":
-      return "gpt-4o";
-    case "anthropic":
-      return "claude-3-sonnet";
     case "openrouter":
-      return "meta-llama/llama-3-70b-instruct";
+      return "deepseek/deepseek-v3.2";
+    case "mistral":
+      return "mistral-large-latest";
+    case "gemini":
+      return "gemini-3-flash-preview";
     default:
-      return "custom-model";
+      return "";
   }
 }

@@ -39,8 +39,8 @@ export function MemoryStep({
         radius.lg,
         "border p-1",
         selectedType === "dynamic"
-          ? "border-emerald-500/50 bg-emerald-500/5 ring-1 ring-emerald-500/20"
-          : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8",
+          ? "border-emerald-500/60 bg-emerald-500/20 ring-1 ring-emerald-400/40"
+          : "border-white/15 bg-black/35 hover:border-white/25 hover:bg-black/45",
       )}
     >
       <div
@@ -131,8 +131,8 @@ export function MemoryStep({
         radius.lg,
         "border p-1",
         selectedType === "manual"
-          ? "border-blue-500/50 bg-blue-500/5 ring-1 ring-blue-500/20"
-          : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8",
+          ? "border-blue-500/60 bg-blue-500/20 ring-1 ring-blue-400/40"
+          : "border-white/15 bg-black/35 hover:border-white/25 hover:bg-black/45",
       )}
     >
       <div
@@ -215,7 +215,7 @@ export function MemoryStep({
           ? "bg-emerald-500 text-black shadow-[0_4px_20px_rgba(16,185,129,0.25)] hover:shadow-[0_4px_24px_rgba(16,185,129,0.4)] hover:bg-emerald-400"
           : selectedType === "manual"
             ? "bg-blue-500 text-black shadow-[0_4px_20px_rgba(59,130,246,0.25)] hover:shadow-[0_4px_24px_rgba(59,130,246,0.4)] hover:bg-blue-400"
-            : "bg-white/5 text-white/55 border border-white/5",
+            : "bg-black/40 text-white/55 border border-white/15",
       )}
     >
       {isProcessing ? (

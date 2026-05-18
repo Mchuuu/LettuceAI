@@ -1,5 +1,4 @@
 import { ArrowLeft, Loader } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
 import { useOnboardingController, OnboardingStep } from "./hooks/useOnboardingController";
 import { ProviderStep } from "./steps/ProviderStep";
 import { ModelStep } from "./steps/ModelStep";
@@ -11,7 +10,7 @@ import welcomeBg from "../../../assets/welcomebackground.png";
 import { cn, typography } from "../../design-tokens";
 import { getPlatform } from "../../../core/utils/platform";
 import { useState, useCallback, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { checkEmbeddingModel } from "../../../core/storage/repo";
 import { setProviderSetupCompleted } from "../../../core/storage/appState";
 import { useI18n } from "../../../core/i18n/context";
@@ -19,28 +18,11 @@ import { useI18n } from "../../../core/i18n/context";
 export function OnboardingPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const location = useLocation();
   const platform = getPlatform();
   const isDesktop = platform.type === "desktop";
   const controller = useOnboardingController();
   const { state } = controller;
 
-  useEffect(() => {
-    const nextStep =
-      location.pathname === "/welcome"
-        ? OnboardingStep.Welcome
-        : location.pathname === "/onboarding/sync"
-          ? OnboardingStep.Sync
-          : location.pathname === "/onboarding/models"
-            ? OnboardingStep.Model
-            : location.pathname === "/onboarding/memory"
-              ? OnboardingStep.Memory
-              : OnboardingStep.Provider;
-
-    if (state.step !== nextStep) {
-      controller.setStep(nextStep);
-    }
-  }, [controller, location.pathname, state.step]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -76,7 +58,6 @@ export function OnboardingPage() {
     navigate("/settings/models/new?provider=llamacpp&returnTo=/onboarding/memory");
   }, [navigate]);
 
-  // Handle finish - checks for embedding model if dynamic is selected
   const handleFinish = useCallback(async () => {
     if (!state.memoryType) return;
 
@@ -84,10 +65,8 @@ export function OnboardingPage() {
       try {
         const modelExists = await checkEmbeddingModel();
         if (modelExists) {
-          // Model already downloaded, just finish
           await controller.handleFinish();
         } else {
-          // Show download modal
           setShowDownloadModal(true);
         }
       } catch (error) {
@@ -95,12 +74,10 @@ export function OnboardingPage() {
         setShowDownloadModal(true);
       }
     } else {
-      // Manual mode - just finish
       await controller.handleFinish();
     }
   }, [state.memoryType, controller]);
 
-  // Handle download confirmation
   const handleConfirmDownload = useCallback(() => {
     setShowDownloadModal(false);
     navigate("/settings/embedding-download?returnTo=/chat?firstTime=true");
@@ -123,19 +100,13 @@ export function OnboardingPage() {
     );
   }
 
-  const pageVariants = {
-    initial: { opacity: 0, x: 20 },
-    animate: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: -20 },
-  };
-
   const isWelcomeStep = state.step === OnboardingStep.Welcome;
   const isSyncStep = state.step === OnboardingStep.Sync;
   const isStandaloneStep = isWelcomeStep || isSyncStep;
 
   return (
     <div className="relative flex min-h-screen flex-col text-gray-200">
-      {/* Background image + overlay — shared across all onboarding steps */}
+      {/* Background image + overlay */}
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 bg-cover bg-center bg-no-repeat"
@@ -146,7 +117,7 @@ export function OnboardingPage() {
         className="pointer-events-none fixed inset-0 bg-[linear-gradient(180deg,rgba(5,5,5,0.50)_0%,rgba(5,5,5,0.65)_60%,rgba(5,5,5,0.75)_100%)]"
       />
 
-      {/* Header — hidden on Welcome step, fixed on others */}
+      {/* Header */}
       <div
         className={cn(
           "fixed top-0 left-0 right-0 z-30 flex items-center justify-between",
@@ -188,45 +159,30 @@ export function OnboardingPage() {
         {showRecommendations ? (
           <ModelRecommendations onBack={() => setShowRecommendations(false)} />
         ) : (
-          <AnimatePresence mode="wait">
+          <>
             {state.step === OnboardingStep.Welcome && (
-              <motion.div
-                key="welcome"
-                variants={pageVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={{ duration: 0.2 }}
-                className="flex flex-1 flex-col"
-              >
-                <WelcomePage />
-              </motion.div>
+              <div key="welcome" className="flex flex-1 flex-col">
+                <WelcomePage
+                  onContinue={() => {
+                    controller.setStep(OnboardingStep.Provider);
+                    window.history.replaceState(null, "", "/onboarding/provider");
+                  }}
+                  onGoToSync={() => {
+                    controller.setStep(OnboardingStep.Sync);
+                    window.history.replaceState(null, "", "/onboarding/sync");
+                  }}
+                />
+              </div>
             )}
 
             {state.step === OnboardingStep.Sync && (
-              <motion.div
-                key="sync"
-                variants={pageVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={{ duration: 0.2 }}
-                className="flex flex-1 flex-col"
-              >
+              <div key="sync" className="flex flex-1 flex-col">
                 <OnboardingSyncStep />
-              </motion.div>
+              </div>
             )}
 
             {state.step === OnboardingStep.Provider && (
-              <motion.div
-                key="provider"
-                variants={pageVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={{ duration: 0.2 }}
-                className="flex flex-1 flex-col"
-              >
+              <div key="provider" className="flex flex-1 flex-col">
                 <ProviderStep
                   capabilities={state.capabilities}
                   selectedProviderId={state.selectedProviderId}
@@ -249,19 +205,11 @@ export function OnboardingPage() {
                   onBrowseModelLibrary={() => void handleBrowseModelLibrary()}
                   onUseOwnGguf={() => void handleUseOwnGguf()}
                 />
-              </motion.div>
+              </div>
             )}
 
             {state.step === OnboardingStep.Model && (
-              <motion.div
-                key="model"
-                variants={pageVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={{ duration: 0.2 }}
-                className="flex flex-1 flex-col"
-              >
+              <div key="model" className="flex flex-1 flex-col">
                 <ModelStep
                   providers={state.providerCredentials}
                   selectedCredential={state.selectedCredential}
@@ -279,19 +227,11 @@ export function OnboardingPage() {
                   onGoBack={controller.goBack}
                   onShowRecommendations={() => setShowRecommendations(true)}
                 />
-              </motion.div>
+              </div>
             )}
 
             {state.step === OnboardingStep.Memory && (
-              <motion.div
-                key="memory"
-                variants={pageVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={{ duration: 0.2 }}
-                className="flex flex-1 flex-col"
-              >
+              <div key="memory" className="flex flex-1 flex-col">
                 <MemoryStep
                   selectedType={state.memoryType}
                   isProcessing={state.isProcessingMemory}
@@ -302,9 +242,9 @@ export function OnboardingPage() {
                   onConfirmDownload={handleConfirmDownload}
                   onSkipDownload={handleSkipDownload}
                 />
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
+          </>
         )}
       </main>
     </div>
