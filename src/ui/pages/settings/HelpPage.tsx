@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, ChevronDown, HelpCircle, ExternalLink } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, HelpCircle, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn, typography } from "../../design-tokens";
 import { DISCORD_SERVER_LINK } from "../../../core/utils/links";
@@ -8,6 +8,17 @@ import { DISCORD_SERVER_LINK } from "../../../core/utils/links";
 interface FaqItem {
   question: string;
   answer: React.ReactNode;
+}
+
+function Crumb() {
+  return (
+    <ChevronRight
+      size={12}
+      strokeWidth={2}
+      className="mx-0.5 inline-block shrink-0 -translate-y-px text-fg/35"
+      aria-hidden
+    />
+  );
 }
 
 interface FaqSection {
@@ -68,7 +79,7 @@ const SECTIONS: FaqSection[] = [
             <p>
               <span className="font-medium text-fg">Mistral</span> has a generous free
               tier and good open-weight models. Sign up at console.mistral.ai, create a
-              key, and paste it into Settings → Providers.
+              key, and paste it into Settings <Crumb /> Providers.
             </p>
             <p>
               <span className="font-medium text-fg">Cerebras</span> is the fastest option
@@ -168,7 +179,7 @@ const SECTIONS: FaqSection[] = [
             Your characters and chats keep working as long as the app is on your device.
             Cloud models would stop replying if you have no key or your provider goes
             away, but everything you've created stays readable locally and exportable
-            via Settings → Backup & Restore.
+            via Settings <Crumb /> Backup & Restore.
           </p>
         ),
       },
@@ -277,7 +288,7 @@ const SECTIONS: FaqSection[] = [
               picked.
             </p>
             <p>
-              Open Settings → Models and add a model from one of your configured
+              Open Settings <Crumb /> Models and add a model from one of your configured
               providers. Then either set it as your global default on the same page, or
               open the character's settings and pick a model just for that character.
             </p>
@@ -321,7 +332,7 @@ const SECTIONS: FaqSection[] = [
           <p>
             A persona is <span className="italic">your</span> side of the conversation:
             your name, pronouns, and details the character should know about you. Set one
-            up under Settings → Personas and it'll be used across your chats.
+            up under Settings <Crumb /> Personas and it'll be used across your chats.
           </p>
         ),
       },
@@ -339,7 +350,7 @@ const SECTIONS: FaqSection[] = [
         question: "How do I back up or move to another device?",
         answer: (
           <p>
-            Settings → Backup & Restore lets you export everything to a file. To move to
+            Settings <Crumb /> Backup & Restore lets you export everything to a file. To move to
             a new phone or computer, install LettuceAI there and use the "Sync from
             another device" option on the welcome screen, or restore from a backup file.
           </p>

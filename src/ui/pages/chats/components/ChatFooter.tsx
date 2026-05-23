@@ -5,6 +5,7 @@ import { radius, typography, interactive, shadows, cn } from "../../../design-to
 import { getPlatform } from "../../../../core/utils/platform";
 import { useI18n } from "../../../../core/i18n/context";
 import { BottomMenu } from "../../../components/BottomMenu";
+import { ChatErrorBanner } from "./ChatErrorBanner";
 
 const SYSTEM_SEND_CONFIRMATION_DISABLED_STORAGE_KEY =
   "lettuce.chat.systemSendConfirmationDisabled";
@@ -248,19 +249,7 @@ export function ChatFooter({
           hasBackgroundImage ? "bg-transparent" : "bg-surface",
         )}
       >
-        {error && (
-          <div
-            className={cn(
-              "mb-3 px-4 py-2.5",
-              radius.md,
-              "border border-red-400/30 bg-red-400/10",
-              typography.bodySmall.size,
-              "text-red-200",
-            )}
-          >
-            {error}
-          </div>
-        )}
+        {error && <ChatErrorBanner error={error} />}
 
         {hasAttachments && (
           <div className="mb-2 flex flex-wrap gap-2 overflow-visible p-1">

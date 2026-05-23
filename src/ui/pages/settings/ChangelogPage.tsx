@@ -29,6 +29,10 @@ export const changelog: ChangelogEntry[] = [
                 description: "Added an in-app Help & FAQ page covering BYOK, API keys, free vs paid providers, tokens, privacy, and common setup questions, with a shortcut from onboarding for new users.",
             },
             {
+                type: "improvement",
+                description: "Replaced raw HTTP error strings in chats and group chats with a friendly explainer that names the problem (rate limit, out of credits, model not found, content blocked, provider down, etc.), suggests a fix, and keeps the raw error one tap away.",
+            },
+            {
                 type: "feature",
                 description: "Added design references (visual description and reference images) to the character create flow so scene generation can stay on-model from the start.",
             },

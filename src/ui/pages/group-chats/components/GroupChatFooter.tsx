@@ -16,6 +16,7 @@ import { getPlatform } from "../../../../core/utils/platform";
 import { useAvatar } from "../../../hooks/useAvatar";
 import { AvatarImage } from "../../../components/AvatarImage";
 import { RecordingIndicator } from "../../chats/components/ChatFooter";
+import { ChatErrorBanner } from "../../chats/components/ChatErrorBanner";
 
 interface GroupChatFooterProps {
   draft: string;
@@ -299,30 +300,7 @@ export function GroupChatFooter({
       )}
     >
       {error && (
-        <div
-          className={cn(
-            "mb-3 px-4 py-2.5 flex items-start justify-between gap-2",
-            radius.md,
-            "border border-danger/30 bg-danger/10",
-            typography.bodySmall.size,
-            "text-danger",
-          )}
-        >
-          <span className="flex-1">{error}</span>
-          {setError && (
-            <button
-              onClick={() => setError(null)}
-              className={cn(
-                "shrink-0 p-1 rounded",
-                "text-danger/70 hover:text-danger hover:bg-danger/20",
-                interactive.transition.fast,
-              )}
-              aria-label={t("groupChats.footer.dismissError")}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        <ChatErrorBanner error={error} onDismiss={setError ? () => setError(null) : undefined} />
       )}
 
       {/* Attachment Preview */}
