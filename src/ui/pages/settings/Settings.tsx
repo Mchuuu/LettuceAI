@@ -22,6 +22,7 @@ import {
   ArrowLeftRight,
   Image,
   Info,
+  Sparkles,
 } from "lucide-react";
 import { typography, cn } from "../../design-tokens";
 import { useSettingsSummary } from "./hooks/useSettingsSummary";
@@ -250,6 +251,20 @@ export function SettingsPage() {
         subtitle: t("settings.items.usage.subtitle"),
         onClick: () => navigate("/settings/usage"),
       },
+      help: {
+        key: "help",
+        icon: <HelpCircle />,
+        title: "Help & FAQ",
+        subtitle: "BYOK, API keys, privacy, and common questions",
+        onClick: () => navigate("/settings/help"),
+      },
+      whatsNew: {
+        key: "whatsNew",
+        icon: <Sparkles />,
+        title: "What's New",
+        subtitle: "See what changed in the latest update",
+        onClick: () => window.dispatchEvent(new Event("whatsnew:open")),
+      },
       about: {
         key: "about",
         icon: <Info />,
@@ -345,7 +360,7 @@ export function SettingsPage() {
       {
         key: "support",
         label: t("settings.sections.supportInfo"),
-        keys: ["about", "changelog", "docs", "logs", "guide"],
+        keys: ["help", "whatsNew", "about", "changelog", "docs", "logs", "guide"],
       },
       {
         key: "danger",
