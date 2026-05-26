@@ -1,6 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, useOutletContext, useParams, useSearchParams } from "react-router-dom";
-import type { Character, ChatAppearanceSettings } from "../../../core/storage/schemas";
+import type {
+  Character,
+  ChatAppearanceOverride,
+  ChatAppearanceSettings,
+} from "../../../core/storage/schemas";
 import {
   createDefaultChatAppearanceSettings,
   mergeChatAppearance,
@@ -26,6 +30,8 @@ export interface ChatLayoutContext {
   chatAppearance: ChatAppearanceSettings;
   chatController: ChatController;
   reloadCharacter: () => void;
+  draftAppearanceOverride: ChatAppearanceOverride | null;
+  setDraftAppearanceOverride: (next: ChatAppearanceOverride | null) => void;
 }
 
 export function useChatLayoutContext() {
@@ -41,8 +47,17 @@ export function ChatLayout() {
   const sessionId = searchParams.get("sessionId") || undefined;
 
   const [bgBrightness, setBgBrightness] = useState<number | null>(null);
-  const [chatAppearance, setChatAppearance] = useState<ChatAppearanceSettings>(
+  const [baseChatAppearance, setBaseChatAppearance] = useState<ChatAppearanceSettings>(
     createDefaultChatAppearanceSettings(),
+  );
+  const [draftAppearanceOverride, setDraftAppearanceOverride] =
+    useState<ChatAppearanceOverride | null>(null);
+  const chatAppearance = useMemo(
+    () =>
+      draftAppearanceOverride
+        ? mergeChatAppearance(baseChatAppearance, draftAppearanceOverride)
+        : baseChatAppearance,
+    [baseChatAppearance, draftAppearanceOverride],
   );
   const [theme, setTheme] = useState<ThemeColors>(getDefaultThemeSync());
   const chatController = useChatController(characterId, { sessionId });
@@ -64,7 +79,7 @@ export function ChatLayout() {
           const globalAppearance =
             settings.advancedSettings?.chatAppearance ?? createDefaultChatAppearanceSettings();
           const merged = mergeChatAppearance(globalAppearance, match?.chatAppearance);
-          setChatAppearance(merged);
+          setBaseChatAppearance(merged);
         }
       } catch (err) {
         console.error("ChatLayout: failed to load character", err);
@@ -157,6 +172,8 @@ export function ChatLayout() {
     chatAppearance,
     chatController,
     reloadCharacter,
+    draftAppearanceOverride,
+    setDraftAppearanceOverride,
   };
 
   return (
