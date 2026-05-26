@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import type { ComponentType } from "react";
 import { useParams } from "react-router-dom";
+import { useGroupChatLayoutContext } from "./GroupChatLayout";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -83,6 +84,7 @@ export function GroupChatMemoriesPage() {
   const { backOrReplace } = useNavigationManager();
   const { t } = useI18n();
   const { groupSessionId } = useParams();
+  const { backgroundImageData } = useGroupChatLayoutContext();
 
   const {
     session,
@@ -161,7 +163,20 @@ export function GroupChatMemoriesPage() {
   }
 
   return (
-    <div className={cn("flex h-full flex-col", colors.surface.base, colors.text.primary)}>
+    <div
+      className={cn(
+        "relative flex h-full flex-col",
+        !backgroundImageData && colors.surface.base,
+        colors.text.primary,
+      )}
+    >
+      {backgroundImageData && (
+        <div
+          className="pointer-events-none absolute inset-0 z-0 bg-surface/70 backdrop-blur-xl"
+          aria-hidden
+        />
+      )}
+      <div className="relative z-10 flex h-full flex-col">
       {/* Header */}
       <header
         className={cn(
@@ -740,6 +755,7 @@ export function GroupChatMemoriesPage() {
           )}
         </AnimatePresence>
       </main>
+      </div>
 
       {/* Summary Editor BottomMenu */}
       <BottomMenu

@@ -1212,10 +1212,10 @@ function AppContent() {
                 <Route index element={<ChatConversationPage />} />
                 <Route path="settings" element={<ChatSettingsPage />} />
                 <Route path="companion/soul" element={<CompanionSoulPage />} />
+                <Route path="memories" element={<ChatMemoriesPage />} />
               </Route>
               <Route path="/chat/:characterId/search" element={<SearchMessagesPage />} />
               <Route path="/chat/:characterId/history" element={<ChatHistoryPage />} />
-              <Route path="/chat/:characterId/memories" element={<ChatMemoriesPage />} />
               <Route
                 path="/chat/:characterId/companion/memories"
                 element={<CompanionMemoryPage />}

@@ -66,6 +66,7 @@ import {
   hasCustomWindowControls,
 } from "../../components/App/TopNav";
 import { BottomMenu } from "../../components/BottomMenu";
+import { useChatLayoutContext } from "./ChatLayout";
 import { ModelSelectionBottomMenu } from "../../components/ModelSelectionBottomMenu";
 import { useI18n } from "../../../core/i18n/context";
 import { isDevelopmentMode } from "../../../core/utils/env";
@@ -971,6 +972,8 @@ export function ChatMemoriesPage() {
   const isDynamic = useMemo(() => {
     return character?.memoryType === "dynamic";
   }, [character?.memoryType]);
+
+  const { backgroundImageData } = useChatLayoutContext();
   const isMemoryCycleActive =
     isDynamic && (session?.memoryStatus === "processing" || ui.retryStatus === "retrying");
   const [allModels, setAllModels] = useState<Model[]>([]);
@@ -1489,7 +1492,20 @@ export function ChatMemoriesPage() {
   }
 
   return (
-    <div className={cn("flex h-full flex-col", colors.surface.base, colors.text.primary)}>
+    <div
+      className={cn(
+        "relative flex h-full flex-col",
+        !backgroundImageData && colors.surface.base,
+        colors.text.primary,
+      )}
+    >
+      {backgroundImageData && (
+        <div
+          className="pointer-events-none absolute inset-0 z-0 bg-surface/70 backdrop-blur-xl"
+          aria-hidden
+        />
+      )}
+      <div className="relative z-10 flex h-full flex-col">
       {/* Header */}
       <header
         className={cn(
@@ -2242,6 +2258,7 @@ export function ChatMemoriesPage() {
           ) : null}
         </AnimatePresence>
       </main>
+      </div>
 
       {/* Summary Editor BottomMenu */}
       <BottomMenu
