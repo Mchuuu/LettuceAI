@@ -1,4 +1,12 @@
 import { z } from "zod";
+import { widgetNodeSchema } from "./chatWidgetSchemas";
+export type {
+  WidgetNode,
+  BoxVariant,
+  SelectorKind,
+  ButtonAction,
+  ImageSource,
+} from "./chatWidgetSchemas";
 
 const TokenCount = z.number().int().nonnegative();
 const OptionalTokenCount = z.preprocess((v) => (v === null ? undefined : v), TokenCount.optional());
@@ -2743,8 +2751,8 @@ export const ChatAppearanceSettingsSchema = z.object({
   chatWidgetCenterMode: z.enum(["both", "left", "right"]).default("both"),
   chatWidgetSlots: z
     .object({
-      left: z.array(z.unknown()).default([]),
-      right: z.array(z.unknown()).default([]),
+      left: z.array(widgetNodeSchema).default([]),
+      right: z.array(widgetNodeSchema).default([]),
     })
     .default({ left: [], right: [] }),
 

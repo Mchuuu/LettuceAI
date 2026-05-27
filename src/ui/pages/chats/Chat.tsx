@@ -68,6 +68,11 @@ import { ChatAppearanceDrawer } from "./components/appearance/ChatAppearanceDraw
 import { getChatColumnLayout } from "./utils/chatColumnLayout";
 import { getChatWidgetLayout, useViewportWidth } from "./utils/chatWidgetLayout";
 import { ChatWidgetArea } from "./components/ChatWidgetArea";
+import {
+  WidgetContextProvider,
+  type WidgetActionContext,
+} from "./components/widgets";
+import { saveCharacter } from "../../../core/storage";
 import { BottomMenu, GuidedTour, MenuButton, useGuidedTour } from "../../components";
 import { AvatarImage } from "../../components/AvatarImage";
 import { useAvatar } from "../../hooks/useAvatar";
@@ -159,6 +164,16 @@ export function ChatConversationPage() {
   const footerInside = widgetsOn && chatAppearance.chatFooterMoves;
   const applyHeaderColumnClass = !widgetsOn && chatAppearance.chatHeaderMoves;
   const applyFooterColumnClass = !widgetsOn && chatAppearance.chatFooterMoves;
+  const widgetLeftNodes = widgetLayout.showLeft
+    ? widgetLayout.showRight
+      ? chatAppearance.chatWidgetSlots.left
+      : [...chatAppearance.chatWidgetSlots.left, ...chatAppearance.chatWidgetSlots.right]
+    : [];
+  const widgetRightNodes = widgetLayout.showRight
+    ? widgetLayout.showLeft
+      ? chatAppearance.chatWidgetSlots.right
+      : [...chatAppearance.chatWidgetSlots.right, ...chatAppearance.chatWidgetSlots.left]
+    : [];
 
   const scrollContainerRef = useRef<HTMLElement | null>(null);
   const pressStartPosition = useRef<{ x: number; y: number } | null>(null);
@@ -509,6 +524,76 @@ export function ChatConversationPage() {
     generateAiScenePrompt,
     applySceneImagePrompt,
   } = chatController;
+
+  const [widgetPersonas, setWidgetPersonas] = useState<Persona[]>([]);
+  const [widgetModels, setWidgetModels] = useState<Model[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([listPersonas(), readSettings()]).then(([ps, s]) => {
+      if (cancelled) return;
+      setWidgetPersonas(ps);
+      setWidgetModels(s.models ?? []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [character?.id]);
+
+  const widgetCtxValue: WidgetActionContext = useMemo(() => {
+    const lastAssistantMessage = [...messages]
+      .reverse()
+      .find((m) => m.role === "assistant" && !m.id.startsWith("placeholder"));
+    return {
+      character,
+      persona: chatController.persona,
+      session: chatController.session,
+      personas: widgetPersonas,
+      models: widgetModels,
+      currentModelId: character?.defaultModelId ?? null,
+      fallbackModelId: character?.fallbackModelId ?? null,
+      swapPlacesActive: swapPlaces,
+      canRegenerate: !!lastAssistantMessage && !chatController.sending,
+      onSelectPersona: async (personaId) => {
+        const current = chatController.session;
+        if (!current) return;
+        await saveSession({
+          ...current,
+          personaId: personaId ?? null,
+          updatedAt: Date.now(),
+        });
+      },
+      onSelectModel: async (modelId) => {
+        if (!character) return;
+        await saveCharacter({ id: character.id, defaultModelId: modelId });
+        reloadCharacter();
+      },
+      onSelectFallbackModel: async (modelId) => {
+        if (!character) return;
+        await saveCharacter({ id: character.id, fallbackModelId: modelId });
+        reloadCharacter();
+      },
+      onRegenerate: async () => {
+        if (lastAssistantMessage) {
+          await chatController.handleRegenerate(lastAssistantMessage, { swapPlaces });
+        }
+      },
+      onToggleSwapPlaces: () => setSwapPlaces((s) => !s),
+      onNewSession: () => {
+        if (!characterId) return;
+        navigate(`/chat/${characterId}`);
+      },
+    };
+  }, [
+    character,
+    chatController,
+    widgetPersonas,
+    widgetModels,
+    swapPlaces,
+    messages,
+    characterId,
+    navigate,
+    reloadCharacter,
+  ]);
 
   const beetrootRain = useBeetrootRain();
   useBeetrootEasterEgg({ messages, fire: beetrootRain.fire });
@@ -2178,7 +2263,12 @@ export function ChatConversationPage() {
       </div>
       )}
 
-      <ChatWidgetArea widgetLayout={widgetLayout}>
+      <WidgetContextProvider value={widgetCtxValue}>
+      <ChatWidgetArea
+        widgetLayout={widgetLayout}
+        leftNodes={widgetLeftNodes}
+        rightNodes={widgetRightNodes}
+      >
       {headerInside && (
       <div className="relative z-20">
         <ChatHeader
@@ -2430,6 +2520,7 @@ export function ChatConversationPage() {
       </div>
       )}
       </ChatWidgetArea>
+      </WidgetContextProvider>
 
       {!footerInside && (
       <div

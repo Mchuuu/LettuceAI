@@ -1,47 +1,51 @@
 import type { ReactNode } from "react";
 import type { ChatWidgetLayout } from "../utils/chatWidgetLayout";
+import type { WidgetNode } from "../../../../core/storage/schemas";
+import { WidgetList } from "./widgets";
 
-interface WidgetAreaPlaceholderProps {
+interface WidgetAreaPanelProps {
   side: "left" | "right";
+  nodes: WidgetNode[];
 }
 
-function WidgetAreaPlaceholder({ side }: WidgetAreaPlaceholderProps) {
+function WidgetAreaPanel({ side, nodes }: WidgetAreaPanelProps) {
   return (
     <aside
-      className="relative z-10 flex flex-1 basis-0 flex-col items-center justify-center self-stretch overflow-y-auto bg-fg/3 px-2 py-6 text-center text-xs text-fg/40"
+      className="relative z-10 flex flex-1 basis-0 flex-col self-stretch"
       style={{ minWidth: 0 }}
+      aria-label={`${side} widget area`}
     >
-      <span className="text-[10px] uppercase tracking-[0.25em] text-fg/30">
-        Widget area
-      </span>
-      <span className="mt-1 text-fg/45">{side === "left" ? "Left" : "Right"}</span>
+      <WidgetList nodes={nodes} side={side} />
     </aside>
   );
 }
 
 interface ChatWidgetAreaProps {
   widgetLayout: ChatWidgetLayout;
+  leftNodes: WidgetNode[];
+  rightNodes: WidgetNode[];
   children: ReactNode;
 }
 
-export function ChatWidgetArea({ widgetLayout, children }: ChatWidgetAreaProps) {
+export function ChatWidgetArea({
+  widgetLayout,
+  leftNodes,
+  rightNodes,
+  children,
+}: ChatWidgetAreaProps) {
   if (!widgetLayout.enabled || widgetLayout.columnPx == null) {
     return <>{children}</>;
   }
   return (
     <div className="relative z-10 flex min-h-0 flex-1 flex-row">
-      {widgetLayout.showLeft && (
-        <WidgetAreaPlaceholder side="left" />
-      )}
+      {widgetLayout.showLeft && <WidgetAreaPanel side="left" nodes={leftNodes} />}
       <div
         className="flex shrink-0 flex-col"
         style={{ width: widgetLayout.columnPx, maxWidth: "100%" }}
       >
         {children}
       </div>
-      {widgetLayout.showRight && (
-        <WidgetAreaPlaceholder side="right" />
-      )}
+      {widgetLayout.showRight && <WidgetAreaPanel side="right" nodes={rightNodes} />}
     </div>
   );
 }
