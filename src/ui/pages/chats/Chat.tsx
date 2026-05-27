@@ -65,6 +65,7 @@ import {
   useAuthorNoteInlineEditor,
 } from "./components";
 import { ChatAppearanceDrawer } from "./components/appearance/ChatAppearanceDrawer";
+import { getChatColumnLayout } from "./utils/chatColumnLayout";
 import { BottomMenu, GuidedTour, MenuButton, useGuidedTour } from "../../components";
 import { AvatarImage } from "../../components/AvatarImage";
 import { useAvatar } from "../../hooks/useAvatar";
@@ -2147,7 +2148,10 @@ export function ChatConversationPage() {
       </AnimatePresence>
 
       {/* Header */}
-      <div className="relative z-20">
+      <div
+        className={`relative z-20 ${chatAppearance.chatColumnFullShell ? getChatColumnLayout(chatAppearance).className : ""}`}
+        style={chatAppearance.chatColumnFullShell ? getChatColumnLayout(chatAppearance).style : undefined}
+      >
         <ChatHeader
           character={character}
           persona={persona}
@@ -2202,8 +2206,9 @@ export function ChatConversationPage() {
         onScroll={handleScroll}
       >
         <div
-          className={`${chatAppearance.messageGap === "tight" ? "space-y-2" : chatAppearance.messageGap === "relaxed" ? "space-y-6" : "space-y-4"} px-3 pb-8 pt-4`}
+          className={`${getChatColumnLayout(chatAppearance).className} ${chatAppearance.messageGap === "tight" ? "space-y-2" : chatAppearance.messageGap === "relaxed" ? "space-y-6" : "space-y-4"} px-3 pb-8 pt-4`}
           style={{
+            ...getChatColumnLayout(chatAppearance).style,
             backgroundColor: backgroundImageData
               ? swapPlaces
                 ? isBackgroundLight
@@ -2346,7 +2351,13 @@ export function ChatConversationPage() {
       </AnimatePresence>
 
       {/* Footer */}
-      <div className="relative z-10" style={{ paddingBottom: footerBottomOffset }}>
+      <div
+        className={`relative z-10 ${chatAppearance.chatColumnFullShell ? getChatColumnLayout(chatAppearance).className : ""}`}
+        style={{
+          paddingBottom: footerBottomOffset,
+          ...(chatAppearance.chatColumnFullShell ? getChatColumnLayout(chatAppearance).style : {}),
+        }}
+      >
         <ChatFooter
           inlinePanel={footerInlinePanel}
           topSlot={
