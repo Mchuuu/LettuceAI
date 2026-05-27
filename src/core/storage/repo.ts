@@ -1008,7 +1008,9 @@ export async function saveCharacter(c: Partial<Character>): Promise<Character> {
   } as Character;
 
   const stored = await storageBridge.characterUpsert(entity);
-  return CharacterSchema.parse(stored);
+  const parsed = CharacterSchema.parse(stored);
+  broadcastSettingsUpdated();
+  return parsed;
 }
 
 export async function updateCharacterChatAppearance(
