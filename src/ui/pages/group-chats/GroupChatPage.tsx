@@ -1601,8 +1601,8 @@ export function GroupChatPage() {
       >
         {/* Header */}
         <div
-          className={`relative z-20 shrink-0 ${chatAppearance.chatColumnFullShell ? getChatColumnLayout(chatAppearance).className : ""}`}
-          style={chatAppearance.chatColumnFullShell ? getChatColumnLayout(chatAppearance).style : undefined}
+          className={`relative z-20 shrink-0 ${chatAppearance.chatHeaderMoves ? getChatColumnLayout(chatAppearance).className : ""}`}
+          style={chatAppearance.chatHeaderMoves ? getChatColumnLayout(chatAppearance).style : undefined}
         >
           <GroupChatHeader
             session={session}
@@ -1713,10 +1713,10 @@ export function GroupChatPage() {
 
         {/* Footer */}
         <div
-          className={`relative z-20 shrink-0 ${chatAppearance.chatColumnFullShell ? getChatColumnLayout(chatAppearance).className : ""}`}
+          className={`relative z-20 shrink-0 ${chatAppearance.chatFooterMoves ? getChatColumnLayout(chatAppearance).className : ""}`}
           style={{
             paddingBottom: footerBottomOffset,
-            ...(chatAppearance.chatColumnFullShell ? getChatColumnLayout(chatAppearance).style : {}),
+            ...(chatAppearance.chatFooterMoves ? getChatColumnLayout(chatAppearance).style : {}),
           }}
         >
           <GroupChatFooter

@@ -469,19 +469,21 @@ export function ChatAppearanceForm({
           onReset={resetFor("chatColumnAlign")}
         />
         <ToggleControl
-          label={t("chatAppearance.layout.chatColumn.fullShell")}
-          description={t("chatAppearance.layout.chatColumn.fullShellDesc")}
-          checked={settings.chatColumnFullShell || settings.chatWidgetAreaEnabled}
-          onChange={(v) => onUpdate("chatColumnFullShell", v)}
-          overridden={isOverridden("chatColumnFullShell")}
-          onReset={resetFor("chatColumnFullShell")}
-          disabled={settings.chatWidgetAreaEnabled}
+          label={t("chatAppearance.layout.chatColumn.moveHeader")}
+          description={t("chatAppearance.layout.chatColumn.moveHeaderDesc")}
+          checked={settings.chatHeaderMoves}
+          onChange={(v) => onUpdate("chatHeaderMoves", v)}
+          overridden={isOverridden("chatHeaderMoves")}
+          onReset={resetFor("chatHeaderMoves")}
         />
-        {settings.chatWidgetAreaEnabled && (
-          <div className="rounded-lg border border-accent/20 bg-accent/5 px-3 py-2 text-[11px] text-accent/80">
-            {t("chatAppearance.layout.chatColumn.fullShellLockedByWidgets")}
-          </div>
-        )}
+        <ToggleControl
+          label={t("chatAppearance.layout.chatColumn.moveFooter")}
+          description={t("chatAppearance.layout.chatColumn.moveFooterDesc")}
+          checked={settings.chatFooterMoves}
+          onChange={(v) => onUpdate("chatFooterMoves", v)}
+          overridden={isOverridden("chatFooterMoves")}
+          onReset={resetFor("chatFooterMoves")}
+        />
         {settings.chatColumnWidth !== "full" && (
           <ToggleControl
             label={t("chatAppearance.layout.chatColumn.widgetArea")}
@@ -492,6 +494,31 @@ export function ChatAppearanceForm({
             onReset={resetFor("chatWidgetAreaEnabled")}
           />
         )}
+        {settings.chatColumnWidth !== "full" &&
+          settings.chatWidgetAreaEnabled &&
+          settings.chatColumnAlign === "center" && (
+            <OptionGrid
+              label={t("chatAppearance.layout.chatColumn.widgetCenterModeLabel")}
+              value={settings.chatWidgetCenterMode}
+              options={[
+                {
+                  value: "both",
+                  label: t("chatAppearance.layout.chatColumn.widgetCenterMode.both"),
+                },
+                {
+                  value: "left",
+                  label: t("chatAppearance.layout.chatColumn.widgetCenterMode.left"),
+                },
+                {
+                  value: "right",
+                  label: t("chatAppearance.layout.chatColumn.widgetCenterMode.right"),
+                },
+              ]}
+              onChange={(v) => onUpdate("chatWidgetCenterMode", v)}
+              overridden={isOverridden("chatWidgetCenterMode")}
+              onReset={resetFor("chatWidgetCenterMode")}
+            />
+          )}
         </div>
       </div>
     );

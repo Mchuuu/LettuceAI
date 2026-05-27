@@ -154,8 +154,11 @@ export function ChatConversationPage() {
   const [appearanceDrawerOpen, setAppearanceDrawerOpen] = useState(false);
   const viewportWidth = useViewportWidth();
   const widgetLayout = getChatWidgetLayout(chatAppearance, viewportWidth);
-  const effectiveFullShell =
-    chatAppearance.chatColumnFullShell || widgetLayout.enabled;
+  const widgetsOn = widgetLayout.enabled;
+  const headerInside = widgetsOn && chatAppearance.chatHeaderMoves;
+  const footerInside = widgetsOn && chatAppearance.chatFooterMoves;
+  const applyHeaderColumnClass = !widgetsOn && chatAppearance.chatHeaderMoves;
+  const applyFooterColumnClass = !widgetsOn && chatAppearance.chatFooterMoves;
 
   const scrollContainerRef = useRef<HTMLElement | null>(null);
   const pressStartPosition = useRef<{ x: number; y: number } | null>(null);
@@ -2153,11 +2156,10 @@ export function ChatConversationPage() {
         )}
       </AnimatePresence>
 
-      <ChatWidgetArea widgetLayout={widgetLayout}>
-      {/* Header */}
+      {!headerInside && (
       <div
-        className={`relative z-20 ${effectiveFullShell ? getChatColumnLayout(chatAppearance).className : ""}`}
-        style={effectiveFullShell ? getChatColumnLayout(chatAppearance).style : undefined}
+        className={`relative z-20 ${applyHeaderColumnClass ? getChatColumnLayout(chatAppearance).className : ""}`}
+        style={applyHeaderColumnClass ? getChatColumnLayout(chatAppearance).style : undefined}
       >
         <ChatHeader
           character={character}
@@ -2174,6 +2176,27 @@ export function ChatConversationPage() {
           onAppearanceOpen={!isMobile ? () => setAppearanceDrawerOpen(true) : undefined}
         />
       </div>
+      )}
+
+      <ChatWidgetArea widgetLayout={widgetLayout}>
+      {headerInside && (
+      <div className="relative z-20">
+        <ChatHeader
+          character={character}
+          persona={persona}
+          swapPlaces={swapPlaces}
+          sessionId={sessionId}
+          session={sessionForHeader}
+          hasBackgroundImage={!!backgroundImageData}
+          headerOverlayClassName={theme.headerOverlay}
+          transparentHeader={chatAppearance.transparentHeader}
+          onSessionUpdate={handleSessionUpdate}
+          onBeforeSettingsOpen={!isMobile ? captureFooterFocusForDrawer : undefined}
+          onSettingsOpen={!isMobile ? () => setSettingsDrawerOpen(true) : undefined}
+          onAppearanceOpen={!isMobile ? () => setAppearanceDrawerOpen(true) : undefined}
+        />
+      </div>
+      )}
 
       <AnimatePresence>
         {swapPlaces && (
@@ -2357,12 +2380,63 @@ export function ChatConversationPage() {
         )}
       </AnimatePresence>
 
-      {/* Footer */}
+      {footerInside && (
       <div
-        className={`relative z-10 ${effectiveFullShell ? getChatColumnLayout(chatAppearance).className : ""}`}
+        className="relative z-10"
+        style={{ paddingBottom: footerBottomOffset }}
+      >
+        <ChatFooter
+          inlinePanel={footerInlinePanel}
+          topSlot={
+            inlineAuthorNoteEnabled && (sessionForHeader?.id ?? chatController.session?.id) ? (
+              <InlineAuthorNoteBar
+                session={sessionForHeader ?? chatController.session}
+                onSaved={setSessionForHeader}
+              />
+            ) : undefined
+          }
+          draft={draft}
+          setDraft={setDraft}
+          error={error}
+          sending={sending}
+          character={character}
+          onSendMessage={handleSendMessage}
+          onSendSystemMessage={handleSendVisibleSystemMessage}
+          onAbort={handleAbortWithFlag}
+          hasBackgroundImage={!!backgroundImageData}
+          footerOverlayClassName={theme.footerOverlay}
+          pendingAttachments={pendingAttachments}
+          onAddAttachment={supportsImageInput ? addPendingAttachment : undefined}
+          onRemoveAttachment={supportsImageInput ? removePendingAttachment : undefined}
+          onOpenPlusMenu={handleOpenPlusMenu}
+          onMicClick={
+            installedWhisperModels.length === 0
+              ? undefined
+              : () => {
+                  void handleFooterMicClick();
+                }
+          }
+          micActive={footerAsrMode === "recording" || footerAsrMode === "transcribing"}
+          micDisabled={footerAsrBusy}
+          recordingElapsedMs={footerRecordingMs}
+          recordingAnalyser={footerAnalyser}
+          recordingTranscribing={footerAsrMode === "transcribing"}
+          onMicCancel={cancelFooterRecording}
+          composerDisabled={footerAsrMode !== "idle"}
+          triggerFileInput={shouldTriggerFileInput}
+          onFileInputTriggered={() => setShouldTriggerFileInput(false)}
+          textareaRef={footerTextareaRef}
+        />
+      </div>
+      )}
+      </ChatWidgetArea>
+
+      {!footerInside && (
+      <div
+        className={`relative z-10 ${applyFooterColumnClass ? getChatColumnLayout(chatAppearance).className : ""}`}
         style={{
           paddingBottom: footerBottomOffset,
-          ...(effectiveFullShell ? getChatColumnLayout(chatAppearance).style : {}),
+          ...(applyFooterColumnClass ? getChatColumnLayout(chatAppearance).style : {}),
         }}
       >
         <ChatFooter
@@ -2408,7 +2482,7 @@ export function ChatConversationPage() {
           textareaRef={footerTextareaRef}
         />
       </div>
-      </ChatWidgetArea>
+      )}
 
       <MessageActionsBottomSheet
         messageAction={messageAction}

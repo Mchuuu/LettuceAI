@@ -2733,12 +2733,14 @@ export const ChatAppearanceSettingsSchema = z.object({
     .default("full"),
   chatColumnWidthPx: z.number().int().min(400).max(2400).optional(),
   chatColumnAlign: z.enum(["left", "center", "right"]).default("center"),
-  chatColumnFullShell: z.boolean().default(false),
+  chatHeaderMoves: z.boolean().default(false),
+  chatFooterMoves: z.boolean().default(false),
 
   // Widget area — desktop panels flanking the messages column when there is
   // spare horizontal room. Slot contents stay empty for now; future work will
   // introduce widget nodes and organizers (dividers, rows, etc.).
   chatWidgetAreaEnabled: z.boolean().default(false),
+  chatWidgetCenterMode: z.enum(["both", "left", "right"]).default("both"),
   chatWidgetSlots: z
     .object({
       left: z.array(z.unknown()).default([]),
@@ -2786,8 +2788,10 @@ export function createDefaultChatAppearanceSettings(): ChatAppearanceSettings {
     chatColumnWidth: "full",
     chatColumnWidthPx: undefined,
     chatColumnAlign: "center",
-    chatColumnFullShell: false,
+    chatHeaderMoves: false,
+    chatFooterMoves: false,
     chatWidgetAreaEnabled: false,
+    chatWidgetCenterMode: "both",
     chatWidgetSlots: { left: [], right: [] },
     userBubbleColor: "accent",
     assistantBubbleColor: "neutral",

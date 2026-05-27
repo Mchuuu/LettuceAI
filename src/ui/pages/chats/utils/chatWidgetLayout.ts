@@ -54,10 +54,20 @@ export function getChatWidgetLayout(
   const spare = viewportWidth - columnPx;
   const align = appearance.chatColumnAlign;
   if (align === "center") {
-    if (spare / 2 >= WIDGET_PANEL_MIN_WIDTH) {
-      return { ...base, enabled: true, showLeft: true, showRight: true };
+    const mode = appearance.chatWidgetCenterMode;
+    if (mode === "both") {
+      if (spare / 2 >= WIDGET_PANEL_MIN_WIDTH) {
+        return { ...base, enabled: true, showLeft: true, showRight: true };
+      }
+      return base;
     }
-    return base;
+    if (spare / 2 < WIDGET_PANEL_MIN_WIDTH) return base;
+    return {
+      ...base,
+      enabled: true,
+      showLeft: mode === "left",
+      showRight: mode === "right",
+    };
   }
   if (spare < WIDGET_PANEL_MIN_WIDTH) return base;
   if (align === "left") {

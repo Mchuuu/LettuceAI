@@ -3172,10 +3172,10 @@ export const enMessages = {
       chatColumn: {
         widthLabel: "Chat Column Width",
         width: {
-          narrow: "Narrow",
-          normal: "Normal",
-          wide: "Wide",
-          xl: "Extra Wide",
+          narrow: "Narrow (640)",
+          normal: "Normal (800)",
+          wide: "Wide (1024)",
+          xl: "Extra Wide (1280)",
           full: "Full",
           custom: "Custom",
         },
@@ -3186,14 +3186,21 @@ export const enMessages = {
           center: "Center",
           right: "Right",
         },
-        fullShell: "Move Full Shell",
-        fullShellDesc:
-          "Move the header and input area along with the messages column.",
+        moveHeader: "Move Header",
+        moveHeaderDesc:
+          "Align the header with the messages column. With Widget Area on, the header sits inside the column instead of above the widget panels.",
+        moveFooter: "Move Input Area",
+        moveFooterDesc:
+          "Align the input area with the messages column. With Widget Area on, the input sits inside the column instead of below the widget panels.",
         widgetArea: "Widget Area",
         widgetAreaDesc:
           "Show side panels for widgets in the empty space around the messages column. Needs extra room on the desktop.",
-        fullShellLockedByWidgets:
-          "Move Full Shell is on because Widget Area is enabled.",
+        widgetCenterModeLabel: "Center Widget Layout",
+        widgetCenterMode: {
+          both: "Both",
+          left: "Left only",
+          right: "Right only",
+        },
       },
     },
     avatar: {
