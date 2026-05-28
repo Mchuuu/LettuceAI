@@ -20,6 +20,11 @@ import {
   type ThemeColors,
 } from "../../../core/utils/imageAnalysis";
 
+export type AppearanceFieldUpdater = <K extends keyof ChatAppearanceSettings>(
+  key: K,
+  value: ChatAppearanceSettings[K],
+) => void;
+
 export interface ChatLayoutContext {
   character: Character | null;
   characterLoading: boolean;
@@ -32,6 +37,10 @@ export interface ChatLayoutContext {
   reloadCharacter: () => void;
   draftAppearanceOverride: ChatAppearanceOverride | null;
   setDraftAppearanceOverride: (next: ChatAppearanceOverride | null) => void;
+  /** Set by the appearance drawer while open so other UI (e.g. the resizable
+   * widget divider) can edit the live draft instead of persisting directly. */
+  appearanceFieldUpdater: AppearanceFieldUpdater | null;
+  registerAppearanceFieldUpdater: (fn: AppearanceFieldUpdater | null) => void;
 }
 
 export function useChatLayoutContext() {
@@ -52,6 +61,12 @@ export function ChatLayout() {
   );
   const [draftAppearanceOverride, setDraftAppearanceOverride] =
     useState<ChatAppearanceOverride | null>(null);
+  const [appearanceFieldUpdater, setAppearanceFieldUpdater] =
+    useState<AppearanceFieldUpdater | null>(null);
+  const registerAppearanceFieldUpdater = useCallback(
+    (fn: AppearanceFieldUpdater | null) => setAppearanceFieldUpdater(() => fn),
+    [],
+  );
   const chatAppearance = useMemo(
     () =>
       draftAppearanceOverride
@@ -174,6 +189,8 @@ export function ChatLayout() {
     reloadCharacter,
     draftAppearanceOverride,
     setDraftAppearanceOverride,
+    appearanceFieldUpdater,
+    registerAppearanceFieldUpdater,
   };
 
   return (

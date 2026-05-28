@@ -26,6 +26,7 @@ import {
   deriveOverrideFromSettings,
   normalizeOverride,
 } from "./overrideHelpers";
+import type { AppearanceFieldUpdater } from "../../ChatLayout";
 
 interface ChatAppearanceDrawerProps {
   open: boolean;
@@ -33,6 +34,7 @@ interface ChatAppearanceDrawerProps {
   character: Character;
   onCharacterUpdate: (next: Character) => void;
   setDraftOverride: (next: ChatAppearanceOverride | null) => void;
+  registerFieldUpdater?: (fn: AppearanceFieldUpdater | null) => void;
 }
 
 export function ChatAppearanceDrawer({
@@ -41,6 +43,7 @@ export function ChatAppearanceDrawer({
   character,
   onCharacterUpdate,
   setDraftOverride,
+  registerFieldUpdater,
 }: ChatAppearanceDrawerProps) {
   const { t } = useI18n();
   const [side, setSide] = useState<"left" | "right">(() => {
@@ -117,6 +120,12 @@ export function ChatAppearanceDrawer({
     },
     [],
   );
+
+  useEffect(() => {
+    if (!registerFieldUpdater) return;
+    registerFieldUpdater(open ? updateField : null);
+    return () => registerFieldUpdater(null);
+  }, [open, updateField, registerFieldUpdater]);
 
   const resetField = useCallback((key: AppearanceKey) => {
     setOverride((prev) => {

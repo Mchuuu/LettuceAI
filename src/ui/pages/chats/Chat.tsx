@@ -163,6 +163,8 @@ export function ChatConversationPage() {
     chatController,
     setDraftAppearanceOverride,
     reloadCharacter,
+    appearanceFieldUpdater,
+    registerAppearanceFieldUpdater,
   } = useChatLayoutContext();
   const [appearanceDrawerOpen, setAppearanceDrawerOpen] = useState(false);
   const viewportWidth = useViewportWidth();
@@ -655,6 +657,25 @@ export function ChatConversationPage() {
       await updateCharacterChatAppearance(target.id, {
         ...existing,
         chatWidgetSlots: slots,
+      });
+      reloadCharacter();
+    },
+    [layoutCharacter, character, reloadCharacter],
+  );
+
+  const persistColumnWidthPx = useCallback(
+    async (px: number) => {
+      const target = layoutCharacter ?? character;
+      if (!target) return;
+      const fresh = await getCharacter(target.id);
+      const existing = (fresh?.chatAppearance ?? target.chatAppearance ?? {}) as Record<
+        string,
+        unknown
+      >;
+      await updateCharacterChatAppearance(target.id, {
+        ...existing,
+        chatColumnWidth: "custom",
+        chatColumnWidthPx: px,
       });
       reloadCharacter();
     },
@@ -2338,6 +2359,15 @@ export function ChatConversationPage() {
         widgetLayout={widgetLayout}
         leftNodes={widgetLeftNodes}
         rightNodes={widgetRightNodes}
+        resizable={chatAppearance.chatColumnWidth === "custom" && appearanceDrawerOpen}
+        viewportWidth={viewportWidth}
+        onResizeColumn={(px) => {
+          if (appearanceFieldUpdater) {
+            appearanceFieldUpdater("chatColumnWidthPx", px);
+          } else {
+            void persistColumnWidthPx(px);
+          }
+        }}
       >
       {headerInside && (
       <div className="relative z-20">
@@ -3448,6 +3478,7 @@ export function ChatConversationPage() {
           character={(layoutCharacter ?? character)!}
           onCharacterUpdate={() => reloadCharacter()}
           setDraftOverride={setDraftAppearanceOverride}
+          registerFieldUpdater={registerAppearanceFieldUpdater}
         />
       )}
 
