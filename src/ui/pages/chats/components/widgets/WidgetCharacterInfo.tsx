@@ -1,17 +1,18 @@
 import { cn } from "../../../../design-tokens";
+import type { CharacterInfoNode } from "../../../../../core/storage/chatWidgetSchemas";
 import { CharacterAvatar } from "../CharacterAvatar";
 import { useWidgetContext } from "./WidgetContext";
 import { widgetCardClass } from "./widgetSurface";
 
-export function WidgetCharacterInfo() {
+export function WidgetCharacterInfo({ node }: { node: CharacterInfoNode }) {
   const { character, hasBackground } = useWidgetContext();
 
   if (!character) {
     return (
       <section
         className={cn(
-          "rounded-xl border px-3 py-3 text-[12px] italic text-fg/40",
-          widgetCardClass(hasBackground),
+          "rounded-xl px-3 py-3 text-[12px] italic text-fg/40",
+          widgetCardClass(hasBackground, node.design),
         )}
       >
         No character loaded.
@@ -22,8 +23,8 @@ export function WidgetCharacterInfo() {
   return (
     <section
       className={cn(
-        "flex flex-col gap-2 rounded-xl border px-3 py-3",
-        widgetCardClass(hasBackground),
+        "flex flex-col gap-2 rounded-xl px-3 py-3",
+        widgetCardClass(hasBackground, node.design),
       )}
     >
       <header className="flex items-center gap-3">

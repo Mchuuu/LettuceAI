@@ -13,6 +13,7 @@ import {
 import type { ButtonNode } from "../../../../../core/storage/chatWidgetSchemas";
 import { cn, interactive } from "../../../../design-tokens";
 import { useWidgetContext } from "./WidgetContext";
+import { widgetCardClass } from "./widgetSurface";
 
 interface WidgetButtonProps {
   node: ButtonNode;
@@ -132,16 +133,15 @@ export function WidgetButton({ node }: WidgetButtonProps) {
         onClick={() => void handler()}
         disabled={disabled}
         className={cn(
-          "flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-sm",
+          "flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left text-sm",
           interactive.transition.fast,
           disabled
-            ? "cursor-not-allowed border-fg/8 bg-fg/[0.03] text-fg/30"
+            ? "cursor-not-allowed border border-fg/8 bg-fg/[0.03] text-fg/30"
             : isToggle && toggled
-              ? "border-accent/40 bg-accent/15 text-accent"
+              ? "border border-accent/40 bg-accent/15 text-accent"
               : cn(
-                  hasBackground
-                    ? "border-fg/12 bg-surface-el/85 backdrop-blur-md text-fg/80 hover:border-fg/30 hover:bg-surface-el"
-                    : "border-fg/15 bg-fg/5 text-fg/80 hover:border-fg/30 hover:bg-fg/10",
+                  widgetCardClass(hasBackground, node.design),
+                  "text-fg/80 hover:border-fg/30 hover:bg-fg/10",
                   interactive.active.scale,
                 ),
         )}

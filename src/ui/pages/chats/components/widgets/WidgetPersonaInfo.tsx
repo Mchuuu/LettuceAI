@@ -1,11 +1,12 @@
 import { User } from "lucide-react";
 import { cn } from "../../../../design-tokens";
+import type { PersonaInfoNode } from "../../../../../core/storage/chatWidgetSchemas";
 import { AvatarImage } from "../../../../components/AvatarImage";
 import { useAvatar } from "../../../../hooks/useAvatar";
 import { useWidgetContext } from "./WidgetContext";
 import { widgetCardClass } from "./widgetSurface";
 
-export function WidgetPersonaInfo() {
+export function WidgetPersonaInfo({ node }: { node: PersonaInfoNode }) {
   const { persona, hasBackground } = useWidgetContext();
   const avatarUrl = useAvatar("persona", persona?.id ?? "", persona?.avatarPath, "round");
 
@@ -13,8 +14,8 @@ export function WidgetPersonaInfo() {
     return (
       <section
         className={cn(
-          "rounded-xl border px-3 py-3 text-[12px] italic text-fg/40",
-          widgetCardClass(hasBackground),
+          "rounded-xl px-3 py-3 text-[12px] italic text-fg/40",
+          widgetCardClass(hasBackground, node.design),
         )}
       >
         No persona selected.
@@ -25,8 +26,8 @@ export function WidgetPersonaInfo() {
   return (
     <section
       className={cn(
-        "flex flex-col gap-2 rounded-xl border px-3 py-3",
-        widgetCardClass(hasBackground),
+        "flex flex-col gap-2 rounded-xl px-3 py-3",
+        widgetCardClass(hasBackground, node.design),
       )}
     >
       <header className="flex items-center gap-3">

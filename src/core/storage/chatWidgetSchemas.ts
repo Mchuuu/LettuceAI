@@ -29,8 +29,11 @@ export type ImageSource =
 
 export type ImageShape = "auto" | "square" | "wide" | "circle";
 
+export type WidgetDesign = "default" | "minimal" | "solid" | "outline";
+
 interface NodeBase {
   id: string;
+  design?: WidgetDesign;
 }
 
 export interface DividerNode extends NodeBase {
@@ -104,11 +107,13 @@ export const widgetNodeSchema: z.ZodType<WidgetNode> = z.lazy(() =>
   z.discriminatedUnion("type", [
     z.object({
       id: z.string(),
+      design: z.enum(["default", "minimal", "solid", "outline"]).optional(),
       type: z.literal("divider"),
       style: z.enum(["line", "space"]).optional(),
     }),
     z.object({
       id: z.string(),
+      design: z.enum(["default", "minimal", "solid", "outline"]).optional(),
       type: z.literal("box"),
       variant: z
         .enum(["default", "subtle", "info", "warning", "success", "danger"])
@@ -119,14 +124,17 @@ export const widgetNodeSchema: z.ZodType<WidgetNode> = z.lazy(() =>
     }),
     z.object({
       id: z.string(),
+      design: z.enum(["default", "minimal", "solid", "outline"]).optional(),
       type: z.literal("character_info"),
     }),
     z.object({
       id: z.string(),
+      design: z.enum(["default", "minimal", "solid", "outline"]).optional(),
       type: z.literal("persona_info"),
     }),
     z.object({
       id: z.string(),
+      design: z.enum(["default", "minimal", "solid", "outline"]).optional(),
       type: z.literal("scratch_pad"),
       title: z.string().optional(),
       description: z.string().optional(),
@@ -134,6 +142,7 @@ export const widgetNodeSchema: z.ZodType<WidgetNode> = z.lazy(() =>
     }),
     z.object({
       id: z.string(),
+      design: z.enum(["default", "minimal", "solid", "outline"]).optional(),
       type: z.literal("image"),
       title: z.string().optional(),
       description: z.string().optional(),
@@ -142,6 +151,7 @@ export const widgetNodeSchema: z.ZodType<WidgetNode> = z.lazy(() =>
     }),
     z.object({
       id: z.string(),
+      design: z.enum(["default", "minimal", "solid", "outline"]).optional(),
       type: z.literal("selector"),
       kind: z.enum(["persona", "model", "fallback_model", "author_note"]),
       title: z.string().optional(),
@@ -149,6 +159,7 @@ export const widgetNodeSchema: z.ZodType<WidgetNode> = z.lazy(() =>
     }),
     z.object({
       id: z.string(),
+      design: z.enum(["default", "minimal", "solid", "outline"]).optional(),
       type: z.literal("button"),
       action: z.enum([
         "regenerate",

@@ -56,8 +56,8 @@ export function WidgetScratchPad({ node }: WidgetScratchPadProps) {
       )}
       <div
         className={cn(
-          "rounded-xl border px-3 py-2 text-sm text-fg/80",
-          widgetCardClass(hasBackground),
+          "rounded-xl px-3 py-2 text-sm text-fg/80",
+          widgetCardClass(hasBackground, node.design),
         )}
       >
         {inlineEditing ? (

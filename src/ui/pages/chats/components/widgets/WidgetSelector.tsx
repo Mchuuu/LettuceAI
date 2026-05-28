@@ -5,9 +5,11 @@ import { cn, interactive, radius, typography } from "../../../../design-tokens";
 import { AvatarImage } from "../../../../components/AvatarImage";
 import { ModelSelectionBottomMenu } from "../../../../components/ModelSelectionBottomMenu";
 import { useAvatar } from "../../../../hooks/useAvatar";
+import type { WidgetDesign } from "../../../../../core/storage/chatWidgetSchemas";
 import { PersonaSelector } from "../../../group-chats/components/settings";
 import { AuthorNoteBottomMenu } from "../AuthorNoteBottomMenu";
 import { useWidgetContext } from "./WidgetContext";
+import { widgetCardClass } from "./widgetSurface";
 
 interface WidgetSelectorProps {
   node: SelectorNode;
@@ -31,6 +33,7 @@ export function WidgetSelector({ node }: WidgetSelectorProps) {
         label={label}
         open={open}
         setOpen={setOpen}
+        design={node.design}
       />
     );
   }
@@ -44,6 +47,7 @@ export function WidgetSelector({ node }: WidgetSelectorProps) {
           label={label}
           value={note ? note : "Add a note"}
           onClick={() => setOpen(true)}
+          design={node.design}
         />
         <AuthorNoteBottomMenu
           isOpen={open}
@@ -68,6 +72,7 @@ export function WidgetSelector({ node }: WidgetSelectorProps) {
         label={label}
         value={value}
         onClick={() => setOpen(true)}
+        design={node.design}
       />
       <ModelSelectionBottomMenu
         isOpen={open}
@@ -102,10 +107,12 @@ function PersonaSelectorWidget({
   label,
   open,
   setOpen,
+  design,
 }: {
   label: string;
   open: boolean;
   setOpen: (v: boolean) => void;
+  design?: WidgetDesign;
 }) {
   const ctx = useWidgetContext();
   const session = ctx.session;
@@ -162,6 +169,7 @@ function PersonaSelectorWidget({
         label={label}
         value={value}
         onClick={() => setOpen(true)}
+        design={design}
       />
       <PersonaSelector
         isOpen={open}
@@ -182,9 +190,10 @@ interface ChipRowProps {
   label: string;
   value: string;
   onClick: () => void;
+  design?: WidgetDesign;
 }
 
-function ChipRow({ icon, label, value, onClick }: ChipRowProps) {
+function ChipRow({ icon, label, value, onClick, design }: ChipRowProps) {
   const { hasBackground } = useWidgetContext();
   return (
     <button
@@ -193,10 +202,8 @@ function ChipRow({ icon, label, value, onClick }: ChipRowProps) {
       className={cn(
         "group flex min-h-14 w-full items-center justify-between",
         radius.md,
-        "border p-4 text-left",
-        hasBackground
-          ? "border-fg/12 bg-surface-el/85 backdrop-blur-md"
-          : "border-fg/10 bg-surface-el",
+        "p-4 text-left",
+        widgetCardClass(hasBackground, design),
         interactive.transition.default,
         interactive.active.scale,
         "hover:border-fg/20 hover:bg-fg/6",

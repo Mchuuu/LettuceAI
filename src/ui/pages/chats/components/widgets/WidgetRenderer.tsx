@@ -21,9 +21,9 @@ export function WidgetRenderer({ node }: WidgetRendererProps) {
     case "scratch_pad":
       return <WidgetScratchPad node={node} />;
     case "character_info":
-      return <WidgetCharacterInfo />;
+      return <WidgetCharacterInfo node={node} />;
     case "persona_info":
-      return <WidgetPersonaInfo />;
+      return <WidgetPersonaInfo node={node} />;
     case "image":
       return <WidgetImage node={node} />;
     case "selector":

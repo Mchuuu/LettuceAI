@@ -62,10 +62,10 @@ export function WidgetImage({ node }: WidgetImageProps) {
       )}
       <div
         className={cn(
-          "overflow-hidden border",
+          "overflow-hidden",
           shape === "circle" ? "mx-auto rounded-full" : "rounded-xl",
           shape === "circle" && "aspect-square w-1/2 max-w-[160px]",
-          widgetCardClass(hasBackground),
+          widgetCardClass(hasBackground, node.design),
         )}
       >
         {url ? (

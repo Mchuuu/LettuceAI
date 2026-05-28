@@ -13,6 +13,7 @@ import type {
   ScratchPadNode,
   SelectorKind,
   SelectorNode,
+  WidgetDesign,
   WidgetNode,
 } from "../../../../../../core/storage/chatWidgetSchemas";
 import { convertToImageRef } from "../../../../../../core/storage/images";
@@ -145,11 +146,38 @@ export function WidgetConfigSheet({
   );
 }
 
+function DesignField({
+  node,
+  setNode,
+}: {
+  node: WidgetNode;
+  setNode: (n: WidgetNode) => void;
+}) {
+  return (
+    <Field label="Design">
+      <Segmented<WidgetDesign>
+        value={node.design ?? "default"}
+        options={[
+          { value: "default", label: "Default" },
+          { value: "minimal", label: "Minimal" },
+          { value: "solid", label: "Solid" },
+          { value: "outline", label: "Outline" },
+        ]}
+        onChange={(v) => setNode({ ...node, design: v })}
+      />
+    </Field>
+  );
+}
+
 function renderBody(
   draft: WidgetNode,
   setDraft: (next: WidgetNode) => void,
   onChooseLibrary: () => void,
 ): React.ReactNode {
+  const design =
+    draft.type !== "divider" && draft.type !== "box" ? (
+      <DesignField node={draft} setNode={setDraft} />
+    ) : null;
   switch (draft.type) {
     case "divider":
       return <DividerForm node={draft} setNode={setDraft} />;
@@ -157,19 +185,35 @@ function renderBody(
       return <BoxForm node={draft} setNode={setDraft} />;
     case "character_info":
     case "persona_info":
-      return (
-        <p className="text-[12px] italic text-fg/50">
-          This widget has no configuration yet.
-        </p>
-      );
+      return design;
     case "scratch_pad":
-      return <ScratchPadForm node={draft} setNode={setDraft} />;
+      return (
+        <>
+          <ScratchPadForm node={draft} setNode={setDraft} />
+          {design}
+        </>
+      );
     case "image":
-      return <ImageForm node={draft} setNode={setDraft} onChooseLibrary={onChooseLibrary} />;
+      return (
+        <>
+          <ImageForm node={draft} setNode={setDraft} onChooseLibrary={onChooseLibrary} />
+          {design}
+        </>
+      );
     case "selector":
-      return <SelectorForm node={draft} setNode={setDraft} />;
+      return (
+        <>
+          <SelectorForm node={draft} setNode={setDraft} />
+          {design}
+        </>
+      );
     case "button":
-      return <ButtonForm node={draft} setNode={setDraft} />;
+      return (
+        <>
+          <ButtonForm node={draft} setNode={setDraft} />
+          {design}
+        </>
+      );
   }
 }
 
