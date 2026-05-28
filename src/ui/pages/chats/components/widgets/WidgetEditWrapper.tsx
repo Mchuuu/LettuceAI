@@ -19,8 +19,11 @@ export function WidgetEditWrapper({ node, onEdit, onDelete }: WidgetEditWrapperP
       dragMomentum={false}
       dragElastic={0}
       layout="position"
+      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.14 } }}
       whileDrag={{ zIndex: 30, boxShadow: "0 16px 32px rgba(0,0,0,0.28)" }}
-      transition={{ layout: { duration: 0.18, ease: "easeOut" } }}
+      transition={{ layout: { duration: 0.18, ease: "easeOut" }, duration: 0.2, ease: "easeOut" }}
       className="relative rounded-2xl border border-dashed border-fg/20 bg-fg/[0.02] p-2"
       style={{ position: "relative" }}
     >
