@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  AlertTriangle,
   ArrowLeft,
   Bot,
   Brain,
@@ -13,7 +14,9 @@ import {
   Pin,
   PinOff,
   Plus,
+  RefreshCw,
   Save,
+  ScrollText,
   Search,
   Shield,
   Snowflake,
@@ -33,11 +36,14 @@ import { cn, components, interactive, radius } from "../../design-tokens";
 import { Routes, useNavigationManager } from "../../navigation";
 import {
   addMemory,
+  readSettings,
   removeMemory,
+  saveSession,
   setMemoryColdState,
   toggleMemoryPin,
   updateMemory,
 } from "../../../core/storage/repo";
+import { BottomMenu } from "../../components/BottomMenu";
 import {
   companionCategoryLabel,
   COMPANION_CATEGORY_ORDER,
@@ -56,6 +62,14 @@ import { RELATIONSHIP_AXIS_ANCHORS } from "../characters/utils/companionDefaults
 import { storageBridge } from "../../../core/storage/files";
 
 type MemoryFilter = "all" | "active" | "superseded";
+
+const MEMORY_PROGRESS_TOTAL = 4;
+const MEMORY_STEP_LABELS: Record<number, string> = {
+  1: "Summarizing conversation",
+  2: "Analyzing memories",
+  3: "Applying changes",
+  4: "Organizing memories",
+};
 
 const sectionIcons: Record<CompanionMemoryCategory, React.ComponentType<{ className?: string; size?: number }>> = {
   relationship: Heart,
@@ -514,6 +528,16 @@ export function CompanionMemoryPage() {
   const [editingCategory, setEditingCategory] = useState<CompanionMemoryCategory>("relationship");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [triggering, setTriggering] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [progressStep, setProgressStep] = useState<number | null>(null);
+  const [genTokens, setGenTokens] = useState<number | null>(null);
+  const [genTps, setGenTps] = useState<number | null>(null);
+  const [genLastBeatAt, setGenLastBeatAt] = useState<number | null>(null);
+  const [genRecentText, setGenRecentText] = useState<string | null>(null);
+  const [showLiveOutput, setShowLiveOutput] = useState(false);
+  const [developerMode, setDeveloperMode] = useState(false);
+  const [nowTick, setNowTick] = useState(0);
+  const liveOutputRef = useRef<HTMLPreElement | null>(null);
 
   const companion = character?.companion ?? null;
   const companionState = session?.companionState;
@@ -525,6 +549,14 @@ export function CompanionMemoryPage() {
     if (!session?.id) return;
     const listeners: Array<() => void> = [];
 
+    const resetGeneration = () => {
+      setProgressStep(null);
+      setGenTokens(null);
+      setGenTps(null);
+      setGenLastBeatAt(null);
+      setGenRecentText(null);
+    };
+
     const setup = async () => {
       const events = [
         "dynamic-memory:success",
@@ -534,12 +566,33 @@ export function CompanionMemoryPage() {
       ];
       for (const name of events) {
         const unlisten = await listen(name, (event: any) => {
-          if (event.payload?.sessionId === session.id) {
-            void reload();
+          if (event.payload?.sessionId !== session.id) return;
+          if (name !== "dynamic-memory:processing") {
+            resetGeneration();
           }
+          void reload();
         });
         listeners.push(unlisten);
       }
+
+      const unlistenProgress = await listen("dynamic-memory:progress", (event: any) => {
+        if (event.payload?.sessionId === session.id) {
+          setProgressStep(Number(event.payload.step));
+        }
+      });
+      listeners.push(unlistenProgress);
+
+      const unlistenHeartbeat = await listen("llm-generation-heartbeat", (event: any) => {
+        const requestId: string = event.payload?.requestId ?? "";
+        if (!requestId.startsWith("dynamic-memory:")) return;
+        setGenTokens(Number(event.payload?.tokens ?? 0));
+        setGenTps(Number(event.payload?.tokensPerSecond ?? 0));
+        setGenLastBeatAt(Date.now());
+        if (typeof event.payload?.recentText === "string") {
+          setGenRecentText(event.payload.recentText);
+        }
+      });
+      listeners.push(unlistenHeartbeat);
     };
 
     void setup();
@@ -549,10 +602,41 @@ export function CompanionMemoryPage() {
   }, [reload, session?.id]);
 
   const memoryProcessing = session?.memoryStatus === "processing";
+  const memoryCycleActive = memoryProcessing || triggering;
+
+  useEffect(() => {
+    let mounted = true;
+    void readSettings().then((settings) => {
+      if (mounted) setDeveloperMode(settings.advancedSettings?.developerModeEnabled ?? false);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!memoryCycleActive) return;
+    const id = window.setInterval(() => setNowTick((n) => n + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [memoryCycleActive]);
+
+  useEffect(() => {
+    const el = liveOutputRef.current;
+    if (el && showLiveOutput) el.scrollTop = el.scrollHeight;
+  }, [genRecentText, showLiveOutput]);
+
+  const generationStalledMs = genLastBeatAt != null ? Date.now() - genLastBeatAt : null;
+  const generationStalled = generationStalledMs != null && generationStalledMs > 15000;
+  void nowTick;
 
   const handleTriggerMemory = useCallback(async () => {
     if (!session?.id || triggering || memoryProcessing) return;
     setTriggering(true);
+    setProgressStep(null);
+    setGenTokens(null);
+    setGenTps(null);
+    setGenLastBeatAt(null);
+    setGenRecentText(null);
     try {
       await storageBridge.triggerDynamicMemory(session.id);
       await reload();
@@ -562,6 +646,31 @@ export function CompanionMemoryPage() {
       setTriggering(false);
     }
   }, [session?.id, triggering, memoryProcessing, reload]);
+
+  const handleCancelMemory = useCallback(async () => {
+    if (!session || cancelling) return;
+    setCancelling(true);
+    try {
+      if (session.memoryStatus === "processing") {
+        await storageBridge.abortDynamicMemory(session.id);
+      }
+      const next = { ...session, memoryStatus: "idle" as const, memoryError: null };
+      await saveSession(next, { preserveDynamicMemory: false });
+      setSession(next);
+    } catch (err) {
+      console.error("Failed to cancel companion memory cycle:", err);
+    } finally {
+      setCancelling(false);
+    }
+  }, [session, cancelling, setSession]);
+
+  const handleMemoryButton = useCallback(() => {
+    if (memoryCycleActive) {
+      void handleCancelMemory();
+    } else {
+      void handleTriggerMemory();
+    }
+  }, [memoryCycleActive, handleCancelMemory, handleTriggerMemory]);
 
   const filteredItems = useMemo(() => {
     return memoryItems.filter((item) => {
@@ -761,21 +870,27 @@ export function CompanionMemoryPage() {
         right={
           <>
             <button
-              onClick={handleTriggerMemory}
-              disabled={triggering || memoryProcessing}
+              onClick={handleMemoryButton}
+              disabled={cancelling}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-md border border-fg/10 bg-fg/4 px-2.5 py-1.5 text-[11px] font-medium text-fg/70",
-                "hover:border-fg/20 hover:bg-fg/8 hover:text-fg disabled:opacity-50",
+                "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-medium disabled:opacity-50",
+                memoryCycleActive
+                  ? "border-rose-500/25 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20"
+                  : "border-fg/10 bg-fg/4 text-fg/70 hover:border-fg/20 hover:bg-fg/8 hover:text-fg",
                 interactive.transition.fast,
               )}
-              title="Run companion memory extraction on this chat now"
+              title={
+                memoryCycleActive
+                  ? "Cancel the running memory cycle"
+                  : "Run companion memory extraction on this chat now"
+              }
             >
-              {triggering || memoryProcessing ? (
+              {memoryCycleActive ? (
                 <Loader2 size={12} className="animate-spin" />
               ) : (
                 <Sparkles size={12} />
               )}
-              {triggering || memoryProcessing ? "Processing" : "Process memory"}
+              {cancelling ? "Cancelling" : memoryCycleActive ? "Cancel" : "Process memory"}
             </button>
             <button
               onClick={() => go(Routes.chatCompanionRelationship(character.id, session.id))}
@@ -792,6 +907,57 @@ export function CompanionMemoryPage() {
       />
 
       <main className="flex-1 overflow-y-auto px-3 pb-[calc(env(safe-area-inset-bottom)+24px)] pt-4 lg:px-8">
+        {memoryCycleActive && (
+          <div className="mx-auto mb-4 w-full max-w-7xl">
+            <div className={cn(radius.md, "border border-blue-500/20 bg-blue-500/10 p-3 space-y-2")}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 shrink-0 animate-spin text-blue-400" />
+                  <span className="text-[13px] font-semibold text-blue-200">
+                    {progressStep ? MEMORY_STEP_LABELS[progressStep] : "Processing memories..."}
+                  </span>
+                </div>
+                {progressStep ? (
+                  <span className="text-[12px] tabular-nums text-blue-300/60">
+                    {progressStep}/{MEMORY_PROGRESS_TOTAL}
+                  </span>
+                ) : null}
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-500/15">
+                {progressStep ? (
+                  <div
+                    className="h-full rounded-full bg-blue-400/70 transition-all duration-500 ease-out"
+                    style={{ width: `${(progressStep / MEMORY_PROGRESS_TOTAL) * 100}%` }}
+                  />
+                ) : (
+                  <div className="h-full w-1/3 rounded-full bg-blue-400/70 animate-[indeterminate_1.5s_ease-in-out_infinite]" />
+                )}
+              </div>
+              {genTokens != null &&
+                (generationStalled ? (
+                  <p className="flex items-center gap-1.5 text-[11px] tabular-nums text-amber-300/80">
+                    <AlertTriangle size={11} className="shrink-0" />
+                    no response from model · stalled {Math.round((generationStalledMs ?? 0) / 1000)}s
+                  </p>
+                ) : (
+                  <p className="text-[11px] tabular-nums text-blue-300/60">
+                    generating · {genTokens} tokens
+                    {genTps && genTps > 0 ? ` · ${genTps.toFixed(1)} tok/s` : ""}
+                  </p>
+                ))}
+              {developerMode && genRecentText != null && (
+                <button
+                  type="button"
+                  onClick={() => setShowLiveOutput(true)}
+                  className="mt-1 inline-flex items-center gap-1.5 self-start rounded-md border border-blue-500/25 bg-blue-500/10 px-2 py-1 text-[11px] font-medium text-blue-200/80 transition hover:bg-blue-500/20"
+                >
+                  <ScrollText size={12} />
+                  View live output
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1069,6 +1235,35 @@ export function CompanionMemoryPage() {
           </section>
         </motion.div>
       </main>
+
+      <BottomMenu
+        isOpen={showLiveOutput}
+        onClose={() => setShowLiveOutput(false)}
+        title="Live model output"
+      >
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-[11px] text-fg/45">
+            {memoryCycleActive ? (
+              <>
+                <RefreshCw className="h-3 w-3 animate-spin text-blue-400" />
+                <span>
+                  generating
+                  {genTokens != null ? ` · ${genTokens} tokens` : ""}
+                  {genTps && genTps > 0 ? ` · ${genTps.toFixed(1)} tok/s` : ""}
+                </span>
+              </>
+            ) : (
+              <span>generation finished</span>
+            )}
+          </div>
+          <pre
+            ref={liveOutputRef}
+            className="max-h-[55vh] overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-fg/10 bg-black/40 p-3 font-mono text-[11px] leading-relaxed text-fg/75"
+          >
+            {genRecentText || "Waiting for output…"}
+          </pre>
+        </div>
+      </BottomMenu>
     </div>
   );
 }
