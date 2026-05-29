@@ -1,5 +1,14 @@
 import { useMemo, useState, useEffect } from "react";
-import { ArrowLeft, Brain, Loader2, AlertTriangle, Search, BookOpen, Palette } from "lucide-react";
+import {
+  ArrowLeft,
+  Brain,
+  Loader2,
+  AlertTriangle,
+  Search,
+  BookOpen,
+  Palette,
+  LayoutGrid,
+} from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { Character, Persona, Session } from "../../../../core/storage/schemas";
 import { AvatarImage } from "../../../components/AvatarImage";
@@ -28,6 +37,7 @@ interface ChatHeaderProps {
   onBeforeSettingsOpen?: () => void;
   onSettingsOpen?: () => void;
   onAppearanceOpen?: () => void;
+  onEditWidgets?: () => void;
 }
 
 function isImageLike(value?: string) {
@@ -47,6 +57,7 @@ export function ChatHeader({
   onBeforeSettingsOpen,
   onSettingsOpen,
   onAppearanceOpen,
+  onEditWidgets,
 }: ChatHeaderProps) {
   const navigate = useNavigate();
   const { characterId } = useParams<{ characterId: string }>();
@@ -294,6 +305,16 @@ export function ChatHeader({
             >
               <BookOpen size={18} strokeWidth={2.5} />
             </button>
+
+            {onEditWidgets && (
+              <button
+                onClick={onEditWidgets}
+                className="hidden lg:flex items-center justify-center px-[0.6em] py-[0.3em] text-fg/80 transition hover:text-fg"
+                aria-label="Edit widgets"
+              >
+                <LayoutGrid size={18} strokeWidth={2.5} />
+              </button>
+            )}
 
             {/* Appearance Button (desktop) */}
             {onAppearanceOpen && (

@@ -183,6 +183,8 @@ export function ChatConversationPage() {
   const viewportWidth = useViewportWidth();
   const widgetLayout = getChatWidgetLayout(chatAppearance, viewportWidth);
   const widgetsOn = widgetLayout.enabled;
+  const [widgetEditNonce, setWidgetEditNonce] = useState(0);
+  const requestWidgetEdit = widgetsOn ? () => setWidgetEditNonce((n) => n + 1) : undefined;
   const headerInside = widgetsOn && chatAppearance.chatHeaderMoves;
   const footerInside = widgetsOn && chatAppearance.chatFooterMoves;
   const applyHeaderColumnClass = !widgetsOn && chatAppearance.chatHeaderMoves;
@@ -2508,6 +2510,7 @@ export function ChatConversationPage() {
           onBeforeSettingsOpen={!isMobile ? captureFooterFocusForDrawer : undefined}
           onSettingsOpen={!isMobile ? () => setSettingsDrawerOpen(true) : undefined}
           onAppearanceOpen={!isMobile ? () => setAppearanceDrawerOpen(true) : undefined}
+          onEditWidgets={!isMobile ? requestWidgetEdit : undefined}
         />
       </div>
       )}
@@ -2519,6 +2522,7 @@ export function ChatConversationPage() {
         onChooseLibraryImage={beginLibraryImagePick}
         restore={widgetEditRestore}
         onRestoreConsumed={() => setWidgetEditRestore(null)}
+        editRequestNonce={widgetEditNonce}
       >
       <ChatWidgetArea
         widgetLayout={widgetLayout}
@@ -2549,6 +2553,7 @@ export function ChatConversationPage() {
           onBeforeSettingsOpen={!isMobile ? captureFooterFocusForDrawer : undefined}
           onSettingsOpen={!isMobile ? () => setSettingsDrawerOpen(true) : undefined}
           onAppearanceOpen={!isMobile ? () => setAppearanceDrawerOpen(true) : undefined}
+          onEditWidgets={!isMobile ? requestWidgetEdit : undefined}
         />
       </div>
       )}

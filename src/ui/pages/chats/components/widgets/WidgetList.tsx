@@ -22,19 +22,25 @@ export function WidgetList({ nodes, side, canMove }: WidgetListProps) {
 
   return (
     <div className="flex h-full w-full flex-col overflow-y-auto">
-      <Toolbar
-        editing={edit.editing}
-        saving={edit.saving}
-        onEnter={edit.enterEdit}
-        onAdd={() => setTopPickerOpen(true)}
-        onRevert={edit.revert}
-        onDone={edit.done}
-      />
+      {edit.editing && (
+        <Toolbar
+          saving={edit.saving}
+          onAdd={() => setTopPickerOpen(true)}
+          onRevert={edit.revert}
+          onDone={edit.done}
+        />
+      )}
       <WidgetTypePickerSheet
         open={topPickerOpen}
         onClose={() => setTopPickerOpen(false)}
         onPick={(type) => edit.addNode(side, createWidgetNode(type))}
       />
+
+      {!edit.editing && (
+        <div className="px-3 pb-3 pt-3">
+          <EditWidgetsButton onClick={edit.enterEdit} />
+        </div>
+      )}
 
       {edit.editing ? (
         <WidgetEditList
@@ -64,80 +70,74 @@ export function WidgetList({ nodes, side, canMove }: WidgetListProps) {
           </AnimatePresence>
         </div>
       )}
+
+      {!edit.editing && displayNodes.length > 0 && (
+        <div className="mt-auto px-3 pb-4 pt-2">
+          <EditWidgetsButton onClick={edit.enterEdit} />
+        </div>
+      )}
     </div>
   );
 }
 
+function EditWidgetsButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-fg/15 py-2 text-[11px] font-medium text-fg/50 transition hover:border-fg/30 hover:text-fg/75"
+    >
+      <Pencil size={12} strokeWidth={2.2} />
+      Edit widgets
+    </button>
+  );
+}
+
 interface ToolbarProps {
-  editing: boolean;
   saving: boolean;
-  onEnter: () => void;
   onAdd: () => void;
   onRevert: () => void;
   onDone: () => void;
 }
 
-function Toolbar({ editing, saving, onEnter, onAdd, onRevert, onDone }: ToolbarProps) {
+function Toolbar({ saving, onAdd, onRevert, onDone }: ToolbarProps) {
   return (
-    <div className="sticky top-0 z-20 flex min-h-[44px] items-center justify-end gap-2 border-b border-fg/10 bg-base/95 px-2 py-2 backdrop-blur-md">
-      <AnimatePresence mode="wait" initial={false}>
-        {editing ? (
-          <motion.div
-            key="edit"
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.16, ease: "easeOut" }}
-            className="flex w-full items-center justify-between gap-1"
+    <div className="sticky top-0 z-20 flex min-h-[44px] items-center justify-end gap-2 border-b border-fg/10 bg-surface/95 px-2 py-2 backdrop-blur-md">
+      <motion.div
+        initial={{ opacity: 0, y: -4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.16, ease: "easeOut" }}
+        className="flex w-full items-center justify-between gap-1"
+      >
+        <button
+          type="button"
+          onClick={onAdd}
+          className="flex items-center gap-1 rounded-md border border-accent/30 bg-accent/10 px-2.5 py-1.5 text-[11px] font-medium text-accent shadow-sm transition hover:bg-accent/20"
+        >
+          <Plus size={12} strokeWidth={2.4} />
+          Add
+        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onRevert}
+            disabled={saving}
+            className="flex items-center gap-1 rounded-md border border-fg/20 bg-surface-el px-2.5 py-1.5 text-[11px] text-fg/80 shadow-sm transition hover:bg-fg/15 disabled:opacity-50"
           >
-            <button
-              type="button"
-              onClick={onAdd}
-              className="flex items-center gap-1 rounded-md border border-accent/30 bg-accent/10 px-2.5 py-1.5 text-[11px] font-medium text-accent shadow-sm transition hover:bg-accent/20"
-            >
-              <Plus size={12} strokeWidth={2.4} />
-              Add
-            </button>
-            <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={onRevert}
-              disabled={saving}
-              className="flex items-center gap-1 rounded-md border border-fg/20 bg-surface-el px-2.5 py-1.5 text-[11px] text-fg/80 shadow-sm transition hover:bg-fg/15 disabled:opacity-50"
-            >
-              <RotateCcw size={11} strokeWidth={2.2} />
-              Revert
-            </button>
-            <button
-              type="button"
-              onClick={onDone}
-              disabled={saving}
-              className="flex items-center gap-1 rounded-md bg-accent px-2.5 py-1.5 text-[11px] font-semibold text-black shadow-sm transition hover:brightness-110 disabled:opacity-50"
-            >
-              <Check size={12} strokeWidth={2.4} />
-              Done
-            </button>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="view"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.16, ease: "easeOut" }}
+            <RotateCcw size={11} strokeWidth={2.2} />
+            Revert
+          </button>
+          <button
+            type="button"
+            onClick={onDone}
+            disabled={saving}
+            className="flex items-center gap-1 rounded-md bg-accent px-2.5 py-1.5 text-[11px] font-semibold text-black shadow-sm transition hover:brightness-110 disabled:opacity-50"
           >
-            <button
-              type="button"
-              onClick={onEnter}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-fg/15 bg-surface-el/80 text-fg/70 backdrop-blur-md transition hover:bg-surface-el hover:text-fg"
-              aria-label="Edit widgets"
-            >
-              <Pencil size={14} strokeWidth={2.2} />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <Check size={12} strokeWidth={2.4} />
+            Done
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 }

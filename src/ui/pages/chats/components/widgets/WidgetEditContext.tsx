@@ -47,6 +47,7 @@ interface WidgetEditProviderProps {
   onChooseLibraryImage?: (nodeId: string) => void;
   restore?: WidgetEditRestore | null;
   onRestoreConsumed?: () => void;
+  editRequestNonce?: number;
   children: ReactNode;
 }
 
@@ -56,6 +57,7 @@ export function WidgetEditProvider({
   onChooseLibraryImage,
   restore,
   onRestoreConsumed,
+  editRequestNonce,
   children,
 }: WidgetEditProviderProps) {
   const [editing, setEditing] = useState(false);
@@ -64,6 +66,7 @@ export function WidgetEditProvider({
   const [pendingOpenNodeId, setPendingOpenNodeId] = useState<string | null>(null);
   const draftRef = useRef(draft);
   draftRef.current = draft;
+  const lastEditNonceRef = useRef(editRequestNonce ?? 0);
 
   useEffect(() => {
     if (!editing) setDraft(slots);
@@ -83,6 +86,13 @@ export function WidgetEditProvider({
     setDraft(slots);
     setEditing(true);
   }, [slots]);
+
+  useEffect(() => {
+    if (editRequestNonce === undefined) return;
+    if (editRequestNonce === lastEditNonceRef.current) return;
+    lastEditNonceRef.current = editRequestNonce;
+    if (editRequestNonce > 0) enterEdit();
+  }, [editRequestNonce, enterEdit]);
 
   const revert = useCallback(() => {
     setDraft(slots);
