@@ -28,11 +28,13 @@ pub struct ThinkingTagStreamParser {
     pending: String,
 }
 
-const TAG_PAIRS: [(&str, &str); 4] = [
+const TAG_PAIRS: [(&str, &str); 6] = [
     ("<think>", "</think>"),
     ("<thinking>", "</thinking>"),
     ("<reason>", "</reason>"),
     ("<reasoning>", "</reasoning>"),
+    ("<|channel>thought", "<channel|>"),
+    ("<|channel>", "<channel|>"),
 ];
 
 fn partial_suffix_len(buffer: &str, tag: &str) -> usize {
