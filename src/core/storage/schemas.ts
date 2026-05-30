@@ -2741,6 +2741,8 @@ export const ChatAppearanceSettingsSchema = z.object({
   showMessageInputTokens: z.boolean().default(false),
   showMessageOutputTokens: z.boolean().default(false),
   showMessageTotalTokens: z.boolean().default(false),
+  showMessageTtft: z.boolean().default(false),
+  showMessageTokensPerSecond: z.boolean().default(false),
   messageInfoPlacement: z
     .enum(["belowHeader", "belowHeaderOutside", "insideBubble", "belowBubble"])
     .default("belowBubble"),
@@ -2810,6 +2812,8 @@ export function createDefaultChatAppearanceSettings(): ChatAppearanceSettings {
     showMessageInputTokens: false,
     showMessageOutputTokens: false,
     showMessageTotalTokens: false,
+    showMessageTtft: false,
+    showMessageTokensPerSecond: false,
     messageInfoPlacement: "belowBubble",
     messageInfoSize: "small",
     messageGap: "relaxed",

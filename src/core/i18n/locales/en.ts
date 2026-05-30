@@ -3188,6 +3188,10 @@ export const enMessages = {
       showOutputTokensDesc: "Display the completion (output) token count.",
       showTotalTokens: "Show Total Tokens",
       showTotalTokensDesc: "Display the total token count.",
+      showTtft: "Show Time to First Token",
+      showTtftDesc: "Display how long until the first token arrived (local models).",
+      showTokensPerSecond: "Show Tokens / Second",
+      showTokensPerSecondDesc: "Display the generation speed in tokens per second (local models).",
       infoPlacement: {
         label: "Info Placement",
         belowHeader: "Below Header (Inside)",

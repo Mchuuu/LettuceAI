@@ -663,7 +663,18 @@ function ChatMessageInner({
     !!chatAppearance?.showMessageOutputTokens && typeof messageUsage?.completionTokens === "number";
   const showInfoTotal =
     !!chatAppearance?.showMessageTotalTokens && typeof messageUsage?.totalTokens === "number";
-  const hasMessageInfo = showInfoModel || showInfoInput || showInfoOutput || showInfoTotal;
+  const showInfoTtft =
+    !!chatAppearance?.showMessageTtft && typeof messageUsage?.firstTokenMs === "number";
+  const showInfoTps =
+    !!chatAppearance?.showMessageTokensPerSecond &&
+    typeof messageUsage?.tokensPerSecond === "number";
+  const hasMessageInfo =
+    showInfoModel ||
+    showInfoInput ||
+    showInfoOutput ||
+    showInfoTotal ||
+    showInfoTtft ||
+    showInfoTps;
   const messageInfoSize = chatAppearance?.messageInfoSize ?? "small";
   const messageInfoNode = hasMessageInfo ? (
     <div
@@ -679,6 +690,16 @@ function ChatMessageInner({
         <span title={t("chats.actions.completionTokens")}>↑&#8202;{messageUsage?.completionTokens}</span>
       )}
       {showInfoModel && <span className="min-w-0 truncate text-fg/55">{modelName}</span>}
+      {showInfoTtft && (
+        <span className="whitespace-nowrap" title={t("chats.actions.timeToFirstToken")}>
+          TTFT {messageUsage?.firstTokenMs}ms
+        </span>
+      )}
+      {showInfoTps && (
+        <span className="whitespace-nowrap" title={t("chats.actions.completionTokenSpeed")}>
+          {messageUsage?.tokensPerSecond?.toFixed(1)} tok/s
+        </span>
+      )}
       {showInfoTotal && (
         <span className="whitespace-nowrap">
           {(messageUsage?.totalTokens ?? 0).toLocaleString()}
