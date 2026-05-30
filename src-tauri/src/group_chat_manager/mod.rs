@@ -6404,6 +6404,8 @@ async fn generate_character_response(
         prompt_tokens: u.prompt_tokens.map(|v| v as i32),
         completion_tokens: u.completion_tokens.map(|v| v as i32),
         total_tokens: u.total_tokens.map(|v| v as i32),
+        first_token_ms: u.first_token_ms.map(|v| v as i64),
+        tokens_per_second: u.tokens_per_second,
     });
 
     record_group_usage(

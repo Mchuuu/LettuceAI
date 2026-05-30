@@ -443,6 +443,8 @@ fn json_usage_summary(
     prompt_tokens: Option<i64>,
     completion_tokens: Option<i64>,
     total_tokens: Option<i64>,
+    first_token_ms: Option<i64>,
+    tokens_per_second: Option<f64>,
 ) -> Option<JsonValue> {
     let mut usage = JsonMap::new();
     if let Some(v) = prompt_tokens {
@@ -453,6 +455,12 @@ fn json_usage_summary(
     }
     if let Some(v) = total_tokens {
         usage.insert("totalTokens".into(), JsonValue::from(v));
+    }
+    if let Some(v) = first_token_ms {
+        usage.insert("firstTokenMs".into(), JsonValue::from(v));
+    }
+    if let Some(v) = tokens_per_second {
+        usage.insert("tokensPerSecond".into(), JsonValue::from(v));
     }
     if usage.is_empty() {
         None
@@ -705,7 +713,7 @@ fn fetch_messages_page_typed(
     before_id: Option<&str>,
 ) -> Result<Vec<StoredMessage>, String> {
     let mut sql = String::from(
-        "SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning FROM messages WHERE session_id = ?1",
+        "SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second FROM messages WHERE session_id = ?1",
     );
 
     let use_before = before_created_at.is_some() && before_id.is_some();
@@ -809,7 +817,7 @@ fn fetch_messages_page_typed(
             .collect::<Vec<_>>()
             .join(",");
         let vsql = format!(
-            "SELECT message_id, id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning FROM message_variants WHERE message_id IN ({}) ORDER BY created_at ASC",
+            "SELECT message_id, id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second FROM message_variants WHERE message_id IN ({}) ORDER BY created_at ASC",
             placeholders
         );
         let mut vstmt = conn
@@ -923,7 +931,7 @@ fn fetch_pinned_messages_typed(
 
     let placeholders = pinned_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
     let sql = format!(
-        "SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning FROM messages WHERE session_id = ?1 AND id IN ({}) ORDER BY created_at ASC, id ASC",
+        "SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second FROM messages WHERE session_id = ?1 AND id IN ({}) ORDER BY created_at ASC, id ASC",
         placeholders
     );
     let mut stmt = conn
@@ -973,7 +981,7 @@ fn fetch_pinned_messages_typed(
             .collect::<Vec<_>>()
             .join(",");
         let vsql = format!(
-            "SELECT message_id, id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning FROM message_variants WHERE message_id IN ({}) ORDER BY created_at ASC",
+            "SELECT message_id, id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second FROM message_variants WHERE message_id IN ({}) ORDER BY created_at ASC",
             placeholders
         );
         let mut vstmt = conn
@@ -1373,8 +1381,8 @@ fn upsert_messages_batch_value(
             .map(|s| s.to_string());
 
         tx.execute(
-            r#"INSERT INTO messages (id, session_id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            r#"INSERT INTO messages (id, session_id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(id) DO UPDATE SET
                  session_id=excluded.session_id,
                  role=excluded.role,
@@ -1390,7 +1398,7 @@ fn upsert_messages_batch_value(
                  memory_refs=excluded.memory_refs,
                  used_lorebook_entries=excluded.used_lorebook_entries,
                  attachments=excluded.attachments,
-                 reasoning=excluded.reasoning"#,
+                 reasoning=excluded.reasoning, first_token_ms=excluded.first_token_ms, tokens_per_second=excluded.tokens_per_second"#,
             params![
                 &mid,
                 session_id,
@@ -1407,7 +1415,9 @@ fn upsert_messages_batch_value(
                 memory_refs.to_string(),
                 used_lorebook_entries.to_string(),
                 attachments.to_string(),
-                reasoning
+                reasoning,
+                usage.and_then(|u| u.get("firstTokenMs")).and_then(|v| v.as_i64()),
+                usage.and_then(|u| u.get("tokensPerSecond")).and_then(|v| v.as_f64())
             ],
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -1442,8 +1452,8 @@ fn upsert_messages_batch_value(
                         .and_then(|x| x.as_str())
                         .map(|s| s.to_string());
                     tx.execute(
-                        "INSERT INTO message_variants (id, message_id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                        params![vid, &mid, vcontent, vcreated, vp, vc, vt, vreasoning],
+                        "INSERT INTO message_variants (id, message_id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        params![vid, &mid, vcontent, vcreated, vp, vc, vt, vreasoning, u.and_then(|u| u.get("firstTokenMs")).and_then(|v| v.as_i64()), u.and_then(|u| u.get("tokensPerSecond")).and_then(|v| v.as_f64())],
                     )
                     .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
                 }
@@ -1677,7 +1687,7 @@ fn read_session(conn: &rusqlite::Connection, id: &str) -> Result<Option<JsonValu
     };
 
     // messages
-    let mut mstmt = conn.prepare("SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning FROM messages WHERE session_id = ? ORDER BY created_at ASC").map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let mut mstmt = conn.prepare("SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second FROM messages WHERE session_id = ? ORDER BY created_at ASC").map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     let mrows = mstmt
         .query_map(params![id], |r| {
             Ok((
@@ -1696,6 +1706,8 @@ fn read_session(conn: &rusqlite::Connection, id: &str) -> Result<Option<JsonValu
                 r.get::<_, Option<String>>(12)?,
                 r.get::<_, Option<String>>(13)?,
                 r.get::<_, Option<String>>(14)?,
+                r.get::<_, Option<i64>>(15)?,
+                r.get::<_, Option<f64>>(16)?,
             ))
         })
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -1717,8 +1729,10 @@ fn read_session(conn: &rusqlite::Connection, id: &str) -> Result<Option<JsonValu
             used_lorebook_entries_json,
             attachments_json,
             reasoning,
+            first_token_ms,
+            tokens_per_second,
         ) = mr.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-        let mut vstmt = conn.prepare("SELECT id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning FROM message_variants WHERE message_id = ? ORDER BY created_at ASC").map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let mut vstmt = conn.prepare("SELECT id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second FROM message_variants WHERE message_id = ? ORDER BY created_at ASC").map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
         let vrows = vstmt
             .query_map(params![&mid], |r| {
                 Ok((
@@ -1729,18 +1743,20 @@ fn read_session(conn: &rusqlite::Connection, id: &str) -> Result<Option<JsonValu
                     r.get::<_, Option<i64>>(4)?,
                     r.get::<_, Option<i64>>(5)?,
                     r.get::<_, Option<String>>(6)?,
+                    r.get::<_, Option<i64>>(7)?,
+                    r.get::<_, Option<f64>>(8)?,
                 ))
             })
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
         let mut variants: Vec<JsonValue> = Vec::new();
         for vr in vrows {
-            let (vid, vcontent, vcreated, vp, vc, vt, vreasoning) =
+            let (vid, vcontent, vcreated, vp, vc, vt, vreasoning, vftm, vtps) =
                 vr.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
             let mut vobj = JsonMap::new();
             vobj.insert("id".into(), JsonValue::String(vid));
             vobj.insert("content".into(), JsonValue::String(vcontent));
             vobj.insert("createdAt".into(), JsonValue::from(vcreated));
-            if let Some(usage) = json_usage_summary(vp, vc, vt) {
+            if let Some(usage) = json_usage_summary(vp, vc, vt, vftm, vtps) {
                 vobj.insert("usage".into(), usage);
             }
             if let Some(r) = vreasoning {
@@ -1759,7 +1775,7 @@ fn read_session(conn: &rusqlite::Connection, id: &str) -> Result<Option<JsonValu
         if scene_edited != 0 {
             mobj.insert("sceneEdited".into(), JsonValue::Bool(true));
         }
-        if let Some(usage) = json_usage_summary(p_tokens, c_tokens, t_tokens) {
+        if let Some(usage) = json_usage_summary(p_tokens, c_tokens, t_tokens, first_token_ms, tokens_per_second) {
             mobj.insert("usage".into(), usage);
         }
         if !variants.is_empty() {
@@ -1901,7 +1917,7 @@ fn fetch_messages_page(
     before_id: Option<&str>,
 ) -> Result<Vec<JsonValue>, String> {
     let mut sql = String::from(
-        "SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning FROM messages WHERE session_id = ?1",
+        "SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second FROM messages WHERE session_id = ?1",
     );
 
     let use_before = before_created_at.is_some() && before_id.is_some();
@@ -1938,6 +1954,8 @@ fn fetch_messages_page(
                             r.get::<_, Option<String>>(12)?,
                             r.get::<_, Option<String>>(13)?,
                             r.get::<_, Option<String>>(14)?,
+                            r.get::<_, Option<i64>>(15)?,
+                            r.get::<_, Option<f64>>(16)?,
                         ))
                     },
                 )
@@ -1967,6 +1985,8 @@ fn fetch_messages_page(
                         r.get::<_, Option<String>>(12)?,
                         r.get::<_, Option<String>>(13)?,
                         r.get::<_, Option<String>>(14)?,
+                        r.get::<_, Option<i64>>(15)?,
+                        r.get::<_, Option<f64>>(16)?,
                     ))
                 })
                 .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -1987,7 +2007,7 @@ fn fetch_messages_page(
             .collect::<Vec<_>>()
             .join(",");
         let vsql = format!(
-            "SELECT message_id, id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning FROM message_variants WHERE message_id IN ({}) ORDER BY created_at ASC",
+            "SELECT message_id, id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second FROM message_variants WHERE message_id IN ({}) ORDER BY created_at ASC",
             placeholders
         );
         let mut vstmt = conn
@@ -2004,12 +2024,14 @@ fn fetch_messages_page(
                     r.get::<_, Option<i64>>(5)?,
                     r.get::<_, Option<i64>>(6)?,
                     r.get::<_, Option<String>>(7)?,
+                    r.get::<_, Option<i64>>(8)?,
+                    r.get::<_, Option<f64>>(9)?,
                 ))
             })
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
         for vr in vrows {
-            let (message_id, vid, vcontent, vcreated, vp, vc, vt, vreasoning) =
+            let (message_id, vid, vcontent, vcreated, vp, vc, vt, vreasoning, vftm, vtps) =
                 vr.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
             variants_by_message.entry(message_id).or_default().push({
                 let mut vobj = JsonMap::new();
@@ -2019,7 +2041,7 @@ fn fetch_messages_page(
                 }
                 vobj.insert("content".into(), JsonValue::String(vcontent));
                 vobj.insert("createdAt".into(), JsonValue::from(vcreated));
-                if let Some(usage) = json_usage_summary(vp, vc, vt) {
+                if let Some(usage) = json_usage_summary(vp, vc, vt, vftm, vtps) {
                     vobj.insert("usage".into(), usage);
                 }
                 JsonValue::Object(vobj)
@@ -2044,6 +2066,8 @@ fn fetch_messages_page(
         used_lorebook_entries_json,
         attachments_json,
         reasoning,
+        first_token_ms,
+        tokens_per_second,
     ) in raw_messages
     {
         let mut mobj = JsonMap::new();
@@ -2057,7 +2081,7 @@ fn fetch_messages_page(
         if scene_edited != 0 {
             mobj.insert("sceneEdited".into(), JsonValue::Bool(true));
         }
-        if let Some(usage) = json_usage_summary(p_tokens, c_tokens, t_tokens) {
+        if let Some(usage) = json_usage_summary(p_tokens, c_tokens, t_tokens, first_token_ms, tokens_per_second) {
             mobj.insert("usage".into(), usage);
         }
         if let Some(variants) = variants_by_message.get(&mid) {
@@ -2367,7 +2391,7 @@ pub fn messages_list_pinned(app: tauri::AppHandle, session_id: String) -> Result
 
     let placeholders = pinned_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
     let sql = format!(
-        "SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning FROM messages WHERE session_id = ?1 AND id IN ({}) ORDER BY created_at ASC, id ASC",
+        "SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second FROM messages WHERE session_id = ?1 AND id IN ({}) ORDER BY created_at ASC, id ASC",
         placeholders
     );
     let mut mstmt = conn
@@ -2397,6 +2421,8 @@ pub fn messages_list_pinned(app: tauri::AppHandle, session_id: String) -> Result
                 r.get::<_, Option<String>>(12)?,
                 r.get::<_, Option<String>>(13)?,
                 r.get::<_, Option<String>>(14)?,
+                r.get::<_, Option<i64>>(15)?,
+                r.get::<_, Option<f64>>(16)?,
             ))
         })
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -2417,7 +2443,7 @@ pub fn messages_list_pinned(app: tauri::AppHandle, session_id: String) -> Result
             .collect::<Vec<_>>()
             .join(",");
         let vsql = format!(
-            "SELECT message_id, id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning FROM message_variants WHERE message_id IN ({}) ORDER BY created_at ASC",
+            "SELECT message_id, id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second FROM message_variants WHERE message_id IN ({}) ORDER BY created_at ASC",
             placeholders
         );
         let mut vstmt = conn
@@ -2434,12 +2460,14 @@ pub fn messages_list_pinned(app: tauri::AppHandle, session_id: String) -> Result
                     r.get::<_, Option<i64>>(5)?,
                     r.get::<_, Option<i64>>(6)?,
                     r.get::<_, Option<String>>(7)?,
+                    r.get::<_, Option<i64>>(8)?,
+                    r.get::<_, Option<f64>>(9)?,
                 ))
             })
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
         for vr in vrows {
-            let (message_id, vid, vcontent, vcreated, vp, vc, vt, vreasoning) =
+            let (message_id, vid, vcontent, vcreated, vp, vc, vt, vreasoning, vftm, vtps) =
                 vr.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
             variants_by_message.entry(message_id).or_default().push({
                 let mut vobj = JsonMap::new();
@@ -2449,7 +2477,7 @@ pub fn messages_list_pinned(app: tauri::AppHandle, session_id: String) -> Result
                 }
                 vobj.insert("content".into(), JsonValue::String(vcontent));
                 vobj.insert("createdAt".into(), JsonValue::from(vcreated));
-                if let Some(usage) = json_usage_summary(vp, vc, vt) {
+                if let Some(usage) = json_usage_summary(vp, vc, vt, vftm, vtps) {
                     vobj.insert("usage".into(), usage);
                 }
                 JsonValue::Object(vobj)
@@ -2474,6 +2502,8 @@ pub fn messages_list_pinned(app: tauri::AppHandle, session_id: String) -> Result
         used_lorebook_entries_json,
         attachments_json,
         reasoning,
+        first_token_ms,
+        tokens_per_second,
     ) in raw_messages
     {
         let mut mobj = JsonMap::new();
@@ -2487,7 +2517,7 @@ pub fn messages_list_pinned(app: tauri::AppHandle, session_id: String) -> Result
         if scene_edited != 0 {
             mobj.insert("sceneEdited".into(), JsonValue::Bool(true));
         }
-        if let Some(usage) = json_usage_summary(p_tokens, c_tokens, t_tokens) {
+        if let Some(usage) = json_usage_summary(p_tokens, c_tokens, t_tokens, first_token_ms, tokens_per_second) {
             mobj.insert("usage".into(), usage);
         }
         if let Some(variants) = variants_by_message.get(&mid) {
@@ -2844,8 +2874,8 @@ pub fn messages_upsert_batch(
             .map(|s| s.to_string());
 
         tx.execute(
-            r#"INSERT INTO messages (id, session_id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            r#"INSERT INTO messages (id, session_id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(id) DO UPDATE SET
                  session_id=excluded.session_id,
                  role=excluded.role,
@@ -2861,7 +2891,7 @@ pub fn messages_upsert_batch(
                  memory_refs=excluded.memory_refs,
                  used_lorebook_entries=excluded.used_lorebook_entries,
                  attachments=excluded.attachments,
-                 reasoning=excluded.reasoning"#,
+                 reasoning=excluded.reasoning, first_token_ms=excluded.first_token_ms, tokens_per_second=excluded.tokens_per_second"#,
             params![
                 &mid,
                 &session_id,
@@ -2878,7 +2908,9 @@ pub fn messages_upsert_batch(
                 memory_refs.to_string(),
                 used_lorebook_entries.to_string(),
                 attachments.to_string(),
-                reasoning
+                reasoning,
+                usage.and_then(|u| u.get("firstTokenMs")).and_then(|v| v.as_i64()),
+                usage.and_then(|u| u.get("tokensPerSecond")).and_then(|v| v.as_f64())
             ],
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -2913,8 +2945,8 @@ pub fn messages_upsert_batch(
                         .and_then(|x| x.as_str())
                         .map(|s| s.to_string());
                     tx.execute(
-                        "INSERT INTO message_variants (id, message_id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                        params![vid, &mid, vcontent, vcreated, vp, vc, vt, vreasoning],
+                        "INSERT INTO message_variants (id, message_id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        params![vid, &mid, vcontent, vcreated, vp, vc, vt, vreasoning, u.and_then(|u| u.get("firstTokenMs")).and_then(|v| v.as_i64()), u.and_then(|u| u.get("tokensPerSecond")).and_then(|v| v.as_f64())],
                     )
                     .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
                 }
@@ -3274,8 +3306,8 @@ pub fn session_upsert(app: tauri::AppHandle, session_json: String) -> Result<(),
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
             tx.execute(
-                r#"INSERT INTO messages (id, session_id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                r#"INSERT INTO messages (id, session_id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(id) DO UPDATE SET
                      session_id=excluded.session_id,
                      role=excluded.role,
@@ -3291,7 +3323,7 @@ pub fn session_upsert(app: tauri::AppHandle, session_json: String) -> Result<(),
                      memory_refs=excluded.memory_refs,
                      used_lorebook_entries=excluded.used_lorebook_entries,
                      attachments=excluded.attachments,
-                     reasoning=excluded.reasoning"#,
+                     reasoning=excluded.reasoning, first_token_ms=excluded.first_token_ms, tokens_per_second=excluded.tokens_per_second"#,
                 params![
                     &mid,
                     &id,
@@ -3308,7 +3340,9 @@ pub fn session_upsert(app: tauri::AppHandle, session_json: String) -> Result<(),
                     memory_refs.to_string(),
                     used_lorebook_entries.to_string(),
                     attachments.to_string(),
-                    reasoning
+                    reasoning,
+                    usage.and_then(|u| u.get("firstTokenMs")).and_then(|v| v.as_i64()),
+                    usage.and_then(|u| u.get("tokensPerSecond")).and_then(|v| v.as_f64())
                 ],
             ).map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
@@ -3345,8 +3379,8 @@ pub fn session_upsert(app: tauri::AppHandle, session_json: String) -> Result<(),
                             .and_then(|x| x.as_str())
                             .map(|s| s.to_string());
                         tx.execute(
-                            "INSERT INTO message_variants (id, message_id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                            params![vid, &mid, vcontent, vcreated, vp, vc, vt, vreasoning],
+                            "INSERT INTO message_variants (id, message_id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            params![vid, &mid, vcontent, vcreated, vp, vc, vt, vreasoning, u.and_then(|u| u.get("firstTokenMs")).and_then(|v| v.as_i64()), u.and_then(|u| u.get("tokensPerSecond")).and_then(|v| v.as_f64())],
                         )
                         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
                     }

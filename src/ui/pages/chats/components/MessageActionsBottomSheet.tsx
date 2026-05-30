@@ -208,7 +208,6 @@ export function MessageActionsBottomSheet({
   const { t } = useI18n();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [modelName, setModelName] = useState<string | null>(null);
-  const [modelProviderId, setModelProviderId] = useState<string | null>(null);
   const [editAttachments, setEditAttachments] = useState<ImageAttachment[]>([]);
   const [editingAttachmentId, setEditingAttachmentId] = useState<string | null>(null);
   const [companionEffect, setCompanionEffect] = useState<CompanionTurnEffect | null>(null);
@@ -257,10 +256,8 @@ export function MessageActionsBottomSheet({
     if (resolvedModelId && settings) {
       const model = settings.models.find((m: Model) => m.id === resolvedModelId);
       setModelName(model ? model.displayName : resolvedModelId);
-      setModelProviderId(model?.providerId ?? null);
     } else {
       setModelName(null);
-      setModelProviderId(null);
     }
   }, [messageAction, settings, characterDefaultModelId]);
 
@@ -317,7 +314,6 @@ export function MessageActionsBottomSheet({
     modelName ?? (settings ? t("chats.actions.unknownModel") : t("chats.actions.loadingModel"));
   const usedFallback = Boolean(messageAction?.message.fallbackFromModelId);
   const usedLorebookEntries = messageAction?.message.usedLorebookEntries ?? [];
-  const isLlamaMessage = modelProviderId === "llamacpp";
   const firstTokenMs = messageAction?.message.usage?.firstTokenMs;
   const tokensPerSecond = messageAction?.message.usage?.tokensPerSecond;
   const loadedEditAttachments = useSessionAttachments(editAttachments);
@@ -401,8 +397,7 @@ export function MessageActionsBottomSheet({
                   </span>
                 </div>
               </div>
-              {isLlamaMessage &&
-                (typeof firstTokenMs === "number" || typeof tokensPerSecond === "number") && (
+              {(typeof firstTokenMs === "number" || typeof tokensPerSecond === "number") && (
                   <div className="flex items-center gap-3 text-[11px] text-white/45 tabular-nums">
                     {typeof firstTokenMs === "number" && (
                       <span title={t("chats.actions.timeToFirstToken")}>TTFT {firstTokenMs}ms</span>

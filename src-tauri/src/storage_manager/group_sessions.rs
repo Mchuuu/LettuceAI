@@ -245,6 +245,10 @@ pub struct UsageSummary {
     pub prompt_tokens: Option<i32>,
     pub completion_tokens: Option<i32>,
     pub total_tokens: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub first_token_ms: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tokens_per_second: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -549,7 +553,7 @@ fn read_group_messages(
         (Some(ts), Some(bid)) => (
             "SELECT id, session_id, role, content, speaker_character_id, turn_number, created_at,
                     prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned,
-                    attachments, used_lorebook_entries, reasoning, selection_reasoning, model_id
+                    attachments, used_lorebook_entries, reasoning, selection_reasoning, model_id, first_token_ms, tokens_per_second
              FROM group_messages
              WHERE session_id = ?1 AND (created_at < ?2 OR (created_at = ?2 AND id < ?3))
              ORDER BY created_at DESC, id DESC
@@ -565,7 +569,7 @@ fn read_group_messages(
         _ => (
             "SELECT id, session_id, role, content, speaker_character_id, turn_number, created_at,
                     prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned,
-                    attachments, used_lorebook_entries, reasoning, selection_reasoning, model_id
+                    attachments, used_lorebook_entries, reasoning, selection_reasoning, model_id, first_token_ms, tokens_per_second
              FROM group_messages
              WHERE session_id = ?1
              ORDER BY created_at DESC, id DESC
@@ -606,6 +610,8 @@ fn read_group_messages(
         let prompt_tokens: Option<i32> = row.get(7).ok();
         let completion_tokens: Option<i32> = row.get(8).ok();
         let total_tokens: Option<i32> = row.get(9).ok();
+        let first_token_ms: Option<i64> = row.get(17).ok();
+        let tokens_per_second: Option<f64> = row.get(18).ok();
 
         let usage =
             if prompt_tokens.is_some() || completion_tokens.is_some() || total_tokens.is_some() {
@@ -613,6 +619,8 @@ fn read_group_messages(
                     prompt_tokens,
                     completion_tokens,
                     total_tokens,
+                    first_token_ms,
+                    tokens_per_second,
                 })
             } else {
                 None
@@ -697,7 +705,7 @@ fn load_group_message_variants(
 ) -> Result<Vec<GroupMessageVariant>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT id, content, speaker_character_id, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, selection_reasoning, model_id
+            "SELECT id, content, speaker_character_id, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, selection_reasoning, model_id, first_token_ms, tokens_per_second
              FROM group_message_variants
              WHERE message_id = ?1
              ORDER BY created_at ASC",
@@ -716,6 +724,8 @@ fn load_group_message_variants(
         let prompt_tokens: Option<i32> = row.get(4).ok();
         let completion_tokens: Option<i32> = row.get(5).ok();
         let total_tokens: Option<i32> = row.get(6).ok();
+        let first_token_ms: Option<i64> = row.get(10).ok();
+        let tokens_per_second: Option<f64> = row.get(11).ok();
 
         let usage =
             if prompt_tokens.is_some() || completion_tokens.is_some() || total_tokens.is_some() {
@@ -723,6 +733,8 @@ fn load_group_message_variants(
                     prompt_tokens,
                     completion_tokens,
                     total_tokens,
+                    first_token_ms,
+                    tokens_per_second,
                 })
             } else {
                 None
@@ -2077,16 +2089,23 @@ pub fn group_message_upsert(
         message.turn_number = turn_number;
         message.created_at = now as i64;
 
-        let (prompt_tokens, completion_tokens, total_tokens) = match &message.usage {
-            Some(u) => (u.prompt_tokens, u.completion_tokens, u.total_tokens),
-            None => (None, None, None),
-        };
+        let (prompt_tokens, completion_tokens, total_tokens, first_token_ms, tokens_per_second) =
+            match &message.usage {
+                Some(u) => (
+                    u.prompt_tokens,
+                    u.completion_tokens,
+                    u.total_tokens,
+                    u.first_token_ms,
+                    u.tokens_per_second,
+                ),
+                None => (None, None, None, None, None),
+            };
 
         conn.execute(
             "INSERT INTO group_messages (id, session_id, role, content, speaker_character_id, turn_number,
              created_at, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned,
-             attachments, reasoning, selection_reasoning)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+             attachments, reasoning, selection_reasoning, first_token_ms, tokens_per_second)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
             params![
                 message.id,
                 session_id,
@@ -2102,7 +2121,9 @@ pub fn group_message_upsert(
                 message.is_pinned as i32,
                 attachments_json,
                 message.reasoning,
-                message.selection_reasoning
+                message.selection_reasoning,
+                first_token_ms,
+                tokens_per_second
             ],
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -2237,15 +2258,22 @@ pub fn group_message_add_variant(
     }
     variant.created_at = now as i64;
 
-    let (prompt_tokens, completion_tokens, total_tokens) = match &variant.usage {
-        Some(u) => (u.prompt_tokens, u.completion_tokens, u.total_tokens),
-        None => (None, None, None),
-    };
+    let (prompt_tokens, completion_tokens, total_tokens, first_token_ms, tokens_per_second) =
+        match &variant.usage {
+            Some(u) => (
+                u.prompt_tokens,
+                u.completion_tokens,
+                u.total_tokens,
+                u.first_token_ms,
+                u.tokens_per_second,
+            ),
+            None => (None, None, None, None, None),
+        };
 
     conn.execute(
         "INSERT INTO group_message_variants (id, message_id, content, speaker_character_id, created_at,
-         prompt_tokens, completion_tokens, total_tokens, reasoning, selection_reasoning)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+         prompt_tokens, completion_tokens, total_tokens, reasoning, selection_reasoning, first_token_ms, tokens_per_second)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
             variant.id,
             message_id,
@@ -2256,7 +2284,9 @@ pub fn group_message_add_variant(
             completion_tokens,
             total_tokens,
             variant.reasoning,
-            variant.selection_reasoning
+            variant.selection_reasoning,
+            first_token_ms,
+            tokens_per_second
         ],
     )
     .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;

@@ -7,7 +7,7 @@ use crate::storage_manager::settings::{read_settings_typed, write_settings_typed
 use crate::utils::log_info;
 
 /// Current migration version
-pub const CURRENT_MIGRATION_VERSION: u32 = 69;
+pub const CURRENT_MIGRATION_VERSION: u32 = 70;
 
 pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
     log_info(app, "migrations", "Starting migration check");
@@ -727,6 +727,16 @@ pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
         );
         migrate_v68_to_v69(app)?;
         version = 69;
+    }
+
+    if version < 70 {
+        log_info(
+            app,
+            "migrations",
+            "Running migration v69 -> v70: Add TTFT and tokens/sec metrics to messages and variants",
+        );
+        migrate_v69_to_v70(app)?;
+        version = 70;
     }
 
     // Update the stored version
@@ -3928,6 +3938,39 @@ fn migrate_v68_to_v69(app: &AppHandle) -> Result<(), String> {
         "#,
     )
     .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    Ok(())
+}
+
+fn migrate_v69_to_v70(app: &AppHandle) -> Result<(), String> {
+    let conn = crate::storage_manager::db::open_db(app)?;
+
+    let _ = conn.execute("ALTER TABLE messages ADD COLUMN first_token_ms INTEGER", []);
+    let _ = conn.execute("ALTER TABLE messages ADD COLUMN tokens_per_second REAL", []);
+    let _ = conn.execute(
+        "ALTER TABLE message_variants ADD COLUMN first_token_ms INTEGER",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE message_variants ADD COLUMN tokens_per_second REAL",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE group_messages ADD COLUMN first_token_ms INTEGER",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE group_messages ADD COLUMN tokens_per_second REAL",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE group_message_variants ADD COLUMN first_token_ms INTEGER",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE group_message_variants ADD COLUMN tokens_per_second REAL",
+        [],
+    );
 
     Ok(())
 }

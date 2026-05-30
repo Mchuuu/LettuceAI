@@ -142,22 +142,39 @@ export function GroupChatMessageActionsBottomSheet({
             )}
 
             {messageAction.message.usage && (
-              <div className="flex items-center gap-x-3 text-xs text-fg/40 mb-4">
-                <div className="flex items-center gap-2 border-r border-fg/10 pr-3">
-                  <span title="Prompt Tokens">
-                    ↓{messageAction.message.usage.promptTokens ?? 0}
-                  </span>
-                  <span title="Completion Tokens">
-                    ↑{messageAction.message.usage.completionTokens ?? 0}
-                  </span>
+              <div className="mb-4 space-y-2">
+                <div className="flex items-center gap-x-3 text-xs text-fg/40">
+                  <div className="flex items-center gap-2 border-r border-fg/10 pr-3">
+                    <span title="Prompt Tokens">
+                      ↓{messageAction.message.usage.promptTokens ?? 0}
+                    </span>
+                    <span title="Completion Tokens">
+                      ↑{messageAction.message.usage.completionTokens ?? 0}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-fg/60">{modelName || messageAction.message.modelId}</span>
+                  </div>
+                  <div className="tabular-nums">
+                    {(messageAction.message.usage.totalTokens ?? 0).toLocaleString()}{" "}
+                    <span className="text-[12px] uppercase opacity-50">total</span>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <span className="text-fg/60">{modelName || messageAction.message.modelId}</span>
-                </div>
-                <div className="tabular-nums">
-                  {(messageAction.message.usage.totalTokens ?? 0).toLocaleString()}{" "}
-                  <span className="text-[12px] uppercase opacity-50">total</span>
-                </div>
+                {(typeof messageAction.message.usage.firstTokenMs === "number" ||
+                  typeof messageAction.message.usage.tokensPerSecond === "number") && (
+                  <div className="flex items-center gap-3 text-[11px] text-fg/45 tabular-nums">
+                    {typeof messageAction.message.usage.firstTokenMs === "number" && (
+                      <span title="Time to first token">
+                        TTFT {messageAction.message.usage.firstTokenMs}ms
+                      </span>
+                    )}
+                    {typeof messageAction.message.usage.tokensPerSecond === "number" && (
+                      <span title="Completion token speed">
+                        {messageAction.message.usage.tokensPerSecond.toFixed(1)} tok/s
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
