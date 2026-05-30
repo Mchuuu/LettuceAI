@@ -402,6 +402,85 @@ export function ChatAppearanceForm({
             onReset={resetFor("messageHeaderPlacement")}
           />
         )}
+        <ToggleControl
+          label={t("chatAppearance.messageBubbles.showModel")}
+          description={t("chatAppearance.messageBubbles.showModelDesc")}
+          checked={settings.showMessageModel}
+          onChange={(v) => onUpdate("showMessageModel", v)}
+          overridden={isOverridden("showMessageModel")}
+          onReset={resetFor("showMessageModel")}
+        />
+        <ToggleControl
+          label={t("chatAppearance.messageBubbles.showInputTokens")}
+          description={t("chatAppearance.messageBubbles.showInputTokensDesc")}
+          checked={settings.showMessageInputTokens}
+          onChange={(v) => onUpdate("showMessageInputTokens", v)}
+          overridden={isOverridden("showMessageInputTokens")}
+          onReset={resetFor("showMessageInputTokens")}
+        />
+        <ToggleControl
+          label={t("chatAppearance.messageBubbles.showOutputTokens")}
+          description={t("chatAppearance.messageBubbles.showOutputTokensDesc")}
+          checked={settings.showMessageOutputTokens}
+          onChange={(v) => onUpdate("showMessageOutputTokens", v)}
+          overridden={isOverridden("showMessageOutputTokens")}
+          onReset={resetFor("showMessageOutputTokens")}
+        />
+        <ToggleControl
+          label={t("chatAppearance.messageBubbles.showTotalTokens")}
+          description={t("chatAppearance.messageBubbles.showTotalTokensDesc")}
+          checked={settings.showMessageTotalTokens}
+          onChange={(v) => onUpdate("showMessageTotalTokens", v)}
+          overridden={isOverridden("showMessageTotalTokens")}
+          onReset={resetFor("showMessageTotalTokens")}
+        />
+        {(settings.showMessageModel ||
+          settings.showMessageInputTokens ||
+          settings.showMessageOutputTokens ||
+          settings.showMessageTotalTokens) && (
+          <OptionGrid
+            label={t("chatAppearance.messageBubbles.infoPlacement.label")}
+            value={settings.messageInfoPlacement}
+            options={[
+              {
+                value: "belowHeader",
+                label: t("chatAppearance.messageBubbles.infoPlacement.belowHeader"),
+              },
+              {
+                value: "belowHeaderOutside",
+                label: t("chatAppearance.messageBubbles.infoPlacement.belowHeaderOutside"),
+              },
+              {
+                value: "insideBubble",
+                label: t("chatAppearance.messageBubbles.infoPlacement.insideBubble"),
+              },
+              {
+                value: "belowBubble",
+                label: t("chatAppearance.messageBubbles.infoPlacement.belowBubble"),
+              },
+            ]}
+            onChange={(v) => onUpdate("messageInfoPlacement", v)}
+            overridden={isOverridden("messageInfoPlacement")}
+            onReset={resetFor("messageInfoPlacement")}
+          />
+        )}
+        {(settings.showMessageModel ||
+          settings.showMessageInputTokens ||
+          settings.showMessageOutputTokens ||
+          settings.showMessageTotalTokens) && (
+          <OptionGrid
+            label={t("chatAppearance.messageBubbles.infoSize.label")}
+            value={settings.messageInfoSize}
+            options={[
+              { value: "small", label: t("chatAppearance.messageBubbles.infoSize.small") },
+              { value: "medium", label: t("chatAppearance.messageBubbles.infoSize.medium") },
+              { value: "large", label: t("chatAppearance.messageBubbles.infoSize.large") },
+            ]}
+            onChange={(v) => onUpdate("messageInfoSize", v)}
+            overridden={isOverridden("messageInfoSize")}
+            onReset={resetFor("messageInfoSize")}
+          />
+        )}
       </div>
     );
   }

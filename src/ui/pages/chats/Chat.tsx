@@ -563,6 +563,14 @@ export function ChatConversationPage() {
 
   const [widgetPersonas, setWidgetPersonas] = useState<Persona[]>([]);
   const [widgetModels, setWidgetModels] = useState<Model[]>([]);
+  const resolveModelName = useCallback(
+    (modelId?: string | null): string | undefined => {
+      const id = modelId || character?.defaultModelId || undefined;
+      if (!id) return undefined;
+      return widgetModels.find((m) => m.id === id)?.displayName ?? id;
+    },
+    [widgetModels, character?.defaultModelId],
+  );
   useEffect(() => {
     let cancelled = false;
     void Promise.all([listPersonas(), readSettings()]).then(([ps, s]) => {
@@ -2709,6 +2717,7 @@ export function ChatConversationPage() {
                     onImageClick={handleImageClick}
                     reasoning={streamingReasoning[message.id] || combinedReasoning || undefined}
                     swapPlaces={swapPlaces}
+                    modelName={resolveModelName(message.modelId)}
                   />
                 </motion.div>
               );

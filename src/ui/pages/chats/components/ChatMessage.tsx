@@ -43,6 +43,7 @@ interface ChatMessageProps {
   onCancelAudio?: (message: StoredMessage) => void;
   reasoning?: string;
   swapPlaces?: boolean;
+  modelName?: string;
 }
 
 // CSS class mappings for chat appearance settings
@@ -72,6 +73,11 @@ const BUBBLE_PADDING_MAP = {
   normal: "px-4 py-2.5",
   spacious: "px-5 py-3.5",
 } as const;
+const MESSAGE_INFO_SIZE_MAP = {
+  small: "text-[10px]",
+  medium: "text-[11.5px]",
+  large: "text-[13px]",
+} as const;
 const AVATAR_SHAPE_MAP = { circle: "rounded-full", rounded: "rounded-lg", hidden: "" } as const;
 const AVATAR_SIZE_MAP = { small: "h-6 w-6", medium: "h-8 w-8", large: "h-10 w-10" } as const;
 const AVATAR_ICON_SIZE_MAP = { small: 12, medium: 16, large: 20 } as const;
@@ -98,14 +104,18 @@ function BubbleHeaderWrap({
   above,
   rightAligned,
   header,
+  aboveBubble,
+  footer,
   children,
 }: {
   above: boolean;
   rightAligned: boolean;
   header: React.ReactNode;
+  aboveBubble?: React.ReactNode;
+  footer?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  if (!above) return <>{children}</>;
+  if (!above && !aboveBubble && !footer) return <>{children}</>;
   return (
     <div
       className={cn(
@@ -113,8 +123,10 @@ function BubbleHeaderWrap({
         rightAligned ? "items-end" : "items-start",
       )}
     >
-      {header}
+      {above && header}
+      {aboveBubble && <div className="mb-1 px-1">{aboveBubble}</div>}
       {children}
+      {footer && <div className="mt-1 px-1">{footer}</div>}
     </div>
   );
 }
@@ -513,6 +525,7 @@ function ChatMessageInner({
   onCancelAudio,
   reasoning,
   swapPlaces = false,
+  modelName,
 }: ChatMessageProps) {
   const { t } = useI18n();
   const prevRoleRef = useRef(message.role);
@@ -641,6 +654,45 @@ function ChatMessageInner({
     </div>
   ) : null;
   const headerAbove = messageHeaderPlacement === "above" && !!messageHeaderNode;
+
+  const messageUsage = message.usage;
+  const showInfoModel = !!chatAppearance?.showMessageModel && !!modelName;
+  const showInfoInput =
+    !!chatAppearance?.showMessageInputTokens && typeof messageUsage?.promptTokens === "number";
+  const showInfoOutput =
+    !!chatAppearance?.showMessageOutputTokens && typeof messageUsage?.completionTokens === "number";
+  const showInfoTotal =
+    !!chatAppearance?.showMessageTotalTokens && typeof messageUsage?.totalTokens === "number";
+  const hasMessageInfo = showInfoModel || showInfoInput || showInfoOutput || showInfoTotal;
+  const messageInfoSize = chatAppearance?.messageInfoSize ?? "small";
+  const messageInfoNode = hasMessageInfo ? (
+    <div
+      className={cn(
+        "flex items-center gap-x-2 tabular-nums text-fg/45",
+        MESSAGE_INFO_SIZE_MAP[messageInfoSize],
+      )}
+    >
+      {showInfoInput && (
+        <span title={t("chats.actions.promptTokens")}>↓&#8202;{messageUsage?.promptTokens}</span>
+      )}
+      {showInfoOutput && (
+        <span title={t("chats.actions.completionTokens")}>↑&#8202;{messageUsage?.completionTokens}</span>
+      )}
+      {showInfoModel && <span className="min-w-0 truncate text-fg/55">{modelName}</span>}
+      {showInfoTotal && (
+        <span className="whitespace-nowrap">
+          {(messageUsage?.totalTokens ?? 0).toLocaleString()}
+          <span className="ml-1 opacity-50">{t("chats.actions.total")}</span>
+        </span>
+      )}
+    </div>
+  ) : null;
+  const messageInfoPlacement = chatAppearance?.messageInfoPlacement ?? "belowBubble";
+  const infoBelowHeader = messageInfoPlacement === "belowHeader" ? messageInfoNode : null;
+  const infoBelowHeaderOutside =
+    messageInfoPlacement === "belowHeaderOutside" ? messageInfoNode : null;
+  const infoInsideBubble = messageInfoPlacement === "insideBubble" ? messageInfoNode : null;
+  const infoBelowBubble = messageInfoPlacement === "belowBubble" ? messageInfoNode : null;
   const voiceConfig = character?.voiceConfig;
   const hasVoiceAssignment =
     voiceConfig?.source === "user"
@@ -800,6 +852,8 @@ function ChatMessageInner({
         above={headerAbove}
         rightAligned={headerRightAligned}
         header={messageHeaderNode}
+        aboveBubble={infoBelowHeaderOutside}
+        footer={infoBelowBubble}
       >
       <motion.div
         {...(computed.isLatestAssistant ? { "data-tour-id": "chat-message-bubble" } : {})}
@@ -851,6 +905,8 @@ function ChatMessageInner({
         )}
 
         {messageHeaderPlacement === "inside" && messageHeaderNode}
+
+        {infoBelowHeader && <div className="mb-1.5">{infoBelowHeader}</div>}
 
         {/* Thinking/Reasoning section - shown even during typing indicator */}
         {computed.isAssistant && reasoning && (
@@ -986,6 +1042,7 @@ function ChatMessageInner({
             </span>
           </motion.div>
         )}
+        {infoInsideBubble && <div className="mt-2">{infoInsideBubble}</div>}
       </motion.div>
       </BubbleHeaderWrap>
 
@@ -1079,6 +1136,7 @@ export const ChatMessage = React.memo(ChatMessageInner, (prev, next) => {
     prev.persona?.avatarCrop?.y === next.persona?.avatarCrop?.y &&
     prev.persona?.avatarCrop?.scale === next.persona?.avatarCrop?.scale &&
     prev.displayContent === next.displayContent &&
+    prev.modelName === next.modelName &&
     prev.swapPlaces === next.swapPlaces &&
     prev.audioStatus === next.audioStatus &&
     a.reasoning === b.reasoning &&

@@ -2736,6 +2736,16 @@ export const ChatAppearanceSettingsSchema = z.object({
   timestampFormat: z.enum(["relative", "time", "datetime"]).default("relative"),
   messageHeaderPlacement: z.enum(["inside", "above"]).default("inside"),
 
+  // Advanced per-message info (model name + token counts)
+  showMessageModel: z.boolean().default(false),
+  showMessageInputTokens: z.boolean().default(false),
+  showMessageOutputTokens: z.boolean().default(false),
+  showMessageTotalTokens: z.boolean().default(false),
+  messageInfoPlacement: z
+    .enum(["belowHeader", "belowHeaderOutside", "insideBubble", "belowBubble"])
+    .default("belowBubble"),
+  messageInfoSize: z.enum(["small", "medium", "large"]).default("small"),
+
   // Layout
   messageGap: z.enum(["tight", "normal", "relaxed"]).default("relaxed"),
   avatarShape: z.enum(["circle", "rounded", "hidden"]).default("circle"),
@@ -2796,6 +2806,12 @@ export function createDefaultChatAppearanceSettings(): ChatAppearanceSettings {
     showMessageTimestamp: false,
     timestampFormat: "relative",
     messageHeaderPlacement: "inside",
+    showMessageModel: false,
+    showMessageInputTokens: false,
+    showMessageOutputTokens: false,
+    showMessageTotalTokens: false,
+    messageInfoPlacement: "belowBubble",
+    messageInfoSize: "small",
     messageGap: "relaxed",
     avatarShape: "circle",
     avatarSize: "medium",
