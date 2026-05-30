@@ -1602,9 +1602,8 @@ mod desktop {
                                 llama_kv_type_raw.as_deref(),
                             );
 
-                            let has_explicit_kv = llama_kv_type_raw.is_some();
                             let likely_oom = is_likely_context_oom_error(&raw_error);
-                            if has_explicit_kv || !likely_oom {
+                            if !likely_oom {
                                 return Err(crate::utils::err_msg(
                                     module_path!(),
                                     line!(),
