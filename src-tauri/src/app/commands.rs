@@ -63,6 +63,7 @@ macro_rules! invoke_handler {
             crate::storage_manager::characters::character_upsert,
             crate::storage_manager::characters::character_update_chat_appearance,
             crate::storage_manager::characters::character_delete,
+            crate::storage_manager::characters::character_clone_deep,
             crate::storage_manager::lorebook::lorebooks_list,
             crate::storage_manager::lorebook::lorebook_upsert,
             crate::storage_manager::lorebook::lorebook_delete,

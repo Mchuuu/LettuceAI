@@ -1102,3 +1102,444 @@ pub fn character_delete(app: tauri::AppHandle, id: String) -> Result<(), String>
     );
     Ok(())
 }
+
+fn clone_copy_rows(
+    tx: &rusqlite::Transaction,
+    table: &str,
+    overrides: &[(&str, rusqlite::types::Value)],
+    where_cols: &[(&str, rusqlite::types::Value)],
+    exclude: &[&str],
+) -> Result<(), String> {
+    use rusqlite::types::Value;
+
+    let columns: Vec<String> = {
+        let mut stmt = tx
+            .prepare(&format!("PRAGMA table_info(\"{}\")", table))
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let rows = stmt
+            .query_map([], |row| row.get::<_, String>(1))
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+    };
+
+    let mut binds: Vec<Value> = Vec::new();
+    let mut insert_cols: Vec<String> = Vec::new();
+    let mut select_exprs: Vec<String> = Vec::new();
+    for col in &columns {
+        if exclude.iter().any(|e| e.eq_ignore_ascii_case(col)) {
+            continue;
+        }
+        insert_cols.push(format!("\"{}\"", col));
+        if let Some((_, value)) = overrides.iter().find(|(name, _)| name.eq_ignore_ascii_case(col)) {
+            binds.push(value.clone());
+            select_exprs.push(format!("?{}", binds.len()));
+        } else {
+            select_exprs.push(format!("\"{}\"", col));
+        }
+    }
+
+    let mut where_parts: Vec<String> = Vec::new();
+    for (name, value) in where_cols {
+        binds.push(value.clone());
+        where_parts.push(format!("\"{}\" = ?{}", name, binds.len()));
+    }
+    let where_sql = if where_parts.is_empty() {
+        "1=1".to_string()
+    } else {
+        where_parts.join(" AND ")
+    };
+
+    let sql = format!(
+        "INSERT INTO \"{table}\" ({cols}) SELECT {exprs} FROM \"{table}\" WHERE {where_sql}",
+        table = table,
+        cols = insert_cols.join(", "),
+        exprs = select_exprs.join(", "),
+        where_sql = where_sql,
+    );
+    tx.execute(&sql, rusqlite::params_from_iter(binds))
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    Ok(())
+}
+
+fn clone_collect_ids(
+    tx: &rusqlite::Transaction,
+    sql: &str,
+    param: &str,
+) -> Result<Vec<String>, String> {
+    let mut stmt = tx
+        .prepare(sql)
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let rows = stmt
+        .query_map(params![param], |row| row.get::<_, String>(0))
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
+}
+
+#[tauri::command]
+pub fn character_clone_deep(app: tauri::AppHandle, id: String) -> Result<String, String> {
+    use rusqlite::types::Value;
+    use std::collections::HashMap;
+
+    let mut conn = open_db(&app)?;
+    let now = now_ms() as i64;
+    let new_char_id = uuid::Uuid::new_v4().to_string();
+
+    let orig_name: String = conn
+        .query_row("SELECT name FROM characters WHERE id = ?", params![&id], |r| {
+            r.get(0)
+        })
+        .optional()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+        .ok_or_else(|| crate::utils::err_msg(module_path!(), line!(), "Character not found"))?;
+    let clone_name = format!("{} (Clone)", orig_name);
+
+    let tx = conn
+        .transaction()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    // 1. character row (fresh id, name, timestamps)
+    clone_copy_rows(
+        &tx,
+        "characters",
+        &[
+            ("id", Value::Text(new_char_id.clone())),
+            ("name", Value::Text(clone_name)),
+            ("created_at", Value::Integer(now)),
+            ("updated_at", Value::Integer(now)),
+        ],
+        &[("id", Value::Text(id.clone()))],
+        &[],
+    )?;
+
+    // 2. character rules (autoincrement id left to regenerate)
+    clone_copy_rows(
+        &tx,
+        "character_rules",
+        &[("character_id", Value::Text(new_char_id.clone()))],
+        &[("character_id", Value::Text(id.clone()))],
+        &["id"],
+    )?;
+
+    // 3. lorebook associations (shared lorebooks, new char link)
+    clone_copy_rows(
+        &tx,
+        "character_lorebooks",
+        &[("character_id", Value::Text(new_char_id.clone()))],
+        &[("character_id", Value::Text(id.clone()))],
+        &[],
+    )?;
+
+    // 4. scenes
+    let mut scene_map: HashMap<String, String> = HashMap::new();
+    for old in clone_collect_ids(&tx, "SELECT id FROM scenes WHERE character_id = ?", &id)? {
+        let new = uuid::Uuid::new_v4().to_string();
+        clone_copy_rows(
+            &tx,
+            "scenes",
+            &[
+                ("id", Value::Text(new.clone())),
+                ("character_id", Value::Text(new_char_id.clone())),
+            ],
+            &[("id", Value::Text(old.clone()))],
+            &[],
+        )?;
+        scene_map.insert(old, new);
+    }
+
+    // 5. scene variants
+    let mut scene_variant_map: HashMap<String, String> = HashMap::new();
+    for (old_scene, new_scene) in &scene_map {
+        for ov in
+            clone_collect_ids(&tx, "SELECT id FROM scene_variants WHERE scene_id = ?", old_scene)?
+        {
+            let nv = uuid::Uuid::new_v4().to_string();
+            clone_copy_rows(
+                &tx,
+                "scene_variants",
+                &[
+                    ("id", Value::Text(nv.clone())),
+                    ("scene_id", Value::Text(new_scene.clone())),
+                ],
+                &[("id", Value::Text(ov.clone()))],
+                &[],
+            )?;
+            scene_variant_map.insert(ov, nv);
+        }
+    }
+
+    // 6. remap scenes.selected_variant_id
+    for (old_scene, new_scene) in &scene_map {
+        let selected: Option<String> = tx
+            .query_row(
+                "SELECT selected_variant_id FROM scenes WHERE id = ?",
+                params![old_scene],
+                |r| r.get(0),
+            )
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        if let Some(osv) = selected {
+            if let Some(nsv) = scene_variant_map.get(&osv) {
+                tx.execute(
+                    "UPDATE scenes SET selected_variant_id = ? WHERE id = ?",
+                    params![nsv, new_scene],
+                )
+                .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+            }
+        }
+    }
+
+    // 7. chat templates (remap scene_id)
+    let mut template_map: HashMap<String, String> = HashMap::new();
+    for old in clone_collect_ids(&tx, "SELECT id FROM chat_templates WHERE character_id = ?", &id)? {
+        let new = uuid::Uuid::new_v4().to_string();
+        let old_scene: Option<String> = tx
+            .query_row(
+                "SELECT scene_id FROM chat_templates WHERE id = ?",
+                params![&old],
+                |r| r.get(0),
+            )
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let mut overrides = vec![
+            ("id", Value::Text(new.clone())),
+            ("character_id", Value::Text(new_char_id.clone())),
+        ];
+        if let Some(os) = old_scene.as_ref().and_then(|s| scene_map.get(s)) {
+            overrides.push(("scene_id", Value::Text(os.clone())));
+        }
+        clone_copy_rows(
+            &tx,
+            "chat_templates",
+            &overrides,
+            &[("id", Value::Text(old.clone()))],
+            &[],
+        )?;
+        template_map.insert(old, new);
+    }
+
+    // 8. chat template messages
+    for (old_t, new_t) in &template_map {
+        for om in clone_collect_ids(
+            &tx,
+            "SELECT id FROM chat_template_messages WHERE template_id = ?",
+            old_t,
+        )? {
+            let nm = uuid::Uuid::new_v4().to_string();
+            clone_copy_rows(
+                &tx,
+                "chat_template_messages",
+                &[
+                    ("id", Value::Text(nm)),
+                    ("template_id", Value::Text(new_t.clone())),
+                ],
+                &[("id", Value::Text(om))],
+                &[],
+            )?;
+        }
+    }
+
+    // 9. remap characters.default_scene_id / default_chat_template_id
+    let (def_scene, def_template): (Option<String>, Option<String>) = tx
+        .query_row(
+            "SELECT default_scene_id, default_chat_template_id FROM characters WHERE id = ?",
+            params![&new_char_id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    if let Some(ns) = def_scene.as_ref().and_then(|s| scene_map.get(s)) {
+        tx.execute(
+            "UPDATE characters SET default_scene_id = ? WHERE id = ?",
+            params![ns, &new_char_id],
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    }
+    if let Some(nt) = def_template.as_ref().and_then(|t| template_map.get(t)) {
+        tx.execute(
+            "UPDATE characters SET default_chat_template_id = ? WHERE id = ?",
+            params![nt, &new_char_id],
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    }
+
+    // 10. companion scheduled notes
+    for on in clone_collect_ids(
+        &tx,
+        "SELECT id FROM companion_scheduled_notes WHERE character_id = ?",
+        &id,
+    )? {
+        let nn = uuid::Uuid::new_v4().to_string();
+        clone_copy_rows(
+            &tx,
+            "companion_scheduled_notes",
+            &[
+                ("id", Value::Text(nn)),
+                ("character_id", Value::Text(new_char_id.clone())),
+            ],
+            &[("id", Value::Text(on))],
+            &[],
+        )?;
+    }
+
+    // 11. companion shared memory state (PK = character_id)
+    clone_copy_rows(
+        &tx,
+        "companion_shared_memory_state",
+        &[("character_id", Value::Text(new_char_id.clone()))],
+        &[("character_id", Value::Text(id.clone()))],
+        &[],
+    )?;
+
+    // 12. shared-memory embeddings (session_id == character_id)
+    clone_copy_rows(
+        &tx,
+        "memory_embeddings",
+        &[("session_id", Value::Text(new_char_id.clone()))],
+        &[
+            ("session_id", Value::Text(id.clone())),
+            ("session_kind", Value::Text("companion_shared".to_string())),
+        ],
+        &[],
+    )?;
+
+    // 13. sessions (remap selected_scene_id)
+    let mut session_map: HashMap<String, String> = HashMap::new();
+    for old in clone_collect_ids(&tx, "SELECT id FROM sessions WHERE character_id = ?", &id)? {
+        let new = uuid::Uuid::new_v4().to_string();
+        let old_scene: Option<String> = tx
+            .query_row(
+                "SELECT selected_scene_id FROM sessions WHERE id = ?",
+                params![&old],
+                |r| r.get(0),
+            )
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let mut overrides = vec![
+            ("id", Value::Text(new.clone())),
+            ("character_id", Value::Text(new_char_id.clone())),
+        ];
+        if let Some(ns) = old_scene.as_ref().and_then(|s| scene_map.get(s)) {
+            overrides.push(("selected_scene_id", Value::Text(ns.clone())));
+        }
+        clone_copy_rows(
+            &tx,
+            "sessions",
+            &overrides,
+            &[("id", Value::Text(old.clone()))],
+            &[],
+        )?;
+        session_map.insert(old, new);
+    }
+
+    // 14. per-session: messages, variants, turn effects, embeddings
+    for (old_s, new_s) in &session_map {
+        let mut msg_map: HashMap<String, String> = HashMap::new();
+        for om in clone_collect_ids(&tx, "SELECT id FROM messages WHERE session_id = ?", old_s)? {
+            let nm = uuid::Uuid::new_v4().to_string();
+            clone_copy_rows(
+                &tx,
+                "messages",
+                &[
+                    ("id", Value::Text(nm.clone())),
+                    ("session_id", Value::Text(new_s.clone())),
+                ],
+                &[("id", Value::Text(om.clone()))],
+                &[],
+            )?;
+            msg_map.insert(om, nm);
+        }
+
+        let mut variant_map: HashMap<String, String> = HashMap::new();
+        for (om, nm) in &msg_map {
+            for ov in
+                clone_collect_ids(&tx, "SELECT id FROM message_variants WHERE message_id = ?", om)?
+            {
+                let nv = uuid::Uuid::new_v4().to_string();
+                clone_copy_rows(
+                    &tx,
+                    "message_variants",
+                    &[
+                        ("id", Value::Text(nv.clone())),
+                        ("message_id", Value::Text(nm.clone())),
+                    ],
+                    &[("id", Value::Text(ov.clone()))],
+                    &[],
+                )?;
+                variant_map.insert(ov, nv);
+            }
+        }
+
+        for (om, nm) in &msg_map {
+            let selected: Option<String> = tx
+                .query_row(
+                    "SELECT selected_variant_id FROM messages WHERE id = ?",
+                    params![om],
+                    |r| r.get(0),
+                )
+                .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+            if let Some(nv) = selected.as_ref().and_then(|v| variant_map.get(v)) {
+                tx.execute(
+                    "UPDATE messages SET selected_variant_id = ? WHERE id = ?",
+                    params![nv, nm],
+                )
+                .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+            }
+        }
+
+        for oe in clone_collect_ids(
+            &tx,
+            "SELECT id FROM companion_turn_effects WHERE session_id = ?",
+            old_s,
+        )? {
+            let (old_user, old_assistant): (Option<String>, String) = tx
+                .query_row(
+                    "SELECT user_message_id, assistant_message_id FROM companion_turn_effects WHERE id = ?",
+                    params![&oe],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+            let Some(new_assistant) = msg_map.get(&old_assistant) else {
+                continue;
+            };
+            let ne = uuid::Uuid::new_v4().to_string();
+            let mut overrides = vec![
+                ("id", Value::Text(ne)),
+                ("session_id", Value::Text(new_s.clone())),
+                ("assistant_message_id", Value::Text(new_assistant.clone())),
+            ];
+            match old_user.as_ref().and_then(|u| msg_map.get(u)) {
+                Some(nu) => overrides.push(("user_message_id", Value::Text(nu.clone()))),
+                None => overrides.push(("user_message_id", Value::Null)),
+            }
+            clone_copy_rows(
+                &tx,
+                "companion_turn_effects",
+                &overrides,
+                &[("id", Value::Text(oe))],
+                &[],
+            )?;
+        }
+
+        clone_copy_rows(
+            &tx,
+            "memory_embeddings",
+            &[("session_id", Value::Text(new_s.clone()))],
+            &[
+                ("session_id", Value::Text(old_s.clone())),
+                ("session_kind", Value::Text("session".to_string())),
+            ],
+            &[],
+        )?;
+    }
+
+    tx.commit()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    log_info(
+        &app,
+        "character_clone_deep",
+        format!("Cloned character {} -> {}", id, new_char_id),
+    );
+
+    let conn2 = open_db(&app)?;
+    let json = read_character(&conn2, &new_char_id)?;
+    serde_json::to_string(&json).map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
+}
