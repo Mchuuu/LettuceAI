@@ -226,13 +226,63 @@ pub fn time_placeholder_values(reference_ms: u64) -> Vec<(&'static str, String)>
     ]
 }
 
-pub fn format_memory_for_prompt(memory: &MemoryEmbedding) -> String {
+pub fn humanize_relative(delta_ms: i64, _precision: Option<&str>) -> String {
+    let future = delta_ms < 0;
+    let seconds = delta_ms.unsigned_abs() / 1000;
+    const MINUTE: u64 = 60;
+    const HOUR: u64 = 60 * MINUTE;
+    const DAY: u64 = 24 * HOUR;
+    const WEEK: u64 = 7 * DAY;
+    const MONTH: u64 = 30 * DAY;
+    const YEAR: u64 = 365 * DAY;
+
+    if seconds < 45 {
+        return "just now".to_string();
+    }
+
+    let (count, unit) = if seconds < HOUR {
+        (seconds / MINUTE, "minute")
+    } else if seconds < DAY {
+        (seconds / HOUR, "hour")
+    } else if seconds < WEEK {
+        (seconds / DAY, "day")
+    } else if seconds < MONTH {
+        (seconds / WEEK, "week")
+    } else if seconds < YEAR {
+        (seconds / MONTH, "month")
+    } else {
+        (seconds / YEAR, "year")
+    };
+    let count = count.max(1);
+
+    if unit == "day" && count == 1 {
+        return if future {
+            "tomorrow".to_string()
+        } else {
+            "yesterday".to_string()
+        };
+    }
+
+    let plural = if count == 1 { "" } else { "s" };
+    if future {
+        format!("in {} {}{}", count, unit, plural)
+    } else {
+        format!("{} {}{} ago", count, unit, plural)
+    }
+}
+
+pub fn format_memory_for_prompt(memory: &MemoryEmbedding, effective_now: u64) -> String {
     let mut line = format!("- {}", memory.text);
     if let Some(observed_at) = memory.observed_at {
         let observed = local_datetime_from_ms(observed_at);
+        let relative = humanize_relative(
+            effective_now as i64 - observed_at as i64,
+            memory.observed_time_precision.as_deref(),
+        );
         line.push_str(&format!(
-            " (observed {})",
-            observed.format("%Y-%m-%d %H:%M %Z")
+            " (observed {}, {})",
+            observed.format("%Y-%m-%d %H:%M %Z"),
+            relative
         ));
     }
     line

@@ -3269,11 +3269,12 @@ pub fn build_system_prompt_entries(
     }
 
     let rendered_key_memories = if dynamic_memory_active {
+        let memory_now = companion_effective_now(session);
         session
             .memory_embeddings
             .iter()
             .filter(|mem| !mem.is_cold || mem.is_pinned)
-            .map(format_memory_for_prompt)
+            .map(|mem| format_memory_for_prompt(mem, memory_now))
             .collect::<Vec<_>>()
     } else if has_manual_memories(&session.memories) {
         render_manual_memory_lines(&session.memories)
