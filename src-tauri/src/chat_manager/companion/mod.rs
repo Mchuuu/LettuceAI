@@ -256,6 +256,19 @@ pub struct CompanionSessionState {
 pub struct CompanionPreferences {
     #[serde(default)]
     pub time_awareness_enabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub time_override: Option<CompanionTimeOverridePref>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CompanionTimeOverridePref {
+    #[serde(default)]
+    pub mode: String,
+    #[serde(default)]
+    pub anchor_ms: u64,
+    #[serde(default)]
+    pub set_at_ms: u64,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -611,6 +624,7 @@ fn default_state(config: &CompanionConfig) -> CompanionSessionState {
         active_signals: Vec::new(),
         preferences: CompanionPreferences {
             time_awareness_enabled: config.time_awareness || config.context.time_awareness,
+            time_override: None,
         },
         updated_at: 0,
     }
