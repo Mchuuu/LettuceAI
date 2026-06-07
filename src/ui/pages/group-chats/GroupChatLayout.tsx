@@ -1,16 +1,21 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, useOutletContext, useParams } from "react-router-dom";
 import { listen } from "@tauri-apps/api/event";
 import type {
   GroupSession,
+  Group,
   Character,
   Persona,
   Settings,
   ChatAppearanceSettings,
+  ChatAppearanceOverride,
 } from "../../../core/storage/schemas";
-import { createDefaultChatAppearanceSettings } from "../../../core/storage/schemas";
+import {
+  createDefaultChatAppearanceSettings,
+  mergeChatAppearance,
+} from "../../../core/storage/schemas";
 import { storageBridge } from "../../../core/storage/files";
-import { listCharacters, listPersonas, readSettings } from "../../../core/storage/repo";
+import { getGroup, listCharacters, listPersonas, readSettings } from "../../../core/storage/repo";
 import { SESSION_UPDATED_EVENT, SETTINGS_UPDATED_EVENT } from "../../../core/storage/repo";
 import { useImageData } from "../../hooks/useImageData";
 import {
@@ -20,18 +25,29 @@ import {
   type ThemeColors,
 } from "../../../core/utils/imageAnalysis";
 
+export type AppearanceFieldUpdater = <K extends keyof ChatAppearanceSettings>(
+  key: K,
+  value: ChatAppearanceSettings[K],
+) => void;
+
 export interface GroupChatLayoutContext {
   session: GroupSession | null;
   sessionLoading: boolean;
   characters: Character[];
   personas: Persona[];
   settings: Settings | null;
+  group: Group | null;
   backgroundImageData: string | undefined;
   isBackgroundLight: boolean;
   theme: ThemeColors;
   chatAppearance: ChatAppearanceSettings;
   reloadSession: () => void;
   updateSession: (session: GroupSession | null) => void;
+  updateGroup: (group: Group | null) => void;
+  draftAppearanceOverride: ChatAppearanceOverride | null;
+  setDraftAppearanceOverride: (next: ChatAppearanceOverride | null) => void;
+  appearanceFieldUpdater: AppearanceFieldUpdater | null;
+  registerAppearanceFieldUpdater: (fn: AppearanceFieldUpdater | null) => void;
 }
 
 export function useGroupChatLayoutContext() {
@@ -41,6 +57,7 @@ export function useGroupChatLayoutContext() {
 export function GroupChatLayout() {
   const { groupSessionId } = useParams<{ groupSessionId: string }>();
   const [session, setSession] = useState<GroupSession | null>(null);
+  const [group, setGroup] = useState<Group | null>(null);
   const [characters, setCharacters] = useState<Character[]>([]);
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -48,8 +65,23 @@ export function GroupChatLayout() {
   const [loadCount, setLoadCount] = useState(0);
 
   const [bgBrightness, setBgBrightness] = useState<number | null>(null);
-  const [chatAppearance, setChatAppearance] = useState<ChatAppearanceSettings>(
+  const [baseChatAppearance, setBaseChatAppearance] = useState<ChatAppearanceSettings>(
     createDefaultChatAppearanceSettings(),
+  );
+  const [draftAppearanceOverride, setDraftAppearanceOverride] =
+    useState<ChatAppearanceOverride | null>(null);
+  const [appearanceFieldUpdater, setAppearanceFieldUpdater] =
+    useState<AppearanceFieldUpdater | null>(null);
+  const registerAppearanceFieldUpdater = useCallback(
+    (fn: AppearanceFieldUpdater | null) => setAppearanceFieldUpdater(() => fn),
+    [],
+  );
+  const chatAppearance = useMemo(
+    () =>
+      draftAppearanceOverride
+        ? mergeChatAppearance(baseChatAppearance, draftAppearanceOverride)
+        : baseChatAppearance,
+    [baseChatAppearance, draftAppearanceOverride],
   );
   const [theme, setTheme] = useState<ThemeColors>(getDefaultThemeSync());
 
@@ -69,14 +101,20 @@ export function GroupChatLayout() {
           listPersonas(),
           readSettings(),
         ]);
+        const groupData = sessionData?.groupCharacterId
+          ? await getGroup(sessionData.groupCharacterId).catch(() => null)
+          : null;
         if (!cancelled) {
           setSession(sessionData);
+          setGroup(groupData);
           setCharacters(chars);
           setPersonas(personaList);
           setSettings(settingsData);
           const globalAppearance =
             settingsData.advancedSettings?.chatAppearance ?? createDefaultChatAppearanceSettings();
-          setChatAppearance(globalAppearance);
+          setBaseChatAppearance(
+            mergeChatAppearance(globalAppearance, groupData?.chatAppearance),
+          );
         }
       } catch (err) {
         console.error("GroupChatLayout: failed to load data", err);
@@ -148,6 +186,16 @@ export function GroupChatLayout() {
     setSession(nextSession);
   }, []);
 
+  const updateGroup = useCallback(
+    (nextGroup: Group | null) => {
+      setGroup(nextGroup);
+      const globalAppearance =
+        settings?.advancedSettings?.chatAppearance ?? createDefaultChatAppearanceSettings();
+      setBaseChatAppearance(mergeChatAppearance(globalAppearance, nextGroup?.chatAppearance));
+    },
+    [settings],
+  );
+
   const backgroundImageData = useImageData(session?.backgroundImagePath);
 
   useEffect(() => {
@@ -184,12 +232,18 @@ export function GroupChatLayout() {
     characters,
     personas,
     settings,
+    group,
     backgroundImageData,
     isBackgroundLight,
     theme,
     chatAppearance,
     reloadSession,
     updateSession,
+    updateGroup,
+    draftAppearanceOverride,
+    setDraftAppearanceOverride,
+    appearanceFieldUpdater,
+    registerAppearanceFieldUpdater,
   };
 
   return (

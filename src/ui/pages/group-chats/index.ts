@@ -6,3 +6,4 @@ export { GroupSettingsPage } from "./GroupSettingsPage";
 export { GroupChatSettingsPage } from "./GroupChatSettingsPage";
 export { GroupChatHistoryPage } from "./GroupChatHistoryPage";
 export { GroupChatMemoriesPage } from "./GroupChatMemoriesPage";
+export { GroupChatAppearancePage } from "./GroupChatAppearancePage";

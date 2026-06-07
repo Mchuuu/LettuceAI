@@ -43,6 +43,7 @@ import {
 import {
   GroupChatFooter,
   GroupChatHeader,
+  GroupChatAppearanceDrawer,
   GroupChatMessage,
   GroupChatMessageActionsBottomSheet,
   type VariantState,
@@ -140,6 +141,7 @@ export function GroupChatPage() {
   const [actionStatus, setActionStatus] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [heldMessageId, setHeldMessageId] = useState<string | null>(null);
+  const [appearanceDrawerOpen, setAppearanceDrawerOpen] = useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
@@ -158,6 +160,10 @@ export function GroupChatPage() {
     theme,
     chatAppearance,
     updateSession,
+    group,
+    updateGroup,
+    setDraftAppearanceOverride,
+    registerAppearanceFieldUpdater,
   } = useGroupChatLayoutContext();
   const helpMeReplyEnabled = settings?.advancedSettings?.helpMeReplyEnabled ?? true;
 
@@ -195,6 +201,20 @@ export function GroupChatPage() {
     },
     [session, updateSession],
   );
+
+  const isMobilePlatform = useMemo(() => {
+    const p = getPlatform();
+    return p === "android" || p === "ios";
+  }, []);
+
+  const handleOpenAppearance = useCallback(() => {
+    if (!session) return;
+    if (isMobilePlatform) {
+      navigate(Routes.groupChatAppearance(session.id));
+    } else {
+      setAppearanceDrawerOpen(true);
+    }
+  }, [isMobilePlatform, navigate, session]);
 
   // Load messages and stats (session, characters, personas, settings come from layout)
   const loadData = useCallback(async () => {
@@ -1641,6 +1661,7 @@ export function GroupChatPage() {
             onSettings={() => navigate(Routes.groupChatSettings(session.id))}
             onMemories={() => navigate(Routes.groupChatMemories(session.id))}
             onLorebooks={() => navigate(Routes.groupChatLorebook(session.id))}
+            onAppearance={group ? handleOpenAppearance : undefined}
             hasBackgroundImage={!!backgroundImageData}
             headerOverlayClassName={theme.headerOverlay}
             transparentHeader={chatAppearance.transparentHeader}
@@ -1925,6 +1946,17 @@ export function GroupChatPage() {
         }}
         characters={groupCharacters}
       />
+
+      {!isMobilePlatform && group && (
+        <GroupChatAppearanceDrawer
+          open={appearanceDrawerOpen}
+          onClose={() => setAppearanceDrawerOpen(false)}
+          group={group}
+          onGroupUpdate={updateGroup}
+          setDraftOverride={setDraftAppearanceOverride}
+          registerFieldUpdater={registerAppearanceFieldUpdater}
+        />
+      )}
     </div>
   );
 }

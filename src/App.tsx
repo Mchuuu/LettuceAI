@@ -100,6 +100,7 @@ import {
   GroupChatSettingsPage,
   GroupChatHistoryPage,
   GroupChatMemoriesPage,
+  GroupChatAppearancePage,
 } from "./ui/pages/group-chats";
 import {
   EngineHomePage,
@@ -1287,6 +1288,7 @@ function AppContent() {
                 <Route path="lorebook" element={<LorebookEditor />} />
                 <Route path="lorebook/preview" element={<LorebookTriggerPreviewPage />} />
                 <Route path="memories" element={<GroupChatMemoriesPage />} />
+                <Route path="appearance" element={<GroupChatAppearancePage />} />
               </Route>
             </Routes>
           </div>
