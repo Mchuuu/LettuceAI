@@ -1166,8 +1166,8 @@ pub fn group_session_duplicate_with_messages(
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
     let insert_result = conn.execute(
-        "INSERT INTO group_sessions (id, name, character_ids, muted_character_ids, persona_id, created_at, updated_at, archived, chat_type, starting_scene, background_image_path, lorebook_ids, disable_character_lorebooks, memories, memory_embeddings, memory_summary, memory_summary_token_count, memory_tool_events)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+        "INSERT INTO group_sessions (id, name, character_ids, muted_character_ids, persona_id, created_at, updated_at, archived, chat_type, starting_scene, background_image_path, lorebook_ids, disable_character_lorebooks, memories, memory_embeddings, memory_summary, memory_summary_token_count, memory_tool_events, group_character_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
         params![
             new_id,
             name,
@@ -1184,14 +1184,15 @@ pub fn group_session_duplicate_with_messages(
             memory_embeddings_json,
             memory_summary,
             memory_summary_token_count,
-            memory_tool_events_json
+            memory_tool_events_json,
+            source.group_character_id
         ],
     );
 
     if insert_result.is_err() {
         conn.execute(
-            "INSERT INTO group_sessions (id, name, character_ids, muted_character_ids, persona_id, created_at, updated_at, archived, chat_type, starting_scene, lorebook_ids, disable_character_lorebooks, memories, memory_embeddings, memory_summary, memory_summary_token_count, memory_tool_events)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+            "INSERT INTO group_sessions (id, name, character_ids, muted_character_ids, persona_id, created_at, updated_at, archived, chat_type, starting_scene, lorebook_ids, disable_character_lorebooks, memories, memory_embeddings, memory_summary, memory_summary_token_count, memory_tool_events, group_character_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             params![
                 new_id,
                 name,
@@ -1207,7 +1208,8 @@ pub fn group_session_duplicate_with_messages(
                 memory_embeddings_json,
                 memory_summary,
                 memory_summary_token_count,
-                memory_tool_events_json
+                memory_tool_events_json,
+                source.group_character_id
             ],
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -1473,11 +1475,30 @@ pub fn group_session_create(
         .as_ref()
         .and_then(|s| serde_json::from_str(s).ok());
 
+    let group_id = Uuid::new_v4().to_string();
     conn.execute(
-        "INSERT INTO group_sessions (id, name, character_ids, muted_character_ids, persona_id, created_at, updated_at, archived, chat_type, starting_scene, background_image_path, lorebook_ids, disable_character_lorebooks, speaker_selection_method)
-         VALUES (?1, ?2, ?3, '[]', ?4, ?5, ?5, 0, ?6, ?7, ?8, '[]', 0, ?9)",
+        "INSERT INTO group_characters (id, name, character_ids, muted_character_ids, persona_id, created_at, updated_at, archived, chat_type, starting_scene, background_image_path, lorebook_ids, disable_character_lorebooks, speaker_selection_method, memory_type)
+         VALUES (?1, ?2, ?3, '[]', ?4, ?5, ?5, 0, ?6, ?7, ?8, '[]', 0, ?9, 'manual')",
+        params![
+            group_id,
+            name,
+            character_ids_json,
+            final_persona_id,
+            now,
+            chat_type_value,
+            starting_scene_json.as_deref(),
+            background_image_path,
+            selection_method
+        ],
+    )
+    .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    conn.execute(
+        "INSERT INTO group_sessions (id, group_character_id, name, character_ids, muted_character_ids, persona_id, created_at, updated_at, archived, chat_type, starting_scene, background_image_path, lorebook_ids, disable_character_lorebooks, speaker_selection_method)
+         VALUES (?1, ?2, ?3, ?4, '[]', ?5, ?6, ?6, 0, ?7, ?8, ?9, '[]', 0, ?10)",
         params![
             id,
+            group_id,
             name,
             character_ids_json,
             final_persona_id,
@@ -1510,7 +1531,7 @@ pub fn group_session_create(
 
     let session = GroupSession {
         id: id.clone(),
-        group_character_id: None,
+        group_character_id: Some(group_id),
         name,
         character_ids,
         muted_character_ids: Vec::new(),

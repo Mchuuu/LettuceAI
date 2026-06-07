@@ -7,7 +7,7 @@ use crate::storage_manager::settings::{read_settings_typed, write_settings_typed
 use crate::utils::log_info;
 
 /// Current migration version
-pub const CURRENT_MIGRATION_VERSION: u32 = 71;
+pub const CURRENT_MIGRATION_VERSION: u32 = 72;
 
 pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
     log_info(app, "migrations", "Starting migration check");
@@ -747,6 +747,16 @@ pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
         );
         migrate_v70_to_v71(app)?;
         version = 71;
+    }
+
+    if version < 72 {
+        log_info(
+            app,
+            "migrations",
+            "Running migration v71 -> v72: Backfill source groups for orphaned group sessions",
+        );
+        migrate_v71_to_v72(app)?;
+        version = 72;
     }
 
     // Update the stored version
@@ -3988,5 +3998,116 @@ fn migrate_v69_to_v70(app: &AppHandle) -> Result<(), String> {
 fn migrate_v70_to_v71(app: &AppHandle) -> Result<(), String> {
     let conn = crate::storage_manager::db::open_db(app)?;
     let _ = conn.execute("ALTER TABLE messages ADD COLUMN model_id TEXT", []);
+    Ok(())
+}
+
+fn migrate_v71_to_v72(app: &AppHandle) -> Result<(), String> {
+    use rusqlite::params;
+    let conn = crate::storage_manager::db::open_db(app)?;
+
+    let orphans: Vec<(
+        String,
+        String,
+        String,
+        String,
+        Option<String>,
+        i64,
+        i64,
+        String,
+        Option<String>,
+        Option<String>,
+        String,
+        i64,
+        String,
+        String,
+    )> = {
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, name, character_ids, COALESCE(muted_character_ids, '[]'), persona_id,
+                        created_at, updated_at, COALESCE(chat_type, 'conversation'), starting_scene,
+                        background_image_path, COALESCE(lorebook_ids, '[]'),
+                        COALESCE(disable_character_lorebooks, 0),
+                        COALESCE(speaker_selection_method, 'llm'),
+                        COALESCE(memory_type, 'manual')
+                 FROM group_sessions
+                 WHERE group_character_id IS NULL",
+            )
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, Option<String>>(4)?,
+                    row.get::<_, i64>(5)?,
+                    row.get::<_, i64>(6)?,
+                    row.get::<_, String>(7)?,
+                    row.get::<_, Option<String>>(8)?,
+                    row.get::<_, Option<String>>(9)?,
+                    row.get::<_, String>(10)?,
+                    row.get::<_, i64>(11)?,
+                    row.get::<_, String>(12)?,
+                    row.get::<_, String>(13)?,
+                ))
+            })
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let mut collected = Vec::new();
+        for row in rows {
+            collected.push(row.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?);
+        }
+        collected
+    };
+
+    for (
+        session_id,
+        name,
+        character_ids,
+        muted_character_ids,
+        persona_id,
+        created_at,
+        updated_at,
+        chat_type,
+        starting_scene,
+        background_image_path,
+        lorebook_ids,
+        disable_character_lorebooks,
+        speaker_selection_method,
+        memory_type,
+    ) in orphans
+    {
+        let group_id = uuid::Uuid::new_v4().to_string();
+        conn.execute(
+            "INSERT INTO group_characters (id, name, character_ids, muted_character_ids, persona_id,
+                created_at, updated_at, archived, chat_type, starting_scene, background_image_path,
+                lorebook_ids, disable_character_lorebooks, speaker_selection_method, memory_type)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+            params![
+                group_id,
+                name,
+                character_ids,
+                muted_character_ids,
+                persona_id,
+                created_at,
+                updated_at,
+                chat_type,
+                starting_scene,
+                background_image_path,
+                lorebook_ids,
+                disable_character_lorebooks,
+                speaker_selection_method,
+                memory_type,
+            ],
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+        conn.execute(
+            "UPDATE group_sessions SET group_character_id = ?1 WHERE id = ?2",
+            params![group_id, session_id],
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    }
+
     Ok(())
 }
