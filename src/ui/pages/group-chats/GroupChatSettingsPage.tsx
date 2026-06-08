@@ -18,6 +18,7 @@ import {
   Volume2,
   VolumeX,
   BookOpen,
+  NotebookPen,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -27,6 +28,7 @@ import { Routes, useNavigationManager } from "../../navigation";
 import { useGroupChatSettingsController } from "./hooks/useGroupChatSettingsController";
 import { useGroupChatLayoutContext } from "./GroupChatLayout";
 import { SectionHeader, CharacterAvatar, QuickChip, PersonaSelector } from "./components/settings";
+import { GroupAuthorNoteBottomMenu } from "./components";
 import { Switch } from "../../components/Switch";
 import { processBackgroundImage } from "../../../core/utils/image";
 import { storageBridge } from "../../../core/storage/files";
@@ -166,6 +168,8 @@ export function GroupChatSettingsPage({
     showRemoveConfirm,
     saving,
   } = ui;
+
+  const [showAuthorNoteMenu, setShowAuthorNoteMenu] = useState(false);
 
   const handleBack = () => {
     if (isDrawer) {
@@ -706,6 +710,21 @@ export function GroupChatSettingsPage({
             </div>
           </section>
 
+          {/* Author Note Section */}
+          <section>
+            <SectionHeader title={t("chats.authorNote.title")} />
+            <QuickChip
+              icon={<NotebookPen className="h-4 w-4" />}
+              label={t("chats.authorNote.title")}
+              value={
+                session.authorNote?.trim()
+                  ? t("groupChats.sessionSettings.authorNoteActive")
+                  : t("groupChats.sessionSettings.authorNoteEmpty")
+              }
+              onClick={() => setShowAuthorNoteMenu(true)}
+            />
+          </section>
+
           {/* Characters Section */}
           <section className={spacing.item}>
             <div className="flex items-center justify-between mb-3">
@@ -1083,6 +1102,14 @@ export function GroupChatSettingsPage({
         personas={personas}
         selectedPersonaId={session.personaId}
         onSelect={handleChangePersona}
+      />
+
+      {/* Author Note Menu */}
+      <GroupAuthorNoteBottomMenu
+        isOpen={showAuthorNoteMenu}
+        onClose={() => setShowAuthorNoteMenu(false)}
+        session={session}
+        onSaved={(updated) => updateSession(updated)}
       />
 
       {/* Add Character Modal */}

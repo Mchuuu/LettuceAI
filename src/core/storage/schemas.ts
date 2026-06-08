@@ -2405,6 +2405,8 @@ export const GroupSessionSchema = z.object({
   speakerSelectionMethod: z.enum(["llm", "heuristic", "round_robin"]).default("llm"),
   /** Memory mode: "manual" or "dynamic" */
   memoryType: z.enum(["manual", "dynamic"]).default("manual"),
+  /** Private session-level author note injected into the prompt */
+  authorNote: z.string().nullish().optional(),
   /** Memory tool events tracking (for dynamic memory cycle gating) */
   memoryToolEvents: z
     .array(

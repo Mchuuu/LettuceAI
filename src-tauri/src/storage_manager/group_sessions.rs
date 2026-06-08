@@ -124,6 +124,9 @@ pub struct GroupSession {
     /// Memory type: "manual" or "dynamic"
     #[serde(default = "default_memory_type")]
     pub memory_type: String,
+    /// Private session-level author note injected into the prompt
+    #[serde(default)]
+    pub author_note: Option<String>,
 }
 
 fn default_chat_type() -> String {
@@ -274,7 +277,7 @@ fn read_group_session(conn: &Connection, id: &str) -> Result<Option<GroupSession
             "SELECT id, group_character_id, name, character_ids, muted_character_ids, persona_id, created_at, updated_at,
                     memories, memory_embeddings, memory_summary, memory_summary_token_count, archived, memory_tool_events,
                     chat_type, starting_scene, background_image_path, lorebook_ids, disable_character_lorebooks,
-                    speaker_selection_method, memory_type, memory_status, memory_error, memory_progress_step
+                    speaker_selection_method, memory_type, memory_status, memory_error, memory_progress_step, author_note
              FROM group_sessions WHERE id = ?1",
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -395,6 +398,7 @@ fn read_group_session(conn: &Connection, id: &str) -> Result<Option<GroupSession
         let memory_progress_step: Option<i32> = row
             .get(23)
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let author_note: Option<String> = row.get(24).ok().flatten();
 
         Ok(Some(GroupSession {
             id: row
@@ -433,6 +437,7 @@ fn read_group_session(conn: &Connection, id: &str) -> Result<Option<GroupSession
             memory_progress_step,
             speaker_selection_method,
             memory_type,
+            author_note,
         }))
     } else {
         Ok(None)
@@ -1561,6 +1566,7 @@ pub fn group_session_create(
         memory_progress_step: None,
         speaker_selection_method: selection_method,
         memory_type: "manual".to_string(),
+        author_note: None,
     };
 
     serde_json::to_string(&session)
@@ -1875,6 +1881,35 @@ pub fn group_session_update_chat_type(
     conn.execute(
         "UPDATE group_sessions SET chat_type = ?1, updated_at = ?2 WHERE id = ?3",
         params![chat_type, now, session_id],
+    )
+    .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    match read_group_session(&conn, &session_id)? {
+        Some(session) => serde_json::to_string(&session)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e)),
+        None => Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            "Session not found",
+        )),
+    }
+}
+
+#[tauri::command]
+pub fn group_session_update_author_note(
+    session_id: String,
+    author_note: Option<String>,
+    pool: State<'_, SwappablePool>,
+) -> Result<String, String> {
+    let conn = pool.get_connection()?;
+    let now = now_ms() as i64;
+    let author_note = author_note
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+
+    conn.execute(
+        "UPDATE group_sessions SET author_note = ?1, updated_at = ?2 WHERE id = ?3",
+        params![author_note, now, session_id],
     )
     .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 

@@ -809,6 +809,11 @@ export const storageBridge = {
       sessionId,
       mutedCharacterIdsJson: JSON.stringify(mutedCharacterIds),
     }).then((s) => JSON.parse(s)),
+  groupSessionUpdateAuthorNote: (sessionId: string, authorNote: string | null) =>
+    invoke<string>("group_session_update_author_note", {
+      sessionId,
+      authorNote,
+    }).then((s) => JSON.parse(s)),
 
   // Group Participation
   groupParticipationStats: (sessionId: string) =>

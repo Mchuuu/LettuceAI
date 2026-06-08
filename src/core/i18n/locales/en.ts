@@ -1351,6 +1351,8 @@ export const enMessages = {
     },
     sessionSettings: {
       subtitle: "Manage group chat preferences",
+      authorNoteActive: "Active for this chat",
+      authorNoteEmpty: "Private direction for replies",
       enterGroupName: "Enter group name",
       participant: "participant",
       participants: "participants",

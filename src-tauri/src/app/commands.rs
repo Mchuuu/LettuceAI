@@ -392,6 +392,7 @@ macro_rules! invoke_handler {
             crate::storage_manager::group_sessions::group_session_update_background_image,
             crate::storage_manager::group_sessions::group_session_update_chat_type,
             crate::storage_manager::group_sessions::group_session_update_memory_type,
+            crate::storage_manager::group_sessions::group_session_update_author_note,
             crate::storage_manager::group_sessions::group_session_update_speaker_selection_method,
             crate::storage_manager::group_sessions::group_session_update_muted_character_ids,
             crate::storage_manager::group_sessions::group_participation_stats,

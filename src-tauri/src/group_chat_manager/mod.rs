@@ -5303,6 +5303,57 @@ fn group_model_supports_vision(model: &Model) -> bool {
 }
 
 /// Build group chat system prompt for a specific character
+fn render_group_author_note_text(
+    character: &Character,
+    persona: Option<&Persona>,
+    session: &GroupSession,
+) -> Option<String> {
+    let raw_note = session.author_note.as_deref()?.trim();
+    if raw_note.is_empty() {
+        return None;
+    }
+
+    let char_name = character.name.as_str();
+    let persona_name = persona.map(|p| p.title.as_str()).unwrap_or("user");
+    let char_desc = character
+        .definition
+        .as_ref()
+        .or(character.description.as_ref())
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .unwrap_or("")
+        .replace("{{char}}", char_name)
+        .replace("{{char.name}}", char_name)
+        .replace("{{persona}}", persona_name)
+        .replace("{{persona.name}}", persona_name)
+        .replace("{{user}}", persona_name)
+        .replace("{{user.name}}", persona_name);
+    let persona_desc = persona
+        .map(|p| p.description.trim())
+        .filter(|value| !value.is_empty())
+        .unwrap_or("");
+
+    let mut rendered = raw_note.to_string();
+    rendered = rendered.replace("{{char.name}}", char_name);
+    rendered = rendered.replace("{{char.desc}}", &char_desc);
+    rendered = rendered.replace("{{persona.name}}", persona_name);
+    rendered = rendered.replace("{{persona.desc}}", persona_desc);
+    rendered = rendered.replace("{{user.name}}", persona_name);
+    rendered = rendered.replace("{{user.desc}}", persona_desc);
+    rendered = rendered.replace("{{ai_name}}", char_name);
+    rendered = rendered.replace("{{ai_description}}", &char_desc);
+    rendered = rendered.replace("{{char}}", char_name);
+    rendered = rendered.replace("{{persona}}", persona_name);
+    rendered = rendered.replace("{{user}}", persona_name);
+
+    let rendered = rendered.trim();
+    if rendered.is_empty() {
+        None
+    } else {
+        Some(rendered.to_string())
+    }
+}
+
 fn build_group_system_prompt(
     app: &AppHandle,
     character: &Character,
@@ -5579,6 +5630,10 @@ fn build_group_system_prompt(
     let has_lorebook_placeholder = entries
         .iter()
         .any(|entry| entry.content.contains("{{lorebook}}"));
+    let author_note_text = render_group_author_note_text(character, persona, session);
+    let has_author_note_placeholder = entries
+        .iter()
+        .any(|entry| entry.content.contains("{{author_note}}"));
     let recent_text = recent_messages
         .iter()
         .rev()
@@ -5607,7 +5662,7 @@ fn build_group_system_prompt(
         has_memory_summary: !context_summary_text.trim().is_empty(),
         has_key_memories: !key_memories_text.trim().is_empty(),
         has_lorebook_content: !lorebook_text.trim().is_empty(),
-        does_author_note_exists: false,
+        does_author_note_exists: author_note_text.is_some(),
         has_active_scheduled_note: false,
         has_subject_description: false,
         has_current_description: false,
@@ -5659,6 +5714,8 @@ fn build_group_system_prompt(
             result = result.replace("{{lorebook}}", lorebook_text);
         }
 
+        result = result.replace("{{author_note}}", author_note_text.as_deref().unwrap_or(""));
+
         // Legacy placeholder support
         result = result.replace("{{char}}", char_name);
         result = result.replace("{{persona}}", persona_name);
@@ -5690,6 +5747,29 @@ fn build_group_system_prompt(
             conditions: None,
             prompt_entry_payload: None,
         });
+    }
+
+    if !has_author_note_placeholder {
+        if let Some(author_note) = author_note_text.as_deref() {
+            rendered_entries.push(SystemPromptEntry {
+                id: "entry_author_note".to_string(),
+                name: "Author Note".to_string(),
+                role: PromptEntryRole::System,
+                content: format!(
+                    "# Author Note\nThe following is private session-level guidance from {}. Treat it as hidden continuity and writing context for this group chat. Use its facts naturally when relevant, including answering with those facts when the conversation calls for them, but do not say they came from an author note or hidden instruction.\n\n{}",
+                    persona.map(|p| p.title.as_str()).unwrap_or("user"),
+                    author_note
+                ),
+                enabled: true,
+                injection_position: PromptEntryPosition::InChat,
+                injection_depth: 1,
+                conditional_min_messages: None,
+                interval_turns: None,
+                system_prompt: true,
+                conditions: None,
+                prompt_entry_payload: None,
+            });
+        }
     }
 
     if condense_prompt_entries {

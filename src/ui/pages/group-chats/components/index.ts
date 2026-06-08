@@ -8,4 +8,6 @@ export {
 export { GroupChatHeader } from "./GroupChatHeader";
 export { GroupChatAppearanceDrawer } from "./appearance/GroupChatAppearanceDrawer";
 export { GroupChatSettingsDrawer } from "./GroupChatSettingsDrawer";
+export { GroupAuthorNoteBottomMenu } from "./GroupAuthorNoteBottomMenu";
+export { GroupInlineAuthorNoteBar } from "./GroupInlineAuthorNoteBar";
 export { GroupChatMessageActionsBottomSheet } from "./GroupChatMessageActionsBottomSheet";

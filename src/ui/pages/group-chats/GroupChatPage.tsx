@@ -23,6 +23,7 @@ import type {
 } from "../../../core/storage/schemas";
 import { radius, interactive, cn } from "../../design-tokens";
 import { useGroupChatLayoutContext } from "./GroupChatLayout";
+import { useAuthorNoteInlineEditor } from "../chats/components/useAuthorNoteInlineEditor";
 import { splitThinkTags } from "../../../core/utils/thinkTags";
 
 import { Routes } from "../../navigation";
@@ -45,6 +46,7 @@ import {
   GroupChatHeader,
   GroupChatAppearanceDrawer,
   GroupChatSettingsDrawer,
+  GroupInlineAuthorNoteBar,
   GroupChatMessage,
   GroupChatMessageActionsBottomSheet,
   type VariantState,
@@ -145,6 +147,7 @@ export function GroupChatPage() {
   const [heldMessageId, setHeldMessageId] = useState<string | null>(null);
   const [appearanceDrawerOpen, setAppearanceDrawerOpen] = useState(false);
   const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
+  const inlineAuthorNoteEnabled = useAuthorNoteInlineEditor();
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
@@ -1473,7 +1476,7 @@ export function GroupChatPage() {
     [footerAsrLearning, setError],
   );
 
-  const footerInlinePanel =
+  const asrInlinePanel =
     footerAsrSuggestions.length === 0 ? undefined : (
       <div className="space-y-1.5 px-4 py-2">
         {footerAsrSuggestions.map((suggestion, idx) => (
@@ -1517,6 +1520,23 @@ export function GroupChatPage() {
         ))}
       </div>
     );
+
+  const authorNoteInlineBar =
+    inlineAuthorNoteEnabled && session ? (
+      <GroupInlineAuthorNoteBar session={session} onSaved={(s) => updateSession(s)} />
+    ) : null;
+
+  const footerInlinePanel =
+    authorNoteInlineBar || asrInlinePanel ? (
+      <>
+        {authorNoteInlineBar}
+        {asrInlinePanel && (
+          <div className={authorNoteInlineBar ? "border-t border-fg/10" : undefined}>
+            {asrInlinePanel}
+          </div>
+        )}
+      </>
+    ) : undefined;
 
   const handleOpenPlusMenu = useCallback(() => {
     setShowPlusMenu(true);

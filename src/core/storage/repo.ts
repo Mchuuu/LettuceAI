@@ -1135,6 +1135,15 @@ export async function updateGroupDisableCharacterLorebooks(
   return GroupSchema.parse(data);
 }
 
+export async function updateGroupSessionAuthorNote(
+  sessionId: string,
+  authorNote: string | null,
+): Promise<GroupSession> {
+  const nextAuthorNote = authorNote?.trim() || null;
+  const data = await storageBridge.groupSessionUpdateAuthorNote(sessionId, nextAuthorNote);
+  return GroupSessionSchema.parse(data);
+}
+
 export async function updateGroupChatAppearance(
   groupId: string,
   chatAppearance: Record<string, unknown> | null,

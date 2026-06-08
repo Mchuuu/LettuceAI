@@ -7,7 +7,7 @@ use crate::storage_manager::settings::{read_settings_typed, write_settings_typed
 use crate::utils::log_info;
 
 /// Current migration version
-pub const CURRENT_MIGRATION_VERSION: u32 = 73;
+pub const CURRENT_MIGRATION_VERSION: u32 = 74;
 
 pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
     log_info(app, "migrations", "Starting migration check");
@@ -767,6 +767,16 @@ pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
         );
         migrate_v72_to_v73(app)?;
         version = 73;
+    }
+
+    if version < 74 {
+        log_info(
+            app,
+            "migrations",
+            "Running migration v73 -> v74: Add author_note to group sessions",
+        );
+        migrate_v73_to_v74(app)?;
+        version = 74;
     }
 
     // Update the stored version
@@ -4017,6 +4027,12 @@ fn migrate_v72_to_v73(app: &AppHandle) -> Result<(), String> {
         "ALTER TABLE group_messages ADD COLUMN memory_refs TEXT NOT NULL DEFAULT '[]'",
         [],
     );
+    Ok(())
+}
+
+fn migrate_v73_to_v74(app: &AppHandle) -> Result<(), String> {
+    let conn = crate::storage_manager::db::open_db(app)?;
+    let _ = conn.execute("ALTER TABLE group_sessions ADD COLUMN author_note TEXT", []);
     Ok(())
 }
 

@@ -885,6 +885,7 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           chat_type TEXT NOT NULL DEFAULT 'conversation',
           starting_scene TEXT,
           background_image_path TEXT,
+          author_note TEXT,
           lorebook_ids TEXT NOT NULL DEFAULT '[]',
           disable_character_lorebooks INTEGER NOT NULL DEFAULT 0,
           memories TEXT NOT NULL DEFAULT '[]',
