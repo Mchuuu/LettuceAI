@@ -2519,6 +2519,7 @@ export const GroupMessageSchema = z.object({
   isPinned: z.boolean().optional(),
   attachments: z.array(ImageAttachmentSchema).default([]),
   usedLorebookEntries: z.array(z.string()).optional(),
+  memoryRefs: z.array(z.string()).optional(),
   reasoning: z.string().nullish(),
   selectionReasoning: z.string().nullish(),
   modelId: z.string().uuid().nullish(),

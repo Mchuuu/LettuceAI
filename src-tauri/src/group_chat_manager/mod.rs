@@ -1316,6 +1316,7 @@ fn fetch_group_conversation_messages_range(
                 is_pinned: r.get::<_, i64>(7)? != 0,
                 attachments: Vec::new(),
                 used_lorebook_entries: Vec::new(),
+                memory_refs: Vec::new(),
                 reasoning: None,
                 selection_reasoning: None,
                 model_id: None,
@@ -2175,7 +2176,13 @@ async fn select_relevant_memories(
         }
         return cosine_indices
             .into_iter()
-            .filter_map(|(idx, _score)| session.memory_embeddings.get(idx).cloned())
+            .filter_map(|(idx, score)| {
+                session.memory_embeddings.get(idx).map(|mem| {
+                    let mut cloned = mem.clone();
+                    cloned.match_score = Some(score);
+                    cloned
+                })
+            })
             .collect();
     }
 
@@ -2191,9 +2198,11 @@ async fn select_relevant_memories(
     let mut selected: HashSet<usize> = HashSet::new();
     let mut results: Vec<MemoryEmbedding> = Vec::new();
 
-    for (idx, _score) in &cosine_indices {
+    for (idx, score) in &cosine_indices {
         if let Some(mem) = session.memory_embeddings.get(*idx) {
-            results.push(mem.clone());
+            let mut cloned = mem.clone();
+            cloned.match_score = Some(*score);
+            results.push(cloned);
             selected.insert(*idx);
         }
     }
@@ -2240,13 +2249,15 @@ async fn select_relevant_memories(
             limit,
             min_similarity,
         );
-        for (idx, _score) in extra_indices {
+        for (idx, score) in extra_indices {
             if results.len() >= limit {
                 break;
             }
             if !selected.contains(&idx) {
                 if let Some(mem) = session.memory_embeddings.get(idx) {
-                    results.push(mem.clone());
+                    let mut cloned = mem.clone();
+                    cloned.match_score = Some(score);
+                    results.push(cloned);
                     selected.insert(idx);
                 }
             }
@@ -4873,6 +4884,7 @@ fn save_user_message(
         is_pinned: false,
         attachments: vec![],
         used_lorebook_entries: Vec::new(),
+        memory_refs: Vec::new(),
         reasoning: None,
         selection_reasoning: None,
         model_id: None,
@@ -4891,6 +4903,7 @@ fn save_assistant_message(
     usage: Option<&UsageSummary>,
     model_id: Option<&str>,
     used_lorebook_entries: &[String],
+    memory_refs: &[String],
 ) -> Result<GroupMessage, String> {
     let now = now_ms();
     let id = Uuid::new_v4().to_string();
@@ -4921,8 +4934,8 @@ fn save_assistant_message(
 
     conn.execute(
         "INSERT INTO group_messages (id, session_id, role, content, speaker_character_id, turn_number,
-         created_at, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, attachments, used_lorebook_entries, reasoning, selection_reasoning, model_id)
-         VALUES (?1, ?2, 'assistant', ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, '[]', ?11, ?12, ?13, ?14)",
+         created_at, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, attachments, used_lorebook_entries, reasoning, selection_reasoning, model_id, memory_refs)
+         VALUES (?1, ?2, 'assistant', ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, '[]', ?11, ?12, ?13, ?14, ?15)",
         rusqlite::params![
             id,
             session_id,
@@ -4937,7 +4950,8 @@ fn save_assistant_message(
             serde_json::to_string(used_lorebook_entries).unwrap_or_else(|_| "[]".to_string()),
             reasoning,
             selection_reasoning,
-            model_id
+            model_id,
+            serde_json::to_string(memory_refs).unwrap_or_else(|_| "[]".to_string())
         ],
     )
     .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -5002,6 +5016,7 @@ fn save_assistant_message(
         is_pinned: false,
         attachments: vec![],
         used_lorebook_entries: used_lorebook_entries.to_vec(),
+        memory_refs: memory_refs.to_vec(),
         reasoning: reasoning.map(|s| s.to_string()),
         selection_reasoning: selection_reasoning.map(|s| s.to_string()),
         model_id: model_id.map(|s| s.to_string()),
@@ -5970,6 +5985,7 @@ async fn generate_character_response(
         Option<UsageSummary>,
         String,
         Vec<String>,
+        Vec<String>,
     ),
     String,
 > {
@@ -6431,12 +6447,21 @@ async fn generate_character_response(
         ),
     );
 
+    let memory_refs: Vec<String> = retrieved_memories
+        .iter()
+        .map(|m| match m.match_score {
+            Some(score) => format!("{}::{}", score, m.text),
+            None => m.text.clone(),
+        })
+        .collect();
+
     Ok((
         text,
         reasoning,
         message_usage,
         model_id_to_return,
         used_lorebook_entries,
+        memory_refs,
     ))
 }
 
@@ -6618,16 +6643,22 @@ pub async fn group_chat_send(
     )
     .await;
 
-    let (response_content, reasoning, message_usage, model_id_str, used_lorebook_entries) =
-        match response_result {
-            Ok(result) => result,
-            Err(err) => {
-                if !is_request_abort_error(&err) {
-                    emit_group_chat_error_status(&app, &session_id, &err);
-                }
-                return Err(err);
+    let (
+        response_content,
+        reasoning,
+        message_usage,
+        model_id_str,
+        used_lorebook_entries,
+        memory_refs,
+    ) = match response_result {
+        Ok(result) => result,
+        Err(err) => {
+            if !is_request_abort_error(&err) {
+                emit_group_chat_error_status(&app, &session_id, &err);
             }
-        };
+            return Err(err);
+        }
+    };
 
     let conn = pool.get_connection()?;
 
@@ -6652,6 +6683,7 @@ pub async fn group_chat_send(
         message_usage.as_ref(),
         Some(&model_id_str),
         &used_lorebook_entries,
+        &memory_refs,
     )?;
 
     let participation_stats =
@@ -6904,16 +6936,22 @@ pub async fn group_chat_regenerate(
     )
     .await;
 
-    let (response_content, reasoning, message_usage, model_id_str, used_lorebook_entries) =
-        match response_result {
-            Ok(result) => result,
-            Err(err) => {
-                if !is_request_abort_error(&err) {
-                    emit_group_chat_error_status(&app, &session_id, &err);
-                }
-                return Err(err);
+    let (
+        response_content,
+        reasoning,
+        message_usage,
+        model_id_str,
+        used_lorebook_entries,
+        _memory_refs,
+    ) = match response_result {
+        Ok(result) => result,
+        Err(err) => {
+            if !is_request_abort_error(&err) {
+                emit_group_chat_error_status(&app, &session_id, &err);
             }
-        };
+            return Err(err);
+        }
+    };
 
     let conn = pool.get_connection()?;
     let now = now_ms();
@@ -7141,16 +7179,22 @@ pub async fn group_chat_continue(
     )
     .await;
 
-    let (response_content, reasoning, message_usage, model_id_str, used_lorebook_entries) =
-        match response_result {
-            Ok(result) => result,
-            Err(err) => {
-                if !is_request_abort_error(&err) {
-                    emit_group_chat_error_status(&app, &session_id, &err);
-                }
-                return Err(err);
+    let (
+        response_content,
+        reasoning,
+        message_usage,
+        model_id_str,
+        used_lorebook_entries,
+        memory_refs,
+    ) = match response_result {
+        Ok(result) => result,
+        Err(err) => {
+            if !is_request_abort_error(&err) {
+                emit_group_chat_error_status(&app, &session_id, &err);
             }
-        };
+            return Err(err);
+        }
+    };
 
     let conn = pool.get_connection()?;
     let message = save_assistant_message(
@@ -7164,6 +7208,7 @@ pub async fn group_chat_continue(
         message_usage.as_ref(),
         Some(&model_id_str),
         &used_lorebook_entries,
+        &memory_refs,
     )?;
 
     let participation_stats =

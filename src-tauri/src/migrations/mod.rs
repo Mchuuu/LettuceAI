@@ -7,7 +7,7 @@ use crate::storage_manager::settings::{read_settings_typed, write_settings_typed
 use crate::utils::log_info;
 
 /// Current migration version
-pub const CURRENT_MIGRATION_VERSION: u32 = 72;
+pub const CURRENT_MIGRATION_VERSION: u32 = 73;
 
 pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
     log_info(app, "migrations", "Starting migration check");
@@ -757,6 +757,16 @@ pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
         );
         migrate_v71_to_v72(app)?;
         version = 72;
+    }
+
+    if version < 73 {
+        log_info(
+            app,
+            "migrations",
+            "Running migration v72 -> v73: Add memory_refs to group messages",
+        );
+        migrate_v72_to_v73(app)?;
+        version = 73;
     }
 
     // Update the stored version
@@ -3998,6 +4008,15 @@ fn migrate_v69_to_v70(app: &AppHandle) -> Result<(), String> {
 fn migrate_v70_to_v71(app: &AppHandle) -> Result<(), String> {
     let conn = crate::storage_manager::db::open_db(app)?;
     let _ = conn.execute("ALTER TABLE messages ADD COLUMN model_id TEXT", []);
+    Ok(())
+}
+
+fn migrate_v72_to_v73(app: &AppHandle) -> Result<(), String> {
+    let conn = crate::storage_manager::db::open_db(app)?;
+    let _ = conn.execute(
+        "ALTER TABLE group_messages ADD COLUMN memory_refs TEXT NOT NULL DEFAULT '[]'",
+        [],
+    );
     Ok(())
 }
 

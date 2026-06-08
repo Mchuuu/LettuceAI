@@ -221,6 +221,8 @@ pub struct GroupMessage {
     pub attachments: Vec<serde_json::Value>,
     #[serde(default)]
     pub used_lorebook_entries: Vec<String>,
+    #[serde(default)]
+    pub memory_refs: Vec<String>,
     pub reasoning: Option<String>,
     pub selection_reasoning: Option<String>,
     pub model_id: Option<String>,
@@ -553,7 +555,7 @@ fn read_group_messages(
         (Some(ts), Some(bid)) => (
             "SELECT id, session_id, role, content, speaker_character_id, turn_number, created_at,
                     prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned,
-                    attachments, used_lorebook_entries, reasoning, selection_reasoning, model_id, first_token_ms, tokens_per_second
+                    attachments, used_lorebook_entries, reasoning, selection_reasoning, model_id, first_token_ms, tokens_per_second, memory_refs
              FROM group_messages
              WHERE session_id = ?1 AND (created_at < ?2 OR (created_at = ?2 AND id < ?3))
              ORDER BY created_at DESC, id DESC
@@ -569,7 +571,7 @@ fn read_group_messages(
         _ => (
             "SELECT id, session_id, role, content, speaker_character_id, turn_number, created_at,
                     prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned,
-                    attachments, used_lorebook_entries, reasoning, selection_reasoning, model_id, first_token_ms, tokens_per_second
+                    attachments, used_lorebook_entries, reasoning, selection_reasoning, model_id, first_token_ms, tokens_per_second, memory_refs
              FROM group_messages
              WHERE session_id = ?1
              ORDER BY created_at DESC, id DESC
@@ -606,6 +608,10 @@ fn read_group_messages(
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
         let used_lorebook_entries: Vec<String> =
             serde_json::from_str(&used_lorebook_entries_json).unwrap_or_default();
+        let memory_refs_json: Option<String> = row.get(19).ok();
+        let memory_refs: Vec<String> = memory_refs_json
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default();
 
         let prompt_tokens: Option<i32> = row.get(7).ok();
         let completion_tokens: Option<i32> = row.get(8).ok();
@@ -664,6 +670,7 @@ fn read_group_messages(
                 != 0,
             attachments,
             used_lorebook_entries,
+            memory_refs,
             reasoning: row
                 .get(14)
                 .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?,

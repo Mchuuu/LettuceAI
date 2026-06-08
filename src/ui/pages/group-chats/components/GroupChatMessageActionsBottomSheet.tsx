@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Copy, Trash2, RotateCcw, Edit3, Users, Pin, PinOff, BookOpen } from "lucide-react";
+import { Copy, Trash2, RotateCcw, Edit3, Users, Pin, PinOff, BookOpen, Brain } from "lucide-react";
 
 import type { Character, Settings, Model } from "../../../../core/storage/schemas";
 import { useAvatar } from "../../../hooks/useAvatar";
@@ -93,6 +93,7 @@ export function GroupChatMessageActionsBottomSheet({
   const [settings, setSettings] = useState<Settings | null>(null);
   const [modelName, setModelName] = useState<string | null>(null);
   const usedLorebookEntries = messageAction?.message.usedLorebookEntries ?? [];
+  const memoryRefs = messageAction?.message.memoryRefs ?? [];
 
   const isAssistant = messageAction?.message.role === "assistant";
   const isScene = messageAction?.message.role === "scene";
@@ -198,6 +199,39 @@ export function GroupChatMessageActionsBottomSheet({
 
             {messageAction.mode === "view" ? (
               <div className="space-y-1">
+                {!isScene && memoryRefs.length > 0 && (
+                  <div className="mb-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3">
+                    <div className="mb-2 flex items-center gap-2">
+                      <Brain size={14} className="text-emerald-400" />
+                      <span className="text-xs font-medium text-emerald-300">
+                        {t("chats.actions.memoriesUsed", { count: memoryRefs.length })}
+                      </span>
+                    </div>
+                    <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                      {memoryRefs.map((ref, idx) => {
+                        const match = ref.match(/^(\d+(\.\d+)?)::(.*)$/);
+                        const score = match ? parseFloat(match[1]) : null;
+                        const text = match ? match[3] : ref;
+                        return (
+                          <div
+                            key={idx}
+                            className="rounded border border-emerald-500/10 bg-black/20 p-2 text-xs"
+                          >
+                            {score !== null && (
+                              <div className="mb-1 text-[10px] font-bold text-emerald-400">
+                                {t("chats.actions.matchScore", { score: (score * 100).toFixed(0) })}
+                              </div>
+                            )}
+                            <div className="whitespace-pre-wrap leading-relaxed text-emerald-100/90">
+                              {text}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {usedLorebookEntries.length > 0 && (
                   <div className="mb-3 rounded-lg border border-sky-500/20 bg-sky-500/10 p-3">
                     <div className="mb-2 flex items-center gap-2">

@@ -929,6 +929,7 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           is_pinned INTEGER NOT NULL DEFAULT 0,
           attachments TEXT NOT NULL DEFAULT '[]',
           used_lorebook_entries TEXT NOT NULL DEFAULT '[]',
+          memory_refs TEXT NOT NULL DEFAULT '[]',
           reasoning TEXT,
           selection_reasoning TEXT,
           model_id TEXT,
