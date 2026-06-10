@@ -2295,29 +2295,35 @@ fn build_image_request(
         .ok_or_else(|| "Image model provider missing".to_string())?;
     let provider_label = model.get("providerLabel").and_then(|v| v.as_str());
 
-    let credentials = settings
-        .get("providerCredentials")
-        .and_then(|v| v.as_array())
-        .ok_or_else(|| "No provider credentials configured".to_string())?;
-    let credential = credentials
-        .iter()
-        .find(|cred| {
-            let matches_label = provider_label
-                .map(|label| cred.get("label").and_then(|v| v.as_str()) == Some(label))
-                .unwrap_or(true);
-            cred.get("providerId").and_then(|v| v.as_str()) == Some(provider_id) && matches_label
-        })
-        .or_else(|| {
-            credentials
-                .iter()
-                .find(|cred| cred.get("providerId").and_then(|v| v.as_str()) == Some(provider_id))
-        })
-        .ok_or_else(|| "No credentials found for image model provider".to_string())?;
+    let credential_id = if provider_id.eq_ignore_ascii_case(crate::local_diffusion::PROVIDER_ID) {
+        "builtin-localdiffusion".to_string()
+    } else {
+        let credentials = settings
+            .get("providerCredentials")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| "No provider credentials configured".to_string())?;
+        let credential = credentials
+            .iter()
+            .find(|cred| {
+                let matches_label = provider_label
+                    .map(|label| cred.get("label").and_then(|v| v.as_str()) == Some(label))
+                    .unwrap_or(true);
+                cred.get("providerId").and_then(|v| v.as_str()) == Some(provider_id)
+                    && matches_label
+            })
+            .or_else(|| {
+                credentials.iter().find(|cred| {
+                    cred.get("providerId").and_then(|v| v.as_str()) == Some(provider_id)
+                })
+            })
+            .ok_or_else(|| "No credentials found for image model provider".to_string())?;
 
-    let credential_id = credential
-        .get("id")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| "Credential ID missing".to_string())?;
+        credential
+            .get("id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| "Credential ID missing".to_string())?
+            .to_string()
+    };
 
     let provider_label_value = provider_label.unwrap_or(provider_id);
     Ok((
