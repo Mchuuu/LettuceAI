@@ -10,7 +10,7 @@ export const LOCAL_DIFFUSION_CREDENTIAL: ProviderCredential = {
   label: LOCAL_DIFFUSION_PROVIDER_LABEL,
 };
 
-export type SdFamily = "sd15" | "sdxl" | "sd3" | "flux";
+export type SdFamily = string;
 
 export type SdModelRole =
   | "checkpoint"
@@ -18,6 +18,8 @@ export type SdModelRole =
   | "clipL"
   | "clipG"
   | "t5xxl"
+  | "llm"
+  | "llmVision"
   | "vae";
 
 export interface SdModelFiles {
@@ -26,6 +28,8 @@ export interface SdModelFiles {
   clipL?: string | null;
   clipG?: string | null;
   t5xxl?: string | null;
+  llm?: string | null;
+  llmVision?: string | null;
   vae?: string | null;
 }
 
@@ -39,7 +43,6 @@ export interface SdModelEntry {
   totalBytes: number;
   createdAt: number;
   complete: boolean;
-  missingRoles: string[];
 }
 
 export interface SdBinaryInfo {
@@ -77,10 +80,10 @@ export async function sdListModels(): Promise<SdModelEntry[]> {
 
 export async function sdImportModel(
   name: string,
-  family: SdFamily,
   files: SdModelFiles,
+  family?: string | null,
 ): Promise<SdModelEntry> {
-  return invoke<SdModelEntry>("sd_import_model", { name, family, files });
+  return invoke<SdModelEntry>("sd_import_model", { name, family: family ?? null, files });
 }
 
 export async function sdUpdateModelFiles(
@@ -118,25 +121,16 @@ export async function sdRegisterHfModel(
   repo: string,
   filePath: string,
   role: SdModelRole,
-  family: SdFamily,
+  family?: string | null,
   displayName?: string | null,
 ): Promise<SdModelEntry> {
   return invoke<SdModelEntry>("sd_register_hf_model", {
     repo,
     filePath,
     role,
-    family,
+    family: family ?? null,
     displayName: displayName ?? null,
   });
-}
-
-export function sdFamilyFromModelId(modelId: string): SdFamily | null {
-  for (const family of ["sd15", "sdxl", "sd3", "flux"] as const) {
-    if (modelId.startsWith(`${family}-`)) {
-      return family;
-    }
-  }
-  return null;
 }
 
 export async function sdEnsureModelRow(entry: SdModelEntry): Promise<void> {

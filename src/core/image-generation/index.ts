@@ -14,11 +14,7 @@ import {
   APP_AVATAR_EDIT_TEMPLATE_ID,
   APP_AVATAR_GENERATION_TEMPLATE_ID,
 } from "../prompts/constants";
-import {
-  LOCAL_DIFFUSION_CREDENTIAL,
-  LOCAL_DIFFUSION_PROVIDER_ID,
-  sdFamilyFromModelId,
-} from "../local-diffusion";
+import { LOCAL_DIFFUSION_CREDENTIAL, LOCAL_DIFFUSION_PROVIDER_ID } from "../local-diffusion";
 
 /**
  * Image generation request parameters
@@ -388,11 +384,10 @@ export function getModelSizes(providerId: string, modelId: string): readonly str
   }
 
   if (providerId === LOCAL_DIFFUSION_PROVIDER_ID) {
-    const family = sdFamilyFromModelId(modelId);
-    if (family === "sd15") {
+    if (modelId.startsWith("sd15-")) {
       return ["512x512", "512x768", "768x512", "768x768"];
     }
-    return ["1024x1024", "896x1152", "1152x896", "768x1344", "1344x768"];
+    return ["1024x1024", "896x1152", "1152x896", "768x1344", "1344x768", "512x512", "768x768"];
   }
 
   return ["1024x1024"];

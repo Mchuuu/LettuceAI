@@ -16,7 +16,6 @@ import {
   sdRemoveModelRow,
   sdUpdateModelFiles,
   type SdEngineVariant,
-  type SdFamily,
   type SdModelEntry,
   type SdModelFiles,
   type SdStatus,
@@ -27,21 +26,14 @@ import { Routes } from "../../navigation";
 import { toast } from "../../components/toast";
 import { cn } from "../../design-tokens";
 
-const FAMILIES: SdFamily[] = ["sd15", "sdxl", "sd3", "flux"];
-
-const FAMILY_LABEL_KEYS = {
-  sd15: "imageGeneration.local.families.sd15",
-  sdxl: "imageGeneration.local.families.sdxl",
-  sd3: "imageGeneration.local.families.sd3",
-  flux: "imageGeneration.local.families.flux",
-} as const;
-
 const ROLE_LABEL_KEYS = {
   checkpoint: "imageGeneration.local.roles.checkpoint",
   diffusionModel: "imageGeneration.local.roles.diffusionModel",
   clipL: "imageGeneration.local.roles.clipL",
   clipG: "imageGeneration.local.roles.clipG",
   t5xxl: "imageGeneration.local.roles.t5xxl",
+  llm: "imageGeneration.local.roles.llm",
+  llmVision: "imageGeneration.local.roles.llmVision",
   vae: "imageGeneration.local.roles.vae",
 } as const;
 
@@ -53,6 +45,8 @@ const ROLE_KEYS: Array<{ role: RoleName; key: keyof SdModelFiles }> = [
   { role: "clipL", key: "clipL" },
   { role: "clipG", key: "clipG" },
   { role: "t5xxl", key: "t5xxl" },
+  { role: "llm", key: "llm" },
+  { role: "llmVision", key: "llmVision" },
   { role: "vae", key: "vae" },
 ];
 
@@ -87,7 +81,6 @@ export function LocalImageGenSection() {
   const [installing, setInstalling] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [importName, setImportName] = useState("");
-  const [importFamily, setImportFamily] = useState<SdFamily>("sd15");
   const [importFiles, setImportFiles] = useState<SdModelFiles>({});
   const finalizedRef = useRef(false);
 
@@ -214,19 +207,9 @@ export function LocalImageGenSection() {
     }
   };
 
-  const importRoles = useMemo(() => {
-    if (importFamily === "sd15" || importFamily === "sdxl") {
-      return ROLE_KEYS.filter((item) => item.role === "checkpoint" || item.role === "vae");
-    }
-    if (importFamily === "sd3") {
-      return ROLE_KEYS.filter((item) => item.role !== "checkpoint");
-    }
-    return ROLE_KEYS.filter((item) => item.role !== "checkpoint" && item.role !== "clipG");
-  }, [importFamily]);
-
   const submitImport = async () => {
     try {
-      const entry = await sdImportModel(importName, importFamily, importFiles);
+      const entry = await sdImportModel(importName, importFiles);
       await sdEnsureModelRow(entry);
       setShowImport(false);
       setImportName("");
@@ -365,31 +348,18 @@ export function LocalImageGenSection() {
         <div className="space-y-3 px-4 py-4">
           {showImport ? (
             <div className="space-y-3 rounded-[10px] border border-fg/12 bg-surface/40 p-3.5">
-              <div className="flex flex-wrap items-center gap-3">
-                <input
-                  type="text"
-                  value={importName}
-                  onChange={(event) => setImportName(event.target.value)}
-                  placeholder={t("imageGeneration.local.importNamePlaceholder")}
-                  className="min-w-0 flex-1 rounded-[9px] border border-fg/12 bg-surface/60 px-3 py-2 text-sm text-fg placeholder:text-fg/35 focus:border-fg/25 focus:outline-none"
-                />
-                <select
-                  value={importFamily}
-                  onChange={(event) => {
-                    setImportFamily(event.target.value as SdFamily);
-                    setImportFiles({});
-                  }}
-                  className="rounded-[9px] border border-fg/12 bg-surface/60 px-3 py-2 text-sm text-fg focus:border-fg/25 focus:outline-none"
-                >
-                  {FAMILIES.map((family) => (
-                    <option key={family} value={family}>
-                      {t(FAMILY_LABEL_KEYS[family])}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <input
+                type="text"
+                value={importName}
+                onChange={(event) => setImportName(event.target.value)}
+                placeholder={t("imageGeneration.local.importNamePlaceholder")}
+                className="w-full rounded-[9px] border border-fg/12 bg-surface/60 px-3 py-2 text-sm text-fg placeholder:text-fg/35 focus:border-fg/25 focus:outline-none"
+              />
+              <p className="text-xs leading-5 text-fg/45">
+                {t("imageGeneration.local.importHint")}
+              </p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {importRoles.map(({ role, key }) => (
+                {ROLE_KEYS.map(({ role, key }) => (
                   <button
                     key={role}
                     type="button"
@@ -451,8 +421,8 @@ export function LocalImageGenSection() {
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium text-fg">{entry.name}</div>
-                    <div className="mt-0.5 text-xs text-fg/45">
-                      {t(FAMILY_LABEL_KEYS[entry.family])}
+                    <div className="mt-0.5 text-xs uppercase text-fg/45">
+                      {entry.family}
                       {entry.totalBytes > 0 ? ` · ${formatBytes(entry.totalBytes)}` : ""}
                     </div>
                   </div>
@@ -465,22 +435,31 @@ export function LocalImageGenSection() {
                   </button>
                 </div>
                 {!entry.complete ? (
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-warning/80">
-                      {t("imageGeneration.local.missingFiles")}
-                    </span>
-                    {entry.missingRoles.map((role) => (
+                  <p className="mt-2 text-xs text-warning/80">
+                    {t("imageGeneration.local.missingFiles")}
+                  </p>
+                ) : null}
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {ROLE_KEYS.map(({ role, key }) => {
+                    const filePath = entry.files[key];
+                    return (
                       <button
                         key={role}
                         type="button"
                         onClick={() => void attachFile(entry, role)}
-                        className="rounded-full border border-warning/30 bg-warning/8 px-2.5 py-0.5 text-xs text-warning/85 transition-colors hover:bg-warning/15"
+                        title={filePath ?? t("imageGeneration.local.attachHint")}
+                        className={cn(
+                          "rounded-full border px-2.5 py-0.5 text-xs transition-colors",
+                          filePath
+                            ? "border-success/30 bg-success/8 text-fg/70 hover:bg-success/15"
+                            : "border-dashed border-fg/15 text-fg/40 hover:bg-fg/5",
+                        )}
                       >
                         {t(roleLabelKey(role))}
                       </button>
-                    ))}
-                  </div>
-                ) : null}
+                    );
+                  })}
+                </div>
               </div>
             ))
           )}

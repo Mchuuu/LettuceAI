@@ -111,7 +111,7 @@ async function registerCompletedSdDownload(item: QueuedDownload): Promise<void> 
     } else {
       toast.success(
         "Model file registered",
-        `${entry.name} still needs: ${entry.missingRoles.join(", ")}. Download or attach the remaining files to finish setup.`,
+        `${entry.name} has no main model file yet. Download the diffusion model from the same repo or attach files in Settings.`,
         { duration: 10000 },
       );
     }
