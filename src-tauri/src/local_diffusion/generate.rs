@@ -177,7 +177,6 @@ fn build_args(
         let strength = settings
             .and_then(|s| s.sd_denoising_strength)
             .unwrap_or(0.65);
-        args.extend(["-M".into(), "img2img".into()]);
         args.extend(["-i".into(), init.to_string_lossy().to_string()]);
         args.extend(["--strength".into(), format!("{strength}")]);
     }

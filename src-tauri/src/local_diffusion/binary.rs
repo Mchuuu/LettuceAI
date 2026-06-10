@@ -388,17 +388,21 @@ pub fn finalize_binary_install(app: &AppHandle) -> Result<SdBinaryInfo, String> 
         fs::remove_file(zip_path).map_err(|e| e.to_string())?;
     }
 
-    let binary_name = if cfg!(target_os = "windows") {
-        "sd.exe"
+    let candidates: &[&str] = if cfg!(target_os = "windows") {
+        &["sd-cli.exe", "sd.exe"]
     } else {
-        "sd"
+        &["sd-cli", "sd"]
     };
-    let binary_path = target_dir.join(binary_name);
-    if !binary_path.is_file() {
-        return Err(format!(
-            "Engine archive did not contain {binary_name}"
-        ));
-    }
+    let binary_path = candidates
+        .iter()
+        .map(|name| target_dir.join(name))
+        .find(|path| path.is_file())
+        .ok_or_else(|| {
+            format!(
+                "Engine archive did not contain a CLI binary ({})",
+                candidates.join(" or ")
+            )
+        })?;
 
     #[cfg(unix)]
     {
