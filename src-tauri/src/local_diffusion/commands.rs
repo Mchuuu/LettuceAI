@@ -1,8 +1,9 @@
 use tauri::AppHandle;
 
 use super::binary;
+use super::binary::{SdEngineVariant, SdQueuedInstall};
 use super::registry;
-use super::types::{SdFamily, SdModelEntry, SdModelEntryDto, SdModelFiles, SdStatus};
+use super::types::{SdBinaryInfo, SdFamily, SdModelEntry, SdModelEntryDto, SdModelFiles, SdStatus};
 
 #[tauri::command]
 pub async fn sd_get_status(app: AppHandle) -> Result<SdStatus, String> {
@@ -61,6 +62,29 @@ pub async fn sd_update_model_files(
     Ok(registry::update_model_files(&app, &model_id, files)
         .await?
         .into())
+}
+
+#[tauri::command]
+pub async fn sd_list_engine_variants() -> Result<Vec<SdEngineVariant>, String> {
+    binary::list_engine_variants().await
+}
+
+#[tauri::command]
+pub async fn sd_queue_binary_install(
+    app: AppHandle,
+    variant: Option<String>,
+) -> Result<SdQueuedInstall, String> {
+    binary::queue_binary_install(&app, variant).await
+}
+
+#[tauri::command]
+pub async fn sd_finalize_binary_install(app: AppHandle) -> Result<SdBinaryInfo, String> {
+    binary::finalize_binary_install(&app)
+}
+
+#[tauri::command]
+pub async fn sd_remove_binary(app: AppHandle) -> Result<(), String> {
+    binary::remove_binary(&app)
 }
 
 #[tauri::command]
