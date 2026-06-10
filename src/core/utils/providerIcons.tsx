@@ -1,5 +1,15 @@
 import type { ReactElement } from "react";
-import { Cpu, EthernetPort, Leaf, Mic, Settings, Sparkles, Volume2, Wrench } from "lucide-react";
+import {
+  Cpu,
+  EthernetPort,
+  Image as ImageIcon,
+  Leaf,
+  Mic,
+  Settings,
+  Sparkles,
+  Volume2,
+  Wrench,
+} from "lucide-react";
 
 import OpenAIIcon from "../../assets/openai_light.svg";
 import CerebrasIcon from "../../assets/cerebras.svg";
@@ -47,6 +57,7 @@ const ICON_MAP: Record<string, ReactElement> = {
   llamacpp: <img src={LlamaCppIcon} alt="llama.cpp" className="h-6 w-6 object-contain" />,
   "lettuce-host": <EthernetPort className="h-6 w-6 text-emerald-300" />,
   automatic1111: <Cpu className="h-6 w-6 text-orange-400" />,
+  localdiffusion: <ImageIcon className="h-6 w-6 text-emerald-300" />,
   stability: <Sparkles className="h-6 w-6 text-sky-400" />,
   "lettuce-engine": <Leaf className="h-6 w-6 text-emerald-400" />,
   custom: <Settings className="h-6 w-6 text-gray-400" />,
