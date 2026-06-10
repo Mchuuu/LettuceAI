@@ -82,6 +82,25 @@ pub async fn update_model_files(
     Ok(updated)
 }
 
+pub async fn set_model_file(
+    app: &AppHandle,
+    model_id: &str,
+    role: &str,
+    path: Option<String>,
+) -> Result<SdModelEntry, String> {
+    let _guard = REGISTRY_LOCK.lock().await;
+    let mut entries = read_entries(app)?;
+    let entry = entries
+        .iter_mut()
+        .find(|existing| existing.id == model_id)
+        .ok_or_else(|| format!("Unknown local diffusion model: {model_id}"))?;
+    entry.files.assign_role(role, path)?;
+    entry.total_bytes = total_bytes(&entry.files);
+    let updated = entry.clone();
+    write_entries(app, &entries)?;
+    Ok(updated)
+}
+
 pub async fn remove_model(app: &AppHandle, model_id: &str) -> Result<Option<SdModelEntry>, String> {
     let _guard = REGISTRY_LOCK.lock().await;
     let mut entries = read_entries(app)?;

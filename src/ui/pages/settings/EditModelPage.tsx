@@ -78,10 +78,12 @@ import {
 import { getProviderIcon } from "../../../core/utils/providerIcons";
 import {
   sdImportModel,
+  sdListLocalFiles,
   sdListModels,
-  sdUpdateModelFiles,
+  sdSetModelFile,
+  type SdLocalFile,
   type SdModelEntry,
-  type SdModelFiles,
+  type SdModelRole,
 } from "../../../core/local-diffusion";
 import { cn } from "../../design-tokens";
 import { openDocs } from "../../../core/utils/docs";
@@ -311,6 +313,9 @@ export function EditModelPage() {
   const [showPlatformSelector, setShowPlatformSelector] = useState(false);
   const [sdEntries, setSdEntries] = useState<SdModelEntry[] | null>(null);
   const [showSdModelPicker, setShowSdModelPicker] = useState(false);
+  const [sdFilesDraft, setSdFilesDraft] = useState<Record<string, string>>({});
+  const [sdLibraryFiles, setSdLibraryFiles] = useState<SdLocalFile[] | null>(null);
+  const [sdLibraryRole, setSdLibraryRole] = useState<SdModelRole | null>(null);
   const [llamaContextInfo, setLlamaContextInfo] = useState<LlamaCppContextInfo | null>(null);
   const [llamaContextError, setLlamaContextError] = useState<string | null>(null);
   const [llamaContextLoading, setLlamaContextLoading] = useState(false);
@@ -1157,33 +1162,63 @@ export function EditModelPage() {
 
   const selectedSdEntry = sdEntries?.find((entry) => entry.id === editorModel?.name) ?? null;
 
-  const attachSdFile = async (role: keyof SdModelFiles) => {
-    const selection = await open({
-      multiple: false,
-      filters: [{ name: "Model files", extensions: ["safetensors", "gguf", "ckpt", "sft"] }],
+  useEffect(() => {
+    const files = selectedSdEntry?.files ?? {};
+    setSdFilesDraft({
+      checkpoint: files.checkpoint ?? "",
+      diffusionModel: files.diffusionModel ?? "",
+      clipL: files.clipL ?? "",
+      clipG: files.clipG ?? "",
+      t5xxl: files.t5xxl ?? "",
+      llm: files.llm ?? "",
+      llmVision: files.llmVision ?? "",
+      vae: files.vae ?? "",
     });
-    if (typeof selection !== "string") return;
+  }, [selectedSdEntry]);
+
+  useEffect(() => {
+    if (sdLibraryRole === null || sdLibraryFiles !== null) return;
+    sdListLocalFiles()
+      .then(setSdLibraryFiles)
+      .catch(() => setSdLibraryFiles([]));
+  }, [sdLibraryRole, sdLibraryFiles]);
+
+  const commitSdFile = async (role: SdModelRole, rawPath: string) => {
+    const path = rawPath.trim() || null;
     try {
       if (selectedSdEntry) {
-        await sdUpdateModelFiles(selectedSdEntry.id, { [role]: selection });
-      } else {
+        const current = (selectedSdEntry.files as Record<string, string | null | undefined>)[role] ?? "";
+        if ((path ?? "") === current) return;
+        await sdSetModelFile(selectedSdEntry.id, role, path);
+        setSdEntries(null);
+      } else if (path) {
         const fallbackName =
           editorModel?.displayName?.trim() ||
-          selection.split(/[\\/]/).pop()?.replace(/\.(safetensors|gguf|ckpt|sft)$/i, "") ||
+          path.split(/[\\/]/).pop()?.replace(/\.(safetensors|gguf|ckpt|sft)$/i, "") ||
           "Local model";
-        const entry = await sdImportModel(fallbackName, { [role]: selection });
+        const entry = await sdImportModel(fallbackName, { [role]: path });
         handleModelNameChange(entry.id);
         if (!editorModel?.displayName?.trim()) {
           handleDisplayNameChange(entry.name);
         }
+        setSdEntries(null);
       }
-      setSdEntries(null);
     } catch (err: any) {
       toast.error(
         t("imageGeneration.local.updateFailed"),
         typeof err === "string" ? err : err?.message || String(err),
       );
     }
+  };
+
+  const browseSdFile = async (role: SdModelRole) => {
+    const selection = await open({
+      multiple: false,
+      filters: [{ name: "Model files", extensions: ["safetensors", "gguf", "ckpt", "sft"] }],
+    });
+    if (typeof selection !== "string") return;
+    setSdFilesDraft((draft) => ({ ...draft, [role]: selection }));
+    await commitSdFile(role, selection);
   };
 
   // Get reasoning support for the current provider
@@ -2697,11 +2732,11 @@ export function EditModelPage() {
 
                         {/* Local llama.cpp Settings */}
                         {activeDetailPanel === "configuration" && isLocalDiffusionModel && (
-                          <div className="space-y-4">
+                          <div className="space-y-6">
                             <p className="text-[13px] leading-relaxed text-fg/55">
                               {t("editModel.localDiffusion.configurationHelp")}
                             </p>
-                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                               {(
                                 [
                                   ["checkpoint", t("imageGeneration.local.roles.checkpoint")],
@@ -2712,45 +2747,102 @@ export function EditModelPage() {
                                   ["llm", t("imageGeneration.local.roles.llm")],
                                   ["llmVision", t("imageGeneration.local.roles.llmVision")],
                                   ["vae", t("imageGeneration.local.roles.vae")],
-                                ] as Array<[keyof SdModelFiles, string]>
-                              ).map(([role, label]) => {
-                                const filePath = selectedSdEntry?.files?.[role] ?? null;
-                                const filename = filePath
-                                  ? filePath.split(/[\\/]/).pop()
-                                  : null;
-                                return (
-                                  <div
-                                    key={role}
-                                    className="flex items-center justify-between gap-3 rounded-lg border border-fg/10 bg-fg/5 px-3.5 py-3"
-                                  >
-                                    <div className="min-w-0">
-                                      <p className="text-[13px] font-medium text-fg/72">{label}</p>
-                                      <p
-                                        className={cn(
-                                          "truncate font-mono text-[12px]",
-                                          filename ? "text-fg/55" : "text-fg/30",
-                                        )}
-                                        title={filePath ?? undefined}
+                                ] as Array<[SdModelRole, string]>
+                              ).map(([role, label]) => (
+                                <FieldBlock
+                                  key={role}
+                                  label={label}
+                                  action={
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => setSdLibraryRole(role)}
+                                        className="inline-flex items-center gap-1.5 rounded-md border border-fg/10 bg-fg/5 px-2.5 py-1.5 text-[12px] font-medium text-fg/68 transition hover:border-fg/20 hover:bg-fg/10 hover:text-fg"
                                       >
-                                        {filename ?? t("editModel.localDiffusion.notSet")}
-                                      </p>
+                                        <FolderOpen className="h-3.5 w-3.5 text-accent/70" />
+                                        {t("hfBrowser.selectFromLibrary")}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => void browseSdFile(role)}
+                                        className="rounded-md border border-fg/10 px-2.5 py-1.5 text-[12px] font-medium text-fg/65 transition hover:border-fg/20 hover:bg-fg/5 hover:text-fg/90"
+                                      >
+                                        {t("common.buttons.browseFiles")}
+                                      </button>
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => void attachSdFile(role)}
-                                      className="shrink-0 rounded-md border border-fg/10 px-2.5 py-1.5 text-[12px] font-medium text-fg/65 transition hover:border-fg/20 hover:bg-fg/5 hover:text-fg/90"
-                                    >
-                                      {t("common.buttons.browseFiles")}
-                                    </button>
-                                  </div>
-                                );
-                              })}
+                                  }
+                                >
+                                  <input
+                                    type="text"
+                                    value={sdFilesDraft[role] ?? ""}
+                                    onChange={(e) =>
+                                      setSdFilesDraft((draft) => ({
+                                        ...draft,
+                                        [role]: e.target.value,
+                                      }))
+                                    }
+                                    onBlur={(e) => void commitSdFile(role, e.target.value)}
+                                    placeholder={t("editModel.localDiffusion.pathPlaceholder")}
+                                    className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-4 py-3 font-mono text-[13px] text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
+                                  />
+                                </FieldBlock>
+                              ))}
                             </div>
                             {selectedSdEntry && !selectedSdEntry.complete ? (
                               <p className="text-[12px] leading-relaxed text-warning/80">
                                 {t("imageGeneration.local.missingFiles")}
                               </p>
                             ) : null}
+
+                            <BottomMenu
+                              isOpen={sdLibraryRole !== null}
+                              onClose={() => setSdLibraryRole(null)}
+                              title={t("hfBrowser.selectFromLibrary")}
+                            >
+                              <MenuSection>
+                                {!sdLibraryFiles ? (
+                                  <div className="flex items-center justify-center gap-2 py-12 text-fg/50">
+                                    <Loader size={18} className="animate-spin" />
+                                    <span className="text-[13px]">{t("hfBrowser.searching")}</span>
+                                  </div>
+                                ) : sdLibraryFiles.length === 0 ? (
+                                  <div className="flex flex-col items-center gap-2 py-16 text-center">
+                                    <HardDrive size={32} className="text-fg/20" />
+                                    <p className="text-[13px] font-medium text-fg/60">
+                                      {t("hfBrowser.libraryEmpty")}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  sdLibraryFiles.map((file) => (
+                                    <MenuButton
+                                      key={file.path}
+                                      icon={<HardDrive className="h-5 w-5 text-accent/60" />}
+                                      title={file.filename}
+                                      description={formatBytes(file.size)}
+                                      color="from-accent/20 to-accent/10"
+                                      rightElement={
+                                        sdLibraryRole !== null &&
+                                        sdFilesDraft[sdLibraryRole] === file.path ? (
+                                          <Check className="h-4 w-4 text-accent" />
+                                        ) : (
+                                          <ArrowRight className="h-4 w-4 text-fg/20" />
+                                        )
+                                      }
+                                      onClick={() => {
+                                        const role = sdLibraryRole;
+                                        setSdLibraryRole(null);
+                                        if (!role) return;
+                                        setSdFilesDraft((draft) => ({
+                                          ...draft,
+                                          [role]: file.path,
+                                        }));
+                                        void commitSdFile(role, file.path);
+                                      }}
+                                    />
+                                  ))
+                                )}
+                              </MenuSection>
+                            </BottomMenu>
                           </div>
                         )}
 

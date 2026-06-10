@@ -357,6 +357,8 @@ macro_rules! invoke_handler {
             crate::local_diffusion::commands::sd_list_models,
             crate::local_diffusion::commands::sd_import_model,
             crate::local_diffusion::commands::sd_update_model_files,
+            crate::local_diffusion::commands::sd_set_model_file,
+            crate::local_diffusion::commands::sd_list_local_files,
             crate::local_diffusion::commands::sd_delete_model,
             crate::local_diffusion::commands::sd_list_engine_variants,
             crate::local_diffusion::commands::sd_queue_binary_install,

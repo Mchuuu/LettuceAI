@@ -2667,7 +2667,7 @@ export const enMessages = {
     },
     localDiffusion: {
       selectModel: "Select Local Model",
-      notSet: "Not set",
+      pathPlaceholder: "/path/to/model.safetensors",
       configurationHelp:
         "Files this model passes to the engine. A checkpoint or diffusion model is required; encoders and VAE depend on the architecture. Changes apply immediately.",
     },

@@ -93,6 +93,24 @@ export async function sdUpdateModelFiles(
   return invoke<SdModelEntry>("sd_update_model_files", { modelId, files });
 }
 
+export interface SdLocalFile {
+  filename: string;
+  path: string;
+  size: number;
+}
+
+export async function sdListLocalFiles(): Promise<SdLocalFile[]> {
+  return invoke<SdLocalFile[]>("sd_list_local_files");
+}
+
+export async function sdSetModelFile(
+  modelId: string,
+  role: SdModelRole,
+  path: string | null,
+): Promise<SdModelEntry> {
+  return invoke<SdModelEntry>("sd_set_model_file", { modelId, role, path });
+}
+
 export async function sdDeleteModel(modelId: string, deleteFiles: boolean): Promise<boolean> {
   return invoke<boolean>("sd_delete_model", { modelId, deleteFiles });
 }

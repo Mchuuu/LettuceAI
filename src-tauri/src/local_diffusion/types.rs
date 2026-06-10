@@ -43,15 +43,22 @@ impl SdModelFiles {
     }
 
     pub fn set_role(&mut self, role: &str, path: String) -> Result<(), String> {
+        self.assign_role(role, Some(path))
+    }
+
+    pub fn assign_role(&mut self, role: &str, path: Option<String>) -> Result<(), String> {
+        let path = path
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
         match role {
-            "checkpoint" => self.checkpoint = Some(path),
-            "diffusionModel" => self.diffusion_model = Some(path),
-            "clipL" => self.clip_l = Some(path),
-            "clipG" => self.clip_g = Some(path),
-            "t5xxl" => self.t5xxl = Some(path),
-            "llm" => self.llm = Some(path),
-            "llmVision" => self.llm_vision = Some(path),
-            "vae" => self.vae = Some(path),
+            "checkpoint" => self.checkpoint = path,
+            "diffusionModel" => self.diffusion_model = path,
+            "clipL" => self.clip_l = path,
+            "clipG" => self.clip_g = path,
+            "t5xxl" => self.t5xxl = path,
+            "llm" => self.llm = path,
+            "llmVision" => self.llm_vision = path,
+            "vae" => self.vae = path,
             other => return Err(format!("Unknown file role: {other}")),
         }
         Ok(())

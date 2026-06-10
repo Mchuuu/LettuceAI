@@ -49,7 +49,6 @@ pub async fn sd_import_model(
     if files.all_paths().is_empty() {
         return Err("At least one model file is required".to_string());
     }
-    registry::validate_files_exist(&files)?;
     let family = family
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
@@ -65,6 +64,73 @@ pub async fn sd_import_model(
         created_at: crate::infra::utils::now_millis()?,
     };
     Ok(registry::upsert_model(&app, entry).await?.into())
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SdLocalFile {
+    pub filename: String,
+    pub path: String,
+    pub size: u64,
+}
+
+const MODEL_FILE_EXTENSIONS: [&str; 4] = ["safetensors", "gguf", "ckpt", "sft"];
+
+fn collect_model_files(root: &std::path::Path, out: &mut Vec<SdLocalFile>) {
+    for entry in walkdir::WalkDir::new(root)
+        .max_depth(4)
+        .into_iter()
+        .filter_map(Result::ok)
+    {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let path = entry.path();
+        let has_model_ext = path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| {
+                MODEL_FILE_EXTENSIONS
+                    .iter()
+                    .any(|known| known.eq_ignore_ascii_case(ext))
+            })
+            .unwrap_or(false);
+        if !has_model_ext {
+            continue;
+        }
+        let size = entry.metadata().map(|meta| meta.len()).unwrap_or(0);
+        out.push(SdLocalFile {
+            filename: entry.file_name().to_string_lossy().to_string(),
+            path: path.to_string_lossy().to_string(),
+            size,
+        });
+    }
+}
+
+#[tauri::command]
+pub async fn sd_list_local_files(app: AppHandle) -> Result<Vec<SdLocalFile>, String> {
+    let mut files = Vec::new();
+    collect_model_files(&registry::models_dir(&app)?, &mut files);
+    let gguf_dir = crate::infra::utils::ensure_lettuce_dir(&app)?
+        .join("models")
+        .join("gguf");
+    if gguf_dir.exists() {
+        collect_model_files(&gguf_dir, &mut files);
+    }
+    files.sort_by(|a, b| a.filename.to_lowercase().cmp(&b.filename.to_lowercase()));
+    Ok(files)
+}
+
+#[tauri::command]
+pub async fn sd_set_model_file(
+    app: AppHandle,
+    model_id: String,
+    role: String,
+    path: Option<String>,
+) -> Result<SdModelEntryDto, String> {
+    Ok(registry::set_model_file(&app, &model_id, &role, path)
+        .await?
+        .into())
 }
 
 #[tauri::command]
