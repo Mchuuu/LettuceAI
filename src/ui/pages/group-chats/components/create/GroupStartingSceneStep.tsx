@@ -7,7 +7,7 @@ import type { Character } from "../../../../../core/storage/schemas";
 import { getPlatform } from "../../../../../core/utils/platform";
 import { AvatarImage } from "../../../../components/AvatarImage";
 import { useAvatar } from "../../../../hooks/useAvatar";
-import { FieldLabel, OptionRow } from "./OptionRow";
+import { FieldLabel, OptionRow } from "../OptionRow";
 
 interface AvailableScene {
   characterId: string;

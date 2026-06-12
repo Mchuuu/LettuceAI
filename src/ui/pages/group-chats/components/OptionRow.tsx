@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { typography, radius, interactive, cn } from "../../../../design-tokens";
+import { typography, radius, interactive, cn } from "../../../design-tokens";
 
 export function FieldLabel({ children }: { children: ReactNode }) {
   const { label } = typography;

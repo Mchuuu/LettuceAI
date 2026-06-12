@@ -16,7 +16,7 @@ import { typography, radius, spacing, interactive, cn } from "../../../../design
 import { processBackgroundImage } from "../../../../../core/utils/image";
 import { AvatarImage } from "../../../../components/AvatarImage";
 import { useAvatar } from "../../../../hooks/useAvatar";
-import { FieldLabel, OptionRow } from "./OptionRow";
+import { FieldLabel, OptionRow } from "../OptionRow";
 
 type SpeakerSelectionMethod = "llm" | "heuristic" | "round_robin" | "director" | "director_action";
 

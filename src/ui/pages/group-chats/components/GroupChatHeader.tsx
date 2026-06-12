@@ -212,38 +212,22 @@ export function GroupChatHeader({
           {/* Stacked character avatars */}
           <button
             onClick={onSettings}
-            className="relative shrink-0 overflow-hidden rounded-full ring-1 ring-fg/15 transition hover:ring-fg/25"
-            style={{
-              minWidth: "36px",
-              minHeight: "36px",
-              height: "36px",
-              paddingInline: characters.length > 1 ? "6px" : "0px",
-            }}
+            className="ml-1 flex shrink-0 items-center -space-x-2.5 transition hover:opacity-80 active:scale-95"
             aria-label={t("groupChats.header.settings")}
           >
-            <div className="flex h-full items-center justify-center -space-x-2 px-1">
-              {characters.slice(0, 3).map((char, index) => (
-                <CharacterMiniAvatar
-                  key={char.id}
-                  character={char}
-                  index={index}
-                  total={Math.min(characters.length, 3)}
-                />
-              ))}
-              {characters.length > 3 && (
-                <div
-                  className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-full",
-                    "bg-linear-to-br from-secondary/30 to-info/80/30",
-                    "text-[10px] font-semibold text-fg shadow-lg",
-                    "ring-1 ring-fg/15",
-                  )}
-                  style={{ marginLeft: "-8px", zIndex: 0 }}
-                >
-                  +{characters.length - 3}
-                </div>
-              )}
-            </div>
+            {characters.slice(0, 3).map((char, index) => (
+              <CharacterMiniAvatar
+                key={char.id}
+                character={char}
+                index={index}
+                total={Math.min(characters.length, 3)}
+              />
+            ))}
+            {characters.length > 3 && (
+              <div className="relative z-0 flex h-8 w-8 items-center justify-center rounded-full bg-surface-el text-[10px] font-bold text-fg/70 ring-2 ring-surface">
+                +{characters.length - 3}
+              </div>
+            )}
           </button>
 
         </div>
@@ -270,21 +254,17 @@ function CharacterMiniAvatar({
   return (
     <div
       className={cn(
-        "h-8 w-8 rounded-full overflow-hidden",
+        "relative h-8 w-8 overflow-hidden rounded-full",
         "bg-linear-to-br from-fg/8 to-fg/4",
-        "shadow-lg ring-1 ring-fg/15",
-        "transition-transform",
+        "ring-2 ring-surface",
       )}
-      style={{
-        marginLeft: index > 0 ? "-10px" : "0",
-        zIndex: total - index,
-      }}
+      style={{ zIndex: total - index }}
     >
       {avatarUrl && isImageLike(avatarUrl) ? (
         <AvatarImage src={avatarUrl} alt={character.name} crop={character.avatarCrop} applyCrop />
       ) : (
-        <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-secondary/40 to-info/80/40 text-[11px] font-bold text-fg">
-          {character.name.slice(0, 1).toUpperCase()}
+        <div className="flex h-full w-full items-center justify-center text-[10px] font-bold text-fg/60">
+          {character.name.slice(0, 2).toUpperCase()}
         </div>
       )}
     </div>
