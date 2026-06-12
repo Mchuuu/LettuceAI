@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { Copy, Minus, Plus, Square, X } from "lucide-react";
 import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
+
+type ResizeDirection =
+  | "East"
+  | "North"
+  | "NorthEast"
+  | "NorthWest"
+  | "South"
+  | "SouthEast"
+  | "SouthWest"
+  | "West";
 import { invoke } from "@tauri-apps/api/core";
 import { cn } from "../../design-tokens";
 import { useI18n } from "../../../core/i18n/context";
@@ -401,6 +411,41 @@ function WindowButtons({
   }
   if (design === "minimal") return <MinimalButtons size={size} className={className} />;
   return <ClassicButtons size={size} className={className} />;
+}
+
+const RESIZE_HANDLES: Array<{ dir: ResizeDirection; className: string }> = [
+  { dir: "North", className: "left-2 right-2 top-0 h-1.5 cursor-n-resize" },
+  { dir: "South", className: "bottom-0 left-2 right-2 h-1.5 cursor-s-resize" },
+  { dir: "West", className: "bottom-2 left-0 top-2 w-1.5 cursor-w-resize" },
+  { dir: "East", className: "bottom-2 right-0 top-2 w-1.5 cursor-e-resize" },
+  { dir: "NorthWest", className: "left-0 top-0 h-3 w-3 cursor-nw-resize" },
+  { dir: "NorthEast", className: "right-0 top-0 h-3 w-3 cursor-ne-resize" },
+  { dir: "SouthWest", className: "bottom-0 left-0 h-3 w-3 cursor-sw-resize" },
+  { dir: "SouthEast", className: "bottom-0 right-0 h-3 w-3 cursor-se-resize" },
+];
+
+export function WindowResizeHandles() {
+  const { design } = useTitleBarChrome();
+  const { maximized, fullscreen } = useWindowState();
+
+  if (!isDesktop || isMacOS) return null;
+  if (design === "native" || maximized || fullscreen) return null;
+
+  return (
+    <>
+      {RESIZE_HANDLES.map(({ dir, className }) => (
+        <div
+          key={dir}
+          onMouseDown={(event) => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            void getCurrentWindow().startResizeDragging(dir);
+          }}
+          className={cn("fixed z-[101] select-none", className)}
+        />
+      ))}
+    </>
+  );
 }
 
 export function TitleBar() {

@@ -126,7 +126,7 @@ import {
   WhatsNewDrawer,
   WHATS_NEW_OPEN_EVENT,
 } from "./ui/pages/whats-new/WhatsNewPage";
-import { TopNav, BottomNav, TitleBar } from "./ui/components/App";
+import { TopNav, BottomNav, TitleBar, WindowResizeHandles } from "./ui/components/App";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen, UnlistenFn } from "@tauri-apps/api/event";
 import { useAndroidBackHandler } from "./ui/hooks/useAndroidBackHandler";
@@ -1019,6 +1019,7 @@ function AppContent() {
   return (
     <div className="relative min-h-screen overflow-hidden pt-[var(--titlebar-h,0px)]">
       <TitleBar />
+      <WindowResizeHandles />
       <div
         className={`relative z-10 mx-auto flex w-full ${
           isChatDetailRoute
