@@ -627,6 +627,12 @@ pub struct AdvancedModelSettings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub llama_strict_mode: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llama_mtp_enabled: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llama_mtp_draft_tokens: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llama_mtp_model_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub llama_streaming_enabled: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub llama_sampler_profile: Option<String>,
@@ -713,6 +719,9 @@ impl Default for AdvancedModelSettings {
             llama_chat_template_preset: None,
             llama_raw_completion_fallback: None,
             llama_strict_mode: None,
+            llama_mtp_enabled: None,
+            llama_mtp_draft_tokens: None,
+            llama_mtp_model_path: None,
             llama_streaming_enabled: None,
             llama_sampler_profile: None,
             llama_sampler_order: None,

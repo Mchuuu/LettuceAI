@@ -231,6 +231,8 @@ async fn queue_download_plan(
         let metadata = crate::hf_browser::QueueDownloadMetadata {
             create_model_when_finished: false,
             mmproj_file: crate::hf_browser::MmprojFileLink::Disabled(false),
+            mtp_file: crate::hf_browser::MmprojFileLink::Disabled(false),
+            mtp_bundled: false,
             install_id: Some(install_id.to_string()),
             display_name: display_name.clone(),
             context_length: None,

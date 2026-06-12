@@ -18,6 +18,8 @@ export interface QueuedDownload {
   resultPath: string | null;
   createModelWhenFinished: boolean;
   mmprojFile: string | false;
+  mtpFile: string | false;
+  mtpBundled?: boolean;
   installId: string | null;
   displayName: string | null;
   contextLength: number | null;
@@ -25,7 +27,7 @@ export interface QueuedDownload {
   llamaOffloadKqv: boolean | null;
   llamaGpuLayers: number | null;
   llamaModelOffloadMode: "auto" | "cpu" | "gpu" | "mixed" | null;
-  downloadRole: "model" | "mmproj" | null;
+  downloadRole: "model" | "mmproj" | "mtp" | null;
   queueKind?: string | null;
   assetRoot?: string | null;
   installKind?: string | null;

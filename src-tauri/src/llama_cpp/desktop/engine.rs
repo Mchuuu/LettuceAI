@@ -22,6 +22,7 @@ pub(super) struct LoadedEngine {
     pub(super) compiled_gpu_backends: Vec<String>,
     pub(super) supports_gpu_offload: bool,
     pub(super) mtmd_ctx: Option<Arc<MtmdContext>>,
+    pub(super) mtp_model: Option<Arc<LlamaModel>>,
 }
 
 pub(super) struct LlamaState {
@@ -38,6 +39,8 @@ pub(super) struct LlamaState {
     pub(super) supports_gpu_offload: bool,
     pub(super) mtmd_ctx: Option<Arc<MtmdContext>>,
     pub(super) mmproj_path: Option<String>,
+    pub(super) mtp_model: Option<Arc<LlamaModel>>,
+    pub(super) mtp_model_path: Option<String>,
     pub(super) kqv_fallback_toast_shown: bool,
 }
 
@@ -309,6 +312,7 @@ pub(super) fn load_engine(
     auto_gpu_layer_candidates: Option<&[u32]>,
     strict_mode: bool,
     mmproj_path: Option<&str>,
+    mtp_model_path: Option<&str>,
 ) -> Result<LoadedEngine, String> {
     let engine = ENGINE.get_or_init(|| {
         Mutex::new(LlamaState {
@@ -325,6 +329,8 @@ pub(super) fn load_engine(
             supports_gpu_offload: false,
             mtmd_ctx: None,
             mmproj_path: None,
+            mtp_model: None,
+            mtp_model_path: None,
             kqv_fallback_toast_shown: false,
         })
     });
@@ -447,6 +453,8 @@ pub(super) fn load_engine(
             guard.smart_gpu_layer_fallback_activated = false;
             guard.mtmd_ctx = None;
             guard.mmproj_path = None;
+            guard.mtp_model = None;
+            guard.mtp_model_path = None;
             if let Some(app) = app {
                 log_info(
                     app,
@@ -815,6 +823,52 @@ pub(super) fn load_engine(
         }
     }
 
+    let mtp_changed = should_reload
+        || guard.mtp_model_path.as_deref() != mtp_model_path
+        || (mtp_model_path.is_some() && guard.mtp_model.is_none());
+    if mtp_changed {
+        guard.mtp_model = None;
+        guard.mtp_model_path = None;
+
+        if let Some(mtp_path) = mtp_model_path {
+            if !Path::new(mtp_path).exists() {
+                return Err(crate::utils::err_msg(
+                    module_path!(),
+                    line!(),
+                    format!("MTP draft model file not found: {}", mtp_path),
+                ));
+            }
+
+            let drafter_gpu_layers = if guard.backend_path_used.as_deref() == Some("gpu_offload") {
+                Some(1000)
+            } else {
+                Some(0)
+            };
+            let drafter = load_model_with_progress(
+                None,
+                None,
+                mtp_path,
+                drafter_gpu_layers,
+                guard.backend_path_used.as_deref().unwrap_or("cpu"),
+                MODEL_LOAD_STAGE_FINALIZING,
+            )?;
+
+            if let Some(app) = app {
+                log_info(
+                    app,
+                    "llama_cpp",
+                    format!(
+                        "MTP draft model loaded: path={} gpu_layers={:?}",
+                        mtp_path, drafter_gpu_layers
+                    ),
+                );
+            }
+
+            guard.mtp_model = Some(Arc::new(drafter));
+            guard.mtp_model_path = Some(mtp_path.to_string());
+        }
+    }
+
     Ok(LoadedEngine {
         model_reloaded: should_reload,
         backend: guard
@@ -833,6 +887,7 @@ pub(super) fn load_engine(
         compiled_gpu_backends: guard.compiled_gpu_backends.clone(),
         supports_gpu_offload: guard.supports_gpu_offload,
         mtmd_ctx: guard.mtmd_ctx.clone(),
+        mtp_model: guard.mtp_model.clone(),
     })
 }
 
@@ -852,6 +907,8 @@ pub(crate) fn unload_engine(app: &AppHandle) -> Result<(), String> {
             supports_gpu_offload: false,
             mtmd_ctx: None,
             mmproj_path: None,
+            mtp_model: None,
+            mtp_model_path: None,
             kqv_fallback_toast_shown: false,
         })
     });
@@ -871,6 +928,8 @@ pub(crate) fn unload_engine(app: &AppHandle) -> Result<(), String> {
         guard.smart_gpu_layer_fallback_activated = false;
         guard.mtmd_ctx = None;
         guard.mmproj_path = None;
+        guard.mtp_model = None;
+        guard.mtp_model_path = None;
         guard.kqv_fallback_toast_shown = false;
         log_info(app, "llama_cpp", "unloaded llama.cpp model");
     }
@@ -897,6 +956,8 @@ pub(crate) fn consume_kqv_fallback_toast(
             supports_gpu_offload: false,
             mtmd_ctx: None,
             mmproj_path: None,
+            mtp_model: None,
+            mtp_model_path: None,
             kqv_fallback_toast_shown: false,
         })
     });

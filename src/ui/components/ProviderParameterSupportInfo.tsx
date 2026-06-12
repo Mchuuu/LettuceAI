@@ -43,6 +43,9 @@ const PARAMETER_LABELS: Record<keyof AdvancedModelSettings, string> = {
   llamaChatTemplatePreset: "llama.cpp Template Preset",
   llamaRawCompletionFallback: "llama.cpp Raw Fallback",
   llamaStrictMode: "llama.cpp Strict Mode",
+  llamaMtpEnabled: "llama.cpp Multi-Token Prediction",
+  llamaMtpDraftTokens: "llama.cpp MTP Draft Tokens",
+  llamaMtpModelPath: "llama.cpp MTP Model Path",
   llamaStreamingEnabled: "llama.cpp Streaming",
   llamaSamplerProfile: "llama.cpp Sampler Profile",
   llamaSamplerOrder: "llama.cpp Sampler Order",
@@ -111,6 +114,10 @@ const PARAMETER_DESCRIPTIONS: Record<keyof AdvancedModelSettings, string> = {
   llamaRawCompletionFallback: "Allow plain raw completion fallback if template resolution fails",
   llamaStrictMode:
     "Disable llama.cpp safety fallbacks that lower offload, context, or batch settings",
+  llamaMtpEnabled:
+    "Speculative decoding via the model's bundled MTP layers (needs an MTP-capable GGUF)",
+  llamaMtpDraftTokens: "Speculative tokens drafted per MTP step (1 to 8)",
+  llamaMtpModelPath: "External MTP draft GGUF path (auto-discovered from sibling mtp-*.gguf when empty)",
   llamaStreamingEnabled: "Disable incremental token streaming for llama.cpp models",
   llamaSamplerProfile:
     "Preset local sampler defaults for chat, creativity, stability, or reasoning",

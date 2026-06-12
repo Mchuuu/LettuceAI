@@ -74,6 +74,9 @@ type ControllerReturn = {
   handleLlamaChatTemplatePresetChange: (value: string | null) => void;
   handleLlamaRawCompletionFallbackChange: (value: boolean | null) => void;
   handleLlamaStrictModeChange: (value: boolean | null) => void;
+  handleLlamaMtpEnabledChange: (value: boolean | null) => void;
+  handleLlamaMtpDraftTokensChange: (value: number | null) => void;
+  handleLlamaMtpModelPathChange: (value: string | null) => void;
   handleLlamaStreamingEnabledChange: (value: boolean | null) => void;
   handleOllamaNumCtxChange: (value: number | null) => void;
   handleOllamaNumPredictChange: (value: number | null) => void;
@@ -939,6 +942,45 @@ export function useModelEditorController(): ControllerReturn {
     [dispatch, state.modelAdvancedDraft],
   );
 
+  const handleLlamaMtpEnabledChange = useCallback(
+    (value: boolean | null) => {
+      dispatch({
+        type: "set_model_advanced_draft",
+        payload: {
+          ...state.modelAdvancedDraft,
+          llamaMtpEnabled: value,
+        },
+      });
+    },
+    [dispatch, state.modelAdvancedDraft],
+  );
+
+  const handleLlamaMtpDraftTokensChange = useCallback(
+    (value: number | null) => {
+      dispatch({
+        type: "set_model_advanced_draft",
+        payload: {
+          ...state.modelAdvancedDraft,
+          llamaMtpDraftTokens: value,
+        },
+      });
+    },
+    [dispatch, state.modelAdvancedDraft],
+  );
+
+  const handleLlamaMtpModelPathChange = useCallback(
+    (value: string | null) => {
+      dispatch({
+        type: "set_model_advanced_draft",
+        payload: {
+          ...state.modelAdvancedDraft,
+          llamaMtpModelPath: value,
+        },
+      });
+    },
+    [dispatch, state.modelAdvancedDraft],
+  );
+
   const handleLlamaStreamingEnabledChange = useCallback(
     (value: boolean | null) => {
       dispatch({
@@ -1604,6 +1646,9 @@ export function useModelEditorController(): ControllerReturn {
     handleLlamaChatTemplatePresetChange,
     handleLlamaRawCompletionFallbackChange,
     handleLlamaStrictModeChange,
+    handleLlamaMtpEnabledChange,
+    handleLlamaMtpDraftTokensChange,
+    handleLlamaMtpModelPathChange,
     handleLlamaStreamingEnabledChange,
     handleOllamaNumCtxChange,
     handleOllamaNumPredictChange,

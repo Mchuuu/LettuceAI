@@ -9,7 +9,8 @@ use super::{
     resolve_llama_chat_template_preset, resolve_llama_dry_allowed_length, resolve_llama_dry_base,
     resolve_llama_dry_multiplier, resolve_llama_dry_penalty_last_n,
     resolve_llama_dry_sequence_breakers, resolve_llama_flash_attention, resolve_llama_gpu_layers,
-    resolve_llama_kv_type, resolve_llama_mmproj_path, resolve_llama_offload_kqv,
+    resolve_llama_kv_type, resolve_llama_mmproj_path, resolve_llama_mtp_draft_tokens,
+    resolve_llama_mtp_enabled, resolve_llama_mtp_model_path, resolve_llama_offload_kqv,
     resolve_llama_profile_min_p, resolve_llama_profile_typical_p,
     resolve_llama_raw_completion_fallback, resolve_llama_rope_freq_base,
     resolve_llama_rope_freq_scale, resolve_llama_sampler_order, resolve_llama_sampler_profile,
@@ -82,6 +83,15 @@ fn build_llama_extra_fields(
     }
     if let Some(v) = resolve_llama_strict_mode(session, model, settings) {
         extra.insert("llamaStrictMode".to_string(), json!(v));
+    }
+    if let Some(v) = resolve_llama_mtp_enabled(session, model, settings) {
+        extra.insert("llamaMtpEnabled".to_string(), json!(v));
+    }
+    if let Some(v) = resolve_llama_mtp_draft_tokens(session, model, settings) {
+        extra.insert("llamaMtpDraftTokens".to_string(), json!(v));
+    }
+    if let Some(v) = resolve_llama_mtp_model_path(session, model, settings) {
+        extra.insert("llamaMtpModelPath".to_string(), json!(v));
     }
     if let Some(v) = sampler_profile {
         extra.insert("llamaSamplerProfile".to_string(), json!(v));

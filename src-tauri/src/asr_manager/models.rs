@@ -327,6 +327,8 @@ pub async fn asr_whisper_queue_model_download(
     let metadata = crate::hf_browser::QueueDownloadMetadata {
         create_model_when_finished: false,
         mmproj_file: crate::hf_browser::MmprojFileLink::Disabled(false),
+        mtp_file: crate::hf_browser::MmprojFileLink::Disabled(false),
+        mtp_bundled: false,
         install_id: Some(format!("whisper-{}", model_id.trim())),
         display_name: Some(format_model_label(model_id.trim())),
         context_length: None,

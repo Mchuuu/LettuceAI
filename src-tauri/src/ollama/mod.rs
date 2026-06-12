@@ -851,6 +851,8 @@ pub async fn ollama_pull_model(
         result_path: None,
         create_model_when_finished: metadata.create_model_when_finished,
         mmproj_file: metadata.mmproj_file.clone(),
+        mtp_file: metadata.mtp_file,
+        mtp_bundled: metadata.mtp_bundled,
         install_id: metadata.install_id.clone(),
         display_name: Some(display_name.clone()),
         context_length: metadata.context_length,

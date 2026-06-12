@@ -460,6 +460,63 @@ pub(super) fn resolve_llama_kv_type(
         .filter(|v| !v.is_empty())
 }
 
+pub(super) fn resolve_llama_mtp_enabled(
+    session: &Session,
+    model: &Model,
+    settings: &Settings,
+) -> Option<bool> {
+    session
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|cfg| cfg.llama_mtp_enabled)
+        .or_else(|| {
+            model
+                .advanced_model_settings
+                .as_ref()
+                .and_then(|cfg| cfg.llama_mtp_enabled)
+        })
+        .or(settings.advanced_model_settings.llama_mtp_enabled)
+}
+
+pub(super) fn resolve_llama_mtp_draft_tokens(
+    session: &Session,
+    model: &Model,
+    settings: &Settings,
+) -> Option<u32> {
+    session
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|cfg| cfg.llama_mtp_draft_tokens)
+        .or_else(|| {
+            model
+                .advanced_model_settings
+                .as_ref()
+                .and_then(|cfg| cfg.llama_mtp_draft_tokens)
+        })
+        .or(settings.advanced_model_settings.llama_mtp_draft_tokens)
+        .filter(|v| *v > 0)
+}
+
+pub(super) fn resolve_llama_mtp_model_path(
+    session: &Session,
+    model: &Model,
+    settings: &Settings,
+) -> Option<String> {
+    session
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|cfg| cfg.llama_mtp_model_path.clone())
+        .or_else(|| {
+            model
+                .advanced_model_settings
+                .as_ref()
+                .and_then(|cfg| cfg.llama_mtp_model_path.clone())
+        })
+        .or_else(|| settings.advanced_model_settings.llama_mtp_model_path.clone())
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+}
+
 pub(super) fn resolve_llama_flash_attention(
     session: &Session,
     model: &Model,

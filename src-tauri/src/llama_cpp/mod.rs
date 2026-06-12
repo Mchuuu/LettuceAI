@@ -38,6 +38,7 @@ mod desktop {
     use super::*;
     pub(super) mod context;
     pub(super) mod engine;
+    mod mtp;
     pub(super) mod offload;
     mod prompt;
     mod sampler;
@@ -793,6 +794,25 @@ mod desktop {
             .get("llamaOffloadKqv")
             .or_else(|| body.get("llama_offload_kqv"))
             .and_then(|v| v.as_bool());
+        let llama_mtp_enabled = body
+            .get("llamaMtpEnabled")
+            .or_else(|| body.get("llama_mtp_enabled"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        let llama_mtp_draft_tokens = body
+            .get("llamaMtpDraftTokens")
+            .or_else(|| body.get("llama_mtp_draft_tokens"))
+            .and_then(|v| v.as_u64())
+            .and_then(|v| u32::try_from(v).ok())
+            .filter(|v| *v > 0)
+            .unwrap_or(mtp::MTP_DRAFT_DEFAULT)
+            .min(mtp::MTP_DRAFT_MAX);
+        let llama_mtp_model_path = body
+            .get("llamaMtpModelPath")
+            .or_else(|| body.get("llama_mtp_model_path"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
         let llama_flash_attention_policy = parse_flash_attention_policy(body);
         let llama_kv_type_raw = body
             .get("llamaKvType")
@@ -1067,6 +1087,22 @@ mod desktop {
             }
 
             log_info(&app, "llama_cpp", "loading llama.cpp engine/model");
+            let llama_mtp_bundled = llama_mtp_enabled && mtp::model_has_mtp(model_path);
+            let llama_mtp_external_path = if llama_mtp_enabled && !llama_mtp_bundled {
+                llama_mtp_model_path
+                    .clone()
+                    .or_else(|| mtp::discover_external_mtp(model_path))
+            } else {
+                None
+            };
+            if let Some(ref external) = llama_mtp_external_path {
+                log_info(
+                    &app,
+                    "llama_cpp",
+                    format!("MTP external draft model resolved: {}", external),
+                );
+            }
+
             let engine = load_engine(
                 Some(&app),
                 request_id.as_deref(),
@@ -1075,7 +1111,9 @@ mod desktop {
                 smart_gpu_layer_candidates.as_deref(),
                 llama_strict_mode,
                 llama_mmproj_path.as_deref(),
+                llama_mtp_external_path.as_deref(),
             )?;
+            let llama_mtp_draft_model = engine.mtp_model.clone();
             let model = engine.model.as_ref();
             let backend = engine.backend.as_ref();
             let mtmd_ctx = engine.mtmd_ctx.as_ref();
@@ -1096,6 +1134,26 @@ mod desktop {
                 }
             }
             let use_vision = vision_requested && mtmd_ctx.is_some();
+            let llama_mtp_active = llama_mtp_enabled
+                && !use_vision
+                && {
+                    let capable = llama_mtp_bundled || llama_mtp_draft_model.is_some();
+                    if !capable {
+                        log_warn(
+                            &app,
+                            "llama_cpp",
+                            "MTP requested but the model has no bundled NextN/MTP layers and no external MTP draft model was found; continuing without MTP",
+                        );
+                    }
+                    capable
+                };
+            if llama_mtp_enabled && use_vision {
+                log_warn(
+                    &app,
+                    "llama_cpp",
+                    "MTP requested but disabled for this request because vision input is active",
+                );
+            }
             let model_reloaded = engine.model_reloaded;
             let max_ctx = model.n_ctx_train().max(1);
             let backend_path_used = engine.backend_path_used.as_deref().unwrap_or("unknown");
@@ -1544,6 +1602,9 @@ mod desktop {
                     }
                     ctx_params =
                         ctx_params.with_flash_attention_policy(resolved_flash_attention_policy);
+                    if llama_mtp_active {
+                        ctx_params = ctx_params.with_n_rs_seq(llama_mtp_draft_tokens);
+                    }
                     if let Some(base) = llama_rope_freq_base {
                         ctx_params = ctx_params.with_rope_freq_base(base as f32);
                     }
@@ -1646,6 +1707,72 @@ mod desktop {
             let n_batch = resolved_n_batch;
             let context_fallback_activated =
                 (ctx_size, n_batch) != (requested_ctx_size, initial_batch);
+
+            let mut mtp_runtime = if llama_mtp_active {
+                let mut draft_params = LlamaContextParams::default()
+                    .with_n_ctx(NonZeroU32::new(resolved_ctx_size))
+                    .with_n_batch(resolved_n_batch)
+                    .with_n_rs_seq(llama_mtp_draft_tokens)
+                    .with_flash_attention_policy(resolved_flash_attention_policy);
+                if let Some(n_threads) = llama_threads {
+                    draft_params = draft_params.with_n_threads(n_threads as i32);
+                }
+                if let Some(n_threads_batch) = llama_threads_batch {
+                    draft_params = draft_params.with_n_threads_batch(n_threads_batch as i32);
+                }
+                if let Some(offload) = resolved_offload_kqv {
+                    draft_params = draft_params.with_offload_kqv(offload);
+                }
+                if let Some(kv_type) = llama_kv_type {
+                    draft_params = draft_params.with_type_k(kv_type).with_type_v(kv_type);
+                }
+                if let Some(base) = llama_rope_freq_base {
+                    draft_params = draft_params.with_rope_freq_base(base as f32);
+                }
+                if let Some(scale) = llama_rope_freq_scale {
+                    draft_params = draft_params.with_rope_freq_scale(scale as f32);
+                }
+
+                match mtp::create_runtime(
+                    model,
+                    llama_mtp_draft_model.as_deref().unwrap_or(model),
+                    backend,
+                    draft_params,
+                    llama_mtp_draft_tokens as usize,
+                ) {
+                    Ok(mut runtime) => match mtp::enable_nextn_embeddings(&mut ctx, &mut runtime) {
+                        Ok(()) => {
+                            log_info(
+                                &app,
+                                "llama_cpp",
+                                format!(
+                                    "MTP active: draft_tokens={} ctx={} n_batch={}",
+                                    llama_mtp_draft_tokens, resolved_ctx_size, resolved_n_batch
+                                ),
+                            );
+                            Some(runtime)
+                        }
+                        Err(err) => {
+                            log_warn(
+                                &app,
+                                "llama_cpp",
+                                format!("MTP setup failed, continuing without MTP: {err}"),
+                            );
+                            None
+                        }
+                    },
+                    Err(err) => {
+                        log_warn(
+                            &app,
+                            "llama_cpp",
+                            format!("MTP draft context creation failed, continuing without MTP: {err}"),
+                        );
+                        None
+                    }
+                }
+            } else {
+                None
+            };
             if kqv_fallback_activated {
                 match consume_kqv_fallback_toast(&app, model_path) {
                     Ok(true) => {
@@ -1715,6 +1842,16 @@ mod desktop {
                     "kqvFallbackActivated": kqv_fallback_activated,
                     "contextFallbackActivated": context_fallback_activated,
                     "mmprojPath": llama_mmproj_path,
+                    "mtpRequested": llama_mtp_enabled,
+                    "mtpActive": llama_mtp_active,
+                    "mtpDraftTokens": llama_mtp_draft_tokens,
+                    "mtpSource": if llama_mtp_bundled {
+                        "bundled"
+                    } else if llama_mtp_draft_model.is_some() {
+                        "external"
+                    } else {
+                        "none"
+                    },
                     "visionRequested": vision_requested,
                     "visionActive": use_vision,
                     "imageCount": image_bytes.len(),
@@ -1828,6 +1965,18 @@ mod desktop {
                                 format!("llama_decode failed during prompt evaluation: {e}"),
                             )
                         })?;
+                        if let Some(runtime) = mtp_runtime.as_mut() {
+                            mtp::prefill_draft_chunk(
+                                runtime,
+                                &ctx,
+                                &tokens[chunk_start..chunk_end],
+                                global_pos,
+                                chunk_end == tokens_len,
+                            )
+                            .map_err(|e| {
+                                crate::utils::err_msg(module_path!(), line!(), e)
+                            })?;
+                        }
                         check_abort_signal(abort_rx.as_mut())?;
                         global_pos += (chunk_end - chunk_start) as i32;
                         chunk_start = chunk_end;
@@ -1969,7 +2118,22 @@ mod desktop {
             while n_cur < target_len {
                 check_abort_signal(abort_rx.as_mut())?;
 
-                let token = sample_generated_token(&mut sampler, &ctx, sample_index);
+                let token = if let Some(runtime) = mtp_runtime.as_mut() {
+                    if runtime.pending.is_empty() {
+                        let accepted =
+                            mtp::mtp_round(&mut ctx, runtime, &mut sampler, model, n_cur, target_len)
+                                .map_err(|e| {
+                                    crate::utils::err_msg(module_path!(), line!(), e)
+                                })?;
+                        runtime.pending.extend(accepted);
+                    }
+                    match runtime.pending.pop_front() {
+                        Some(token) => token,
+                        None => break,
+                    }
+                } else {
+                    sample_generated_token(&mut sampler, &ctx, sample_index)
+                };
 
                 if model.is_eog_token(token) {
                     reached_eos = true;
@@ -2135,6 +2299,11 @@ mod desktop {
                     }
                 }
 
+                if mtp_runtime.is_some() {
+                    n_cur += 1;
+                    continue;
+                }
+
                 batch.clear();
                 batch.add(token, n_cur, &[0], true).map_err(|e| {
                     crate::utils::err_msg(
@@ -2194,6 +2363,44 @@ mod desktop {
             }
 
             generation_elapsed_ms = Some(inference_started_at.elapsed().as_millis() as u64);
+
+            if let Some(runtime) = mtp_runtime.as_ref() {
+                let tokens_per_round = if runtime.rounds > 0 {
+                    runtime.accepted as f64 / runtime.rounds as f64
+                } else {
+                    0.0
+                };
+                let draft_acceptance = if runtime.drafted > 0 {
+                    runtime.accepted.saturating_sub(runtime.rounds) as f64
+                        / runtime.drafted as f64
+                } else {
+                    0.0
+                };
+                log_info(
+                    &app,
+                    "llama_cpp",
+                    format!(
+                        "MTP stats: rounds={} drafted={} accepted={} tokens_per_round={:.2} draft_acceptance={:.2}",
+                        runtime.rounds,
+                        runtime.drafted,
+                        runtime.accepted,
+                        tokens_per_round,
+                        draft_acceptance
+                    ),
+                );
+                update_runtime_report_field(
+                    &mut runtime_report,
+                    "mtpStats",
+                    json!({
+                        "draftTokens": llama_mtp_draft_tokens,
+                        "rounds": runtime.rounds,
+                        "drafted": runtime.drafted,
+                        "accepted": runtime.accepted,
+                        "tokensPerRound": tokens_per_round,
+                        "draftAcceptance": draft_acceptance,
+                    }),
+                );
+            }
 
             if let Some(parser) = structured_parser.as_mut() {
                 let is_partial = !reached_eos && !reached_stop_sequence;

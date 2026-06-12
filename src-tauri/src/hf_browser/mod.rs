@@ -113,6 +113,7 @@ pub struct HfModelFile {
     pub size: u64,
     pub quantization: String,
     pub is_mmproj: bool,
+    pub is_mtp: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub role: Option<String>,
 }
@@ -126,6 +127,7 @@ pub struct DownloadedGgufModel {
     pub size: u64,
     pub quantization: String,
     pub is_mmproj: bool,
+    pub is_mtp: bool,
     pub architecture: Option<String>,
     pub context_length: Option<u64>,
 }
@@ -158,6 +160,8 @@ pub struct QueuedDownload {
     pub result_path: Option<String>,
     pub create_model_when_finished: bool,
     pub mmproj_file: MmprojFileLink,
+    pub mtp_file: MmprojFileLink,
+    pub mtp_bundled: bool,
     pub install_id: Option<String>,
     pub display_name: Option<String>,
     pub context_length: Option<u64>,
@@ -196,6 +200,10 @@ pub struct QueueDownloadMetadata {
     pub create_model_when_finished: bool,
     #[serde(default)]
     pub mmproj_file: MmprojFileLink,
+    #[serde(default)]
+    pub mtp_file: MmprojFileLink,
+    #[serde(default)]
+    pub mtp_bundled: bool,
     #[serde(default)]
     pub install_id: Option<String>,
     #[serde(default)]
@@ -1109,8 +1117,18 @@ fn quant_quality_with_qat(quant: &str, qat: bool) -> f64 {
     }
 }
 
+fn is_mtp_asset(name: &str) -> bool {
+    let lower = name.to_lowercase();
+    let basename = lower.rsplit('/').next().unwrap_or(&lower);
+    basename.starts_with("mtp-")
+        || basename.contains("-mtp.")
+        || basename.contains("_mtp.")
+        || lower.contains("/mtp/")
+        || lower.starts_with("mtp/")
+}
+
 fn is_draft_file(name: &str) -> bool {
-    name.to_lowercase().contains("draft")
+    name.to_lowercase().contains("draft") || is_mtp_asset(name)
 }
 
 fn compute_overhead(model_size: u64, active_ratio: f64) -> u64 {
@@ -2030,6 +2048,7 @@ pub async fn hf_get_model_files(
                 size,
                 quantization,
                 is_mmproj: lower.contains("mmproj"),
+                is_mtp: is_mtp_asset(&s.rfilename),
                 role,
             }
         })
@@ -2093,6 +2112,8 @@ pub async fn hf_queue_download(
             result_path: None,
             create_model_when_finished: metadata.create_model_when_finished,
             mmproj_file: metadata.mmproj_file,
+            mtp_file: metadata.mtp_file,
+            mtp_bundled: metadata.mtp_bundled,
             install_id: metadata.install_id,
             display_name: metadata.display_name,
             context_length: metadata.context_length,
@@ -2467,6 +2488,7 @@ pub async fn hf_list_downloaded_models(app: AppHandle) -> Result<Vec<DownloadedG
 
                 if fname.to_lowercase().ends_with(".gguf") && !fname.ends_with(".tmp") {
                     let is_mmproj = fname.to_lowercase().contains("mmproj");
+                    let is_mtp = is_mtp_asset(&fname);
                     let size = file_entry.metadata().map(|m| m.len()).unwrap_or(0);
                     let meta = read_local_gguf_meta(&file_path);
                     results.push(DownloadedGgufModel {
@@ -2476,6 +2498,7 @@ pub async fn hf_list_downloaded_models(app: AppHandle) -> Result<Vec<DownloadedG
                         size,
                         quantization: extract_quantization(&file_path.to_string_lossy()),
                         is_mmproj,
+                        is_mtp,
                         architecture: meta.as_ref().and_then(|value| value.architecture.clone()),
                         context_length: meta.as_ref().and_then(|value| value.context_length),
                     });

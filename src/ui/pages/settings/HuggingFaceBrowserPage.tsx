@@ -65,6 +65,7 @@ interface HfModelFile {
   size: number;
   quantization: string;
   isMmproj: boolean;
+  isMtp: boolean;
   role?: string | null;
 }
 
@@ -110,6 +111,7 @@ interface BestRecommendation {
 }
 
 interface ModelArchInfo {
+  nextnPredictLayers: number | null;
   architecture: string | null;
   blockCount: number | null;
   embeddingLength: number | null;
@@ -635,12 +637,14 @@ type CompareSelection = {
   filename: string;
   kvType: string;
 };
-type TrackedDownloadRole = "model" | "mmproj";
+type TrackedDownloadRole = "model" | "mmproj" | "mtp";
 type KvPlacement = "auto" | "ram" | "vram";
 type ModelOffload = "auto" | "cpu" | "gpu" | "mixed";
 type QueueDownloadMetadata = {
   createModelWhenFinished?: boolean;
   mmprojFile?: string | false;
+  mtpFile?: string | false;
+  mtpBundled?: boolean | null;
   installId?: string | null;
   displayName?: string | null;
   contextLength?: number | null;
@@ -1437,6 +1441,8 @@ export function HuggingFaceBrowserPage() {
   const [recKvPlacement, setRecKvPlacement] = useState<KvPlacement>("auto");
   const [recImageSupport, setRecImageSupport] = useState(false);
   const [recMmprojFile, setRecMmprojFile] = useState("");
+  const [recMtpSupport, setRecMtpSupport] = useState(false);
+  const [recMtpFile, setRecMtpFile] = useState("");
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareSelections, setCompareSelections] = useState<CompareSelection[]>([]);
@@ -1628,7 +1634,7 @@ export function HuggingFaceBrowserPage() {
         .then((info) => {
           setModelInfo(info);
           // Fetch runability scores in background (skipped in Ollama mode — host hardware unknown)
-          const runnableFiles = info.files.filter((f) => f.size > 0 && !f.isMmproj);
+          const runnableFiles = info.files.filter((f) => f.size > 0 && !f.isMmproj && !f.isMtp);
           if (runnableFiles.length > 0 && isSdMode) {
             invoke<SdRunabilityScore[]>("hf_compute_sd_runability", {
               files: runnableFiles.map((f) => ({
@@ -1702,7 +1708,7 @@ export function HuggingFaceBrowserPage() {
       setRecData(null);
       return;
     }
-    const files = modelInfo.files.filter((f) => f.size > 0 && !f.isMmproj);
+    const files = modelInfo.files.filter((f) => f.size > 0 && !f.isMmproj && !f.isMtp);
     if (files.length === 0) {
       setRecLoading(false);
       return;
@@ -1745,11 +1751,15 @@ export function HuggingFaceBrowserPage() {
 
   const filesWithSize = modelInfo?.files.filter((f) => f.size > 0) ?? [];
   const runnableFilesWithSize = useMemo(
-    () => filesWithSize.filter((f) => !f.isMmproj),
+    () => filesWithSize.filter((f) => !f.isMmproj && !f.isMtp),
     [filesWithSize],
   );
   const mmprojFilesWithSize = useMemo(
     () => filesWithSize.filter((f) => f.isMmproj),
+    [filesWithSize],
+  );
+  const mtpFilesWithSize = useMemo(
+    () => filesWithSize.filter((f) => f.isMtp && !f.isMmproj),
     [filesWithSize],
   );
   const selectedRecommendedFile = useMemo(
@@ -1808,6 +1818,26 @@ export function HuggingFaceBrowserPage() {
     });
   }, [mmprojFilesWithSize]);
 
+  const recMtpBundled = (recData?.arch?.nextnPredictLayers ?? 0) > 0;
+  const recMtpAvailable = recMtpBundled || mtpFilesWithSize.length > 0;
+
+  useEffect(() => {
+    if (!mtpFilesWithSize.length) {
+      setRecMtpFile("");
+      if (!recMtpBundled) {
+        setRecMtpSupport(false);
+      }
+      return;
+    }
+
+    setRecMtpFile((current) => {
+      if (current && mtpFilesWithSize.some((file) => file.filename === current)) {
+        return current;
+      }
+      return mtpFilesWithSize[0]?.filename ?? "";
+    });
+  }, [mtpFilesWithSize, recMtpBundled]);
+
   const sortedFilesWithSize = useMemo(() => {
     const sortedRunnable = [...runnableFilesWithSize].sort((a, b) => {
       const aScore = runabilityScores[a.filename]?.score;
@@ -1826,8 +1856,12 @@ export function HuggingFaceBrowserPage() {
       a.filename.localeCompare(b.filename),
     );
 
-    return [...sortedRunnable, ...sortedMmproj];
-  }, [mmprojFilesWithSize, runabilityScores, runnableFilesWithSize]);
+    const sortedMtp = [...mtpFilesWithSize].sort((a, b) =>
+      a.filename.localeCompare(b.filename),
+    );
+
+    return [...sortedRunnable, ...sortedMtp, ...sortedMmproj];
+  }, [mmprojFilesWithSize, mtpFilesWithSize, runabilityScores, runnableFilesWithSize]);
 
   const openCompareModal = useCallback(() => {
     if (!recData || recData.files.length === 0) return;
@@ -1931,12 +1965,19 @@ export function HuggingFaceBrowserPage() {
   );
 
   const autoCreateModelFromQueuedDownload = useCallback(
-    async (modelItem: QueuedDownload, mmprojItem: QueuedDownload | null) => {
+    async (
+      modelItem: QueuedDownload,
+      mmprojItem: QueuedDownload | null,
+      mtpItem: QueuedDownload | null,
+    ) => {
       if (!modelItem.resultPath) {
         return;
       }
 
       if (typeof modelItem.mmprojFile === "string" && !mmprojItem?.resultPath) {
+        return;
+      }
+      if (typeof modelItem.mtpFile === "string" && !mtpItem?.resultPath) {
         return;
       }
 
@@ -1952,6 +1993,8 @@ export function HuggingFaceBrowserPage() {
       const kvType = modelItem.kvType || "q8_0";
       const mmprojPath = mmprojItem?.resultPath ?? null;
       const hasImageSupport = !!mmprojPath;
+      const mtpPath = mtpItem?.resultPath ?? null;
+      const hasMtpSupport = !!mtpPath || modelItem.mtpBundled === true;
       const modelOffloadValue =
         (modelItem.llamaModelOffloadMode as ModelOffload | null | undefined) ??
         gpuLayersToModelOffload(modelItem.llamaGpuLayers ?? null, null);
@@ -1981,13 +2024,21 @@ export function HuggingFaceBrowserPage() {
             llamaOffloadKqv:
               modelItem.llamaOffloadKqv == null ? null : modelItem.llamaOffloadKqv,
             llamaMmprojPath: mmprojPath,
+            llamaMtpEnabled: hasMtpSupport ? true : null,
+            llamaMtpModelPath: mtpPath,
           },
         });
 
+        const featureNotes = [
+          hasImageSupport ? "image support" : null,
+          hasMtpSupport ? "multi-token prediction" : null,
+        ]
+          .filter(Boolean)
+          .join(" and ");
         toast.success(
           "Model installed",
-          hasImageSupport
-            ? `${displayName} added with image support, ${contextLength.toLocaleString()} ctx, ${kvType.toUpperCase()} KV cache, ${modelOffloadCopy.label} model offload, and ${placementCopy.label} KV placement.`
+          featureNotes
+            ? `${displayName} added with ${featureNotes}, ${contextLength.toLocaleString()} ctx, ${kvType.toUpperCase()} KV cache, ${modelOffloadCopy.label} model offload, and ${placementCopy.label} KV placement.`
             : `${displayName} added with ${contextLength.toLocaleString()} ctx, ${kvType.toUpperCase()} KV cache, ${modelOffloadCopy.label} model offload, and ${placementCopy.label} KV placement.`,
         );
         setHasPersistedLocalModel(true);
@@ -1995,6 +2046,9 @@ export function HuggingFaceBrowserPage() {
         await dismissItem(modelItem.id);
         if (mmprojItem) {
           await dismissItem(mmprojItem.id);
+        }
+        if (mtpItem) {
+          await dismissItem(mtpItem.id);
         }
       } catch (err: any) {
         processedRecommendedInstallsRef.current.delete(installId);
@@ -2043,6 +2097,11 @@ export function HuggingFaceBrowserPage() {
       recommendedMixedGpuLayers,
     );
 
+    const selectedMtp =
+      recMtpSupport && !recMtpBundled
+        ? (mtpFilesWithSize.find((f) => f.filename === recMtpFile) ?? mtpFilesWithSize[0] ?? null)
+        : null;
+
     if (selectedMmproj) {
       const mmprojQueueId = await queueTrackedDownload(modelInfo.modelId, selectedMmproj.filename, {
         createModelWhenFinished: false,
@@ -2056,9 +2115,25 @@ export function HuggingFaceBrowserPage() {
       }
     }
 
+    if (selectedMtp) {
+      const mtpQueueId = await queueTrackedDownload(modelInfo.modelId, selectedMtp.filename, {
+        createModelWhenFinished: false,
+        mmprojFile: false,
+        mtpFile: false,
+        installId,
+        displayName,
+        downloadRole: "mtp",
+      });
+      if (!mtpQueueId) {
+        return;
+      }
+    }
+
     const modelQueueId = await queueTrackedDownload(modelInfo.modelId, selectedFile.filename, {
       createModelWhenFinished: true,
       mmprojFile: selectedMmproj?.filename ?? false,
+      mtpFile: selectedMtp?.filename ?? false,
+      mtpBundled: recMtpSupport && recMtpBundled,
       installId,
       displayName,
       contextLength: requestedContext,
@@ -2076,6 +2151,7 @@ export function HuggingFaceBrowserPage() {
     }
   }, [
     mmprojFilesWithSize,
+    mtpFilesWithSize,
     modelInfo,
     queueTrackedDownload,
     recContext,
@@ -2086,6 +2162,9 @@ export function HuggingFaceBrowserPage() {
     recKvType,
     recKvPlacement,
     recMmprojFile,
+    recMtpSupport,
+    recMtpFile,
+    recMtpBundled,
     gpuOptionsEnabled,
     recommendedMixedGpuLayers,
   ]);
@@ -2121,7 +2200,7 @@ export function HuggingFaceBrowserPage() {
           )
         : null;
 
-      const shouldCreateModel = Boolean(returnTo) && !file.isMmproj;
+      const shouldCreateModel = Boolean(returnTo) && !file.isMmproj && !file.isMtp;
       const metadata = shouldCreateModel
         ? {
             createModelWhenFinished: true,
@@ -2164,7 +2243,11 @@ export function HuggingFaceBrowserPage() {
 
   useEffect(() => {
     for (const modelItem of queue) {
-      if (!modelItem.createModelWhenFinished || modelItem.downloadRole === "mmproj") {
+      if (
+        !modelItem.createModelWhenFinished ||
+        modelItem.downloadRole === "mmproj" ||
+        modelItem.downloadRole === "mtp"
+      ) {
         continue;
       }
       if (modelItem.status !== "complete") {
@@ -2190,8 +2273,22 @@ export function HuggingFaceBrowserPage() {
         }
       }
 
+      let mtpItem: QueuedDownload | null = null;
+      if (typeof modelItem.mtpFile === "string") {
+        mtpItem =
+          queue.find(
+            (item) =>
+              item.installId === modelItem.installId &&
+              item.downloadRole === "mtp" &&
+              item.filename === modelItem.mtpFile,
+          ) ?? null;
+        if (!mtpItem || mtpItem.status !== "complete" || !mtpItem.resultPath) {
+          continue;
+        }
+      }
+
       processedRecommendedInstallsRef.current.add(installId);
-      void autoCreateModelFromQueuedDownload(modelItem, mmprojItem);
+      void autoCreateModelFromQueuedDownload(modelItem, mmprojItem, mtpItem);
     }
   }, [queue, autoCreateModelFromQueuedDownload]);
 
@@ -3181,6 +3278,52 @@ export function HuggingFaceBrowserPage() {
                                         </>
                                       )}
 
+                                      {recMtpAvailable && (
+                                        <>
+                                          <div className="flex items-center justify-between gap-3 rounded-lg border border-fg/10 bg-fg/5 px-2.5 py-2">
+                                            <div className="min-w-0">
+                                              <span className="block text-[11px] font-medium text-fg/85">
+                                                Multi-token prediction
+                                              </span>
+                                              <span className="block whitespace-nowrap text-[11px] text-fg/40">
+                                                {recMtpBundled
+                                                  ? "Use bundled MTP layers for faster output"
+                                                  : "Download MTP draft sidecar for faster output"}
+                                              </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-fg/35">
+                                                {recMtpSupport ? "On" : "Off"}
+                                              </span>
+                                              <Switch
+                                                id="hf-mtp-support-toggle"
+                                                checked={recMtpSupport}
+                                                onChange={setRecMtpSupport}
+                                              />
+                                            </div>
+                                          </div>
+
+                                          {recMtpSupport && !recMtpBundled && (
+                                            <div>
+                                              <label className="text-[9px] font-semibold uppercase tracking-wider text-fg/40">
+                                                MTP File
+                                              </label>
+                                              <select
+                                                value={recMtpFile}
+                                                onChange={(e) => setRecMtpFile(e.target.value)}
+                                                className="mt-1 w-full rounded-md border border-fg/10 bg-fg/5 px-2 py-1.5 text-[11px] text-fg focus:border-fg/25 focus:outline-none"
+                                              >
+                                                {mtpFilesWithSize.map((file) => (
+                                                  <option key={file.filename} value={file.filename}>
+                                                    {file.filename} — {formatBytes(file.size)}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            </div>
+                                          )}
+                                        </>
+                                      )}
+
                                       {/* Context length */}
                                       {(() => {
                                         const modelMax = recData.modelMaxContext;
@@ -3518,6 +3661,11 @@ export function HuggingFaceBrowserPage() {
                                         MMPROJ
                                       </span>
                                     )}
+                                    {file.isMtp && (
+                                      <span className="rounded-md border border-accent/20 bg-accent/10 px-1.5 py-0.5 text-[9px] font-semibold text-accent/80">
+                                        MTP
+                                      </span>
+                                    )}
                                     {isSdMode && file.role && (
                                       <span className="rounded-md border border-violet-400/20 bg-violet-400/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-violet-300">
                                         {file.role}
@@ -3570,7 +3718,7 @@ export function HuggingFaceBrowserPage() {
                                     {isOllamaMode ? <Server size={12} /> : <Download size={12} />}
                                     {isOllamaMode
                                       ? `${t("hfBrowser.pullToOllama")} ${selectedOllamaProvider?.label ?? ""}`.trim()
-                                      : returnTo && !file.isMmproj
+                                      : returnTo && !file.isMmproj && !file.isMtp
                                         ? "Download and Use"
                                         : t("hfBrowser.download")}
                                   </button>
