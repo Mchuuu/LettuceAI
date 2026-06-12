@@ -44,6 +44,7 @@ interface ChatMessageProps {
   reasoning?: string;
   swapPlaces?: boolean;
   modelName?: string;
+  scenePromptStreaming?: boolean;
 }
 
 // CSS class mappings for chat appearance settings
@@ -529,6 +530,7 @@ function ChatMessageInner({
   reasoning,
   swapPlaces = false,
   modelName,
+  scenePromptStreaming = false,
 }: ChatMessageProps) {
   const { t } = useI18n();
   const prevRoleRef = useRef(message.role);
@@ -1063,6 +1065,23 @@ function ChatMessageInner({
           </motion.div>
         )}
 
+        {scenePromptStreaming && (
+          <motion.div
+            className={cn(
+              "mt-2.5 flex items-center gap-1.5 pr-2",
+              typography.caption.size,
+              typography.caption.weight,
+              "uppercase tracking-wider text-emerald-300",
+            )}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <span className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-300/30 border-t-emerald-300" />
+            Generating image prompt...
+          </motion.div>
+        )}
+
         {mockVariantMode && computed.totalVariants <= 1 && (
           <motion.div
             data-tour-id="chat-variants"
@@ -1176,6 +1195,7 @@ export const ChatMessage = React.memo(ChatMessageInner, (prev, next) => {
     prev.persona?.avatarCrop?.scale === next.persona?.avatarCrop?.scale &&
     prev.displayContent === next.displayContent &&
     prev.modelName === next.modelName &&
+    prev.scenePromptStreaming === next.scenePromptStreaming &&
     prev.swapPlaces === next.swapPlaces &&
     prev.audioStatus === next.audioStatus &&
     a.reasoning === b.reasoning &&

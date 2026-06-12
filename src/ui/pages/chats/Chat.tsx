@@ -561,6 +561,7 @@ export function ChatConversationPage() {
     initializeLongPressTimer,
     isStartingSceneMessage,
     streamingReasoning,
+    scenePromptStreaming,
     generateAiScenePrompt,
     applySceneImagePrompt,
   } = chatController;
@@ -2740,6 +2741,11 @@ export function ChatConversationPage() {
                     reasoning={streamingReasoning[message.id] || combinedReasoning || undefined}
                     swapPlaces={swapPlaces}
                     modelName={resolveModelName(message.modelId)}
+                    scenePromptStreaming={
+                      scenePromptStreaming &&
+                      message.role === "assistant" &&
+                      index === visibleMessages.length - 1
+                    }
                   />
                 </motion.div>
               );

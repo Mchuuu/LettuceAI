@@ -177,6 +177,7 @@ export function useChatStreamingController({
       const streamBatcher = createStreamBatcher(dispatch);
       const thinkState = createThinkStreamState();
       const sceneDirectiveState = createSceneDirectiveStreamState();
+      let scenePromptNotified = false;
 
       try {
         unlistenNormalized = await listen<any>(`api-normalized://${requestId}`, (event) => {
@@ -196,6 +197,13 @@ export function useChatStreamingController({
                   sceneDirectiveState,
                   content,
                 ).content;
+                if (
+                  !scenePromptNotified &&
+                  (sceneDirectiveState.insideTag || sceneDirectiveState.extractedPrompt !== null)
+                ) {
+                  scenePromptNotified = true;
+                  dispatch({ type: "SET_SCENE_PROMPT_STREAMING", payload: true });
+                }
                 if (sceneContent) {
                   streamBatcher.update(assistantPlaceholder.id, sceneContent);
                   applyLiveChatAction(currentSessionId, state, {
@@ -449,6 +457,7 @@ export function useChatStreamingController({
       const streamBatcher = createStreamBatcher(dispatch);
       const thinkState = createThinkStreamState();
       const sceneDirectiveState = createSceneDirectiveStreamState();
+      let scenePromptNotified = false;
 
       try {
         unlistenNormalized = await listen<any>(`api-normalized://${requestId}`, (event) => {
@@ -468,6 +477,13 @@ export function useChatStreamingController({
                   sceneDirectiveState,
                   content,
                 ).content;
+                if (
+                  !scenePromptNotified &&
+                  (sceneDirectiveState.insideTag || sceneDirectiveState.extractedPrompt !== null)
+                ) {
+                  scenePromptNotified = true;
+                  dispatch({ type: "SET_SCENE_PROMPT_STREAMING", payload: true });
+                }
                 if (sceneContent) {
                   streamBatcher.update(assistantPlaceholder.id, sceneContent);
                   applyLiveChatAction(currentSessionId, state, {
@@ -733,6 +749,7 @@ export function useChatStreamingController({
       const streamBatcher = createStreamBatcher(dispatch);
       const thinkState = createThinkStreamState();
       const sceneDirectiveState = createSceneDirectiveStreamState();
+      let scenePromptNotified = false;
 
       try {
         unlistenNormalized = await listen<any>(`api-normalized://${requestId}`, (event) => {
@@ -752,6 +769,13 @@ export function useChatStreamingController({
                   sceneDirectiveState,
                   content,
                 ).content;
+                if (
+                  !scenePromptNotified &&
+                  (sceneDirectiveState.insideTag || sceneDirectiveState.extractedPrompt !== null)
+                ) {
+                  scenePromptNotified = true;
+                  dispatch({ type: "SET_SCENE_PROMPT_STREAMING", payload: true });
+                }
                 if (sceneContent) {
                   streamBatcher.update(message.id, sceneContent);
                   applyLiveChatAction(currentSessionId, state, {

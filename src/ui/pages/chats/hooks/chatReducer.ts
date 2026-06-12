@@ -58,6 +58,9 @@ export interface ChatState {
 
   // Streaming reasoning (for thinking models)
   streamingReasoning: Record<string, string>;
+
+  // True while the assistant is streaming an inline scene image prompt
+  scenePromptStreaming: boolean;
 }
 
 export type ChatAction =
@@ -98,7 +101,8 @@ export type ChatAction =
   | { type: "CLEAR_DRAFT" }
   | { type: "UPDATE_MESSAGE_REASONING"; payload: { messageId: string; reasoning: string } }
   | { type: "CLEAR_STREAMING_REASONING"; payload: string }
-  | { type: "TRANSFER_REASONING"; payload: { fromId: string; toId: string } };
+  | { type: "TRANSFER_REASONING"; payload: { fromId: string; toId: string } }
+  | { type: "SET_SCENE_PROMPT_STREAMING"; payload: boolean };
 
 export const initialChatState: ChatState = {
   character: null,
@@ -119,6 +123,7 @@ export const initialChatState: ChatState = {
   activeRequestId: null,
   pendingAttachments: [],
   streamingReasoning: {},
+  scenePromptStreaming: false,
 };
 
 export function chatReducer(state: ChatState, action: ChatAction): ChatState {
@@ -150,7 +155,12 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return { ...state, loading: action.payload };
 
     case "SET_SENDING":
-      return { ...state, sending: action.payload };
+      return action.payload
+        ? { ...state, sending: true }
+        : { ...state, sending: false, scenePromptStreaming: false };
+
+    case "SET_SCENE_PROMPT_STREAMING":
+      return { ...state, scenePromptStreaming: action.payload };
 
     case "SET_ERROR":
       return { ...state, error: action.payload };

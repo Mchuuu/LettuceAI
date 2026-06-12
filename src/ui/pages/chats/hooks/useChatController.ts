@@ -40,6 +40,7 @@ export interface ChatController {
   activeRequestId: string | null;
   pendingAttachments: ImageAttachment[];
   streamingReasoning: Record<string, string>;
+  scenePromptStreaming: boolean;
   hasMoreMessagesBefore: boolean;
   loadOlderMessages: () => Promise<void>;
   ensureMessageLoaded: (messageId: string) => Promise<void>;
@@ -291,6 +292,7 @@ export function useChatController(
     activeRequestId: state.activeRequestId,
     pendingAttachments: state.pendingAttachments,
     streamingReasoning: state.streamingReasoning,
+    scenePromptStreaming: state.scenePromptStreaming,
     hasMoreMessagesBefore: hasMoreMessagesBeforeRef.current,
 
     // Setters
