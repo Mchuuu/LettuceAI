@@ -7,3 +7,4 @@ export {
   DiscoverySearchSkeleton,
   DiscoveryDetailSkeleton,
 } from "./DiscoverySkeleton";
+export { InfiniteScrollSentinel } from "./InfiniteScrollSentinel";

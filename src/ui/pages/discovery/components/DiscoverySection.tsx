@@ -14,6 +14,8 @@ interface DiscoverySectionProps {
   loading?: boolean;
   icon?: React.ReactNode;
   accentColor?: string;
+  showNsfw?: boolean;
+  onTagClick?: (tag: string) => void;
 }
 
 export const DiscoverySection = memo(function DiscoverySection({
@@ -25,6 +27,8 @@ export const DiscoverySection = memo(function DiscoverySection({
   loading = false,
   icon,
   accentColor = "from-accent to-info/80",
+  showNsfw = false,
+  onTagClick,
 }: DiscoverySectionProps) {
   const { t } = useI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -110,6 +114,7 @@ export const DiscoverySection = memo(function DiscoverySection({
             onClick={onCardClick}
             variant="compact"
             index={index}
+            showNsfw={showNsfw}
           />
         ))}
 
@@ -140,6 +145,8 @@ export const DiscoverySection = memo(function DiscoverySection({
             onClick={onCardClick}
             variant="default"
             index={index}
+            showNsfw={showNsfw}
+            onTagClick={onTagClick}
           />
         ))}
 

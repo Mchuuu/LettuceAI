@@ -1,60 +1,17 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, X, Loader2, TrendingUp, Clock, Sparkles } from "lucide-react";
 import { cn, typography } from "../../design-tokens";
 import { useI18n } from "../../../core/i18n/context";
-import { DiscoveryCard, DiscoveryGridSkeleton } from "./components";
-import { Routes, useNavigationManager } from "../../navigation";
-import {
-  searchDiscoveryCards,
-  type DiscoveryCard as DiscoveryCardType,
-  type DiscoverySearchResponse,
-} from "../../../core/discovery";
-
-interface RecentSearch {
-  query: string;
-  timestamp: number;
-}
-
-const RECENT_SEARCHES_KEY = "discovery_recent_searches";
-const MAX_RECENT_SEARCHES = 8;
-
-function loadRecentSearches(): RecentSearch[] {
-  try {
-    const stored = sessionStorage.getItem(RECENT_SEARCHES_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveRecentSearch(query: string) {
-  const trimmed = query.trim();
-  if (!trimmed) return;
-
-  const searches = loadRecentSearches().filter((s) => s.query !== trimmed);
-  searches.unshift({ query: trimmed, timestamp: Date.now() });
-  const limited = searches.slice(0, MAX_RECENT_SEARCHES);
-
-  try {
-    sessionStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(limited));
-  } catch {
-    // Storage full or unavailable
-  }
-}
-
-function clearRecentSearches() {
-  try {
-    sessionStorage.removeItem(RECENT_SEARCHES_KEY);
-  } catch {
-    // Storage unavailable
-  }
-}
+import { DiscoveryCard, DiscoveryGridSkeleton, InfiniteScrollSentinel } from "./components";
+import { Routes } from "../../navigation";
+import { useDiscoverySearch } from "./hooks/useDiscoverySearch";
+import { useShowNsfwImages } from "./hooks/useDiscoveryNsfw";
+import { type DiscoveryCard as DiscoveryCardType } from "../../../core/discovery";
 
 export function DiscoverySearchPage() {
   const navigate = useNavigate();
-  const { } = useNavigationManager();
   const { t } = useI18n();
 
   const TRENDING_SEARCHES = [
@@ -69,104 +26,43 @@ export function DiscoverySearchPage() {
   ];
   const [searchParams] = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
+  const showNsfw = useShowNsfwImages();
 
-  const [query, setQuery] = useState(searchParams.get("q") || "");
-  const [debouncedQuery, setDebouncedQuery] = useState(query);
-  const [results, setResults] = useState<DiscoverySearchResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
+  const {
+    query,
+    setQuery,
+    debouncedQuery,
+    results,
+    loading,
+    loadingMore,
+    error,
+    hasMore,
+    loadMore,
+    clear,
+    recentSearches,
+    clearRecent,
+  } = useDiscoverySearch(searchParams.get("q") || "");
 
-  // Load recent searches on mount
   useEffect(() => {
-    setRecentSearches(loadRecentSearches());
-    // Auto-focus search input
     inputRef.current?.focus();
   }, []);
 
-  // Debounce search query
+  // Keep the query in the URL so back navigation restores results
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(query);
-    }, 400);
-
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  // Search when debounced query changes
-  useEffect(() => {
-    if (!debouncedQuery.trim()) {
-      setResults(null);
-      setError(null);
-      return;
+    const newParams = new URLSearchParams(window.location.search);
+    const trimmed = debouncedQuery.trim();
+    if (trimmed) {
+      newParams.set("q", trimmed);
+    } else {
+      newParams.delete("q");
     }
-
-    const search = async () => {
-      setLoading(true);
-      setError(null);
-      setPage(1);
-      setHasMore(true);
-
-      try {
-        const response = await searchDiscoveryCards(debouncedQuery, 1, 30);
-        setResults(response);
-        setHasMore(
-          response.page !== undefined &&
-            response.totalPages !== undefined &&
-            response.page < response.totalPages,
-        );
-
-        // Save to recent searches
-        saveRecentSearch(debouncedQuery);
-        setRecentSearches(loadRecentSearches());
-
-        // Update URL without triggering re-render
-        const newParams = new URLSearchParams(window.location.search);
-        newParams.set("q", debouncedQuery);
-        window.history.replaceState({}, "", `${window.location.pathname}?${newParams.toString()}`);
-      } catch (err) {
-        console.error("Search failed:", err);
-        setError(err instanceof Error ? err.message : t("discovery.errors.searchFailed"));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    search();
+    const next = newParams.toString();
+    window.history.replaceState(
+      {},
+      "",
+      next ? `${window.location.pathname}?${next}` : window.location.pathname,
+    );
   }, [debouncedQuery]);
-
-  const loadMore = useCallback(async () => {
-    if (!debouncedQuery.trim() || loadingMore || !hasMore) return;
-
-    setLoadingMore(true);
-    try {
-      const nextPage = page + 1;
-      const response = await searchDiscoveryCards(debouncedQuery, nextPage, 30);
-
-      setResults((prev) =>
-        prev
-          ? {
-              ...response,
-              hits: [...prev.hits, ...response.hits],
-            }
-          : response,
-      );
-
-      setPage(nextPage);
-      setHasMore(
-        response.page !== undefined &&
-          response.totalPages !== undefined &&
-          response.page < response.totalPages,
-      );
-    } catch (err) {
-      console.error("Failed to load more:", err);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [debouncedQuery, page, loadingMore, hasMore]);
 
   const handleCardClick = useCallback(
     (card: DiscoveryCardType) => {
@@ -184,28 +80,12 @@ export function DiscoverySearchPage() {
         state: { from },
       });
     },
-    [navigate, location.pathname, location.search, query],
+    [navigate, query],
   );
 
-
-
   const handleClearQuery = () => {
-    setQuery("");
-    setResults(null);
+    clear();
     inputRef.current?.focus();
-  };
-
-  const handleRecentSearchClick = (searchQuery: string) => {
-    setQuery(searchQuery);
-  };
-
-  const handleClearRecent = () => {
-    clearRecentSearches();
-    setRecentSearches([]);
-  };
-
-  const handleTrendingClick = (term: string) => {
-    setQuery(term);
   };
 
   const showEmptyState = !loading && !query.trim() && !results;
@@ -242,7 +122,10 @@ export function DiscoverySearchPage() {
                 ? `${results.totalHits.toLocaleString()} ${t("discovery.search.resultsUnit")}`
                 : `${results.hits.length} ${t("discovery.search.resultsUnit")}`}
               {results.processingTimeMs !== undefined && (
-                <span className="ml-2 text-fg/30">({results.processingTimeMs}{t("discovery.search.timingUnit")})</span>
+                <span className="ml-2 text-fg/30">
+                  ({results.processingTimeMs}
+                  {t("discovery.search.timingUnit")})
+                </span>
               )}
             </p>
           </div>
@@ -277,7 +160,7 @@ export function DiscoverySearchPage() {
                     </h3>
                   </div>
                   <button
-                    onClick={handleClearRecent}
+                    onClick={clearRecent}
                     className="text-xs text-fg/50 hover:text-fg"
                   >
                     {t("discovery.search.clearAll")}
@@ -287,7 +170,7 @@ export function DiscoverySearchPage() {
                   {recentSearches.map((search) => (
                     <button
                       key={search.timestamp}
-                      onClick={() => handleRecentSearchClick(search.query)}
+                      onClick={() => setQuery(search.query)}
                       className="flex items-center gap-1.5 rounded-full border border-fg/10 bg-fg/5 px-3 py-1.5 text-sm text-fg/70 transition-all hover:border-fg/20 hover:bg-fg/10 hover:text-fg active:scale-95"
                     >
                       <Clock className="h-3 w-3" />
@@ -310,7 +193,7 @@ export function DiscoverySearchPage() {
                 {TRENDING_SEARCHES.map((term) => (
                   <button
                     key={term}
-                    onClick={() => handleTrendingClick(term)}
+                    onClick={() => setQuery(term)}
                     className="flex items-center gap-1.5 rounded-full border border-danger/20 bg-danger/10 px-3 py-1.5 text-sm text-danger transition-all hover:border-danger/30 hover:bg-danger/20 active:scale-95"
                   >
                     <Sparkles className="h-3 w-3" />
@@ -351,28 +234,20 @@ export function DiscoverySearchPage() {
                     card={card}
                     onClick={handleCardClick}
                     index={index}
+                    showNsfw={showNsfw}
+                    onTagClick={setQuery}
                   />
                 ))}
               </div>
 
               {/* Load more */}
               {hasMore && (
-                <div className="flex justify-center py-6">
-                  <button
-                    onClick={loadMore}
-                    disabled={loadingMore}
-                    className="flex items-center gap-2 rounded-xl border border-fg/15 bg-fg/5 px-6 py-2.5 text-sm font-medium text-fg transition-all hover:border-fg/25 hover:bg-fg/10 active:scale-95 disabled:opacity-50"
-                  >
-                    {loadingMore ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        {t("discovery.search.loading")}
-                      </>
-                    ) : (
-                      t("discovery.search.loadMore")
-                    )}
-                  </button>
-                </div>
+                <>
+                  <InfiniteScrollSentinel onReach={loadMore} disabled={loadingMore} />
+                  <div className="flex h-14 items-center justify-center">
+                    {loadingMore && <Loader2 className="h-5 w-5 animate-spin text-fg/40" />}
+                  </div>
+                </>
               )}
             </motion.div>
           )}
@@ -389,7 +264,9 @@ export function DiscoverySearchPage() {
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-fg/10 bg-fg/5">
                 <Search className="h-8 w-8 text-fg/30" />
               </div>
-              <h3 className="mb-2 text-lg font-semibold text-fg">{t("discovery.search.noResults")}</h3>
+              <h3 className="mb-2 text-lg font-semibold text-fg">
+                {t("discovery.search.noResults")}
+              </h3>
               <p className="mb-4 text-center text-sm text-fg/50">
                 {t("discovery.search.noResultsFor")} "{query}"
               </p>

@@ -91,20 +91,13 @@ export const DiscoverySectionSkeleton = memo(function DiscoverySectionSkeleton({
 
 interface DiscoveryGridSkeletonProps {
   cardCount?: number;
-  columns?: 2 | 3;
 }
 
 export const DiscoveryGridSkeleton = memo(function DiscoveryGridSkeleton({
-  cardCount = 6,
-  columns = 2,
+  cardCount = 8,
 }: DiscoveryGridSkeletonProps) {
   return (
-    <div
-      className={cn(
-        "grid gap-3 px-4",
-        columns === 2 ? "grid-cols-2" : "grid-cols-2 lg:grid-cols-3",
-      )}
-    >
+    <div className="grid grid-cols-2 gap-3 px-4 lg:grid-cols-3 xl:grid-cols-4">
       {Array.from({ length: cardCount }).map((_, i) => (
         <SkeletonCard key={i} variant="default" />
       ))}
@@ -114,7 +107,7 @@ export const DiscoveryGridSkeleton = memo(function DiscoveryGridSkeleton({
 
 export const DiscoveryFeaturedSkeleton = memo(function DiscoveryFeaturedSkeleton() {
   return (
-    <div className="px-4 py-3">
+    <div className="px-4 lg:px-8">
       <SkeletonCard variant="featured" />
     </div>
   );

@@ -5,6 +5,8 @@ import { TrendingUp, Flame, Clock, AlertCircle, ArrowUpDown, Check } from "lucid
 import { cn, interactive } from "../../design-tokens";
 import { useI18n } from "../../../core/i18n/context";
 import { DiscoveryCard, DiscoveryGridSkeleton } from "./components";
+import { useIsMobileViewport } from "./hooks/useIsMobileViewport";
+import { useShowNsfwImages } from "./hooks/useDiscoveryNsfw";
 import { useNavigationManager } from "../../navigation";
 import {
   fetchDiscoveryCards,
@@ -31,6 +33,8 @@ export function DiscoveryBrowsePage() {
   const navigate = useNavigate();
   const { } = useNavigationManager();
   const { t } = useI18n();
+  const isMobileViewport = useIsMobileViewport();
+  const showNsfw = useShowNsfwImages();
 
   const SECTION_CONFIGS: Record<CardType, SectionConfig> = {
     trending: {
@@ -106,6 +110,17 @@ export function DiscoveryBrowsePage() {
     [navigate],
   );
 
+  const handleTagClick = useCallback(
+    (tag: string) => {
+      if (isMobileViewport) {
+        navigate(`/discover/search?q=${encodeURIComponent(tag)}`);
+      } else {
+        navigate(`/discover?q=${encodeURIComponent(tag)}`);
+      }
+    },
+    [isMobileViewport, navigate],
+  );
+
   const handleSortChange = (newSort: SortOption) => {
     setSortBy(newSort);
     setShowSortMenu(false);
@@ -179,7 +194,14 @@ export function DiscoveryBrowsePage() {
           >
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
               {cards.map((card, index) => (
-                <DiscoveryCard key={card.id} card={card} onClick={handleCardClick} index={index} />
+                <DiscoveryCard
+                  key={card.id}
+                  card={card}
+                  onClick={handleCardClick}
+                  index={index}
+                  showNsfw={showNsfw}
+                  onTagClick={handleTagClick}
+                />
               ))}
             </div>
           </motion.div>

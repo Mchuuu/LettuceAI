@@ -10,6 +10,8 @@ interface DiscoveryCardProps {
   onClick: (card: DiscoveryCardType) => void;
   variant?: "default" | "compact" | "featured";
   index?: number;
+  showNsfw?: boolean;
+  onTagClick?: (tag: string) => void;
 }
 
 function StatBadge({ icon: Icon, value }: { icon: typeof Heart; value: string }) {
@@ -21,10 +23,40 @@ function StatBadge({ icon: Icon, value }: { icon: typeof Heart; value: string })
   );
 }
 
+function TagChip({
+  tag,
+  onTagClick,
+}: {
+  tag: string;
+  onTagClick?: (tag: string) => void;
+}) {
+  if (!onTagClick) {
+    return (
+      <span className="rounded-full bg-fg/10 px-2 py-0.5 text-[9px] font-medium text-fg/70 backdrop-blur-sm">
+        {tag}
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onTagClick(tag);
+      }}
+      className="rounded-full bg-fg/10 px-2 py-0.5 text-[9px] font-medium text-fg/70 backdrop-blur-sm transition-colors hover:bg-fg/25 hover:text-fg"
+    >
+      {tag}
+    </button>
+  );
+}
+
 export const DiscoveryCard = memo(function DiscoveryCard({
   card,
   onClick,
   variant = "default",
+  showNsfw = false,
+  onTagClick,
 }: DiscoveryCardProps) {
   const { t } = useI18n();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -55,16 +87,25 @@ export const DiscoveryCard = memo(function DiscoveryCard({
 
   const isFeatured = variant === "featured";
   const isCompact = variant === "compact";
+  const blurNsfw = card.isNsfw && !showNsfw;
 
   // Generate gradient fallback based on card name
   const gradientHue = card.name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) % 360;
   const fallbackGradient = `linear-gradient(135deg, hsl(${gradientHue}, 60%, 20%) 0%, hsl(${(gradientHue + 60) % 360}, 50%, 15%) 100%)`;
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={handleClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          handleClick();
+        }
+      }}
       className={cn(
-        "group relative flex flex-col justify-end overflow-hidden text-left",
+        "group relative flex cursor-pointer flex-col justify-end overflow-hidden text-left",
         "border border-fg/10 hover:border-fg/20",
         "transition-all duration-200 active:scale-[0.98]",
         isFeatured
@@ -84,7 +125,7 @@ export const DiscoveryCard = memo(function DiscoveryCard({
               "h-full w-full object-cover transition-all duration-500",
               "group-hover:scale-105",
               imageLoaded ? "opacity-100" : "opacity-0",
-              card.isNsfw && "blur-xl",
+              blurNsfw && "blur-xl",
             )}
             onLoad={() => setImageLoaded(true)}
             onError={() => setImageError(true)}
@@ -98,7 +139,7 @@ export const DiscoveryCard = memo(function DiscoveryCard({
       </div>
 
       {/* NSFW Overlay */}
-      {card.isNsfw && (
+      {blurNsfw && (
         <div className="absolute inset-0 z-5 flex items-center justify-center bg-surface-el/40">
           <div className="flex flex-col items-center gap-1">
             <Shield className="h-8 w-8 text-danger" />
@@ -193,16 +234,11 @@ export const DiscoveryCard = memo(function DiscoveryCard({
           </div>
         )}
 
-        {/* Tags */}
+        {/* Tags: always shown on featured, hover-revealed on default cards */}
         {isFeatured && card.tags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {card.tags.slice(0, 4).map((tag) => (
-              <span
-                key={tag}
-                className="rounded-full bg-fg/10 px-2 py-0.5 text-[9px] font-medium text-fg/70 backdrop-blur-sm"
-              >
-                {tag}
-              </span>
+              <TagChip key={tag} tag={tag} onTagClick={onTagClick} />
             ))}
             {card.tags.length > 4 && (
               <span className="rounded-full bg-fg/5 px-2 py-0.5 text-[9px] font-medium text-fg/40">
@@ -211,11 +247,19 @@ export const DiscoveryCard = memo(function DiscoveryCard({
             )}
           </div>
         )}
+
+        {!isFeatured && !isCompact && onTagClick && card.tags.length > 0 && (
+          <div className="hidden max-h-0 flex-wrap gap-1 overflow-hidden opacity-0 transition-all duration-200 group-hover:max-h-12 group-hover:opacity-100 lg:flex">
+            {card.tags.slice(0, 3).map((tag) => (
+              <TagChip key={tag} tag={tag} onTagClick={onTagClick} />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Hover shine effect */}
       <div className="absolute inset-0 z-30 bg-linear-to-r from-transparent via-white/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-    </button>
+    </div>
   );
 });
 
