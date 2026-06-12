@@ -445,6 +445,8 @@ struct GgufModelMeta {
     expert_shared_count: Option<u64>,
     /// Per-expert FFN hidden dim (usually smaller than dense feed_forward_length)
     expert_feed_forward_length: Option<u64>,
+    /// MTP/NextN speculative layers included in block_count (GLM-4.x, DeepSeek V3.x)
+    nextn_predict_layers: Option<u64>,
     /// Number of metadata KV pairs declared in header (for truncation detection)
     metadata_kv_count: u64,
     /// Number of KV pairs actually parsed before buffer ran out
@@ -743,6 +745,7 @@ fn parse_gguf_meta(data: &[u8]) -> Option<GgufModelMeta> {
     let key_expert_used_count = format!("{}.expert_used_count", arch);
     let key_expert_shared_count = format!("{}.expert_shared_count", arch);
     let key_expert_ffn = format!("{}.expert_feed_forward_length", arch);
+    let key_nextn = format!("{}.nextn_predict_layers", arch);
 
     reader.pos = start_pos;
     let mut parsed: u64 = 0;
@@ -841,6 +844,9 @@ fn parse_gguf_meta(data: &[u8]) -> Option<GgufModelMeta> {
         } else if key == key_expert_ffn {
             meta.expert_feed_forward_length = reader.read_value_as_u64(value_type);
             matched = "expert_feed_forward_length";
+        } else if key == key_nextn {
+            meta.nextn_predict_layers = reader.read_value_as_u64(value_type);
+            matched = "nextn_predict_layers";
         }
 
         if !matched.is_empty() {
@@ -982,7 +988,8 @@ fn quant_quality_score(quant: &str) -> f64 {
 /// - **DeepSeek V2/V3 (MLA)**: Multi-Head Latent Attention compresses KV cache
 ///   using a low-rank projection, dramatically reducing per-token cost.
 fn kv_base_per_token(meta: &GgufModelMeta) -> Option<f64> {
-    let blocks = meta.block_count? as f64;
+    let nextn = meta.nextn_predict_layers.unwrap_or(0);
+    let blocks = meta.block_count?.saturating_sub(nextn).max(1) as f64;
     let embd = meta.embedding_length? as f64;
     let heads = meta.head_count.filter(|&h| h > 0)? as f64;
     let heads_kv = meta.head_count_kv.unwrap_or(meta.head_count?) as f64;
@@ -1069,6 +1076,41 @@ fn active_weight_ratio(meta: &GgufModelMeta) -> f64 {
     let ffn_frac = 1.0 - attn_frac;
     let active_ffn = ffn_frac * (active_experts / total_experts.max(1.0));
     (attn_frac + active_ffn).clamp(0.05, 1.0)
+}
+
+fn effective_model_size(file_size: u64, meta: Option<&GgufModelMeta>) -> u64 {
+    let Some(meta) = meta else {
+        return file_size;
+    };
+    let nextn = meta.nextn_predict_layers.unwrap_or(0);
+    let Some(blocks) = meta.block_count.filter(|&b| b > 0) else {
+        return file_size;
+    };
+    if nextn == 0 {
+        return file_size;
+    }
+    let share =
+        (file_size as f64 * (nextn as f64 / blocks as f64) * 1.5).min(file_size as f64 * 0.10);
+    file_size.saturating_sub(share as u64)
+}
+
+fn is_qat_name(name: &str) -> bool {
+    name.to_lowercase()
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .any(|part| part == "qat")
+}
+
+fn quant_quality_with_qat(quant: &str, qat: bool) -> f64 {
+    let base = quant_quality_score(quant);
+    if qat {
+        base.max(90.0)
+    } else {
+        base
+    }
+}
+
+fn is_draft_file(name: &str) -> bool {
+    name.to_lowercase().contains("draft")
 }
 
 fn compute_overhead(model_size: u64, active_ratio: f64) -> u64 {
@@ -1273,6 +1315,7 @@ pub(crate) fn llama_runtime_defaults(app: &AppHandle) -> LlamaRuntimeDefaults {
 
 fn compute_scores(
     files: &[RunabilityFileInput],
+    model_id: &str,
     meta: Option<&GgufModelMeta>,
     available_ram: Option<u64>,
     available_vram: Option<u64>,
@@ -1292,13 +1335,15 @@ fn compute_scores(
         .map(|base| (base * defaults.kv_bytes_per_value * effective_ctx as f64) as u64)
         .unwrap_or(0);
     let active_ratio = meta.map(active_weight_ratio).unwrap_or(1.0);
+    let repo_qat = is_qat_name(model_id);
 
     files
         .iter()
         .map(|file| {
+            let qat = repo_qat || is_qat_name(&file.filename);
             let (score, fits_in_ram, fits_in_vram, .., gpu_mode) = score_configuration(
-                file.size,
-                quant_quality_score(&file.quantization),
+                effective_model_size(file.size, meta),
+                quant_quality_with_qat(&file.quantization, qat),
                 kv_8k,
                 ram,
                 total_available,
@@ -1337,6 +1382,7 @@ pub struct ModelArchInfo {
     pub expert_used_count: Option<u64>,
     pub expert_shared_count: Option<u64>,
     pub expert_feed_forward_length: Option<u64>,
+    pub nextn_predict_layers: Option<u64>,
     pub is_moe: bool,
     pub active_weight_ratio: Option<f64>,
     pub incomplete_parse: bool,
@@ -1362,6 +1408,7 @@ impl From<&GgufModelMeta> for ModelArchInfo {
             expert_used_count: m.expert_used_count,
             expert_shared_count: m.expert_shared_count,
             expert_feed_forward_length: m.expert_feed_forward_length,
+            nextn_predict_layers: m.nextn_predict_layers,
             is_moe: moe,
             active_weight_ratio: if moe {
                 Some(active_weight_ratio(m))
@@ -1494,6 +1541,7 @@ fn max_context_for(
 
 fn build_recommendation(
     files: &[RunabilityFileInput],
+    model_id: &str,
     meta: Option<&GgufModelMeta>,
     available_ram: u64,
     available_vram: u64,
@@ -1515,6 +1563,7 @@ fn build_recommendation(
         }
     });
 
+    let repo_qat = is_qat_name(model_id);
     let mut file_recs: Vec<FileRecommendation> = Vec::new();
     let mut best: Option<BestRecommendation> = None;
 
@@ -1523,11 +1572,15 @@ fn build_recommendation(
             continue;
         }
 
-        let qq = quant_quality_score(&file.quantization);
+        let load_size = effective_model_size(file.size, meta);
+        let qq = quant_quality_with_qat(
+            &file.quantization,
+            repo_qat || is_qat_name(&file.filename),
+        );
         let (max_f16, max_q8, max_q4) = if let Some(base) = kv_base {
             (
                 max_context_for(
-                    file.size,
+                    load_size,
                     base,
                     2.0,
                     total_available,
@@ -1535,7 +1588,7 @@ fn build_recommendation(
                     active_ratio,
                 ),
                 max_context_for(
-                    file.size,
+                    load_size,
                     base,
                     1.0,
                     total_available,
@@ -1543,7 +1596,7 @@ fn build_recommendation(
                     active_ratio,
                 ),
                 max_context_for(
-                    file.size,
+                    load_size,
                     base,
                     0.5,
                     total_available,
@@ -1564,10 +1617,10 @@ fn build_recommendation(
         let bpv_q8 = 1.0; // Q8_0 KV
         let bytes_per_token_q8 = kv_base.map(|b| b * bpv_q8).unwrap_or(0.0);
 
-        let optimal_gpu_ctx = if file.size <= vram_budget {
+        let optimal_gpu_ctx = if load_size <= vram_budget {
             calculate_optimal_context(
                 vram_budget,
-                file.size,
+                load_size,
                 bytes_per_token_q8,
                 model_max_ctx,
                 active_ratio,
@@ -1578,7 +1631,7 @@ fn build_recommendation(
 
         let optimal_ram_ctx = calculate_optimal_context(
             total_available.saturating_sub(safety),
-            file.size,
+            load_size,
             bytes_per_token_q8,
             model_max_ctx,
             active_ratio,
@@ -1596,11 +1649,15 @@ fn build_recommendation(
             optimal_ram_ctx,
         });
 
+        if is_draft_file(&file.filename) {
+            continue;
+        }
+
         // Try each KV type, find the best scoring configuration for this file
         for &(kv_name, bpv) in KV_TYPES {
             let max_ctx = if let Some(base) = kv_base {
                 max_context_for(
-                    file.size,
+                    load_size,
                     base,
                     bpv,
                     total_available,
@@ -1622,7 +1679,7 @@ fn build_recommendation(
                 .unwrap_or(0);
 
             let (score, ..) = score_configuration(
-                file.size,
+                load_size,
                 qq,
                 kv_bytes,
                 available_ram,
@@ -1652,10 +1709,14 @@ fn build_recommendation(
         let vram_budget = (available_vram as f64 * 0.90) as u64;
         let mut gpu_candidate: Option<(&RunabilityFileInput, &FileRecommendation)> = None;
         for (file, rec) in files.iter().zip(file_recs.iter()) {
-            if file.size == 0 || file.size > vram_budget {
+            let load_size = effective_model_size(file.size, meta);
+            if file.size == 0 || load_size > vram_budget || is_draft_file(&file.filename) {
                 continue;
             }
-            let qq = quant_quality_score(&file.quantization);
+            let qq = quant_quality_with_qat(
+                &file.quantization,
+                repo_qat || is_qat_name(&file.filename),
+            );
             if gpu_candidate
                 .as_ref()
                 .is_none_or(|(_, prev_rec)| qq > prev_rec.quant_quality as f64)
@@ -1669,8 +1730,11 @@ fn build_recommendation(
                 let effective_ctx = kv_ctx_cap.map(|cap| ctx.min(cap)).unwrap_or(ctx);
                 let kv_bytes = (base * 1.0 * effective_ctx as f64) as u64; // Q8_0
                 let (score, ..) = score_configuration(
-                    file.size,
-                    quant_quality_score(&file.quantization),
+                    effective_model_size(file.size, meta),
+                    quant_quality_with_qat(
+                        &file.quantization,
+                        repo_qat || is_qat_name(&file.filename),
+                    ),
                     kv_bytes,
                     available_ram,
                     total_available,
@@ -2759,6 +2823,7 @@ pub async fn hf_compute_runability(
     let defaults = llama_runtime_defaults(&app);
     Ok(compute_scores(
         &files,
+        &model_id,
         meta.as_ref(),
         available_ram,
         available_vram,
@@ -2822,7 +2887,7 @@ pub async fn hf_compute_local_runability(
         .map(|base| (base * defaults.kv_bytes_per_value * effective_ctx as f64) as u64)
         .unwrap_or(0);
 
-    let quant_quality = quant_quality_score(&quantization);
+    let quant_quality = quant_quality_with_qat(&quantization, is_qat_name(&file_path));
 
     log_info(
         &app,
@@ -2836,7 +2901,7 @@ pub async fn hf_compute_local_runability(
     let active_ratio = meta.as_ref().map(active_weight_ratio).unwrap_or(1.0);
     let (score, fits_in_ram, fits_in_vram, memory_score, gpu_score, kv_score, gpu_mode) =
         score_configuration(
-            file_size,
+            effective_model_size(file_size, meta.as_ref()),
             quant_quality,
             kv_8k,
             available_ram,
@@ -2906,6 +2971,7 @@ pub async fn hf_get_recommendation_data(
     let defaults = llama_runtime_defaults(&app);
     Ok(build_recommendation(
         &files,
+        &model_id,
         meta.as_ref(),
         available_ram,
         available_vram,
