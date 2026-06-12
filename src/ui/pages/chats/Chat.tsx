@@ -2486,7 +2486,7 @@ export function ChatConversationPage() {
   return (
     <div
       className={cn(
-        "relative flex h-screen flex-col overflow-hidden",
+        "relative flex h-full flex-col overflow-hidden",
         !backgroundImageData && !backgroundImageLoading && "bg-surface",
       )}
     >

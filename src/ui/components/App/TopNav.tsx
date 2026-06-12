@@ -16,15 +16,11 @@ import {
   Grid3X3,
   Upload,
   Eye,
-  Minus,
   RefreshCw,
-  Square,
-  X,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { invoke } from "@tauri-apps/api/core";
 import { typography, interactive, cn } from "../../design-tokens";
+import { dragRegionAttr } from "./TitleBar";
 import { toast } from "../toast";
 import { openDocs } from "../../../core/utils/docs";
 import { type TranslationKey, useI18n } from "../../../core/i18n/context";
@@ -35,58 +31,20 @@ interface TopNavProps {
   onBackOverride?: () => void;
   titleOverride?: string;
   rightAction?: React.ReactNode;
-  suppressWindowControls?: boolean;
 }
 
 const appPlatform = getPlatform();
 const isDesktop = appPlatform.type === "desktop";
 const isMacOS = appPlatform.os === "macos";
-/** Custom in-app window controls are disabled; use OS-decorated windows instead. */
-export const hasCustomWindowControls = false;
-
-// Cache window chrome flags from CLI args (--osdecorations, --nobuttons).
-let _chromeFlags: { osDecorations: boolean; noButtons: boolean } | null = {
-  osDecorations: true,
-  noButtons: true,
-};
-const chromeFlagsPromise = isDesktop
-  ? invoke<[boolean, boolean]>("get_window_chrome_flags")
-      .then(([osDecorations, noButtons]) => {
-        _chromeFlags = { osDecorations, noButtons };
-        return _chromeFlags;
-      })
-      .catch(() => ({ osDecorations: true, noButtons: true }))
-  : Promise.resolve({ osDecorations: true, noButtons: true });
-
-function useChromeFlags() {
-  const [flags, setFlags] = useState(_chromeFlags);
-  useEffect(() => {
-    if (_chromeFlags) {
-      setFlags(_chromeFlags);
-    } else {
-      chromeFlagsPromise.then((f) => setFlags(f));
-    }
-  }, []);
-  return flags;
-}
 
 export function TopNav({
   currentPath,
   onBackOverride,
   titleOverride,
   rightAction,
-  suppressWindowControls = false,
 }: TopNavProps) {
   const navigate = useNavigate();
   const { t } = useI18n();
-  const chromeFlags = useChromeFlags();
-  const showWindowControls =
-    isDesktop &&
-    !isMacOS &&
-    !chromeFlags?.osDecorations &&
-    !chromeFlags?.noButtons &&
-    !suppressWindowControls;
-  const showDragRegion = isDesktop && !chromeFlags?.osDecorations;
   const basePath = useMemo(() => currentPath.split("?")[0], [currentPath]);
   const hasAdvancedView = useMemo(() => currentPath.includes("view=advanced"), [currentPath]);
   const wasUnsavedRef = useRef(false);
@@ -714,25 +672,22 @@ export function TopNav({
   return (
     <header
       ref={headerRef}
-      className="fixed top-0 left-0 right-0 z-40 border-b border-fg/10 backdrop-blur-md bg-nav/80"
+      className="fixed left-0 right-0 top-[var(--titlebar-h,0px)] z-40 border-b border-fg/10 backdrop-blur-md bg-nav/80"
       style={{
         paddingTop: isDesktop ? "8px" : "calc(env(safe-area-inset-top) + 12px)",
         paddingBottom: isDesktop ? "8px" : "12px",
       }}
-      {...(showDragRegion ? { "data-tauri-drag-region": "" } : {})}
+      {...dragRegionAttr}
     >
       <div
-        className={cn(
-          "relative mx-auto flex w-full max-w-md lg:max-w-none items-center justify-between px-3 h-10",
-          showWindowControls ? "lg:pl-8 lg:pr-0" : "lg:px-8",
-        )}
+        className="relative mx-auto flex h-10 w-full max-w-md items-center justify-between px-3 lg:max-w-none lg:px-8"
         style={isMacOS ? { paddingLeft: "72px" } : undefined}
-        {...(showDragRegion ? { "data-tauri-drag-region": "" } : {})}
+        {...dragRegionAttr}
       >
         {/* Left side: */}
         <div
           className="flex items-center gap-1 overflow-hidden h-full"
-          {...(showDragRegion ? { "data-tauri-drag-region": "" } : {})}
+          {...dragRegionAttr}
         >
           <div
             className={cn(
@@ -761,7 +716,7 @@ export function TopNav({
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            {...(showDragRegion ? { "data-tauri-drag-region": "" } : {})}
+            {...dragRegionAttr}
             className={cn(
               typography.h1.size,
               "font-bold text-fg tracking-tight truncate leading-none",
@@ -774,7 +729,7 @@ export function TopNav({
 
         <div
           className="flex items-center justify-end gap-1 shrink-0 min-w-10 h-full"
-          {...(showDragRegion ? { "data-tauri-drag-region": "" } : {})}
+          {...dragRegionAttr}
         >
           {showLayoutToggle && (
             <button
@@ -954,169 +909,8 @@ export function TopNav({
             </button>
           )}
           {rightAction}
-
-          {showWindowControls && (
-            <div className="ml-1 flex items-center">
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  await getCurrentWindow().minimize();
-                }}
-                className="flex h-8 w-10 items-center justify-center text-fg/45 transition hover:bg-fg/10 hover:text-fg"
-                aria-label={t("topNav.extra.minimize")}
-              >
-                <Minus size={15} strokeWidth={1.5} />
-              </button>
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  await getCurrentWindow().toggleMaximize();
-                }}
-                className="flex h-8 w-10 items-center justify-center text-fg/45 transition hover:bg-fg/10 hover:text-fg"
-                aria-label={t("topNav.extra.maximize")}
-              >
-                <Square size={12} strokeWidth={1.5} />
-              </button>
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  await getCurrentWindow().close();
-                }}
-                className="flex h-8 w-10 items-center justify-center text-fg/45 transition hover:bg-red-500/80 hover:text-white"
-                aria-label={t("topNav.extra.close")}
-              >
-                <X size={15} strokeWidth={1.5} />
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </header>
-  );
-}
-
-/**
- * Just the minimize/maximize/close buttons. Import this into custom headers
- * (e.g. discovery pages) that don't use TopNav.
- */
-export function WindowControlButtons() {
-  const { t } = useI18n();
-  const chromeFlags = useChromeFlags();
-  const show = isDesktop && !isMacOS && !chromeFlags?.osDecorations && !chromeFlags?.noButtons;
-  if (!show) return null;
-
-  return (
-    <div className="ml-1 flex items-center">
-      <button
-        type="button"
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={async (e) => {
-          e.stopPropagation();
-          await getCurrentWindow().minimize();
-        }}
-        className="flex h-8 w-10 items-center justify-center text-fg/45 transition hover:bg-fg/10 hover:text-fg"
-        aria-label={t("topNav.extra.minimize")}
-      >
-        <Minus size={15} strokeWidth={1.5} />
-      </button>
-      <button
-        type="button"
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={async (e) => {
-          e.stopPropagation();
-          await getCurrentWindow().toggleMaximize();
-        }}
-        className="flex h-8 w-10 items-center justify-center text-fg/45 transition hover:bg-fg/10 hover:text-fg"
-        aria-label={t("topNav.extra.maximize")}
-      >
-        <Square size={12} strokeWidth={1.5} />
-      </button>
-      <button
-        type="button"
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={async (e) => {
-          e.stopPropagation();
-          await getCurrentWindow().close();
-        }}
-        className="flex h-8 w-10 items-center justify-center text-fg/45 transition hover:bg-red-500/80 hover:text-white"
-        aria-label={t("topNav.extra.close")}
-      >
-        <X size={15} strokeWidth={1.5} />
-      </button>
-    </div>
-  );
-}
-
-/** Returns props to spread onto a header element to make it a drag region. */
-export function useDragRegionProps(): Record<string, string> {
-  const chromeFlags = useChromeFlags();
-  const showDrag = isDesktop && !chromeFlags?.osDecorations;
-  return showDrag ? { "data-tauri-drag-region": "" } : {};
-}
-
-/**
- * Compact window controls strip for pages that don't render TopNav.
- * Renders as a thin bar in document flow (not floating) with drag region + buttons.
- */
-export function WindowControls() {
-  const chromeFlags = useChromeFlags();
-  const showButtons =
-    isDesktop && !isMacOS && !chromeFlags?.osDecorations && !chromeFlags?.noButtons;
-  const showDrag = isDesktop && !chromeFlags?.osDecorations;
-
-  if (!showButtons && !showDrag) return null;
-
-  return (
-    <div
-      className="pointer-events-none fixed top-0 right-0 z-60 flex h-10 items-center justify-end pr-1"
-      {...(showDrag ? { "data-tauri-drag-region": "" } : {})}
-    >
-      {showButtons && (
-        <div className="pointer-events-auto flex items-center">
-          <button
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={async (e) => {
-              e.stopPropagation();
-              await getCurrentWindow().minimize();
-            }}
-            className="flex h-7 w-10 items-center justify-center text-fg/45 transition hover:bg-fg/10 hover:text-fg"
-            aria-label="Minimize"
-          >
-            <Minus size={15} strokeWidth={1.5} />
-          </button>
-          <button
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={async (e) => {
-              e.stopPropagation();
-              await getCurrentWindow().toggleMaximize();
-            }}
-            className="flex h-7 w-10 items-center justify-center text-fg/45 transition hover:bg-fg/10 hover:text-fg"
-            aria-label="Maximize"
-          >
-            <Square size={12} strokeWidth={1.5} />
-          </button>
-          <button
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={async (e) => {
-              e.stopPropagation();
-              await getCurrentWindow().close();
-            }}
-            className="flex h-7 w-10 items-center justify-center text-fg/45 transition hover:bg-red-500/80 hover:text-white"
-            aria-label="Close"
-          >
-            <X size={15} strokeWidth={1.5} />
-          </button>
-        </div>
-      )}
-    </div>
   );
 }

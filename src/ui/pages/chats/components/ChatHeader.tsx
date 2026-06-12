@@ -16,11 +16,6 @@ import { useAvatar } from "../../../hooks/useAvatar";
 import { listen } from "@tauri-apps/api/event";
 import { Routes } from "../../../navigation";
 import { cn } from "../../../design-tokens";
-import {
-  WindowControlButtons,
-  useDragRegionProps,
-  hasCustomWindowControls,
-} from "../../../components/App/TopNav";
 import { useI18n } from "../../../../core/i18n/context";
 import { isRenderableImageUrl } from "../../../../core/utils/image";
 
@@ -68,7 +63,6 @@ export function ChatHeader({
     swapPlaces ? persona?.avatarPath : character?.avatarPath,
     "round",
   );
-  const dragRegionProps = useDragRegionProps();
   const [memoryBusy, setMemoryBusy] = useState(false);
   const [memoryError, setMemoryError] = useState<string | null>(null);
   const isDynamic = useMemo(() => character?.memoryType === "dynamic", [character?.memoryType]);
@@ -179,7 +173,7 @@ export function ChatHeader({
       <header
         className={cn(
           "z-20 shrink-0 border-b border-fg/10 pl-3 lg:pl-8",
-          hasCustomWindowControls ? "pr-0" : "pr-3 lg:pr-8",
+          "pr-3 lg:pr-8",
           hasBackgroundImage
             ? transparentHeader
               ? "bg-transparent"
@@ -190,9 +184,8 @@ export function ChatHeader({
           paddingTop: "calc(env(safe-area-inset-top) + 12px)",
           paddingBottom: "12px",
         }}
-        {...dragRegionProps}
       >
-        <div className="flex items-center justify-between h-10" {...dragRegionProps}>
+        <div className="flex items-center justify-between h-10">
           <div className="flex items-center min-w-0">
             <button
               onClick={() => navigate("/chat")}
@@ -360,7 +353,6 @@ export function ChatHeader({
                 avatarFallback
               )}
             </button>
-            <WindowControlButtons />
           </div>
         </div>
       </header>

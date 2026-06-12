@@ -61,11 +61,6 @@ import {
   components,
 } from "../../design-tokens";
 import { Routes, useNavigationManager } from "../../navigation";
-import {
-  WindowControlButtons,
-  useDragRegionProps,
-  hasCustomWindowControls,
-} from "../../components/App/TopNav";
 import { BottomMenu } from "../../components/BottomMenu";
 import { useChatLayoutContext } from "./ChatLayout";
 import { ModelSelectionBottomMenu } from "../../components/ModelSelectionBottomMenu";
@@ -993,7 +988,6 @@ function ToolLog({
 export function ChatMemoriesPage() {
   const { t } = useI18n();
   const { go, backOrReplace } = useNavigationManager();
-  const dragRegionProps = useDragRegionProps();
   const { characterId } = useParams();
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("sessionId");
@@ -1594,16 +1588,15 @@ export function ChatMemoriesPage() {
       <header
         className={cn(
           "z-20 shrink-0 border-b border-fg/10 pl-3 lg:pl-8",
-          hasCustomWindowControls ? "pr-0" : "pr-3 lg:pr-8",
+          "pr-3 lg:pr-8",
           colors.glass.strong,
         )}
         style={{
           paddingTop: "calc(env(safe-area-inset-top) + 12px)",
           paddingBottom: "12px",
         }}
-        {...dragRegionProps}
       >
-        <div className="flex h-10 items-center justify-between" {...dragRegionProps}>
+        <div className="flex h-10 items-center justify-between">
           <div className="flex items-center min-w-0">
             <button
               onClick={() =>
@@ -1646,7 +1639,6 @@ export function ChatMemoriesPage() {
                 {t("groupChats.memories.processing")}
               </div>
             )}
-            <WindowControlButtons />
           </div>
         </div>
 

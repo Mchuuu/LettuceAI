@@ -9,11 +9,6 @@ import {
 import { readSettings, updateGroupChatAppearance } from "../../../core/storage/repo";
 import { useI18n } from "../../../core/i18n/context";
 import { colors, cn, radius, interactive } from "../../design-tokens";
-import {
-  WindowControlButtons,
-  useDragRegionProps,
-  hasCustomWindowControls,
-} from "../../components/App/TopNav";
 import { useNavigationManager } from "../../navigation";
 import { toast } from "../../components/toast";
 import {
@@ -32,7 +27,6 @@ import { useGroupChatLayoutContext } from "./GroupChatLayout";
 export function GroupChatAppearancePage() {
   const { t } = useI18n();
   const { backOrReplace } = useNavigationManager();
-  const dragRegionProps = useDragRegionProps();
   const { group, updateGroup } = useGroupChatLayoutContext();
 
   const [globalSettings, setGlobalSettings] = useState<ChatAppearanceSettings>(
@@ -123,10 +117,9 @@ export function GroupChatAppearancePage() {
       <div
         className={cn(
           "flex items-center gap-3 border-b pl-3 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] shrink-0 z-20",
-          hasCustomWindowControls ? "pr-0" : "pr-3",
+          "pr-3",
           colors.glass.strong,
         )}
-        {...dragRegionProps}
       >
         <button
           onClick={() => backOrReplace("/group-chats")}
@@ -158,7 +151,6 @@ export function GroupChatAppearancePage() {
           <RefreshCw size={11} />
           Reset
         </button>
-        <WindowControlButtons />
       </div>
 
       {!group ? (

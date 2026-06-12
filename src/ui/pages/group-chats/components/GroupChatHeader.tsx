@@ -15,7 +15,6 @@ import { useI18n } from "../../../../core/i18n/context";
 import type { GroupSession, Character } from "../../../../core/storage/schemas";
 import { AvatarImage } from "../../../components/AvatarImage";
 import { cn } from "../../../design-tokens";
-import { useDragRegionProps } from "../../../components/App/TopNav";
 import { useAvatar } from "../../../hooks/useAvatar";
 import { isRenderableImageUrl } from "../../../../core/utils/image";
 
@@ -47,7 +46,6 @@ export function GroupChatHeader({
   transparentHeader?: boolean;
 }) {
   const { t } = useI18n();
-  const dragRegionProps = useDragRegionProps();
   const [memoryBusy, setMemoryBusy] = useState(false);
   const [memoryError, setMemoryError] = useState<string | null>(null);
 
@@ -131,9 +129,8 @@ export function GroupChatHeader({
         paddingTop: "calc(env(safe-area-inset-top) + 12px)",
         paddingBottom: "12px",
       }}
-      {...dragRegionProps}
     >
-      <div className="flex items-center h-10" {...dragRegionProps}>
+      <div className="flex items-center h-10">
         <button
           onClick={onBack}
           className="flex px-[0.6em] py-[0.3em] shrink-0 items-center justify-center -ml-2 text-fg transition hover:text-fg/80"

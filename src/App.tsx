@@ -126,7 +126,7 @@ import {
   WhatsNewDrawer,
   WHATS_NEW_OPEN_EVENT,
 } from "./ui/pages/whats-new/WhatsNewPage";
-import { TopNav, BottomNav, WindowControls } from "./ui/components/App";
+import { TopNav, BottomNav, TitleBar } from "./ui/components/App";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen, UnlistenFn } from "@tauri-apps/api/event";
 import { useAndroidBackHandler } from "./ui/hooks/useAndroidBackHandler";
@@ -604,7 +604,7 @@ function App() {
             <Toaster
               position={"top-center"}
               expand={true}
-              offset={{ top: 16 }}
+              offset={{ top: "calc(var(--titlebar-h, 0px) + 16px)" }}
               mobileOffset={{
                 top: "calc(env(safe-area-inset-top) + 80px)",
                 left: 8,
@@ -1017,17 +1017,17 @@ function AppContent() {
   }, []);
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div className="relative min-h-screen overflow-hidden pt-[var(--titlebar-h,0px)]">
+      <TitleBar />
       <div
         className={`relative z-10 mx-auto flex w-full ${
           isChatDetailRoute
-            ? "max-w-full h-screen"
+            ? "max-w-full h-[calc(100dvh-var(--titlebar-h,0px))]"
             : isSettingRoute
-              ? "max-w-md min-h-screen lg:max-w-none lg:h-screen lg:min-h-0"
-              : "max-w-md lg:max-w-none min-h-screen"
+              ? "max-w-md min-h-[calc(100dvh-var(--titlebar-h,0px))] lg:max-w-none lg:h-[calc(100dvh-var(--titlebar-h,0px))] lg:min-h-0"
+              : "max-w-md lg:max-w-none min-h-[calc(100dvh-var(--titlebar-h,0px))]"
         } flex-col ${showBottomNav ? "pb-[calc(72px+env(safe-area-inset-bottom))]" : "pb-0"}`}
       >
-        {!showTopNav && !isChatDetailRoute && !isSearchRoute && <WindowControls />}
         {showTopNav && (
           <TopNav
             currentPath={location.pathname + location.search}

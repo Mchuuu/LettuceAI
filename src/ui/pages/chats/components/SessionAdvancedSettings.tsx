@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, RotateCcw, Save, Info, Loader } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
-import { WindowControlButtons, useDragRegionProps } from "../../../components/App/TopNav";
 import { cn } from "../../../design-tokens";
 import type { AdvancedModelSettings } from "../../../../core/storage/schemas";
 import { LlamaSamplerOrderEditor } from "../../../components/LlamaSamplerOrderEditor";
@@ -110,7 +109,6 @@ export function SessionAdvancedSettings({
   modelPath,
 }: SessionAdvancedSettingsProps) {
   const isLlama = providerId === "llamacpp";
-  const dragRegionProps = useDragRegionProps();
 
   // Context info for llama models
   const [contextInfo, setContextInfo] = useState<{
@@ -198,7 +196,6 @@ export function SessionAdvancedSettings({
           {/* Header */}
           <div
             className="flex shrink-0 items-center justify-between border-b border-fg/10 px-4 py-3"
-            {...dragRegionProps}
           >
             <div className="flex items-center gap-3">
               <button
@@ -243,7 +240,6 @@ export function SessionAdvancedSettings({
                 <Save size={14} className="inline mr-1" />
                 Save
               </button>
-              <WindowControlButtons />
             </div>
           </div>
 

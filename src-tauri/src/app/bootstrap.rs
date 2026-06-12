@@ -320,17 +320,26 @@ pub(crate) fn get_window_chrome_flags(app: tauri::AppHandle) -> Result<(bool, bo
 
 #[derive(Clone, Copy)]
 pub(crate) struct WindowChromeFlags {
-    /// `--osdecorations`: re-enable OS titlebar, hide custom buttons.
+    /// `--osdecorations`: re-enable the OS titlebar, ignore the in-app style.
     pub os_decorations: bool,
-    /// `--nobuttons`: keep frameless window but hide custom buttons.
+    /// `--nobuttons`: keep the frameless window but hide all custom chrome.
     pub no_buttons: bool,
 }
 
 impl WindowChromeFlags {
     pub fn from_env() -> Self {
+        let mut os_decorations = false;
+        let mut no_buttons = false;
+        for arg in std::env::args().skip(1) {
+            match arg.as_str() {
+                "--osdecorations" => os_decorations = true,
+                "--nobuttons" => no_buttons = true,
+                _ => {}
+            }
+        }
         Self {
-            os_decorations: true,
-            no_buttons: true,
+            os_decorations,
+            no_buttons,
         }
     }
 }
@@ -382,7 +391,9 @@ pub(crate) fn setup_app(
 
     #[cfg(not(mobile))]
     if let Some(window) = app.get_webview_window("main") {
-        let _ = window.set_decorations(true);
+        if chrome_flags.os_decorations {
+            let _ = window.set_decorations(true);
+        }
         #[cfg(target_os = "linux")]
         configure_linux_webview_media(&window);
     }

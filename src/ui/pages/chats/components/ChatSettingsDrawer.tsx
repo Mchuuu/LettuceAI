@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Character } from "../../../../core/storage/schemas";
 import { ChatSettingsContent } from "../ChatSettings";
-import { WindowControlButtons, useDragRegionProps } from "../../../components/App/TopNav";
 import { useI18n } from "../../../../core/i18n/context";
 
 interface ChatSettingsDrawerProps {
@@ -18,7 +17,6 @@ export function ChatSettingsDrawer({
   character,
   onOpenAuthorNote,
 }: ChatSettingsDrawerProps) {
-  const dragRegionProps = useDragRegionProps();
   const { t } = useI18n();
   // Close on Escape
   useEffect(() => {
@@ -46,20 +44,19 @@ export function ChatSettingsDrawer({
 
           {/* Drawer panel */}
           <motion.aside
-            className="fixed inset-y-0 right-0 z-50 flex w-[640px] max-w-[90vw] flex-col border-l border-fg/10 bg-surface shadow-2xl"
+            className="fixed bottom-0 right-0 top-[var(--titlebar-h,0px)] z-50 flex w-[640px] max-w-[90vw] flex-col border-l border-fg/10 bg-surface shadow-2xl"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 320 }}
           >
             {/* Drawer header */}
-            <div className="flex shrink-0 items-center justify-between border-b border-fg/10 px-4 py-3" {...dragRegionProps}>
+            <div className="flex shrink-0 items-center justify-between border-b border-fg/10 px-4 py-3">
               <div>
                 <p className="text-base font-bold text-fg">{t("chats.drawer.chatSettingsTitle")}</p>
                 <p className="text-xs text-fg/50">{t("chats.drawer.chatSettingsSubtitle")}</p>
               </div>
               <div className="flex items-center gap-1">
-                <WindowControlButtons />
               </div>
             </div>
 

@@ -53,7 +53,6 @@ import {
   sanitizeAdvancedModelSettings,
 } from "../../components/AdvancedModelSettingsForm";
 import { typography, radius, spacing, interactive, cn, colors } from "../../design-tokens";
-import { WindowControlButtons, useDragRegionProps, hasCustomWindowControls } from "../../components/App/TopNav";
 import { Routes, useNavigationManager } from "../../navigation";
 import { PersonaSelector } from "../group-chats/components/settings";
 import { storageBridge } from "../../../core/storage/files";
@@ -287,7 +286,6 @@ export function ChatSettingsContent({
   const { backOrReplace } = useNavigationManager();
   const { t } = useI18n();
   const { characterId } = useParams();
-  const dragRegionProps = useDragRegionProps();
   const [models, setModels] = useState<Model[]>([]);
   const [globalDefaultModelId, setGlobalDefaultModelId] = useState<string | null>(null);
   const [currentCharacter, setCurrentCharacter] = useState<Character>(character);
@@ -855,16 +853,15 @@ export function ChatSettingsContent({
         <header
           className={cn(
             "z-20 shrink-0 border-b border-fg/10 pl-3 lg:pl-8",
-            hasCustomWindowControls ? "pr-0" : "pr-3 lg:pr-8",
+            "pr-3 lg:pr-8",
             !backgroundImageData ? "bg-surface" : "",
           )}
           style={{
             paddingTop: "calc(env(safe-area-inset-top) + 12px)",
             paddingBottom: "12px",
           }}
-          {...dragRegionProps}
         >
-          <div className="flex h-10 items-center justify-between" {...dragRegionProps}>
+          <div className="flex h-10 items-center justify-between">
             <div className="flex items-center min-w-0">
               <button
                 onClick={handleBack}
@@ -878,7 +875,6 @@ export function ChatSettingsContent({
                 <p className="mt-0.5 truncate text-xs text-fg/50">{t("chats.settings.chatSettingsSubtitle")}</p>
               </div>
             </div>
-            <WindowControlButtons />
           </div>
         </header>
       )}

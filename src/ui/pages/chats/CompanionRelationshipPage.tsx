@@ -13,11 +13,6 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useParams, useSearchParams } from "react-router-dom";
-import {
-  WindowControlButtons,
-  useDragRegionProps,
-  hasCustomWindowControls,
-} from "../../components/App/TopNav";
 import { cn, components, interactive, radius } from "../../design-tokens";
 import { Routes, useNavigationManager } from "../../navigation";
 import {
@@ -43,23 +38,21 @@ function PageHeader({
   onBack: () => void;
   right?: React.ReactNode;
 }) {
-  const dragRegionProps = useDragRegionProps();
   const { t } = useI18n();
 
   return (
     <header
       className={cn(
         "z-20 shrink-0 border-b border-fg/8 pl-3 lg:pl-8",
-        hasCustomWindowControls ? "pr-0" : "pr-3 lg:pr-8",
+        "pr-3 lg:pr-8",
         "bg-surface/95 backdrop-blur-xl",
       )}
       style={{
         paddingTop: "calc(env(safe-area-inset-top) + 12px)",
         paddingBottom: "12px",
       }}
-      {...dragRegionProps}
     >
-      <div className="flex h-10 items-center justify-between" {...dragRegionProps}>
+      <div className="flex h-10 items-center justify-between">
         <div className="flex min-w-0 items-center gap-2.5">
           <button
             onClick={onBack}
@@ -75,7 +68,6 @@ function PageHeader({
         </div>
         <div className="flex items-center gap-2">
           {right}
-          <WindowControlButtons />
         </div>
       </div>
     </header>

@@ -21,6 +21,101 @@ import { cn, radius, colors, interactive } from "../../design-tokens";
 import { useI18n } from "../../../core/i18n/context";
 import { LocaleSelector } from "../../components/LocaleSelector";
 import { Switch } from "../../components/Switch";
+import {
+  readTitleBarDesign,
+  setTitleBarDesign,
+  readTitleBarSide,
+  setTitleBarSide,
+  readTitleBarSize,
+  setTitleBarSize,
+  type TitleBarDesign,
+  type TitleBarSide,
+  type TitleBarSize,
+} from "../../components/App/TitleBar";
+
+const TITLE_BAR_OPTIONS = [
+  {
+    value: "classic" as const,
+    labelKey: "accessibility.titleBar.classic" as const,
+    descKey: "accessibility.titleBar.classicDesc" as const,
+  },
+  {
+    value: "lights" as const,
+    labelKey: "accessibility.titleBar.lights" as const,
+    descKey: "accessibility.titleBar.lightsDesc" as const,
+  },
+  {
+    value: "lights_dimmed" as const,
+    labelKey: "accessibility.titleBar.lightsDimmed" as const,
+    descKey: "accessibility.titleBar.lightsDimmedDesc" as const,
+  },
+  {
+    value: "minimal" as const,
+    labelKey: "accessibility.titleBar.minimal" as const,
+    descKey: "accessibility.titleBar.minimalDesc" as const,
+  },
+  {
+    value: "native" as const,
+    labelKey: "accessibility.titleBar.native" as const,
+    descKey: "accessibility.titleBar.nativeDesc" as const,
+  },
+] as const;
+
+function TitleBarDesignPreview({ design }: { design: TitleBarDesign }) {
+  if (design === "lights") {
+    return (
+      <span className="flex items-center gap-1.5">
+        <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
+        <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
+        <span className="h-3 w-3 rounded-full bg-[#28c840]" />
+      </span>
+    );
+  }
+  if (design === "lights_dimmed") {
+    return (
+      <span className="flex items-center gap-1.5">
+        <span className="h-3 w-3 rounded-full bg-fg/20" />
+        <span className="h-3 w-3 rounded-full bg-fg/20" />
+        <span className="h-3 w-3 rounded-full bg-fg/20" />
+      </span>
+    );
+  }
+  if (design === "minimal") {
+    return (
+      <span className="flex items-center gap-2 text-fg/45">
+        <span className="h-px w-2.5 bg-current" />
+        <span className="h-2 w-2 border border-current" />
+        <span className="relative h-2.5 w-2.5">
+          <span className="absolute left-0 top-1/2 h-px w-full rotate-45 bg-current" />
+          <span className="absolute left-0 top-1/2 h-px w-full -rotate-45 bg-current" />
+        </span>
+      </span>
+    );
+  }
+  if (design === "native") {
+    return (
+      <span className="rounded border border-fg/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-fg/40">
+        OS
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center text-fg/45">
+      <span className="flex h-5 w-6 items-center justify-center">
+        <span className="h-px w-2.5 bg-current" />
+      </span>
+      <span className="flex h-5 w-6 items-center justify-center">
+        <span className="h-2 w-2 border border-current" />
+      </span>
+      <span className="flex h-5 w-6 items-center justify-center bg-red-500/80">
+        <span className="relative h-2.5 w-2.5">
+          <span className="absolute left-0 top-1/2 h-px w-full rotate-45 bg-white" />
+          <span className="absolute left-0 top-1/2 h-px w-full -rotate-45 bg-white" />
+        </span>
+      </span>
+    </span>
+  );
+}
 
 const SOUND_KEYS = ["send", "success", "failure"] as const;
 
@@ -53,6 +148,24 @@ export function AccessibilityPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [platform, setPlatform] = useState<string>("");
   const [isBeetrootEnabled, setIsBeetrootEnabled] = useState(true);
+  const [titleBarDesign, setTitleBarDesignState] = useState<TitleBarDesign>(readTitleBarDesign);
+  const [titleBarSide, setTitleBarSideState] = useState<TitleBarSide>(readTitleBarSide);
+  const [titleBarSize, setTitleBarSizeState] = useState<TitleBarSize>(readTitleBarSize);
+
+  const handleTitleBarDesignChange = (design: TitleBarDesign) => {
+    setTitleBarDesignState(design);
+    setTitleBarDesign(design);
+  };
+
+  const handleTitleBarSideChange = (side: TitleBarSide) => {
+    setTitleBarSideState(side);
+    setTitleBarSide(side);
+  };
+
+  const handleTitleBarSizeChange = (size: TitleBarSize) => {
+    setTitleBarSizeState(size);
+    setTitleBarSize(size);
+  };
 
   useEffect(() => {
     setPlatform(getPlatform());
@@ -178,6 +291,117 @@ export function AccessibilityPage() {
             />
           </div>
         </div>
+
+        {!isMobile && (
+          <div>
+            <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
+              {t("accessibility.sectionTitles.titleBar")}
+            </h2>
+            <div className="space-y-2">
+              {TITLE_BAR_OPTIONS.map((option) => {
+                const selected = titleBarDesign === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handleTitleBarDesignChange(option.value)}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left",
+                      interactive.transition.fast,
+                      selected
+                        ? "border-accent/25 bg-fg/6"
+                        : "border-fg/10 bg-fg/5 hover:border-fg/20",
+                    )}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div
+                        className={cn(
+                          "text-sm font-medium",
+                          selected ? "text-accent" : "text-fg",
+                        )}
+                      >
+                        {t(option.labelKey)}
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-fg/45">{t(option.descKey)}</div>
+                    </div>
+                    <TitleBarDesignPreview design={option.value} />
+                    <span
+                      className={cn(
+                        "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                        selected ? "border-accent" : "border-fg/25",
+                      )}
+                    >
+                      {selected && <span className="h-2 w-2 rounded-full bg-accent" />}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {titleBarDesign !== "native" && (
+              <>
+                <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-fg">
+                      {t("accessibility.titleBar.position")}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-fg/45">
+                      {t("accessibility.titleBar.positionDesc")}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 gap-1 rounded-lg border border-fg/10 bg-fg/5 p-1">
+                    {(["left", "right"] as const).map((side) => (
+                      <button
+                        key={side}
+                        type="button"
+                        onClick={() => handleTitleBarSideChange(side)}
+                        className={cn(
+                          "rounded-md px-3 py-1 text-xs font-medium",
+                          interactive.transition.fast,
+                          titleBarSide === side
+                            ? "bg-accent/20 text-accent"
+                            : "text-fg/60 hover:text-fg",
+                        )}
+                      >
+                        {t(`accessibility.titleBar.${side}` as const)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-fg">
+                      {t("accessibility.titleBar.size")}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-fg/45">
+                      {t("accessibility.titleBar.sizeDesc")}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 gap-1 rounded-lg border border-fg/10 bg-fg/5 p-1">
+                    {(["small", "medium", "large"] as const).map((size) => (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => handleTitleBarSizeChange(size)}
+                        className={cn(
+                          "rounded-md px-3 py-1 text-xs font-medium",
+                          interactive.transition.fast,
+                          titleBarSize === size
+                            ? "bg-accent/20 text-accent"
+                            : "text-fg/60 hover:text-fg",
+                        )}
+                      >
+                        {t(`accessibility.titleBar.${size}` as const)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+            <p className="mt-2 px-1 text-[11px] text-fg/40">
+              {t("accessibility.titleBar.flagsNote")}
+            </p>
+          </div>
+        )}
 
         <div>
           <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
