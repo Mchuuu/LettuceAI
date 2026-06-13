@@ -60,7 +60,9 @@ export function OnboardingPage() {
             ? t("onboarding.gemini.kicker")
             : state.step === OnboardingStep.OpenRouterSetup
               ? t("onboarding.openrouter.kicker")
-              : t("onboarding.steps.gettingStarted");
+              : state.step === OnboardingStep.MemorySetup
+                ? t("onboarding.memorySetup.kicker")
+                : t("onboarding.steps.gettingStarted");
 
   const stepNumber =
     state.step === OnboardingStep.Provider ? 1 : state.step === OnboardingStep.Model ? 2 : 3;
@@ -138,8 +140,7 @@ export function OnboardingPage() {
 
   const isWelcomeStep = state.step === OnboardingStep.Welcome;
   const isSyncStep = state.step === OnboardingStep.Sync;
-  const isStandaloneStep =
-    isWelcomeStep || isSyncStep || state.step === OnboardingStep.MemorySetup;
+  const isStandaloneStep = isWelcomeStep || isSyncStep;
 
   return (
     <div className="relative flex min-h-full flex-1 flex-col text-gray-200 lg:h-full lg:min-h-0">
