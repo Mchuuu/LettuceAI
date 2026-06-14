@@ -158,6 +158,8 @@ export function TopNav({
         titleKey: "common.nav.engineSettings",
       },
       { match: (p) => p.startsWith("/settings/engine/"), titleKey: "common.nav.lettuceEngine" },
+      { match: (p) => p === "/settings/image-generation", titleKey: "common.nav.imageGeneration" },
+      { match: (p) => p === "/settings/voices", titleKey: "common.nav.voices" },
       { match: (p) => p.startsWith("/settings"), titleKey: "common.nav.settings" },
       { match: (p) => p.startsWith("/create"), titleKey: "common.nav.create" },
       { match: (p) => p.startsWith("/onboarding"), titleKey: "common.nav.setup" },

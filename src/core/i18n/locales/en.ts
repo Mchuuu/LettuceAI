@@ -3708,6 +3708,7 @@ export const enMessages = {
     empty: {
       title: "No Image Models",
       description: "Add an image generation model from the Models page to start generating images.",
+      goToModels: "Go to Models",
     },
     sections: {
       avatar: {

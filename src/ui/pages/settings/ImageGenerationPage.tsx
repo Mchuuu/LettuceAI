@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronDown, Image, LucideIcon, PenLine, Sparkles } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, Image, LucideIcon, PenLine, Sparkles } from "lucide-react";
 
 import { ModelSelectionBottomMenu } from "../../components/ModelSelectionBottomMenu";
 import {
@@ -231,6 +232,7 @@ function SelectorCard({
 
 export function ImageGenerationPage() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [state, setState] = useState<ImageGenerationState>({
     loading: true,
     error: null,
@@ -422,7 +424,20 @@ export function ImageGenerationPage() {
           <Image className="h-8 w-8 text-fg/40" />
         </div>
         <h2 className="mb-2 text-lg font-semibold text-fg">{t("imageGeneration.empty.title")}</h2>
-        <p className="text-center text-sm text-fg/50">{t("imageGeneration.empty.description")}</p>
+        <p className="max-w-sm text-center text-sm text-fg/50">
+          {t("imageGeneration.empty.description")}
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate("/settings/models")}
+          className={cn(
+            "mt-6 flex items-center gap-2 rounded-xl border border-accent/40 bg-accent/15 px-4 py-2.5 text-sm font-medium text-accent",
+            "transition-colors hover:bg-accent/25 active:scale-[0.98]",
+          )}
+        >
+          {t("imageGeneration.empty.goToModels")}
+          <ArrowRight size={16} strokeWidth={2.5} />
+        </button>
       </div>
     );
   }
