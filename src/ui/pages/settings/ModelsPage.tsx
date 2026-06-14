@@ -31,6 +31,7 @@ import {
   serializeModelExport,
 } from "../../../core/storage/modelTransfer";
 import { addOrUpdateModel } from "../../../core/storage/repo";
+import { getModelUsage, describeUsage } from "../../../core/storage/usage";
 import type { Model } from "../../../core/storage/schemas";
 import type { ModelExportFormat } from "../../components/ModelExportMenu";
 
@@ -557,11 +558,13 @@ export function ModelsPage() {
               title={t("common.buttons.delete")}
               description={t("models.menu.deleteDescription")}
               onClick={async () => {
+                const name = selectedModel.displayName || selectedModel.name;
+                const usage = await getModelUsage(selectedModel.id).catch(() => null);
+                const warning = usage ? describeUsage(usage, "model") : null;
                 const confirmed = await confirmBottomMenu({
                   title: t("models.menu.deleteTitle"),
-                  message: t("models.menu.deleteMessage", {
-                    name: selectedModel.displayName || selectedModel.name,
-                  }),
+                  message: t("models.menu.deleteMessage", { name }),
+                  warning: warning ?? undefined,
                   confirmLabel: t("common.buttons.delete"),
                   destructive: true,
                 });

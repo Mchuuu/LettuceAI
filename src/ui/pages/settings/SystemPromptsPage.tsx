@@ -19,6 +19,7 @@ import {
   X,
   ListFilter,
   Check,
+  AlertTriangle,
 } from "lucide-react";
 import { getPromptTypeName } from "./EditPromptTemplate";
 import { cn, typography, radius, interactive } from "../../design-tokens";
@@ -54,12 +55,14 @@ import {
   getPromptTypeLabel,
 } from "../../../core/prompts/constants";
 import { BottomMenu, PromptTemplateExportMenu } from "../../components";
+import { describeUsage, promptFeatureRefs } from "../../../core/storage/usage";
 import { toast } from "../../components/toast";
 import { downloadJson, readFileAsText } from "../../../core/storage/personaTransfer";
 import type { PromptTemplateExportFormat } from "../../components/PromptTemplateExportMenu";
 
 type TemplateUsage = {
   characters: number;
+  features: string[];
 };
 
 const ALL_PROMPT_TYPES: PromptTemplateType[] = [
@@ -882,15 +885,32 @@ export function SystemPromptsPage() {
       ]);
 
       const usage: Record<string, TemplateUsage> = {};
-      const bump = (id: string | null | undefined, key: keyof TemplateUsage) => {
-        if (!id) return;
+      const ensure = (id: string): TemplateUsage => {
         if (!usage[id]) {
-          usage[id] = { characters: 0 };
+          usage[id] = { characters: 0, features: [] };
         }
-        usage[id][key] += 1;
+        return usage[id];
       };
 
-      characters.forEach((character) => bump(character.promptTemplateId ?? null, "characters"));
+      characters.forEach((character) => {
+        const referenced = new Set(
+          [
+            character.promptTemplateId,
+            character.groupChatPromptTemplateId,
+            character.groupChatRoleplayPromptTemplateId,
+          ].filter((id): id is string => Boolean(id)),
+        );
+        referenced.forEach((id) => {
+          ensure(id).characters += 1;
+        });
+      });
+
+      promptFeatureRefs(settings).forEach(({ id, label }) => {
+        const entry = ensure(id);
+        if (!entry.features.includes(label)) {
+          entry.features.push(label);
+        }
+      });
 
       const activeDefault = settings.promptTemplateId ?? APP_DEFAULT_TEMPLATE_ID;
 
@@ -1185,10 +1205,28 @@ export function SystemPromptsPage() {
             <p className="text-xs text-fg/50 mt-1 line-clamp-2">{templateToDelete?.content}</p>
           </div>
 
-          <p className="text-sm text-fg/60">
-            This action cannot be undone. Any characters using this prompt will fall back to the
-            default.
-          </p>
+          {(() => {
+            const warning = templateToDelete
+              ? describeUsage(
+                  usageById[templateToDelete.id] ?? { characters: 0, features: [] },
+                  "prompt",
+                )
+              : null;
+            return warning ? (
+              <div className={cn(radius.lg, "border border-warning/30 bg-warning/10 p-3")}>
+                <div className="flex items-center gap-2 text-warning">
+                  <AlertTriangle className="h-4 w-4" />
+                  <p className="text-sm font-semibold">{warning.title}</p>
+                </div>
+                <p className="mt-1.5 text-xs leading-relaxed text-fg/70">{warning.body}</p>
+              </div>
+            ) : (
+              <p className="text-sm text-fg/60">
+                This action cannot be undone. Any characters using this prompt will fall back to the
+                default.
+              </p>
+            );
+          })()}
 
           <div className="flex gap-3">
             <button

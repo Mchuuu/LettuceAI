@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AlertTriangle } from "lucide-react";
 import { BottomMenu } from "./BottomMenu";
 import { cn, radius } from "../design-tokens";
 import { useI18n } from "../../core/i18n/context";
@@ -9,6 +10,7 @@ type ConfirmOptions = {
   confirmLabel?: string;
   cancelLabel?: string;
   destructive?: boolean;
+  warning?: { title: string; body: string };
 };
 
 type ConfirmRequest = {
@@ -57,7 +59,17 @@ export function ConfirmBottomMenuHost() {
       title={options?.title ?? t("components.confirmDialog.defaultTitle")}
     >
       <div className="space-y-4">
-        <p className="text-sm text-fg/70">{options?.message}</p>
+        {options?.warning ? (
+          <div className={cn(radius.lg, "border border-warning/30 bg-warning/10 p-3")}>
+            <div className="flex items-center gap-2 text-warning">
+              <AlertTriangle className="h-4 w-4" />
+              <p className="text-sm font-semibold">{options.warning.title}</p>
+            </div>
+            <p className="mt-1.5 text-xs leading-relaxed text-fg/70">{options.warning.body}</p>
+          </div>
+        ) : (
+          <p className="text-sm text-fg/70">{options?.message}</p>
+        )}
         <div className="flex gap-3">
           <button
             onClick={() => close(false)}
