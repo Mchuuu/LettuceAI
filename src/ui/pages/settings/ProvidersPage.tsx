@@ -9,8 +9,11 @@ import {
   Leaf,
   Sparkles,
   LayoutDashboard,
+  AlertTriangle,
+  Loader2,
+  Download,
 } from "lucide-react";
-import { useCallback, useEffect, useId, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 
 import { useProvidersPageController } from "./hooks/useProvidersPageController";
@@ -24,9 +27,13 @@ import {
   listAudioProviders,
   upsertAudioProvider,
   deleteAudioProvider,
+  kokoroValidateAssets,
   type AudioProvider,
   type AudioProviderType,
 } from "../../../core/storage/audioProviders";
+import { KokoroSetupMenu } from "./components/KokoroSetupMenu";
+import { InlineDownloadCards } from "./components/DownloadQueueBar";
+import { useDownloadQueue } from "../../../core/downloads/DownloadQueueContext";
 
 import { BottomMenu, MenuButton } from "../../components/BottomMenu";
 import { cn, colors, interactive, radius } from "../../design-tokens";
@@ -160,6 +167,9 @@ export function ProvidersPage() {
   const [isAudioEditorOpen, setIsAudioEditorOpen] = useState(false);
   const [editingAudioProvider, setEditingAudioProvider] = useState<AudioProvider | null>(null);
   const [isAudioDeleting, setIsAudioDeleting] = useState(false);
+  const [kokoroSetupProvider, setKokoroSetupProvider] = useState<AudioProvider | null>(null);
+  const [kokoroInstalled, setKokoroInstalled] = useState<Record<string, boolean>>({});
+  const { queue: downloadQueue } = useDownloadQueue();
 
   const loadAudioProviders = useCallback(async () => {
     setAudioLoading(true);
@@ -176,6 +186,64 @@ export function ProvidersPage() {
   useEffect(() => {
     void loadAudioProviders();
   }, [loadAudioProviders]);
+
+  const refreshKokoroStatus = useCallback(async () => {
+    const kokoro = audioProviders.filter((p) => p.providerType === "kokoro");
+    if (kokoro.length === 0) return;
+    const entries = await Promise.all(
+      kokoro.map(async (p) => {
+        const root = p.assetRoot?.trim();
+        if (!root || !p.kokoroVariant) return [p.id, false] as const;
+        try {
+          const status = await kokoroValidateAssets(root, p.kokoroVariant);
+          return [p.id, Boolean(status.resolvedModelPath)] as const;
+        } catch {
+          return [p.id, false] as const;
+        }
+      }),
+    );
+    setKokoroInstalled((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+  }, [audioProviders]);
+
+  useEffect(() => {
+    void refreshKokoroStatus();
+  }, [refreshKokoroStatus]);
+
+  const kokoroDownloadingRoots = useMemo(() => {
+    const roots = new Set<string>();
+    for (const item of downloadQueue) {
+      if (
+        item.queueKind === "kokoro" &&
+        item.assetRoot &&
+        (item.status === "downloading" || item.status === "queued")
+      ) {
+        roots.add(item.assetRoot);
+      }
+    }
+    return roots;
+  }, [downloadQueue]);
+
+  const activeKokoroInstallIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const item of downloadQueue) {
+      if (
+        item.queueKind === "kokoro" &&
+        item.installId &&
+        (item.status === "downloading" || item.status === "queued")
+      ) {
+        ids.add(item.installId);
+      }
+    }
+    return ids;
+  }, [downloadQueue]);
+
+  const prevDownloadingCount = useRef(0);
+  useEffect(() => {
+    if (prevDownloadingCount.current > 0 && kokoroDownloadingRoots.size === 0) {
+      void refreshKokoroStatus();
+    }
+    prevDownloadingCount.current = kokoroDownloadingRoots.size;
+  }, [kokoroDownloadingRoots, refreshKokoroStatus]);
 
   const openAudioEditor = useCallback((provider?: AudioProvider) => {
     setEditingAudioProvider(
@@ -330,39 +398,86 @@ export function ProvidersPage() {
             tabIndex={0}
             className="grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-3"
           >
+            {activeKokoroInstallIds.size > 0 && (
+              <div className="lg:col-span-2">
+                <InlineDownloadCards
+                  compact
+                  filter={(item) =>
+                    item.queueKind === "kokoro" &&
+                    !!item.installId &&
+                    activeKokoroInstallIds.has(item.installId)
+                  }
+                />
+              </div>
+            )}
             {!audioLoading && audioProviders.length === 0 && (
               <AudioEmptyState onCreate={() => openAudioEditor()} />
             )}
-            {audioProviders.map((provider) => (
-              <button
-                key={provider.id}
-                onClick={() => setSelectedAudioProvider(provider)}
-                className="group w-full rounded-xl border border-fg/10 bg-fg/5 px-4 py-3 text-left transition hover:border-fg/20 hover:bg-fg/10 focus:outline-none focus:ring-2 focus:ring-fg/20 active:scale-[0.99]"
-              >
-                <div className="flex items-center gap-3">
-                  {getProviderIcon(provider.providerType)}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium text-fg">{provider.label}</span>
-                    </div>
-                    <div className="mt-0.5 flex items-center gap-1 text-[11px] text-fg/50">
-                      <span className="truncate">
-                        {getAudioProviderTypeLabel(provider.providerType)}
-                      </span>
-                      {provider.baseUrl && (
-                        <>
-                          <span className="opacity-40">•</span>
-                          <span className="truncate max-w-30">
-                            {provider.baseUrl.replace(/^https?:\/\//, "")}
+            {audioProviders.map((provider) => {
+              const isKokoro = provider.providerType === "kokoro";
+              const isDownloading =
+                isKokoro && !!provider.assetRoot && kokoroDownloadingRoots.has(provider.assetRoot);
+              const needsSetup =
+                isKokoro && !isDownloading && kokoroInstalled[provider.id] === false;
+              return (
+                <button
+                  key={provider.id}
+                  onClick={() => {
+                    if (needsSetup) setKokoroSetupProvider(provider);
+                    else setSelectedAudioProvider(provider);
+                  }}
+                  className={cn(
+                    "group w-full rounded-xl border px-4 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-fg/20 active:scale-[0.99]",
+                    needsSetup
+                      ? "border-warning/30 bg-warning/[0.06] hover:border-warning/45 hover:bg-warning/10"
+                      : "border-fg/10 bg-fg/5 hover:border-fg/20 hover:bg-fg/10",
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    {getProviderIcon(provider.providerType)}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm font-medium text-fg">
+                          {provider.label}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-1 text-[11px] text-fg/50">
+                        {isDownloading ? (
+                          <span className="flex items-center gap-1 text-info/80">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Downloading...
                           </span>
-                        </>
-                      )}
+                        ) : needsSetup ? (
+                          <span className="flex items-center gap-1 font-medium text-warning/90">
+                            <AlertTriangle className="h-3 w-3" />
+                            Not set up. Tap to download.
+                          </span>
+                        ) : (
+                          <>
+                            <span className="truncate">
+                              {getAudioProviderTypeLabel(provider.providerType)}
+                            </span>
+                            {provider.baseUrl && (
+                              <>
+                                <span className="opacity-40">•</span>
+                                <span className="truncate max-w-30">
+                                  {provider.baseUrl.replace(/^https?:\/\//, "")}
+                                </span>
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
+                    {needsSetup ? (
+                      <Download className="h-4 w-4 text-warning/70 group-hover:text-warning transition" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-fg/30 group-hover:text-fg/60 transition" />
+                    )}
                   </div>
-                  <ChevronRight className="h-4 w-4 text-fg/30 group-hover:text-fg/60 transition" />
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
             {audioProviders.length > 0 && (
               <p className="px-1 pt-3 text-[11px] text-fg/40 lg:col-span-2">
                 Manage voices, voice library, and audio cache from{" "}
@@ -893,11 +1008,25 @@ export function ProvidersPage() {
                     {getAudioProviderTypeLabel(selectedAudioProvider.providerType)}
                   </p>
                 </div>
+                {selectedAudioProvider.providerType === "kokoro" &&
+                  kokoroInstalled[selectedAudioProvider.id] === false && (
+                    <MenuButton
+                      icon={Download}
+                      title="Download model"
+                      description="Choose a quality and download the voice engine"
+                      onClick={() => {
+                        const provider = selectedAudioProvider;
+                        setSelectedAudioProvider(null);
+                        setKokoroSetupProvider(provider);
+                      }}
+                      color="from-accent to-accent/80"
+                    />
+                  )}
                 {selectedAudioProvider.providerType === "kokoro" && (
                   <MenuButton
                     icon={LayoutDashboard}
                     title="Open Kokoro Studio"
-                    description="Install models, manage voices, design blends"
+                    description="Manage voices and design blends"
                     onClick={() => {
                       const id = selectedAudioProvider.id;
                       setSelectedAudioProvider(null);
@@ -932,6 +1061,12 @@ export function ProvidersPage() {
             provider={editingAudioProvider}
             onClose={closeAudioEditor}
             onSave={handleSaveAudioProvider}
+          />
+
+          <KokoroSetupMenu
+            provider={kokoroSetupProvider}
+            onClose={() => setKokoroSetupProvider(null)}
+            onStarted={() => void refreshKokoroStatus()}
           />
         </>
       )}

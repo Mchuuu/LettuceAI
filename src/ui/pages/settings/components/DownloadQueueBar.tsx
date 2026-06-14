@@ -82,14 +82,17 @@ export function InlineDownloadCards({
   showDivider = false,
   dividerLabel,
   compact = false,
+  filter,
 }: {
   showDivider?: boolean;
   dividerLabel?: string;
   compact?: boolean;
+  filter?: (item: QueuedDownload) => boolean;
 }) {
   const navigate = useNavigate();
   const { t } = useI18n();
-  const { queue, cancelItem, dismissItem } = useDownloadQueue();
+  const { queue: fullQueue, cancelItem, dismissItem } = useDownloadQueue();
+  const queue = filter ? fullQueue.filter(filter) : fullQueue;
 
   const createModel = useCallback(
     (item: QueuedDownload) => {

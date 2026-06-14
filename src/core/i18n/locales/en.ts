@@ -5971,7 +5971,11 @@ export const enMessages = {
         modelSize: "Model size",
         voicesSize: "Voices size",
         total: "Total",
-        assetRoot: "Asset root",
+        assetRoot: "Storage folder",
+        notSetUpTitle: "This voice isn't set up yet",
+        notSetUpHint:
+          "Download the voice engine from Voice providers to start using it here.",
+        goToProviders: "Go to Voice providers",
         reinstallModel: "Reinstall model",
         installModel: "Install model",
         deleteModel: "Delete model",

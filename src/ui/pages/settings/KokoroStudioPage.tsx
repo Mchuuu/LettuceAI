@@ -26,6 +26,7 @@ import {
 
 import {
   deleteUserVoice,
+  kokoroDefaultAssetRoot,
   kokoroInstallModel,
   kokoroInstallVoice,
   kokoroInstallVoices,
@@ -54,6 +55,7 @@ import {
   type QueuedDownload,
 } from "../../../core/downloads/DownloadQueueContext";
 import { BottomMenu, MenuButton } from "../../components/BottomMenu";
+import { InlineDownloadCards } from "./components/DownloadQueueBar";
 import { useI18n } from "../../../core/i18n/context";
 import { cn, typography } from "../../design-tokens";
 
@@ -356,10 +358,8 @@ export function KokoroStudioPage() {
   const [isDeletingModel, setIsDeletingModel] = useState(false);
   const [isSwitchingVariant, setIsSwitchingVariant] = useState(false);
 
-  const [setupOpen, setSetupOpen] = useState(false);
-  const initialSetupShownRef = useRef(false);
 
-  const { queue, cancelItem, dismissItem } = useDownloadQueue();
+  const { queue, dismissItem } = useDownloadQueue();
   const prevQueueRef = useRef<QueuedDownload[]>([]);
   const { state: playerState, play, stop, toggle } = useStudioPlayer();
 
@@ -425,8 +425,23 @@ export function KokoroStudioPage() {
           listAudioProviders(),
           kokoroSupportedVariants(),
         ]);
-        setProvider(list.find((p) => p.id === providerId) ?? null);
         setVariants(supported);
+        let found = list.find((p) => p.id === providerId) ?? null;
+        if (found) {
+          let next = found;
+          if (!next.assetRoot?.trim()) {
+            const defaultRoot = await kokoroDefaultAssetRoot().catch(() => "");
+            if (defaultRoot) next = { ...next, assetRoot: defaultRoot };
+          }
+          if (!next.kokoroVariant && supported.length > 0) {
+            const preferred = supported.find((v) => v.id === "fp16") ?? supported[0];
+            next = { ...next, kokoroVariant: preferred.id };
+          }
+          if (next !== found) {
+            found = await upsertAudioProvider(next);
+          }
+        }
+        setProvider(found);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -453,15 +468,12 @@ export function KokoroStudioPage() {
   );
   const failedQueue = kokoroQueue.filter((item) => item.status === "error");
 
-  const groupedActiveQueue = useMemo(() => {
-    const groups = new Map<string, QueuedDownload[]>();
+  const activeInstallIds = useMemo(() => {
+    const ids = new Set<string>();
     for (const item of activeQueue) {
-      const key = item.installId ?? item.id;
-      const list = groups.get(key);
-      if (list) list.push(item);
-      else groups.set(key, [item]);
+      if (item.installId) ids.add(item.installId);
     }
-    return [...groups.entries()].map(([id, items]) => ({ id, items }));
+    return ids;
   }, [activeQueue]);
 
   useEffect(() => {
@@ -486,30 +498,7 @@ export function KokoroStudioPage() {
   const variantInfo = variants.find((v) => v.id === variant);
   const modelInstalled = Boolean(assetStatus?.resolvedModelPath);
   const isInstallingModel = activeQueue.some((item) => item.installKind === "model");
-  const isInstallingAnyVoice = activeQueue.some((item) => item.installKind === "voice");
   const hasVoices = installedVoices.length > 0;
-  const setupNeeded = !modelInstalled || !hasVoices;
-  const modelDownload = useMemo(
-    () => activeQueue.find((item) => item.installKind === "model"),
-    [activeQueue],
-  );
-
-  useEffect(() => {
-    if (providerLoading || !provider) return;
-    if (initialSetupShownRef.current) return;
-    if (setupNeeded) {
-      setSetupOpen(true);
-      initialSetupShownRef.current = true;
-    } else {
-      initialSetupShownRef.current = true;
-    }
-  }, [providerLoading, provider, setupNeeded]);
-
-  useEffect(() => {
-    if (setupOpen && modelInstalled && hasVoices) {
-      setSetupOpen(false);
-    }
-  }, [setupOpen, modelInstalled, hasVoices]);
 
   const filteredVoices = useMemo(() => {
     const q = voiceSearch.trim().toLowerCase();
@@ -560,16 +549,6 @@ export function KokoroStudioPage() {
       setExperimentSourceId(experimentOptions[0].key);
     }
   }, [experimentOptions, experimentSourceId]);
-
-  const handleInstallModel = async () => {
-    if (!variant || !assetRoot) return;
-    setError(null);
-    try {
-      await kokoroInstallModel(assetRoot, variant);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  };
 
   const handleInstallVoice = async (voiceId: string) => {
     if (!assetRoot) return;
@@ -646,20 +625,6 @@ export function KokoroStudioPage() {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setIsDeletingModel(false);
-    }
-  };
-
-  const handleInstallVariant = async (next: KokoroModelVariant) => {
-    if (!provider || !assetRoot) return;
-    setError(null);
-    try {
-      if (next !== variant) {
-        const updated = await upsertAudioProvider({ ...provider, kokoroVariant: next });
-        setProvider(updated);
-      }
-      await kokoroInstallModel(assetRoot, next);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -908,46 +873,28 @@ export function KokoroStudioPage() {
           </div>
         )}
 
-        {setupNeeded && (
-          <button
-            onClick={() => setSetupOpen(true)}
-            className={cn(
-              "group flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition",
-              !modelInstalled
-                ? "border-warning/25 bg-warning/6 hover:border-warning/40 hover:bg-warning/1"
-                : "border-info/25 bg-info/6 hover:border-info/40 hover:bg-info/1",
-            )}
-          >
-            <div
-              className={cn(
-                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-                !modelInstalled
-                  ? "bg-warning/15 text-warning"
-                  : "bg-info/15 text-info",
-              )}
-            >
-              {!modelInstalled ? (
-                <AlertTriangle className="h-4 w-4" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
+        {!modelInstalled && !isInstallingModel && (
+          <section className="rounded-2xl border border-warning/25 bg-warning/[0.06] p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning/15 text-warning">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-[14px] font-semibold text-fg">
+                  {t("voices.extra.kokoro.notSetUpTitle")}
+                </h3>
+                <p className="mt-0.5 text-[12px] leading-relaxed text-fg/60">
+                  {t("voices.extra.kokoro.notSetUpHint")}
+                </p>
+                <button
+                  onClick={() => navigate("/settings/providers?tab=audio")}
+                  className="mt-3 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-[13px] font-semibold text-bg transition hover:brightness-110"
+                >
+                  {t("voices.extra.kokoro.goToProviders")}
+                </button>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-semibold text-fg">
-                {!modelInstalled
-                  ? t("voices.extra.kokoro.engineNotInstalled")
-                  : t("voices.extra.kokoro.installAtLeastOneVoice")}
-              </p>
-              <p className="mt-0.5 truncate text-[11px] text-fg/55">
-                {!modelInstalled
-                  ? t("voices.extra.kokoro.continueSetup")
-                  : t("voices.extra.kokoro.pickVoiceOrStarter")}
-              </p>
-            </div>
-            <span className="shrink-0 text-[11px] font-semibold text-fg/65 group-hover:text-fg/90">
-              {t("common.buttons.continue")} →
-            </span>
-          </button>
+          </section>
         )}
 
         {/* Failed downloads */}
@@ -1002,29 +949,18 @@ export function KokoroStudioPage() {
           </div>
         )}
 
-        {/* Active downloads (grouped) */}
-        {groupedActiveQueue.length > 0 && (
+        {/* Active downloads */}
+        {activeInstallIds.size > 0 && (
           <section>
-            <SectionHeader
-              label={t("voices.extra.kokoro.downloads")}
-              right={
-                <button
-                  onClick={() => void Promise.all(activeQueue.map((i) => cancelItem(i.id)))}
-                  className="rounded-full border border-fg/10 bg-fg/5 px-2.5 py-1 text-[11px] text-fg/65 transition hover:border-fg/20 hover:bg-fg/10"
-                >
-                  {t("voices.extra.kokoro.cancelAll")}
-                </button>
+            <SectionHeader label={t("voices.extra.kokoro.downloads")} />
+            <InlineDownloadCards
+              compact
+              filter={(item) =>
+                item.queueKind === "kokoro" &&
+                !!item.installId &&
+                activeInstallIds.has(item.installId)
               }
             />
-            <div className="space-y-1.5">
-              {groupedActiveQueue.map((group) => (
-                <DownloadGroupCard
-                  key={group.id}
-                  items={group.items}
-                  onCancelItem={cancelItem}
-                />
-              ))}
-            </div>
           </section>
         )}
 
@@ -1406,16 +1342,43 @@ export function KokoroStudioPage() {
         title={t("voices.extra.kokoro.engineTitle")}
       >
         <div className="space-y-3">
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-fg/10 bg-fg/5 px-3 py-2">
-              <span className="text-[11px] text-fg/45">{t("voices.extra.kokoro.variant")}</span>
+          <div className="flex items-center gap-3 rounded-xl border border-fg/10 bg-fg/[0.03] px-3.5 py-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
+              <Cpu className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="truncate text-[14px] font-semibold text-fg">
+                  {variantInfo?.label ?? variant ?? t("voices.extra.kokoro.variantUnset")}
+                </span>
+                {modelInstalled ? (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-accent/85">
+                    <CheckCircle2 className="h-2.5 w-2.5" />
+                    {t("voices.extra.kokoro.installed")}
+                  </span>
+                ) : (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-warning/30 bg-warning/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-warning/85">
+                    <AlertTriangle className="h-2.5 w-2.5" />
+                    {t("voices.extra.kokoro.notInstalled")}
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 truncate font-mono text-[11px] text-fg/40">
+                {variantInfo?.filename ?? "—"}
+              </p>
+            </div>
+          </div>
+
+          {variants.length > 1 && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-fg/10 bg-fg/5 px-3.5 py-2.5">
+              <span className="text-[12px] font-medium text-fg/70">
+                {t("voices.extra.kokoro.variant")}
+              </span>
               <select
                 value={variant ?? ""}
-                onChange={(e) =>
-                  void handleVariantChange(e.target.value as KokoroModelVariant)
-                }
-                disabled={isSwitchingVariant || variants.length <= 1}
-                className="min-w-0 max-w-[60%] truncate rounded-md border border-fg/10 bg-fg/6 px-2 py-1 text-right text-[12px] text-fg/85 focus:border-fg/25 focus:outline-none disabled:opacity-60"
+                onChange={(e) => void handleVariantChange(e.target.value as KokoroModelVariant)}
+                disabled={isSwitchingVariant}
+                className="min-w-0 max-w-[60%] truncate rounded-lg border border-fg/10 bg-fg/8 px-2.5 py-1 text-right text-[12px] text-fg/85 focus:border-fg/25 focus:outline-none disabled:opacity-60"
               >
                 {variants.map((v) => (
                   <option key={v.id} value={v.id} className="bg-surface-el">
@@ -1424,49 +1387,49 @@ export function KokoroStudioPage() {
                 ))}
               </select>
             </div>
-            <DetailRow
-              label={t("voices.extra.kokoro.status")}
-              value={
-                modelInstalled ? (
-                  <span className="inline-flex items-center gap-1 text-accent/85">
-                    <CheckCircle2 className="h-3 w-3" />
-                    {t("voices.extra.kokoro.installed")}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-warning/85">
-                    <AlertTriangle className="h-3 w-3" />
-                    {t("voices.extra.kokoro.notInstalled")}
-                  </span>
-                )
-              }
-            />
-            <DetailRow label={t("voices.extra.kokoro.file")} value={variantInfo?.filename ?? "—"} mono />
-            {storageStats && (
-              <>
-                <DetailRow
-                  label={t("voices.extra.kokoro.modelSize")}
-                  value={formatBytes(storageStats.modelBytes)}
-                />
-                <DetailRow
-                  label={t("voices.extra.kokoro.voicesSize")}
-                  value={`${storageStats.voiceCount} · ${formatBytes(storageStats.voicesBytes)}`}
-                />
-                <DetailRow label={t("voices.extra.kokoro.total")} value={formatBytes(storageStats.totalBytes)} />
-              </>
-            )}
-            <DetailRow label={t("voices.extra.kokoro.assetRoot")} value={assetRoot || "—"} mono />
+          )}
+
+          {storageStats && (
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-xl border border-fg/10 bg-fg/5 px-2 py-3 text-center">
+                <p className="text-[14px] font-semibold tabular-nums text-fg">
+                  {formatBytes(storageStats.modelBytes)}
+                </p>
+                <p className="mt-0.5 text-[10px] uppercase tracking-wide text-fg/40">
+                  {t("voices.extra.kokoro.model")}
+                </p>
+              </div>
+              <div className="rounded-xl border border-fg/10 bg-fg/5 px-2 py-3 text-center">
+                <p className="text-[14px] font-semibold tabular-nums text-fg">
+                  {formatBytes(storageStats.voicesBytes)}
+                </p>
+                <p className="mt-0.5 text-[10px] uppercase tracking-wide text-fg/40">
+                  {t("voices.extra.kokoro.voiceCount", { count: storageStats.voiceCount })}
+                </p>
+              </div>
+              <div className="rounded-xl border border-fg/10 bg-fg/5 px-2 py-3 text-center">
+                <p className="text-[14px] font-semibold tabular-nums text-fg">
+                  {formatBytes(storageStats.totalBytes)}
+                </p>
+                <p className="mt-0.5 text-[10px] uppercase tracking-wide text-fg/40">
+                  {t("voices.extra.kokoro.total")}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2.5 rounded-xl border border-fg/10 bg-fg/5 px-3.5 py-2.5">
+            <HardDrive className="h-3.5 w-3.5 shrink-0 text-fg/40" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] uppercase tracking-wide text-fg/40">
+                {t("voices.extra.kokoro.assetRoot")}
+              </p>
+              <p className="truncate font-mono text-[11px] text-fg/60" title={assetRoot}>
+                {assetRoot || "—"}
+              </p>
+            </div>
           </div>
-          <MenuButton
-            icon={Download}
-            title={modelInstalled ? t("voices.extra.kokoro.reinstallModel") : t("voices.extra.kokoro.installModel")}
-            description={variantInfo ? `${variantInfo.label} · ${variantInfo.sizeMb} MB` : ""}
-            onClick={() => {
-              setEngineSheetOpen(false);
-              void handleInstallModel();
-            }}
-            disabled={isInstallingModel || !variant || !assetRoot}
-            color="from-info to-info/80"
-          />
+
           {modelInstalled && (
             <MenuButton
               icon={Trash2}
@@ -1523,261 +1486,9 @@ export function KokoroStudioPage() {
           </div>
         )}
       </BottomMenu>
-
-      {/* Setup wizard */}
-      <BottomMenu
-        isOpen={setupOpen}
-        onClose={() => setSetupOpen(false)}
-        title={t("voices.extra.kokoro.setupTitle")}
-      >
-        {!modelInstalled ? (
-          <SetupModelStep
-            variants={variants}
-            currentVariant={variant}
-            isInstalling={isInstallingModel}
-            modelDownload={modelDownload}
-            onInstall={(v) => void handleInstallVariant(v)}
-            onCancel={(id) => void cancelItem(id)}
-            onBack={() => {
-              setSetupOpen(false);
-              navigate("/settings/providers?tab=audio");
-            }}
-          />
-        ) : !hasVoices ? (
-          <SetupVoicesStep
-            isInstalling={isInstallingAnyVoice}
-            onInstallStarter={() => void handleInstallStarterPack()}
-            onBrowse={() => setSetupOpen(false)}
-          />
-        ) : (
-          <div className="flex flex-col items-center gap-3 py-4 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-accent/30 bg-accent/15">
-              <CheckCircle2 className="h-6 w-6 text-accent" />
-            </div>
-            <p className="text-[14px] font-semibold text-fg">{t("voices.extra.kokoro.allSet")}</p>
-            <p className="text-[12px] text-fg/55">
-              {t("voices.extra.kokoro.allSetDescription")}
-            </p>
-            <button
-              onClick={() => setSetupOpen(false)}
-              className="mt-1 rounded-full bg-accent px-5 py-1.5 text-[12px] font-semibold text-bg transition hover:brightness-110"
-            >
-              {t("common.buttons.done")}
-            </button>
-          </div>
-        )}
-      </BottomMenu>
     </div>
   );
 }
-
-const VARIANT_COPY: Record<
-  KokoroModelVariant,
-  { headline: string; description: string; tag: string }
-> = {
-  int8: {
-    headline: "Phone-friendly",
-    description:
-      "Best when you're chatting on the go. Light on battery, quick to start a conversation, and natural enough for most character voices.",
-    tag: "Mobile",
-  },
-  fp16: {
-    headline: "Recommended for most",
-    description:
-      "The sweet spot for daily roleplay on a desktop or laptop. Noticeably warmer voices than int8 with no real wait between replies.",
-    tag: "Recommended",
-  },
-  fp32: {
-    headline: "Studio quality",
-    description:
-      "The most lifelike characters, with the richest emotion and detail. Slower to synthesize and heavier on memory; best saved for a capable computer.",
-    tag: "High-end",
-  },
-};
-
-function SetupModelStep({
-  variants,
-  currentVariant,
-  isInstalling,
-  modelDownload,
-  onInstall,
-  onCancel,
-  onBack,
-}: {
-  variants: KokoroSupportedVariant[];
-  currentVariant?: KokoroModelVariant;
-  isInstalling: boolean;
-  modelDownload?: QueuedDownload;
-  onInstall: (variant: KokoroModelVariant) => void;
-  onCancel: (id: string) => void;
-  onBack: () => void;
-}) {
-  const installingVariant = (modelDownload?.variant ?? null) as KokoroModelVariant | null;
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-accent/30 bg-accent/15">
-          <Download className="h-5 w-5 text-accent" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-semibold text-fg">Install the engine</p>
-          <p className="mt-0.5 text-[12px] text-fg/55">
-            Kokoro runs entirely on this device. Pick the variant that fits your hardware — you can
-            switch later.
-          </p>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        {variants.map((v) => {
-          const copy = VARIANT_COPY[v.id];
-          const isThisInstalling = isInstalling && installingVariant === v.id;
-          const pct =
-            isThisInstalling && modelDownload && modelDownload.total > 0
-              ? (modelDownload.downloaded / modelDownload.total) * 100
-              : 0;
-          const isSelected = currentVariant === v.id;
-          const disabled = isInstalling && !isThisInstalling;
-          return (
-            <button
-              key={v.id}
-              onClick={() => onInstall(v.id)}
-              disabled={disabled}
-              className={cn(
-                "group relative w-full overflow-hidden rounded-xl border px-4 py-3 text-left transition disabled:opacity-50",
-                isThisInstalling
-                  ? "border-info/40 bg-info/8"
-                  : isSelected
-                    ? "border-accent/35 bg-accent/8 hover:border-accent/55"
-                    : "border-fg/10 bg-fg/4 hover:border-fg/25 hover:bg-fg/[0.07]",
-              )}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[13px] font-semibold text-fg">{v.label}</span>
-                    {copy && (
-                      <span
-                        className={cn(
-                          "rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider",
-                          v.id === "fp16"
-                            ? "border-accent/30 bg-accent/10 text-accent/85"
-                            : "border-fg/15 bg-fg/5 text-fg/55",
-                        )}
-                      >
-                        {copy.tag}
-                      </span>
-                    )}
-                  </div>
-                  {copy && (
-                    <p className="mt-1 text-[11px] leading-relaxed text-fg/55">
-                      {copy.description}
-                    </p>
-                  )}
-                </div>
-                <div className="shrink-0 text-right">
-                  <span className="text-[12px] font-semibold tabular-nums text-fg/85">
-                    {v.sizeMb} MB
-                  </span>
-                  <p className="font-mono text-[9px] text-fg/35">{v.filename}</p>
-                </div>
-              </div>
-
-              {isThisInstalling && (
-                <div className="mt-2.5">
-                  <div className="flex items-center justify-between gap-2 text-[10px]">
-                    <span className="flex items-center gap-1 text-info/80">
-                      <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                      Installing
-                    </span>
-                    <span className="tabular-nums text-fg/55">{pct.toFixed(0)}%</span>
-                  </div>
-                  <div className="mt-1 h-0.5 overflow-hidden rounded-full bg-fg/10">
-                    <div
-                      className="h-full bg-info/80 transition-all"
-                      style={{ width: `${Math.max(2, pct)}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="flex gap-2 pt-1">
-        <button
-          onClick={onBack}
-          className="flex-1 rounded-full border border-fg/10 bg-fg/5 px-4 py-2 text-[12px] font-medium text-fg/70 transition hover:border-fg/20 hover:bg-fg/10"
-        >
-          Cancel
-        </button>
-        {isInstalling && modelDownload && (
-          <button
-            onClick={() => onCancel(modelDownload.id)}
-            className="flex-1 rounded-full border border-danger/25 bg-danger/10 px-4 py-2 text-[12px] font-semibold text-danger transition hover:border-danger/40 hover:bg-danger/15"
-          >
-            Cancel install
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SetupVoicesStep({
-  isInstalling,
-  onInstallStarter,
-  onBrowse,
-}: {
-  isInstalling: boolean;
-  onInstallStarter: () => void;
-  onBrowse: () => void;
-}) {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-info/30 bg-info/15">
-          <Sparkles className="h-5 w-5 text-info" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-semibold text-fg">Pick your first voices</p>
-          <p className="mt-0.5 text-[12px] text-fg/55">
-            You need at least one voice to start synthesizing.
-          </p>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-fg/10 bg-fg/5 px-3 py-3">
-        <p className="text-[12px] font-semibold text-fg">Starter pack</p>
-        <p className="mt-0.5 text-[11px] text-fg/55">
-          Heart, Adam, Emma, George — a balanced set of US and UK voices.
-        </p>
-        <button
-          onClick={onInstallStarter}
-          disabled={isInstalling}
-          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-4 py-2 text-[12px] font-semibold text-bg transition hover:brightness-110 disabled:opacity-50"
-        >
-          {isInstalling ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <Download className="h-3 w-3" />
-          )}
-          Install starter pack
-        </button>
-      </div>
-
-      <button
-        onClick={onBrowse}
-        className="w-full rounded-full border border-fg/10 bg-fg/5 px-4 py-2 text-[12px] font-medium text-fg/70 transition hover:border-fg/20 hover:bg-fg/10"
-      >
-        Browse voices manually
-      </button>
-    </div>
-  );
-}
-
 
 function Pill({
   children,
@@ -1866,116 +1577,6 @@ function FilterPill({
         {count}
       </span>
     </button>
-  );
-}
-
-function DetailRow({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: React.ReactNode;
-  mono?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-fg/10 bg-fg/5 px-3 py-2">
-      <span className="text-[11px] text-fg/45">{label}</span>
-      <span
-        className={cn(
-          "min-w-0 truncate text-right text-[12px] text-fg/85",
-          mono && "font-mono text-[11px]",
-        )}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function DownloadGroupCard({
-  items,
-  onCancelItem,
-}: {
-  items: QueuedDownload[];
-  onCancelItem: (id: string) => Promise<void>;
-}) {
-  const aggDownloaded = items.reduce((sum, i) => sum + i.downloaded, 0);
-  const aggTotal = items.reduce((sum, i) => sum + i.total, 0);
-  const aggPct = aggTotal > 0 ? (aggDownloaded / aggTotal) * 100 : 0;
-  const completed = items.filter((i) => i.status === "complete").length;
-
-  const head = items[0];
-  const headLabel =
-    head.installKind === "model"
-      ? `Model · ${head.variant ?? ""}`.trim()
-      : items.length > 1
-        ? `Voices · ${items.length}`
-        : `Voice · ${voiceDisplayName(head.voiceId ?? "")}`.trim();
-
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className="rounded-lg border border-fg/10 bg-fg/5 px-3 py-2">
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 text-left"
-      >
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[11px] text-fg/85">{headLabel}</div>
-          <div className="text-[10px] text-fg/45">
-            {completed}/{items.length} files
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <span className="text-[11px] tabular-nums text-fg/50">{aggPct.toFixed(0)}%</span>
-          <ChevronDown
-            className={cn(
-              "h-3 w-3 text-fg/40 transition-transform",
-              expanded && "rotate-180",
-            )}
-          />
-        </div>
-      </button>
-      <div className="mt-1.5 h-0.5 overflow-hidden rounded-full bg-fg/10">
-        <div
-          className="h-full bg-info/70 transition-all"
-          style={{ width: `${Math.max(2, aggPct)}%` }}
-        />
-      </div>
-      {expanded && (
-        <div className="mt-2 space-y-1.5 border-t border-fg/10 pt-2">
-          {items.map((item) => {
-            const pct = item.total > 0 ? (item.downloaded / item.total) * 100 : 0;
-            return (
-              <div key={item.id} className="space-y-1">
-                <div className="flex items-center justify-between gap-2 text-[10px]">
-                  <span className="truncate font-mono text-fg/55">{item.filename}</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="tabular-nums text-fg/45">{pct.toFixed(0)}%</span>
-                    {(item.status === "downloading" || item.status === "queued") && (
-                      <button
-                        onClick={() => void onCancelItem(item.id)}
-                        className="text-fg/40 transition hover:text-danger"
-                        aria-label="Cancel"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="h-px overflow-hidden rounded-full bg-fg/10">
-                  <div
-                    className="h-full bg-info/60 transition-all"
-                    style={{ width: `${Math.max(2, pct)}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
   );
 }
 

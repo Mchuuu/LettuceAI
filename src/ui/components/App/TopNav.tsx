@@ -581,6 +581,15 @@ export function TopNav({
         navigate(`/settings/characters/${templateListMatch[1]}/edit`);
         return;
       }
+      const kokoroBlendMatch = basePath.match(/^\/settings\/voices\/kokoro\/([^/]+)\/blend/);
+      if (kokoroBlendMatch) {
+        navigate(`/settings/voices/kokoro/${kokoroBlendMatch[1]}`);
+        return;
+      }
+      if (/^\/settings\/voices\/kokoro\/[^/]+$/.test(basePath)) {
+        navigate("/settings/providers?tab=audio");
+        return;
+      }
       const mapped = resolveBackTarget(currentPath);
       if (mapped && mapped.startsWith("/settings")) {
         navigate(mapped);
