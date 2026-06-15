@@ -421,6 +421,24 @@ pub(super) fn resolve_llama_offload_kqv(
         .or(settings.advanced_model_settings.llama_offload_kqv)
 }
 
+pub(super) fn resolve_llama_swa_full(
+    session: &Session,
+    model: &Model,
+    settings: &Settings,
+) -> Option<bool> {
+    session
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|cfg| cfg.llama_swa_full)
+        .or_else(|| {
+            model
+                .advanced_model_settings
+                .as_ref()
+                .and_then(|cfg| cfg.llama_swa_full)
+        })
+        .or(settings.advanced_model_settings.llama_swa_full)
+}
+
 pub(super) fn resolve_llama_batch_size(
     session: &Session,
     model: &Model,

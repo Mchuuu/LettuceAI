@@ -129,6 +129,7 @@ export function sanitizeAdvancedModelSettings(input: AdvancedModelSettings): Adv
     llamaBatchSize: sanitize(input.llamaBatchSize, ADVANCED_LLAMA_BATCH_SIZE_RANGE, true),
     llamaKvType: input.llamaKvType ?? null,
     llamaFlashAttention: input.llamaFlashAttention ?? null,
+    llamaSwaFull: input.llamaSwaFull ?? null,
     llamaChatTemplateOverride: input.llamaChatTemplateOverride?.trim() || null,
     llamaMmprojPath: input.llamaMmprojPath?.trim() || null,
     llamaMtpEnabled: input.llamaMtpEnabled ?? null,

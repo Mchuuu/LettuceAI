@@ -397,6 +397,7 @@ export function EditModelPage() {
     handleLlamaBatchSizeChange,
     handleLlamaKvTypeChange,
     handleLlamaFlashAttentionChange,
+    handleLlamaSwaFullChange,
     handleLlamaSamplerProfileChange,
     handleLlamaSamplerOrderChange,
     handleLlamaMinPChange,
@@ -3450,6 +3451,41 @@ export function EditModelPage() {
                                         Off
                                       </option>
                                     </select>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-4 border-t border-fg/8 pt-4">
+                                  <div className="flex items-center justify-between gap-4">
+                                    <div className="space-y-0.5">
+                                      <span className="block text-[13px] font-medium text-fg/70">
+                                        Full SWA Cache
+                                      </span>
+                                      <span className="block text-[13px] text-fg/40">
+                                        Keep the full attention window for sliding-window models.
+                                        Improves long-context recall at a high VRAM cost. Leave off
+                                        unless you have VRAM to spare.
+                                      </span>
+                                    </div>
+                                    <div className="flex shrink-0 items-center gap-3">
+                                      <span
+                                        className={cn(
+                                          "text-[12px] font-medium transition",
+                                          modelAdvancedDraft.llamaSwaFull === true
+                                            ? "text-accent/80"
+                                            : "text-fg/42",
+                                        )}
+                                      >
+                                        {modelAdvancedDraft.llamaSwaFull === true ? "On" : "Off"}
+                                      </span>
+                                      <Switch
+                                        id="llama-swa-full"
+                                        checked={modelAdvancedDraft.llamaSwaFull === true}
+                                        onChange={(next) =>
+                                          handleLlamaSwaFullChange(next ? true : null)
+                                        }
+                                        aria-label="Toggle full SWA cache"
+                                      />
+                                    </div>
                                   </div>
                                 </div>
 

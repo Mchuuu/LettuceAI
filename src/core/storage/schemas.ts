@@ -395,6 +395,7 @@ export const AdvancedModelSettingsSchema = z.object({
     .nullable()
     .optional(),
   llamaFlashAttention: z.enum(["auto", "enabled", "disabled"]).nullable().optional(),
+  llamaSwaFull: z.boolean().nullable().optional(),
   llamaChatTemplateOverride: z.string().trim().min(1).nullable().optional(),
   llamaMmprojPath: z.string().trim().min(1).nullable().optional(),
   llamaChatTemplatePreset: z.string().trim().min(1).nullable().optional(),

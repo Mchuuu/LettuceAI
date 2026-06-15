@@ -33,6 +33,7 @@ fn supported_extra_body_keys(provider_id: &str) -> &'static [&'static str] {
             "llamaBatchSize",
             "llamaKvType",
             "llamaFlashAttentionPolicy",
+            "llamaSwaFull",
             "llamaChatTemplateOverride",
             "llamaMmprojPath",
             "llamaChatTemplatePreset",

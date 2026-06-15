@@ -794,6 +794,10 @@ mod desktop {
             .get("llamaOffloadKqv")
             .or_else(|| body.get("llama_offload_kqv"))
             .and_then(|v| v.as_bool());
+        let llama_swa_full = body
+            .get("llamaSwaFull")
+            .or_else(|| body.get("llama_swa_full"))
+            .and_then(|v| v.as_bool());
         let llama_mtp_enabled = body
             .get("llamaMtpEnabled")
             .or_else(|| body.get("llama_mtp_enabled"))
@@ -1597,6 +1601,9 @@ mod desktop {
                     if let Some(offload) = attempt_offload_kqv {
                         ctx_params = ctx_params.with_offload_kqv(offload);
                     }
+                    if let Some(swa_full) = llama_swa_full {
+                        ctx_params = ctx_params.with_swa_full(swa_full);
+                    }
                     if let Some(kv_type) = llama_kv_type {
                         ctx_params = ctx_params.with_type_k(kv_type).with_type_v(kv_type);
                     }
@@ -1722,6 +1729,9 @@ mod desktop {
                 }
                 if let Some(offload) = resolved_offload_kqv {
                     draft_params = draft_params.with_offload_kqv(offload);
+                }
+                if let Some(swa_full) = llama_swa_full {
+                    draft_params = draft_params.with_swa_full(swa_full);
                 }
                 if let Some(kv_type) = llama_kv_type {
                     draft_params = draft_params.with_type_k(kv_type).with_type_v(kv_type);

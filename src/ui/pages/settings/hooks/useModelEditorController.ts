@@ -60,6 +60,7 @@ type ControllerReturn = {
   handleLlamaBatchSizeChange: (value: number | null) => void;
   handleLlamaKvTypeChange: (value: AdvancedModelSettings["llamaKvType"]) => void;
   handleLlamaFlashAttentionChange: (value: AdvancedModelSettings["llamaFlashAttention"]) => void;
+  handleLlamaSwaFullChange: (value: boolean | null) => void;
   handleLlamaSamplerProfileChange: (value: AdvancedModelSettings["llamaSamplerProfile"]) => void;
   handleLlamaSamplerOrderChange: (value: AdvancedModelSettings["llamaSamplerOrder"]) => void;
   handleLlamaMinPChange: (value: number | null) => void;
@@ -944,6 +945,19 @@ export function useModelEditorController(): ControllerReturn {
     [dispatch, state.modelAdvancedDraft],
   );
 
+  const handleLlamaSwaFullChange = useCallback(
+    (value: boolean | null) => {
+      dispatch({
+        type: "set_model_advanced_draft",
+        payload: {
+          ...state.modelAdvancedDraft,
+          llamaSwaFull: value,
+        },
+      });
+    },
+    [dispatch, state.modelAdvancedDraft],
+  );
+
   const handleLlamaMtpEnabledChange = useCallback(
     (value: boolean | null) => {
       dispatch({
@@ -1634,6 +1648,7 @@ export function useModelEditorController(): ControllerReturn {
     handleLlamaBatchSizeChange,
     handleLlamaKvTypeChange,
     handleLlamaFlashAttentionChange,
+    handleLlamaSwaFullChange,
     handleLlamaSamplerProfileChange,
     handleLlamaSamplerOrderChange,
     handleLlamaMinPChange,

@@ -617,6 +617,8 @@ pub struct AdvancedModelSettings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub llama_flash_attention: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llama_swa_full: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub llama_chat_template_override: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub llama_mmproj_path: Option<String>,
@@ -714,6 +716,7 @@ impl Default for AdvancedModelSettings {
             llama_batch_size: None,
             llama_kv_type: None,
             llama_flash_attention: None,
+            llama_swa_full: None,
             llama_chat_template_override: None,
             llama_mmproj_path: None,
             llama_chat_template_preset: None,
