@@ -2,6 +2,9 @@ import { Check } from "lucide-react";
 import type { ProviderCapabilitiesCamel } from "../../../../core/providers/capabilities";
 import { getProviderIcon } from "../../../../core/utils/providerIcons";
 import { useI18n } from "../../../../core/i18n/context";
+import type { TranslationKey, TranslateParams } from "../../../../core/i18n/context";
+
+type TFunction = (key: TranslationKey, params?: TranslateParams) => string;
 
 interface ProviderCardProps {
   provider: ProviderCapabilitiesCamel;
@@ -43,7 +46,7 @@ export function ProviderCard({
               {provider.name}
             </h3>
             <p className="text-[13px] text-white/65 leading-snug truncate">
-              {getProviderDescriptionShort(provider.id)}
+              {getProviderDescriptionShort(provider.id, t)}
             </p>
           </div>
           <div
@@ -89,7 +92,7 @@ export function ProviderCard({
         <div className="space-y-0.5">
           <h3 className="text-[15px] font-semibold text-white leading-tight">{provider.name}</h3>
           <p className="text-[12px] text-white/65 leading-snug line-clamp-2">
-            {getProviderDescription(provider.id)}
+            {getProviderDescription(provider.id, t)}
           </p>
         </div>
       </div>
@@ -97,84 +100,84 @@ export function ProviderCard({
   );
 }
 
-function getProviderDescription(providerId: string): string {
+function getProviderDescription(providerId: string, t: TFunction): string {
   switch (providerId) {
     case "chutes":
-      return "OpenAI-compatible inference for top open-source models";
+      return t("onboarding.provider.descriptions.chutes");
     case "openai":
-      return "GPT-5, GPT-4.1, and GPT-4o models for expressive RP";
+      return t("onboarding.provider.descriptions.openai");
     case "cerebras":
-      return "Fast OpenAI-compatible inference for Llama, Qwen, and GPT-OSS models";
+      return t("onboarding.provider.descriptions.cerebras");
     case "lettuce-host":
-      return "Connect to your own desktop Lettuce Host over LAN with OpenAI-style API";
+      return t("onboarding.provider.descriptions.lettuceHost");
     case "anthropic":
-      return "Claude 4.5 Sonnet & Haiku for deep, emotional dialogue";
+      return t("onboarding.provider.descriptions.anthropic");
     case "nanogpt":
     case "featherless":
     case "openrouter":
-      return "Access models like GPT-5, Claude 4.5, Grok-3, Mixtral, and more";
+      return t("onboarding.provider.descriptions.aggregator");
     case "openai-compatible":
-      return "Use any OpenAI-style API endpoint";
+      return t("onboarding.provider.descriptions.openaiCompatible");
     case "mistral":
-      return "Mistral Small 3.2, Mixtral 8x22B, and other Mistral models";
+      return t("onboarding.provider.descriptions.mistral");
     case "deepseek":
-      return "DeepSeek-V3.2-Exp, DeepSeek-R1, and other high-efficiency models";
+      return t("onboarding.provider.descriptions.deepseek");
     case "xai":
-      return "Grok-1.5, Grok-3, and newer xAI models";
+      return t("onboarding.provider.descriptions.xai");
     case "zai":
-      return "GLM-4.5, GLM-4.6, and Air variants";
+      return t("onboarding.provider.descriptions.zai");
     case "moonshot":
-      return "Kimi-K2 Thinking and Kimi-K1 models";
+      return t("onboarding.provider.descriptions.moonshot");
     case "gemini":
-      return "Gemini 2.5 Flash, 2.5 Pro, and more";
+      return t("onboarding.provider.descriptions.gemini");
     case "qwen":
-      return "Qwen3-VL and newer Qwen models";
+      return t("onboarding.provider.descriptions.qwen");
     case "nvidia":
-      return "Nemotron, Llama, DeepSeek, and more via NVIDIA NIM";
+      return t("onboarding.provider.descriptions.nvidia");
     case "custom":
-      return "Point LettuceAI to any custom model endpoint";
+      return t("onboarding.provider.descriptions.custom");
     default:
-      return "AI model provider";
+      return t("onboarding.provider.descriptions.fallback");
   }
 }
 
-function getProviderDescriptionShort(providerId: string): string {
+function getProviderDescriptionShort(providerId: string, t: TFunction): string {
   switch (providerId) {
     case "chutes":
-      return "Open-source model inference";
+      return t("onboarding.provider.descriptionsShort.chutes");
     case "openai":
-      return "GPT-5, GPT-4o, GPT-4.1";
+      return t("onboarding.provider.descriptionsShort.openai");
     case "cerebras":
-      return "Llama, Qwen, GPT-OSS";
+      return t("onboarding.provider.descriptionsShort.cerebras");
     case "lettuce-host":
-      return "Your own LAN host";
+      return t("onboarding.provider.descriptionsShort.lettuceHost");
     case "anthropic":
-      return "Claude 4.5 Sonnet & Haiku";
+      return t("onboarding.provider.descriptionsShort.anthropic");
     case "nanogpt":
     case "featherless":
     case "openrouter":
-      return "Multi-model aggregator";
+      return t("onboarding.provider.descriptionsShort.aggregator");
     case "openai-compatible":
-      return "Custom OpenAI endpoint";
+      return t("onboarding.provider.descriptionsShort.openaiCompatible");
     case "mistral":
-      return "Mistral & Mixtral models";
+      return t("onboarding.provider.descriptionsShort.mistral");
     case "deepseek":
-      return "DeepSeek-V3, R1";
+      return t("onboarding.provider.descriptionsShort.deepseek");
     case "xai":
-      return "Grok-1.5, Grok-3";
+      return t("onboarding.provider.descriptionsShort.xai");
     case "zai":
-      return "GLM-4.5, GLM-4.6";
+      return t("onboarding.provider.descriptionsShort.zai");
     case "moonshot":
-      return "Kimi-K2 Thinking";
+      return t("onboarding.provider.descriptionsShort.moonshot");
     case "gemini":
-      return "Gemini 2.5 Flash & Pro";
+      return t("onboarding.provider.descriptionsShort.gemini");
     case "qwen":
-      return "Qwen3-VL models";
+      return t("onboarding.provider.descriptionsShort.qwen");
     case "nvidia":
-      return "NVIDIA NIM inference";
+      return t("onboarding.provider.descriptionsShort.nvidia");
     case "custom":
-      return "Custom endpoint";
+      return t("onboarding.provider.descriptionsShort.custom");
     default:
-      return "AI provider";
+      return t("onboarding.provider.descriptionsShort.fallback");
   }
 }

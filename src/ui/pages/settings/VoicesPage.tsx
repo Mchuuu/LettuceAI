@@ -37,7 +37,28 @@ import {
 } from "../../../core/storage/audioProviders";
 
 import { BottomMenu, MenuButton } from "../../components/BottomMenu";
-import { useI18n } from "../../../core/i18n/context";
+import { useI18n, type TranslationKey } from "../../../core/i18n/context";
+
+const GEMINI_VOICES = [
+  { id: "kore", name: "Kore", descriptionKey: "voices.extra.geminiVoices.kore" },
+  { id: "aoede", name: "Aoede", descriptionKey: "voices.extra.geminiVoices.aoede" },
+  { id: "charon", name: "Charon", descriptionKey: "voices.extra.geminiVoices.charon" },
+  { id: "fenrir", name: "Fenrir", descriptionKey: "voices.extra.geminiVoices.fenrir" },
+  { id: "puck", name: "Puck", descriptionKey: "voices.extra.geminiVoices.puck" },
+  { id: "leda", name: "Leda", descriptionKey: "voices.extra.geminiVoices.leda" },
+  { id: "orus", name: "Orus", descriptionKey: "voices.extra.geminiVoices.orus" },
+  { id: "zephyr", name: "Zephyr", descriptionKey: "voices.extra.geminiVoices.zephyr" },
+  { id: "algieba", name: "Algieba", descriptionKey: "voices.extra.geminiVoices.algieba" },
+  {
+    id: "callirrhoe",
+    name: "Callirrhoe",
+    descriptionKey: "voices.extra.geminiVoices.callirrhoe",
+  },
+] as const satisfies ReadonlyArray<{
+  id: string;
+  name: string;
+  descriptionKey: TranslationKey;
+}>;
 
 export function VoicesPage() {
   const { t } = useI18n();
@@ -324,7 +345,9 @@ export function VoicesPage() {
                         </span>
                       </div>
                       <span className="text-sm font-medium text-fg">{provider.label}</span>
-                      <span className="text-xs text-fg/40">({voices.length} voices)</span>
+                      <span className="text-xs text-fg/40">
+                        ({t("voices.extra.page.voiceCount", { count: voices.length })})
+                      </span>
                     </div>
                     <button
                       onClick={() => void handleRefreshProviderVoices(provider.id)}
@@ -412,10 +435,17 @@ export function VoicesPage() {
               {cacheStats && (
                 <div className="mt-2 flex items-center gap-3 text-xs text-fg/60">
                   <span>
-                    {cacheStats.count} file{cacheStats.count !== 1 ? "s" : ""}
+                    {t("voices.extra.page.cacheFiles", { count: cacheStats.count })}
                   </span>
                   <span>•</span>
-                  <span>{formatBytes(cacheStats.sizeBytes)}</span>
+                  <span>
+                    {formatBytes(cacheStats.sizeBytes, [
+                      t("common.units.bytes"),
+                      t("common.units.kb"),
+                      t("common.units.mb"),
+                      t("common.units.gb"),
+                    ])}
+                  </span>
                 </div>
               )}
             </div>
@@ -542,10 +572,9 @@ export function VoicesPage() {
   );
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
+function formatBytes(bytes: number, sizes: string[]): string {
+  if (bytes === 0) return `0 ${sizes[0]}`;
   const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
@@ -663,7 +692,7 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
 
       if (provider?.providerType === "elevenlabs" && !formData.id) {
         if (!generatedPreviewId) {
-          throw new Error("Please preview the voice first to generate it.");
+          throw new Error(t("voices.extra.editor.nameVoiceFirst"));
         }
 
         const result = await createVoiceFromPreview(
@@ -681,22 +710,22 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
       }
 
       if (provider?.providerType === "fish_tts" && !finalVoiceData.voiceId.trim()) {
-        throw new Error("Voice ID is required for Fish Audio (Cloud).");
+        throw new Error(t("voices.extra.editor.fishVoiceIdRequired"));
       }
 
       if (provider?.providerType === "openai_tts") {
         if (!finalVoiceData.modelId.trim()) {
-          throw new Error("Model ID is required for OpenAI-compatible TTS.");
+          throw new Error(t("voices.extra.editor.openaiModelIdRequired"));
         }
         if (!finalVoiceData.voiceId.trim()) {
-          throw new Error("Voice ID is required for OpenAI-compatible TTS.");
+          throw new Error(t("voices.extra.editor.openaiVoiceIdRequired"));
         }
       }
 
       await onSave(finalVoiceData);
     } catch (e) {
       console.error("Failed to save voice:", e);
-      setPreviewError(e instanceof Error ? e.message : "Failed to save voice.");
+      setPreviewError(e instanceof Error ? e.message : t("voices.extra.editor.saveVoiceFailed"));
     } finally {
       setIsSaving(false);
     }
@@ -723,7 +752,7 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
     const trimmedSample = textSample.trim();
     if (isElevenLabsVoiceDesign && trimmedSample.length < minVoiceDesignChars) {
       setPreviewError(
-        `Example text must be at least ${minVoiceDesignChars} characters for voice design.`,
+        t("voices.extra.editor.exampleTextMinChars", { minimum: minVoiceDesignChars }),
       );
       return;
     }
@@ -765,7 +794,7 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
             (voice) => voice.name.trim().toLowerCase() === formData.name.trim().toLowerCase(),
           );
           if (!match) {
-            throw new Error("Unable to resolve ElevenLabs voice ID. Please recreate the voice.");
+            throw new Error(t("voices.extra.editor.resolveElevenlabsFailed"));
           }
           resolvedVoiceId = match.voiceId;
           const nextVoice = { ...formData, voiceId: resolvedVoiceId };
@@ -976,36 +1005,11 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
               onChange={(e) => setFormData({ ...formData, voiceId: e.target.value })}
               className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg focus:border-fg/30 focus:outline-none"
             >
-              <option value="kore" className="bg-surface-el">
-                Kore (Warm and friendly)
-              </option>
-              <option value="aoede" className="bg-surface-el">
-                Aoede (Bright and articulate)
-              </option>
-              <option value="charon" className="bg-surface-el">
-                Charon (Deep and authoritative)
-              </option>
-              <option value="fenrir" className="bg-surface-el">
-                Fenrir (Strong and bold)
-              </option>
-              <option value="puck" className="bg-surface-el">
-                Puck (Energetic and youthful)
-              </option>
-              <option value="leda" className="bg-surface-el">
-                Leda (Calm and soothing)
-              </option>
-              <option value="orus" className="bg-surface-el">
-                Orus (Warm and resonant)
-              </option>
-              <option value="zephyr" className="bg-surface-el">
-                Zephyr (Light and airy)
-              </option>
-              <option value="algieba" className="bg-surface-el">
-                Algieba (Professional and clear)
-              </option>
-              <option value="callirrhoe" className="bg-surface-el">
-                Callirrhoe (Expressive and dynamic)
-              </option>
+              {GEMINI_VOICES.map((v) => (
+                <option key={v.id} value={v.id} className="bg-surface-el">
+                  {v.name} ({t(v.descriptionKey)})
+                </option>
+              ))}
             </select>
             <p className="mt-1 text-[10px] text-fg/40">
               {t("voices.extra.editor.geminiVoiceHint")}

@@ -138,7 +138,7 @@ export function GroupChatMessageActionsBottomSheet({
             {isAssistant && messageAction.message.selectionReasoning && (
               <div className="mb-4 px-3 py-2 rounded-lg border border-fg/10 bg-fg/5">
                 <p className="text-[10px] text-fg/40 uppercase tracking-wide mb-1">
-                  Why this character responded
+                  {t("groupChats.messageActionsExtra.whyCharacterResponded")}
                 </p>
                 <div className="text-xs text-fg/70 italic">
                   <MarkdownRenderer
@@ -153,10 +153,10 @@ export function GroupChatMessageActionsBottomSheet({
               <div className="mb-4 space-y-2">
                 <div className="flex items-center gap-x-3 text-xs text-fg/40">
                   <div className="flex items-center gap-2 border-r border-fg/10 pr-3">
-                    <span title="Prompt Tokens">
+                    <span title={t("groupChats.messageActionsExtra.promptTokensTitle")}>
                       ↓{messageAction.message.usage.promptTokens ?? 0}
                     </span>
-                    <span title="Completion Tokens">
+                    <span title={t("groupChats.messageActionsExtra.completionTokensTitle")}>
                       ↑{messageAction.message.usage.completionTokens ?? 0}
                     </span>
                   </div>
@@ -165,19 +165,19 @@ export function GroupChatMessageActionsBottomSheet({
                   </div>
                   <div className="tabular-nums">
                     {(messageAction.message.usage.totalTokens ?? 0).toLocaleString()}{" "}
-                    <span className="text-[12px] uppercase opacity-50">total</span>
+                    <span className="text-[12px] uppercase opacity-50">{t("groupChats.messageActionsExtra.total")}</span>
                   </div>
                 </div>
                 {(typeof messageAction.message.usage.firstTokenMs === "number" ||
                   typeof messageAction.message.usage.tokensPerSecond === "number") && (
                   <div className="flex items-center gap-3 text-[11px] text-fg/45 tabular-nums">
                     {typeof messageAction.message.usage.firstTokenMs === "number" && (
-                      <span title="Time to first token">
+                      <span title={t("groupChats.messageActionsExtra.ttftTitle")}>
                         TTFT {messageAction.message.usage.firstTokenMs}ms
                       </span>
                     )}
                     {typeof messageAction.message.usage.tokensPerSecond === "number" && (
-                      <span title="Completion token speed">
+                      <span title={t("groupChats.messageActionsExtra.tokenSpeedTitle")}>
                         {messageAction.message.usage.tokensPerSecond.toFixed(1)} tok/s
                       </span>
                     )}
@@ -278,7 +278,7 @@ export function GroupChatMessageActionsBottomSheet({
                 {isAssistant && (
                   <ActionRow
                     icon={Users}
-                    label="Regenerate with different character"
+                    label={t("groupChats.messageActionsExtra.regenerateWithDifferent")}
                     iconBg="bg-accent/20"
                     onClick={() => setShowCharacterPicker(true)}
                   />
@@ -288,7 +288,7 @@ export function GroupChatMessageActionsBottomSheet({
 
                 <ActionRow
                   icon={messageAction.message.isPinned ? PinOff : Pin}
-                  label={messageAction.message.isPinned ? "Unpin" : "Pin"}
+                  label={messageAction.message.isPinned ? t("groupChats.messageActionsExtra.unpin") : t("groupChats.messageActionsExtra.pin")}
                   iconBg="bg-warning/20"
                   onClick={() => void handleTogglePin()}
                   disabled={actionBusy}
@@ -298,7 +298,7 @@ export function GroupChatMessageActionsBottomSheet({
 
                 <ActionRow
                   icon={RotateCcw}
-                  label="Rewind to here"
+                  label={t("groupChats.messageActionsExtra.rewindToHere")}
                   iconBg="bg-info/20"
                   onClick={() => void handleRewindToMessage()}
                   disabled={actionBusy}
@@ -309,7 +309,7 @@ export function GroupChatMessageActionsBottomSheet({
                 <ActionRow
                   icon={Trash2}
                   label={
-                    messageAction.message.isPinned ? "Unpin to delete" : t("common.buttons.delete")
+                    messageAction.message.isPinned ? t("groupChats.messageActionsExtra.unpinToDelete") : t("common.buttons.delete")
                   }
                   onClick={() => void handleDeleteMessage()}
                   disabled={actionBusy || messageAction.message.isPinned}
@@ -328,7 +328,7 @@ export function GroupChatMessageActionsBottomSheet({
                     "focus:border-fg/20 focus:outline-none resize-none",
                     radius.lg,
                   )}
-                  placeholder="Edit your message..."
+                  placeholder={t("groupChats.messageActionsExtra.editPlaceholder")}
                   disabled={actionBusy}
                   autoFocus
                 />
@@ -375,10 +375,10 @@ export function GroupChatMessageActionsBottomSheet({
         isOpen={showCharacterPicker}
         includeExitIcon={false}
         onClose={() => setShowCharacterPicker(false)}
-        title="Choose Character"
+        title={t("groupChats.messageActionsExtra.chooseCharacter")}
       >
         <div className="space-y-2">
-          <p className="text-sm text-fg/50 mb-3">Select which character should respond instead:</p>
+          <p className="text-sm text-fg/50 mb-3">{t("groupChats.messageActionsExtra.selectCharacterForRegeneration")}</p>
           {characters.map((char) => (
             <CharacterPickerItem
               key={char.id}

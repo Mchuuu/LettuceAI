@@ -190,7 +190,7 @@ export function GroupChatHeader({
             <button
               onClick={onEditWidgets}
               className="hidden items-center justify-center px-[0.6em] py-[0.3em] text-fg/75 transition hover:text-fg lg:flex"
-              aria-label="Edit widgets"
+              aria-label={t("groupChats.header.editWidgets")}
             >
               <LayoutGrid size={18} strokeWidth={2.5} />
             </button>
@@ -200,7 +200,7 @@ export function GroupChatHeader({
             <button
               onClick={onAppearance}
               className="flex items-center justify-center px-[0.6em] py-[0.3em] text-fg/75 transition hover:text-fg"
-              aria-label="Customize chat appearance"
+              aria-label={t("groupChats.header.customizeAppearance")}
             >
               <Palette size={18} strokeWidth={2.5} />
             </button>

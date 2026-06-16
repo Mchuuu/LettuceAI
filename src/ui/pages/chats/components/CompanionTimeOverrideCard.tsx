@@ -1,15 +1,17 @@
 import { useMemo } from "react";
 import { History } from "lucide-react";
 import type { CompanionTimeOverride, Session } from "../../../../core/storage/schemas";
+import { useI18n } from "../../../../core/i18n/context";
+import type { TranslationKey } from "../../../../core/i18n/context";
 import { cn, interactive, radius } from "../../../design-tokens";
 import { DateTimePicker } from "../../../components/DateTimePicker";
 import { useCompanionTimeOverrideEditor } from "../utils/companionTimeOverride";
 
 const MODE_OPTIONS = [
-  { mode: "off", label: "Live" },
-  { mode: "frozen", label: "Frozen" },
-  { mode: "ticking", label: "Ticking" },
-] as const;
+  { mode: "off", label: "chats.timeOverride.modeLive" },
+  { mode: "frozen", label: "chats.timeOverride.modeFrozen" },
+  { mode: "ticking", label: "chats.timeOverride.modeTicking" },
+] as const satisfies ReadonlyArray<{ mode: string; label: TranslationKey }>;
 
 interface CompanionTimeOverrideCardProps {
   session: Session | null;
@@ -22,6 +24,7 @@ export function CompanionTimeOverrideCard({
   onApply,
   disabled,
 }: CompanionTimeOverrideCardProps) {
+  const { t } = useI18n();
   const override = session?.companionState?.preferences?.timeOverride;
   const canEdit = !disabled && !!session;
   const {
@@ -71,24 +74,30 @@ export function CompanionTimeOverrideCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-white">Time Override</p>
+            <p className="text-sm font-semibold text-white">{t("chats.timeOverride.title")}</p>
             <span
               className={cn(
                 "rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
                 isOverridden ? "bg-accent/15 text-accent" : "text-white/35",
               )}
             >
-              {isOverridden ? (activeMode === "frozen" ? "Frozen" : "Custom") : "Live"}
+              {isOverridden
+                ? activeMode === "frozen"
+                  ? t("chats.timeOverride.badgeFrozen")
+                  : t("chats.timeOverride.badgeCustom")
+                : t("chats.timeOverride.badgeLive")}
             </span>
           </div>
           <p className="mt-1 text-xs text-white/50">
-            Set the date and time the companion sees. Live uses the real clock, Frozen
-            holds a fixed moment, Ticking keeps advancing from the time you set.
+            {t("chats.timeOverride.description")}
           </p>
           <p className="mt-1.5 text-xs tabular-nums text-white/70">
             {formatter.format(shownMs)}
             {isOverridden && (
-              <span className="text-white/35"> (real {formatter.format(nowMs)})</span>
+              <span className="text-white/35">
+                {" "}
+                {t("chats.timeOverride.realClock", { time: formatter.format(nowMs) })}
+              </span>
             )}
           </p>
         </div>
@@ -111,7 +120,7 @@ export function CompanionTimeOverrideCard({
               !canEdit && "cursor-not-allowed opacity-50",
             )}
           >
-            {opt.label}
+            {t(opt.label)}
           </button>
         ))}
       </div>
@@ -125,7 +134,7 @@ export function CompanionTimeOverrideCard({
             interactive.transition.default,
           )}
         >
-          Change time
+          {t("chats.timeOverride.changeTime")}
         </button>
       )}
 
@@ -142,7 +151,7 @@ export function CompanionTimeOverrideCard({
                 interactive.transition.default,
               )}
             >
-              Now
+              {t("chats.timeOverride.now")}
             </button>
             <button
               type="button"
@@ -153,7 +162,7 @@ export function CompanionTimeOverrideCard({
                 interactive.transition.default,
               )}
             >
-              Cancel
+              {t("common.buttons.cancel")}
             </button>
             <button
               type="button"
@@ -166,7 +175,9 @@ export function CompanionTimeOverrideCard({
                 "hover:brightness-110",
               )}
             >
-              {selectedMode === "frozen" ? "Freeze" : "Set"}
+              {selectedMode === "frozen"
+                ? t("chats.timeOverride.freeze")
+                : t("chats.timeOverride.set")}
             </button>
           </div>
         </div>

@@ -12,7 +12,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { BottomMenu, MenuButton, MenuButtonGroup } from "../../components/BottomMenu";
-import { useI18n } from "../../../core/i18n/context";
+import { useI18n, type TranslationKey } from "../../../core/i18n/context";
 import { Switch } from "../../components/Switch";
 
 interface FilterLogEntry {
@@ -24,14 +24,7 @@ interface FilterLogEntry {
   level: string;
 }
 
-const PURE_MODE_OPTIONS: {
-  value: PureModeLevel;
-  labelKey: string;
-  descriptionKey: string;
-  color: string;
-  activeColor: string;
-  activeBg: string;
-}[] = [
+const PURE_MODE_OPTIONS = [
   {
     value: "off",
     labelKey: "security.pureMode.off",
@@ -64,7 +57,14 @@ const PURE_MODE_OPTIONS: {
     activeColor: "text-info",
     activeBg: "border-info/40 bg-info/20",
   },
-];
+] satisfies {
+  value: PureModeLevel;
+  labelKey: TranslationKey;
+  descriptionKey: TranslationKey;
+  color: string;
+  activeColor: string;
+  activeBg: string;
+}[];
 const FILTER_DEBUG_ENABLED = import.meta.env.DEV;
 
 export function SecurityPage() {
@@ -201,12 +201,12 @@ export function SecurityPage() {
 
       const pem = (await readTextFile(selected)).trim();
       if (!pem.includes("BEGIN CERTIFICATE") || !pem.includes("END CERTIFICATE")) {
-        setCertificateError("The selected file is not a PEM certificate.");
+        setCertificateError(t("security.certificates.errorNotPem"));
         return;
       }
 
       if (trustedCertificates.some((certificate) => certificate.pem.trim() === pem)) {
-        setCertificateError("That certificate is already imported.");
+        setCertificateError(t("security.certificates.errorAlreadyImported"));
         return;
       }
 
@@ -224,7 +224,7 @@ export function SecurityPage() {
     } finally {
       setIsImportingCertificate(false);
     }
-  }, [persistTrustedCertificates, trustedCertificates]);
+  }, [persistTrustedCertificates, trustedCertificates, t]);
 
   const handleDeleteCertificate = useCallback(
     async (id: string) => {
@@ -254,7 +254,7 @@ export function SecurityPage() {
         {/* Section: Content Filtering */}
         <div>
           <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-            Content Filtering
+            {t("security.contentFiltering.sectionTitle")}
           </h2>
           <div
             className={`relative overflow-hidden rounded-xl border px-4 py-3 transition-all duration-300 ${
@@ -289,14 +289,16 @@ export function SecurityPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-fg">Pure Mode</span>
+                  <span className="text-sm font-medium text-fg">
+                    {t("security.contentFiltering.pureModeTitle")}
+                  </span>
                   <span
                     className={`rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-none uppercase tracking-[0.25em] transition-all duration-300 ${activeOption.activeBg} ${activeOption.activeColor}`}
                   >
-                    {t(activeOption.labelKey as any)}
+                    {t(activeOption.labelKey)}
                   </span>
                 </div>
-                <div className="mt-0.5 text-[11px] text-fg/50">{t(activeOption.descriptionKey as any)}</div>
+                <div className="mt-0.5 text-[11px] text-fg/50">{t(activeOption.descriptionKey)}</div>
 
                 {/* Level selector */}
                 <div className="mt-3 flex gap-1.5">
@@ -312,14 +314,14 @@ export function SecurityPage() {
                             : "border-fg/10 bg-fg/5 text-fg/50 hover:bg-fg/10"
                         }`}
                       >
-                        {t(option.labelKey as any)}
+                        {t(option.labelKey)}
                       </button>
                     );
                   })}
                 </div>
 
                 <div className="mt-2 text-[11px] text-fg/45 leading-relaxed">
-                  Restrict adult content in AI responses
+                  {t("security.contentFiltering.pureModeFooter")}
                 </div>
               </div>
             </div>
@@ -329,7 +331,7 @@ export function SecurityPage() {
         {/* Section: Data Protection */}
         <div>
           <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-            Data Protection
+            {t("security.dataProtection.sectionTitle")}
           </h2>
           <div className="space-y-2">
             <div className="rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
@@ -342,7 +344,7 @@ export function SecurityPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-fg">
-                          Remote Avatar Download
+                          {t("security.dataProtection.remoteAvatarTitle")}
                         </span>
                         <span
                           className={`rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-none uppercase tracking-[0.25em] ${
@@ -351,11 +353,11 @@ export function SecurityPage() {
                               : "border-fg/10 bg-fg/10 text-fg/60"
                           }`}
                         >
-                          {autoDownloadCharacterCardAvatars ? "On" : "Off"}
+                          {autoDownloadCharacterCardAvatars ? t("common.labels.on") : t("common.labels.off")}
                         </span>
                       </div>
                       <div className="mt-0.5 text-[11px] text-fg/50">
-                        Auto-download avatar images from HTTPS URLs during character card import
+                        {t("security.dataProtection.remoteAvatarDesc")}
                       </div>
                     </div>
                     <Switch
@@ -365,7 +367,7 @@ export function SecurityPage() {
                     />
                   </div>
                   <div className="mt-2 text-[11px] text-fg/45 leading-relaxed">
-                    Disable this to prevent network avatar fetches when importing character cards
+                    {t("security.dataProtection.remoteAvatarFooter")}
                   </div>
                 </div>
               </div>
@@ -380,7 +382,9 @@ export function SecurityPage() {
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-fg">Analytics</span>
+                        <span className="text-sm font-medium text-fg">
+                          {t("security.dataProtection.analyticsTitle")}
+                        </span>
                         <span
                           className={`rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-none uppercase tracking-[0.25em] ${
                             isAnalyticsEnabled
@@ -389,16 +393,16 @@ export function SecurityPage() {
                           }`}
                         >
                           {!isAnalyticsAvailableState
-                            ? "Unavailable"
+                            ? t("security.dataProtection.unavailable")
                             : isAnalyticsEnabled
-                              ? "On"
-                              : "Off"}
+                              ? t("common.labels.on")
+                              : t("common.labels.off")}
                         </span>
                       </div>
                       <div className="mt-0.5 text-[11px] text-fg/50">
                         {isAnalyticsAvailableState
-                          ? "Help improve the app with anonymous usage events"
-                          : "Requires an analytics API key"}
+                          ? t("security.dataProtection.analyticsDescAvailable")
+                          : t("security.dataProtection.analyticsDescUnavailable")}
                       </div>
                     </div>
                     <Switch
@@ -410,8 +414,8 @@ export function SecurityPage() {
                   </div>
                   <div className="mt-2 text-[11px] text-fg/45 leading-relaxed">
                     {isAnalyticsAvailableState
-                      ? "Restart required to apply changes"
-                      : "Set APTABASE_KEY to enable analytics"}
+                      ? t("security.dataProtection.analyticsFooterAvailable")
+                      : t("security.dataProtection.analyticsFooterUnavailable")}
                   </div>
                 </div>
               </div>
@@ -424,14 +428,15 @@ export function SecurityPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-fg">Aptabase Analytics</span>
+                    <span className="text-sm font-medium text-fg">
+                      {t("security.dataProtection.aptabaseTitle")}
+                    </span>
                     <span className="rounded-md border border-fg/10 bg-fg/10 px-1.5 py-0.5 text-[10px] font-medium leading-none text-fg/70">
-                      Anonymous
+                      {t("security.dataProtection.aptabaseBadge")}
                     </span>
                   </div>
                   <div className="mt-0.5 text-[11px] text-fg/45 leading-relaxed">
-                    Events are anonymous and contain only the event name and not-identifying
-                    properties we define. We do not send message content or personal identifiers.
+                    {t("security.dataProtection.aptabaseDesc")}
                   </div>
                 </div>
               </div>
@@ -441,7 +446,7 @@ export function SecurityPage() {
 
         <div>
           <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-            Trusted Certificates
+            {t("security.certificates.sectionTitle")}
           </h2>
           <div className="space-y-2">
             <div className="rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
@@ -453,14 +458,15 @@ export function SecurityPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-fg">Custom Root CAs</span>
+                        <span className="text-sm font-medium text-fg">
+                          {t("security.certificates.customRootCasTitle")}
+                        </span>
                         <span className="rounded-md border border-fg/10 bg-fg/10 px-1.5 py-0.5 text-[10px] font-medium leading-none text-fg/70">
                           {trustedCertificates.length}
                         </span>
                       </div>
                       <div className="mt-0.5 text-[11px] text-fg/50">
-                        Import PEM certificates for self-hosted HTTPS endpoints such as Ollama
-                        behind Caddy or a private CA
+                        {t("security.certificates.customRootCasDesc")}
                       </div>
                     </div>
                     <button
@@ -469,12 +475,11 @@ export function SecurityPage() {
                       className="inline-flex items-center gap-2 rounded-lg border border-accent/35 bg-accent/15 px-3 py-2 text-[11px] font-medium text-accent transition hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <FilePlus2 className="h-3.5 w-3.5" />
-                      {isImportingCertificate ? "Importing..." : "Import"}
+                      {isImportingCertificate ? t("common.buttons.importing") : t("common.buttons.import")}
                     </button>
                   </div>
                   <div className="mt-2 text-[11px] text-fg/45 leading-relaxed">
-                    These certificates are added to the app trust store. They do not disable TLS
-                    verification.
+                    {t("security.certificates.footer")}
                   </div>
                   {certificateError && (
                     <div className="mt-3 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-[11px] text-danger">
@@ -487,7 +492,7 @@ export function SecurityPage() {
 
             {trustedCertificates.length === 0 ? (
               <div className="rounded-xl border border-fg/10 bg-fg/5 px-4 py-3 text-[11px] text-fg/45">
-                No custom certificates imported.
+                {t("security.certificates.empty")}
               </div>
             ) : (
               trustedCertificates.map((certificate) => (
@@ -506,14 +511,16 @@ export function SecurityPage() {
                             {certificate.name}
                           </div>
                           <div className="mt-0.5 text-[11px] text-fg/45">
-                            Imported {new Date(certificate.importedAt).toLocaleString()}
+                            {t("security.certificates.importedAt", {
+                              date: new Date(certificate.importedAt).toLocaleString(),
+                            })}
                           </div>
                         </div>
                         <button
                           onClick={() => void handleDeleteCertificate(certificate.id)}
                           className="rounded-lg border border-danger/25 bg-danger/10 px-2.5 py-2 text-[11px] font-medium text-danger transition hover:bg-danger/15"
                         >
-                          Remove
+                          {t("common.buttons.remove")}
                         </button>
                       </div>
                     </div>
@@ -527,7 +534,7 @@ export function SecurityPage() {
           <div>
             <div className="mb-2 flex items-center justify-between px-1">
               <h2 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-                Filter Log
+                {t("security.filterLog.sectionTitle")}
               </h2>
               {filterLog.length > 0 && (
                 <button
@@ -535,7 +542,7 @@ export function SecurityPage() {
                   className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] text-fg/40 transition-colors hover:bg-fg/10 hover:text-fg/60"
                 >
                   <Trash2 className="h-3 w-3" />
-                  Clear
+                  {t("security.filterLog.clear")}
                 </button>
               )}
             </div>
@@ -546,7 +553,7 @@ export function SecurityPage() {
                     <ScrollText className="h-4 w-4 text-fg/70" />
                   </div>
                   <div className="text-[11px] text-fg/40">
-                    No filter hits recorded yet. Matches will appear here as you chat.
+                    {t("security.filterLog.empty")}
                   </div>
                 </div>
               ) : (
@@ -576,11 +583,11 @@ export function SecurityPage() {
                                   : "bg-warning/20 text-warning/80"
                               }`}
                             >
-                              {entry.blocked ? "Blocked" : "Hit"}
+                              {entry.blocked ? t("security.filterLog.blocked") : t("security.filterLog.hit")}
                             </span>
                             <span className="text-[10px] text-fg/30">{entry.level}</span>
                             <span className="text-[10px] text-fg/30">
-                              score:{" "}
+                              {t("security.filterLog.score")}{" "}
                               <span className={entry.blocked ? "text-danger/80" : "text-warning"}>
                                 {entry.score.toFixed(2)}
                               </span>
@@ -618,14 +625,14 @@ export function SecurityPage() {
       <BottomMenu
         isOpen={showRestartMenu}
         onClose={() => setShowRestartMenu(false)}
-        title="Restart required"
+        title={t("security.restart.title")}
       >
-        <div className="text-sm text-fg/70">Analytics changes apply after a restart.</div>
+        <div className="text-sm text-fg/70">{t("security.restart.body")}</div>
         <MenuButtonGroup>
           <MenuButton
             icon={Power}
-            title="Restart now"
-            description="Apply analytics changes"
+            title={t("security.restart.restartNow")}
+            description={t("security.restart.restartNowDesc")}
             color="from-accent to-accent/80"
             onClick={async () => {
               setShowRestartMenu(false);
@@ -634,8 +641,8 @@ export function SecurityPage() {
           />
           <MenuButton
             icon={Lock}
-            title="Later"
-            description="Keep current session"
+            title={t("security.restart.later")}
+            description={t("security.restart.laterDesc")}
             color="from-info to-info/80"
             onClick={() => setShowRestartMenu(false)}
           />

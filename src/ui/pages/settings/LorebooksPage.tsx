@@ -3,32 +3,35 @@ import { AnimatePresence, motion } from "framer-motion";
 import { BookOpen, Workflow } from "lucide-react";
 
 import { cn } from "../../design-tokens";
+import { useI18n } from "../../../core/i18n/context";
+import type { TranslationKey } from "../../../core/i18n/context";
 import { LorebookGeneratorPage } from "./LorebookGeneratorPage";
 import { LorebookEntryGeneratorPage } from "./LorebookEntryGeneratorPage";
 
 type LorebookTab = "full" | "entry";
 
-const TABS: Array<{
-  id: LorebookTab;
-  label: string;
-  description: string;
-  icon: React.ComponentType<{ className?: string }>;
-}> = [
+const TABS = [
   {
     id: "full",
-    label: "Full Generator",
-    description: "Plan, draft, and refine a complete lorebook from a brief.",
+    labelKey: "lorebookGen.tabs.fullLabel",
+    descriptionKey: "lorebookGen.tabs.fullDescription",
     icon: Workflow,
   },
   {
     id: "entry",
-    label: "Entry Generator",
-    description: "Turn selected chat messages into single lorebook entries.",
+    labelKey: "lorebookGen.tabs.entryLabel",
+    descriptionKey: "lorebookGen.tabs.entryDescription",
     icon: BookOpen,
   },
-];
+] satisfies Array<{
+  id: LorebookTab;
+  labelKey: TranslationKey;
+  descriptionKey: TranslationKey;
+  icon: React.ComponentType<{ className?: string }>;
+}>;
 
 export function LorebooksPage() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<LorebookTab>("full");
 
   return (
@@ -67,9 +70,9 @@ export function LorebooksPage() {
                     <Icon className="h-4 w-4" />
                   </span>
                   <span className="relative min-w-0 flex-1">
-                    <span className="block text-sm font-medium">{tab.label}</span>
+                    <span className="block text-sm font-medium">{t(tab.labelKey)}</span>
                     <span className="mt-0.5 block truncate text-[11px] text-fg/45">
-                      {tab.description}
+                      {t(tab.descriptionKey)}
                     </span>
                   </span>
                 </button>

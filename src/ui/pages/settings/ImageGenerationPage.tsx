@@ -222,7 +222,7 @@ function SelectorCard({
           />
         ) : (
           <div className="rounded-[10px] border border-dashed border-fg/12 bg-surface/30 px-3.5 py-3 text-sm text-fg/45">
-            Model selection stays saved, but this flow will not run until you turn it back on.
+            {t("imageGeneration.cardDisabledHint")}
           </div>
         )}
       </div>
@@ -277,7 +277,7 @@ export function ImageGenerationPage() {
         setState((prev) => ({
           ...prev,
           loading: false,
-          error: err instanceof Error ? err.message : "Failed to load settings",
+          error: err instanceof Error ? err.message : t("imageGeneration.errors.loadFailed"),
         }));
       }
     };
@@ -321,7 +321,7 @@ export function ImageGenerationPage() {
       console.error("Failed to save image generation settings:", err);
       setState((prev) => ({
         ...prev,
-        error: err instanceof Error ? err.message : "Failed to save image generation settings",
+        error: err instanceof Error ? err.message : t("imageGeneration.errors.saveFailed"),
       }));
     }
   };
@@ -367,7 +367,7 @@ export function ImageGenerationPage() {
       console.error("Failed to save image generation settings:", err);
       setState((prev) => ({
         ...prev,
-        error: err instanceof Error ? err.message : "Failed to save image generation settings",
+        error: err instanceof Error ? err.message : t("imageGeneration.errors.saveFailed"),
       }));
     }
   };
@@ -394,7 +394,7 @@ export function ImageGenerationPage() {
       console.error("Failed to save scene generation mode:", err);
       setState((prev) => ({
         ...prev,
-        error: err instanceof Error ? err.message : "Failed to save scene generation mode",
+        error: err instanceof Error ? err.message : t("imageGeneration.errors.saveSceneModeFailed"),
       }));
     }
   };
@@ -465,7 +465,7 @@ export function ImageGenerationPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.22, ease: "easeOut" }}
             >
-              <SettingsSection title="Generation" icon={<Sparkles size={12} />}>
+              <SettingsSection title={t("imageGeneration.sections.generationTitle")} icon={<Sparkles size={12} />}>
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   <SelectorCard
                     title={t("imageGeneration.sections.avatar.title")}
@@ -501,7 +501,7 @@ export function ImageGenerationPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.22, delay: 0.06, ease: "easeOut" }}
             >
-              <SettingsSection title="Prompting" icon={<PenLine size={12} />}>
+              <SettingsSection title={t("imageGeneration.sections.promptingTitle")} icon={<PenLine size={12} />}>
                 <div className="space-y-4">
                   <SelectorCard
                     title={t("imageGeneration.sections.writer.title")}

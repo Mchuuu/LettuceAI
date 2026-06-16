@@ -204,8 +204,8 @@ export function SettingsPage() {
       speechRecognition: {
         key: "speechRecognition",
         icon: <Mic />,
-        title: "Speech Recognition",
-        subtitle: "Vocabulary, corrections, and voice examples",
+        title: t("settings.items.speechRecognition.title"),
+        subtitle: t("settings.items.speechRecognition.subtitle"),
         onClick: () => navigate("/settings/speech-recognition"),
       },
       sync: {
@@ -254,15 +254,15 @@ export function SettingsPage() {
       help: {
         key: "help",
         icon: <HelpCircle />,
-        title: "Help & FAQ",
-        subtitle: "BYOK, API keys, privacy, and common questions",
+        title: t("settings.items.help.title"),
+        subtitle: t("settings.items.help.subtitle"),
         onClick: () => navigate("/settings/help"),
       },
       whatsNew: {
         key: "whatsNew",
         icon: <Sparkles />,
-        title: "What's New",
-        subtitle: "See what changed in the latest update",
+        title: t("settings.items.whatsNew.title"),
+        subtitle: t("settings.items.whatsNew.subtitle"),
         onClick: () => window.dispatchEvent(new Event("whatsnew:open")),
       },
       about: {

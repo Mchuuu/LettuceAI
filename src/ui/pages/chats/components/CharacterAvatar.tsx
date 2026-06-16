@@ -4,6 +4,7 @@ import { AvatarImage } from "../../../components/AvatarImage";
 import { useAvatar, type AvatarVariant } from "../../../hooks/useAvatar";
 import { cn } from "../../../design-tokens";
 import { isRenderableImageUrl } from "../../../../core/utils/image";
+import { useI18n } from "../../../../core/i18n/context";
 
 function isImageLike(s?: string) {
   return isRenderableImageUrl(s);
@@ -18,6 +19,7 @@ interface CharacterAvatarProps {
 
 export const CharacterAvatar = memo(
   ({ character, className, variant = "round" }: CharacterAvatarProps) => {
+    const { t } = useI18n();
     const avatarUrl = useAvatar("character", character.id, character.avatarPath, variant);
 
     if (avatarUrl && isImageLike(avatarUrl)) {
@@ -28,7 +30,7 @@ export const CharacterAvatar = memo(
       return (
         <AvatarImage
           src={avatarUrl}
-          alt={`${character.name} avatar`}
+          alt={t("chats.characterAvatarAlt", { name: character.name })}
           crop={crop}
           applyCrop={applyCrop}
           className={className}

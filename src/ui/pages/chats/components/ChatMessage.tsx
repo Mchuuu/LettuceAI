@@ -10,7 +10,7 @@ import type { ChatAppearanceSettings } from "../../../../core/storage/schemas";
 import { AvatarImage } from "../../../components/AvatarImage";
 import { useAvatar } from "../../../hooks/useAvatar";
 import { useSessionAttachments } from "../../../hooks/useSessionAttachment";
-import { useI18n } from "../../../../core/i18n/context";
+import { useI18n, type TranslationKey, type TranslateParams } from "../../../../core/i18n/context";
 import { replacePlaceholders } from "../../../../core/utils/placeholders";
 
 interface VariantState {
@@ -86,6 +86,7 @@ const AVATAR_ICON_SIZE_MAP = { small: 12, medium: 16, large: 20 } as const;
 function formatMessageTimestamp(
   ms: number,
   format: "relative" | "time" | "datetime",
+  t: (key: TranslationKey, params?: TranslateParams) => string,
 ): string {
   const date = new Date(ms);
   const time = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -97,7 +98,7 @@ function formatMessageTimestamp(
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const dayMs = 86_400_000;
   if (ms >= startOfToday) return time;
-  if (ms >= startOfToday - dayMs) return `Yesterday at ${time}`;
+  if (ms >= startOfToday - dayMs) return t("chats.message.yesterdayAt", { time });
   return `${date.toLocaleDateString()}, ${time}`;
 }
 
@@ -149,7 +150,7 @@ const MessageAvatar = React.memo(function MessageAvatar({
   avatarShape?: "circle" | "rounded" | "hidden";
   avatarSize?: "small" | "medium" | "large";
 }) {
-  if (avatarShape === "hidden") return null;
+  const { t } = useI18n();
   const characterAvatar = useAvatar(
     "character",
     character?.id ?? "",
@@ -157,6 +158,8 @@ const MessageAvatar = React.memo(function MessageAvatar({
     "round",
   );
   const personaAvatar = useAvatar("persona", persona?.id ?? "", persona?.avatarPath, "round");
+
+  if (avatarShape === "hidden") return null;
 
   const sizeClass = AVATAR_SIZE_MAP[avatarSize];
   const shapeClass = AVATAR_SHAPE_MAP[avatarShape];
@@ -172,7 +175,12 @@ const MessageAvatar = React.memo(function MessageAvatar({
         )}
       >
         {personaAvatar ? (
-          <AvatarImage src={personaAvatar} alt="User" crop={persona?.avatarCrop} applyCrop />
+          <AvatarImage
+            src={personaAvatar}
+            alt={t("chats.message.userAvatarAlt")}
+            crop={persona?.avatarCrop}
+            applyCrop
+          />
         ) : (
           <User size={iconSize} className="text-white/60" />
         )}
@@ -192,7 +200,7 @@ const MessageAvatar = React.memo(function MessageAvatar({
         {characterAvatar ? (
           <AvatarImage
             src={characterAvatar}
-            alt="Assistant"
+            alt={t("chats.message.assistantAvatarAlt")}
             crop={character?.avatarCrop}
             applyCrop
           />
@@ -623,8 +631,8 @@ function ChatMessageInner({
 
   const effectiveCharName = swapPlaces ? (persona?.title ?? "") : (character?.name ?? "");
   const effectivePersonaName = swapPlaces
-    ? (character?.name ?? "User")
-    : (persona?.title ?? "User");
+    ? (character?.name ?? t("chats.message.userAuthor"))
+    : (persona?.title ?? t("chats.message.userAuthor"));
   const resolvedDisplayContent =
     displayContent ?? replacePlaceholders(message.content, effectiveCharName, effectivePersonaName);
 
@@ -636,7 +644,7 @@ function ChatMessageInner({
     ? effectivePersonaName
     : computed.isAssistant || computed.isScene
       ? effectiveCharName
-      : "System";
+      : t("chats.message.systemAuthor");
   const headerRightAligned = message.role === "user" || computed.isVisibleSystem;
   const messageHeaderNode = showMessageHeader ? (
     <div
@@ -653,6 +661,7 @@ function ChatMessageInner({
           {formatMessageTimestamp(
             message.createdAt,
             chatAppearance?.timestampFormat ?? "relative",
+            t,
           )}
         </span>
       )}
@@ -1078,7 +1087,7 @@ function ChatMessageInner({
             transition={{ duration: 0.2 }}
           >
             <span className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-300/30 border-t-emerald-300" />
-            Generating image prompt...
+            {t("chats.message.generatingImagePrompt")}
           </motion.div>
         )}
 

@@ -740,7 +740,6 @@ export const deMessages: DeepPartialMessageTree<LocaleMessages> = {
     suggestedReply: "Vorgeschlagene Antwort",
     selectTwoCharactersMinimum: "Wähle mindestens 2 Charaktere für einen Gruppenchat.",
     groupBranchCreated: "Gruppenverzweigung erstellt! Weiterleitung...",
-    memories: "Erinnerungen",
     tools: "Werkzeuge",
     pinned: "Angepinnt",
     searchMemories: "Erinnerungen suchen...",

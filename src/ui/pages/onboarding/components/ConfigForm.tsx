@@ -63,16 +63,20 @@ export function ProviderConfigForm({
           type="text"
           value={label}
           onChange={(e) => onLabelChange(e.target.value)}
-          placeholder={`My ${selectedProviderName || "Provider"}`}
+          placeholder={t("onboarding.provider.fields.displayLabelPlaceholder", {
+            name: selectedProviderName || t("onboarding.provider.fields.defaultLabelFallback"),
+          })}
           className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-white placeholder-white/40 transition-colors focus:border-white/30 focus:outline-none"
         />
-        <p className="text-[12px] text-white/55">How this provider will appear in your menus</p>
+        <p className="text-[12px] text-white/55">{t("onboarding.provider.fields.displayLabelHint")}</p>
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-[13px] font-medium text-white/70">
-            API Key{isLocalProvider ? " (Optional)" : ""}
+            {isLocalProvider
+              ? t("onboarding.provider.fields.apiKeyOptional")
+              : t("onboarding.provider.fields.apiKey")}
           </label>
           {!isLocalProvider && !isCustomProvider && (
             <button
@@ -83,7 +87,7 @@ export function ProviderConfigForm({
               }
               className="text-[12px] text-white/70 hover:text-white transition-colors"
             >
-              Where to find it
+              {t("onboarding.provider.fields.whereToFind")}
             </button>
           )}
         </div>
@@ -91,36 +95,40 @@ export function ProviderConfigForm({
           type="text"
           value={apiKey}
           onChange={(e) => onApiKeyChange(e.target.value)}
-          placeholder={isLocalProvider ? "Usually not required" : "sk-..."}
+          placeholder={
+            isLocalProvider
+              ? t("onboarding.provider.fields.apiKeyPlaceholderLocal")
+              : t("onboarding.provider.fields.apiKeyPlaceholderRemote")
+          }
           className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-white placeholder-white/40 transition-colors focus:border-white/30 focus:outline-none"
         />
-        <p className="text-[12px] text-white/55">Keys are encrypted locally</p>
+        <p className="text-[12px] text-white/55">{t("onboarding.provider.fields.apiKeyHint")}</p>
       </div>
 
       {showBaseUrl && (
         <div className="space-y-2">
-          <label className="text-[13px] font-medium text-white/70">Base URL</label>
+          <label className="text-[13px] font-medium text-white/70">{t("onboarding.provider.fields.baseUrl")}</label>
           <input
             type="text"
             value={baseUrl}
             onChange={(e) => onBaseUrlChange(e.target.value)}
             placeholder={
               selectedProviderId === "intenserp"
-                ? "http://127.0.0.1:7777/v1"
+                ? t("onboarding.provider.fields.baseUrlPlaceholderIntenseRP")
                 : isHostProvider
-                  ? "http://192.168.1.10:3333"
+                  ? t("onboarding.provider.fields.baseUrlPlaceholderHost")
                   : isLocalProvider
-                    ? "http://localhost:11434"
-                    : "https://api.provider.com"
+                    ? t("onboarding.provider.fields.baseUrlPlaceholderLocal")
+                    : t("onboarding.provider.fields.baseUrlPlaceholderRemote")
             }
             className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-white placeholder-white/40 transition-colors focus:border-white/30 focus:outline-none"
           />
           <p className="text-[12px] text-white/55">
             {isLocalProvider
-              ? "Your local server address with port"
+              ? t("onboarding.provider.fields.baseUrlHintLocal")
               : isHostProvider
-                ? "Enter the desktop host URL shown by your host device"
-                : "Override the default endpoint if needed"}
+                ? t("onboarding.provider.fields.baseUrlHintHost")
+                : t("onboarding.provider.fields.baseUrlHintRemote")}
           </p>
         </div>
       )}
@@ -129,7 +137,7 @@ export function ProviderConfigForm({
         <>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <label className="text-[13px] font-medium text-white/70">Chat Endpoint</label>
+              <label className="text-[13px] font-medium text-white/70">{t("onboarding.provider.fields.chatEndpoint")}</label>
               <input
                 type="text"
                 value={config?.chatEndpoint ?? "/v1/chat/completions"}
@@ -138,7 +146,7 @@ export function ProviderConfigForm({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[13px] font-medium text-white/70">System Role</label>
+              <label className="text-[13px] font-medium text-white/70">{t("onboarding.provider.fields.systemRole")}</label>
               <input
                 type="text"
                 value={config?.systemRole ?? "system"}
@@ -149,7 +157,7 @@ export function ProviderConfigForm({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <label className="text-[13px] font-medium text-white/70">User Role</label>
+              <label className="text-[13px] font-medium text-white/70">{t("onboarding.provider.fields.userRole")}</label>
               <input
                 type="text"
                 value={config?.userRole ?? "user"}
@@ -158,7 +166,7 @@ export function ProviderConfigForm({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[13px] font-medium text-white/70">Assistant Role</label>
+              <label className="text-[13px] font-medium text-white/70">{t("onboarding.provider.fields.assistantRole")}</label>
               <input
                 type="text"
                 value={config?.assistantRole ?? "assistant"}
@@ -168,7 +176,7 @@ export function ProviderConfigForm({
             </div>
           </div>
           <div className="flex items-center justify-between pt-1">
-            <span className="text-[13px] font-medium text-white/70">Supports Streaming</span>
+            <span className="text-[13px] font-medium text-white/70">{t("onboarding.provider.fields.supportsStreaming")}</span>
             <Switch
               id="supportsStream-onboarding"
               checked={config?.supportsStream ?? true}
@@ -177,35 +185,35 @@ export function ProviderConfigForm({
           </div>
           {selectedProviderId === "custom" && (
             <div className="space-y-2">
-              <label className="text-[13px] font-medium text-white/70">Tool Choice Mode</label>
+              <label className="text-[13px] font-medium text-white/70">{t("onboarding.provider.fields.toolChoiceMode")}</label>
               <select
                 value={config?.toolChoiceMode ?? "auto"}
                 onChange={(e) => onConfigChange({ ...config, toolChoiceMode: e.target.value })}
                 className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-[15px] text-white focus:border-white/30 focus:outline-none"
               >
                 <option value="auto" className="bg-black">
-                  Auto
+                  {t("onboarding.provider.toolChoice.auto")}
                 </option>
                 <option value="required" className="bg-black">
-                  Required
+                  {t("onboarding.provider.toolChoice.required")}
                 </option>
                 <option value="none" className="bg-black">
-                  None
+                  {t("onboarding.provider.toolChoice.none")}
                 </option>
                 <option value="omit" className="bg-black">
-                  Omit Field
+                  {t("onboarding.provider.toolChoice.omit")}
                 </option>
                 <option value="passthrough" className="bg-black">
-                  Passthrough (Tool Config)
+                  {t("onboarding.provider.toolChoice.passthrough")}
                 </option>
               </select>
               <p className="text-[12px] text-white/55">
-                Controls how `tool_choice` is sent to the custom endpoint.
+                {t("onboarding.provider.fields.toolChoiceHint")}
               </p>
             </div>
           )}
           <div className="flex items-center justify-between pt-1">
-            <span className="text-[13px] font-medium text-white/70">Merge Same-role Messages</span>
+            <span className="text-[13px] font-medium text-white/70">{t("onboarding.provider.fields.mergeSameRole")}</span>
             <Switch
               id="mergeSameRoleMessages-onboarding"
               checked={config?.mergeSameRoleMessages ?? true}
@@ -236,12 +244,12 @@ export function ProviderConfigForm({
           {isTesting ? (
             <div className="flex items-center justify-center gap-2">
               <Loader size={14} className="animate-spin" />
-              Testing...
+              {t("onboarding.provider.buttons.testing")}
             </div>
           ) : (
             <div className="flex items-center justify-center gap-2">
               <AlertCircle size={14} />
-              Test Connection
+              {t("onboarding.provider.buttons.testConnection")}
             </div>
           )}
         </button>
@@ -254,10 +262,10 @@ export function ProviderConfigForm({
           {isSubmitting ? (
             <div className="flex items-center justify-center gap-2">
               <Loader size={14} className="animate-spin" />
-              Verifying...
+              {t("onboarding.common.verifying")}
             </div>
           ) : (
-            "Continue"
+            t("onboarding.common.continue")
           )}
         </button>
       </div>
@@ -290,6 +298,7 @@ export function ModelConfigForm({
   onSave,
   onSkip,
 }: ModelConfigFormProps) {
+  const { t } = useI18n();
   const [fetchedModels, setFetchedModels] = useState<
     Array<{ id: string; displayName?: string; description?: string }>
   >([]);
@@ -299,8 +308,12 @@ export function ModelConfigForm({
 
   const isLocalModel = selectedCredential.providerId === "llamacpp";
   const modelFetchEnabled = !["llamacpp", "intenserp"].includes(selectedCredential.providerId);
-  const modelIdLabel = isLocalModel ? "Model Path (GGUF)" : "Model ID";
-  const modelIdPlaceholder = isLocalModel ? "/path/to/model.gguf" : "e.g. deepseek/deepseek-v3.2";
+  const modelIdLabel = isLocalModel
+    ? t("onboarding.model.fields.modelPathGguf")
+    : t("onboarding.model.fields.modelId");
+  const modelIdPlaceholder = isLocalModel
+    ? t("onboarding.model.fields.modelPathPlaceholder")
+    : "e.g. deepseek/deepseek-v3.2";
 
   const fetchModels = async () => {
     if (!modelFetchEnabled) {
@@ -347,15 +360,15 @@ export function ModelConfigForm({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <label className="text-[13px] font-medium text-white/70">Display Name</label>
+        <label className="text-[13px] font-medium text-white/70">{t("onboarding.model.fields.displayName")}</label>
         <input
           type="text"
           value={displayName}
           onChange={(e) => onDisplayNameChange(e.target.value)}
-          placeholder="Creative mentor"
+          placeholder={t("onboarding.model.fields.displayNamePlaceholder")}
           className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-white placeholder-white/40 transition-colors focus:border-white/30 focus:outline-none"
         />
-        <p className="text-[12px] text-white/55">How this model appears in menus</p>
+        <p className="text-[12px] text-white/55">{t("onboarding.model.fields.displayNameHint")}</p>
       </div>
 
       <div className="space-y-2">
@@ -370,7 +383,9 @@ export function ModelConfigForm({
                 onClick={() => setIsManualInput(!isManualInput)}
                 className="text-[11px] uppercase font-bold tracking-wider text-white/40 hover:text-white/80 transition"
               >
-                {isManualInput ? "Show List" : "Manual Input"}
+                {isManualInput
+                  ? t("onboarding.model.fields.showList")
+                  : t("onboarding.model.fields.manualInput")}
               </button>
             )}
             {!isLocalModel && modelFetchEnabled && (
@@ -379,7 +394,7 @@ export function ModelConfigForm({
                 onClick={fetchModels}
                 disabled={fetchingModels}
                 className="text-white/40 hover:text-white/80 transition disabled:opacity-30"
-                title="Refresh model list"
+                title={t("onboarding.model.fields.refreshModelList")}
               >
                 <RefreshCw className={fetchingModels ? "animate-spin" : ""} size={14} />
               </button>
@@ -397,7 +412,7 @@ export function ModelConfigForm({
               <span className={`block truncate ${!modelName ? "text-white/40" : ""}`}>
                 {fetchedModels.find((m) => m.id === modelName)?.displayName ||
                   modelName ||
-                  "Select a model..."}
+                  t("onboarding.model.fields.selectAModel")}
               </span>
               <ChevronDown className="h-4 w-4 text-white/40" />
             </button>
@@ -405,10 +420,10 @@ export function ModelConfigForm({
             <ModelSelectionBottomMenu
               isOpen={showModelSelector}
               onClose={() => setShowModelSelector(false)}
-              title="Select Model"
+              title={t("onboarding.model.fields.selectModel")}
               models={fetchedModels as any}
               selectedModelIds={modelName ? [modelName] : []}
-              searchPlaceholder="Search models..."
+              searchPlaceholder={t("onboarding.model.fields.searchModels")}
               theme="dark"
               tone="emerald"
               renderModelIcon={() => getProviderIcon(selectedCredential.providerId)}
@@ -416,7 +431,7 @@ export function ModelConfigForm({
               renderModelDescription={(model: any) => model.description || model.id}
               renderEmptyState={(query) => (
                 <div className="py-12 text-center text-[15px] text-white/40">
-                  No models found matching "{query}"
+                  {t("onboarding.model.fields.noModelsFound", { query })}
                 </div>
               )}
               onSelectModel={(modelId) => {
@@ -434,7 +449,7 @@ export function ModelConfigForm({
               placeholder={modelIdPlaceholder}
               className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-white placeholder-white/40 transition-colors focus:border-white/30 focus:outline-none"
             />
-            <p className="text-[12px] text-white/55">Exact identifier used for API calls</p>
+            <p className="text-[12px] text-white/55">{t("onboarding.model.fields.modelIdHint")}</p>
           </>
         )}
       </div>
@@ -454,10 +469,10 @@ export function ModelConfigForm({
           {isSaving ? (
             <div className="flex items-center justify-center gap-2">
               <Loader size={14} className="animate-spin" />
-              Verifying...
+              {t("onboarding.common.verifying")}
             </div>
           ) : (
-            "Next: Memory System"
+            t("onboarding.model.nextMemorySystem")
           )}
         </button>
 
@@ -465,13 +480,13 @@ export function ModelConfigForm({
           onClick={onSkip}
           className="w-full min-h-11 rounded-xl border border-white/10 bg-white/5 px-6 py-3 text-[15px] font-medium text-white/70 transition-all duration-200 hover:border-white/20 hover:bg-white/10 hover:text-white active:scale-[0.98]"
         >
-          Skip for now
+          {t("onboarding.common.skipForNow")}
         </button>
       </div>
 
       {!canSave && (
         <p className="text-[13px] text-center text-white/55">
-          Fill out both fields above to enable the finish button.
+          {t("onboarding.model.fillBothFields")}
         </p>
       )}
     </div>

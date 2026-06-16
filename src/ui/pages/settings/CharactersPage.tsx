@@ -192,7 +192,7 @@ export function CharactersPage() {
                           "border border-fg/10 bg-fg/25 text-fg/70",
                           "transition-all hover:border-fg/50 hover:text-fg",
                         )}
-                        aria-label="Edit Character"
+                        aria-label={t("characters.actions.editCharacter")}
                       >
                         <Edit2 size={12} />
                       </button>
@@ -207,7 +207,7 @@ export function CharactersPage() {
                           "border border-danger/30 bg-danger/70 text-danger/80",
                           "transition-all hover:border-danger/90 hover:bg-danger/20",
                         )}
-                        aria-label="Delete Character"
+                        aria-label={t("characters.actions.deleteCharacter")}
                       >
                         <Trash2 size={12} />
                       </button>
@@ -224,12 +224,11 @@ export function CharactersPage() {
       <BottomMenu
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
-        title="Delete Character?"
+        title={t("characters.delete.title")}
       >
         <div className="space-y-4">
           <p className="text-sm text-fg/70">
-            Are you sure you want to delete "{selectedCharacter?.name}"? This will also delete all
-            chat sessions with this character.
+            {t("characters.delete.confirmMessage", { name: selectedCharacter?.name ?? "" })}
           </p>
           <div className="flex gap-3">
             <button

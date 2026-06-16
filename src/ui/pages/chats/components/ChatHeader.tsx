@@ -162,11 +162,11 @@ export function ChatHeader({
 
   const headerTitle = useMemo(() => {
     if (swapPlaces) {
-      if (!persona) return "Unknown";
+      if (!persona) return t("chats.header.unknownTitle");
       return persona.nickname ? `${persona.title} (${persona.nickname})` : persona.title;
     }
-    return character?.name ?? "Unknown";
-  }, [character?.name, persona, swapPlaces]);
+    return character?.name ?? t("chats.header.unknownTitle");
+  }, [character?.name, persona, swapPlaces, t]);
 
   return (
     <>
@@ -303,7 +303,7 @@ export function ChatHeader({
               <button
                 onClick={onEditWidgets}
                 className="hidden lg:flex items-center justify-center px-[0.6em] py-[0.3em] text-fg/80 transition hover:text-fg"
-                aria-label="Edit widgets"
+                aria-label={t("chats.header.editWidgets")}
               >
                 <LayoutGrid size={18} strokeWidth={2.5} />
               </button>
@@ -314,7 +314,7 @@ export function ChatHeader({
               <button
                 onClick={onAppearanceOpen}
                 className="hidden lg:flex items-center justify-center px-[0.6em] py-[0.3em] text-fg/80 transition hover:text-fg"
-                aria-label="Customize chat appearance"
+                aria-label={t("chats.header.customizeAppearance")}
               >
                 <Palette size={18} strokeWidth={2.5} />
               </button>
@@ -344,7 +344,11 @@ export function ChatHeader({
               {avatarImageUrl ? (
                 <AvatarImage
                   src={avatarImageUrl}
-                  alt={swapPlaces ? persona?.title || "Avatar" : character?.name || "Avatar"}
+                  alt={
+                    swapPlaces
+                      ? persona?.title || t("chats.header.avatarAlt")
+                      : character?.name || t("chats.header.avatarAlt")
+                  }
                   crop={swapPlaces ? persona?.avatarCrop : character?.avatarCrop}
                   applyCrop
                   className="absolute inset-0 z-10"

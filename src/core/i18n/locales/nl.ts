@@ -710,7 +710,6 @@ export const nlMessages: DeepPartialMessageTree<LocaleMessages> = {
     suggestedReply: "Voorgesteld antwoord",
     selectTwoCharactersMinimum: "Selecteer minimaal 2 karakters voor een groepschat.",
     groupBranchCreated: "Groepsvertakking aangemaakt! Doorverwijzen...",
-    memories: "Herinneringen",
     tools: "Gereedschappen",
     pinned: "Vastgepind",
     searchMemories: "Herinneringen zoeken...",

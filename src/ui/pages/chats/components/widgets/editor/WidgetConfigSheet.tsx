@@ -22,6 +22,7 @@ import type {
   WidgetNode,
 } from "../../../../../../core/storage/chatWidgetSchemas";
 import { convertToImageRef } from "../../../../../../core/storage/images";
+import { useI18n } from "../../../../../../core/i18n/context";
 import { uuidv4 } from "../../../../../../core/storage/repo";
 import { useImageData } from "../../../../../hooks/useImageData";
 import { WIDGET_TYPE_LABEL } from "./widgetFactories";
@@ -91,6 +92,7 @@ export function WidgetConfigSheet({
   onClose,
   onSave,
 }: WidgetConfigSheetProps) {
+  const { t } = useI18n();
   const edit = useWidgetEdit();
   const [draft, setDraft] = useState<WidgetNode | null>(node);
 
@@ -100,8 +102,8 @@ export function WidgetConfigSheet({
 
   if (!draft) {
     return (
-      <BottomMenu isOpen={open} onClose={onClose} title="Edit widget">
-        <div className="px-2 py-4 text-sm text-fg/50">No widget selected.</div>
+      <BottomMenu isOpen={open} onClose={onClose} title={t("chats.widgets.config.editTitle")}>
+        <div className="px-2 py-4 text-sm text-fg/50">{t("chats.widgets.config.noWidgetSelected")}</div>
       </BottomMenu>
     );
   }
@@ -127,7 +129,7 @@ export function WidgetConfigSheet({
     <BottomMenu
       isOpen={open}
       onClose={onClose}
-      title={WIDGET_TYPE_LABEL[draft.type]}
+      title={t(WIDGET_TYPE_LABEL[draft.type])}
     >
       <form
         className="flex flex-col gap-3"
@@ -143,13 +145,13 @@ export function WidgetConfigSheet({
             onClick={onClose}
             className="rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-sm text-fg/70 hover:bg-fg/10"
           >
-            Cancel
+            {t("common.buttons.cancel")}
           </button>
           <button
             type="submit"
             className="rounded-lg border border-accent/40 bg-accent/15 px-3 py-2 text-sm font-medium text-accent hover:bg-accent/25"
           >
-            Save
+            {t("common.buttons.save")}
           </button>
         </div>
       </form>
@@ -164,17 +166,46 @@ function DesignField({
   node: WidgetNode;
   setNode: (n: WidgetNode) => void;
 }) {
+  const { t } = useI18n();
   return (
-    <Field label="Design">
+    <Field label={t("chats.widgets.config.design.label")}>
       <Segmented<WidgetDesign>
         value={node.design ?? "default"}
         options={[
-          { value: "default", label: "Default" },
-          { value: "minimal", label: "Minimal" },
-          { value: "solid", label: "Solid" },
-          { value: "outline", label: "Outline" },
+          { value: "default", label: t("chats.widgets.config.design.default") },
+          { value: "minimal", label: t("chats.widgets.config.design.minimal") },
+          { value: "solid", label: t("chats.widgets.config.design.solid") },
+          { value: "outline", label: t("chats.widgets.config.design.outline") },
         ]}
         onChange={(v) => setNode({ ...node, design: v })}
+      />
+    </Field>
+  );
+}
+
+function MemoryLimitField({
+  draft,
+  setDraft,
+}: {
+  draft: Extract<WidgetNode, { type: "memory" }>;
+  setDraft: (next: WidgetNode) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <Field
+      label={t("chats.widgets.config.memory.maxEntries")}
+      hint={t("chats.widgets.config.memory.maxEntriesHint")}
+    >
+      <input
+        type="number"
+        min={1}
+        max={100}
+        className={TEXT_INPUT_CLASS}
+        value={draft.limit ?? 10}
+        onChange={(e) => {
+          const n = Number(e.target.value);
+          setDraft({ ...draft, limit: Number.isFinite(n) ? n : undefined });
+        }}
       />
     </Field>
   );
@@ -256,19 +287,7 @@ function renderBody(
       return (
         <>
           <TitleOnlyForm node={draft} setNode={setDraft} />
-          <Field label="Max entries shown" hint="Most recent memories to display.">
-            <input
-              type="number"
-              min={1}
-              max={100}
-              className={TEXT_INPUT_CLASS}
-              value={draft.limit ?? 10}
-              onChange={(e) => {
-                const n = Number(e.target.value);
-                setDraft({ ...draft, limit: Number.isFinite(n) ? n : undefined });
-              }}
-            />
-          </Field>
+          <MemoryLimitField draft={draft} setDraft={setDraft} />
           {design}
         </>
       );
@@ -297,16 +316,20 @@ function CharacterInfoForm({
   node: CharacterInfoNode;
   setNode: (n: CharacterInfoNode) => void;
 }) {
+  const { t } = useI18n();
   const { characters } = useWidgetContext();
   if (!characters || characters.length === 0) return null;
   return (
-    <Field label="Character" hint="Which group member this card shows.">
+    <Field
+      label={t("chats.widgets.config.characterInfo.character")}
+      hint={t("chats.widgets.config.characterInfo.characterHint")}
+    >
       <select
         className={TEXT_INPUT_CLASS}
         value={node.characterId ?? ""}
         onChange={(e) => setNode({ ...node, characterId: e.target.value || undefined })}
       >
-        <option value="">First member (default)</option>
+        <option value="">{t("chats.widgets.config.characterInfo.firstMember")}</option>
         {characters.map((c) => (
           <option key={c.id} value={c.id}>
             {c.name}
@@ -324,9 +347,10 @@ function AuthorNoteForm({
   node: AuthorNoteNode;
   setNode: (n: AuthorNoteNode) => void;
 }) {
+  const { t } = useI18n();
   return (
     <>
-      <Field label="Title">
+      <Field label={t("chats.widgets.config.fields.title")}>
         <input
           type="text"
           className={TEXT_INPUT_CLASS}
@@ -335,8 +359,8 @@ function AuthorNoteForm({
         />
       </Field>
       <Field
-        label="Description (optional)"
-        hint="The note itself is edited inline from the widget and saved to this chat."
+        label={t("chats.widgets.config.fields.descriptionOptional")}
+        hint={t("chats.widgets.config.authorNote.descriptionHint")}
       >
         <input
           type="text"
@@ -356,8 +380,9 @@ function TitleOnlyForm({
   node: WidgetNode & { title?: string };
   setNode: (n: WidgetNode) => void;
 }) {
+  const { t } = useI18n();
   return (
-    <Field label="Title (optional)">
+    <Field label={t("chats.widgets.config.fields.titleOptional")}>
       <input
         type="text"
         className={TEXT_INPUT_CLASS}
@@ -375,6 +400,7 @@ function StatTrackerForm({
   node: StatTrackerNode;
   setNode: (n: StatTrackerNode) => void;
 }) {
+  const { t } = useI18n();
   const updateStat = (
     id: string,
     patch: Partial<{ label: string; value: number; min?: number; max?: number }>,
@@ -385,7 +411,7 @@ function StatTrackerForm({
     });
   return (
     <>
-      <Field label="Title (optional)">
+      <Field label={t("chats.widgets.config.fields.titleOptional")}>
         <input
           type="text"
           className={TEXT_INPUT_CLASS}
@@ -393,7 +419,7 @@ function StatTrackerForm({
           onChange={(e) => setNode({ ...node, title: e.target.value })}
         />
       </Field>
-      <Field label="Stats">
+      <Field label={t("chats.widgets.config.statTracker.stats")}>
         <div className="flex flex-col gap-2">
           {node.stats.map((stat) => (
             <div
@@ -403,7 +429,7 @@ function StatTrackerForm({
               <div className="flex items-center gap-2">
                 <input
                   type="text"
-                  placeholder="Label"
+                  placeholder={t("chats.widgets.config.statTracker.labelPlaceholder")}
                   className={`${TEXT_INPUT_BASE} min-w-0 flex-1`}
                   value={stat.label}
                   onChange={(e) => updateStat(stat.id, { label: e.target.value })}
@@ -414,7 +440,7 @@ function StatTrackerForm({
                     setNode({ ...node, stats: node.stats.filter((s) => s.id !== stat.id) })
                   }
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-fg/15 bg-fg/5 text-fg/50 hover:border-danger/40 hover:text-danger"
-                  aria-label="Remove stat"
+                  aria-label={t("chats.widgets.config.statTracker.removeStat")}
                 >
                   <Trash2 size={13} />
                 </button>
@@ -422,19 +448,19 @@ function StatTrackerForm({
               <div className="grid grid-cols-3 gap-2">
                 <label className="flex flex-col gap-1">
                   <span className="text-[10px] font-medium uppercase tracking-wide text-fg/45">
-                    Min
+                    {t("chats.widgets.config.statTracker.min")}
                   </span>
                   <NumberInput
                     value={stat.min ?? null}
                     max={stat.max}
-                    placeholder="—"
+                    placeholder="-"
                     className={`${TEXT_INPUT_BASE} w-full`}
                     onChange={(next) => updateStat(stat.id, { min: next ?? undefined })}
                   />
                 </label>
                 <label className="flex flex-col gap-1">
                   <span className="text-[10px] font-medium uppercase tracking-wide text-fg/45">
-                    Start
+                    {t("chats.widgets.config.statTracker.start")}
                   </span>
                   <NumberInput
                     value={stat.value}
@@ -446,12 +472,12 @@ function StatTrackerForm({
                 </label>
                 <label className="flex flex-col gap-1">
                   <span className="text-[10px] font-medium uppercase tracking-wide text-fg/45">
-                    Max
+                    {t("chats.widgets.config.statTracker.max")}
                   </span>
                   <NumberInput
                     value={stat.max ?? null}
                     min={stat.min}
-                    placeholder="—"
+                    placeholder="-"
                     className={`${TEXT_INPUT_BASE} w-full`}
                     onChange={(next) => updateStat(stat.id, { max: next ?? undefined })}
                   />
@@ -464,12 +490,12 @@ function StatTrackerForm({
             onClick={() =>
               setNode({
                 ...node,
-                stats: [...node.stats, { id: makeId(), label: "Stat", value: 0 }],
+                stats: [...node.stats, { id: makeId(), label: t("chats.widgets.config.statTracker.defaultStat"), value: 0 }],
               })
             }
             className="flex items-center justify-center gap-1 rounded-lg border border-dashed border-fg/20 py-1.5 text-[11px] font-medium text-fg/60 hover:border-accent/40 hover:text-accent"
           >
-            <Plus size={12} strokeWidth={2.4} /> Add stat
+            <Plus size={12} strokeWidth={2.4} /> {t("chats.widgets.config.statTracker.addStat")}
           </button>
         </div>
       </Field>
@@ -484,6 +510,7 @@ function QuickSnippetsForm({
   node: QuickSnippetsNode;
   setNode: (n: QuickSnippetsNode) => void;
 }) {
+  const { t } = useI18n();
   const updateSnippet = (id: string, patch: Partial<{ label: string; text: string }>) =>
     setNode({
       ...node,
@@ -491,7 +518,7 @@ function QuickSnippetsForm({
     });
   return (
     <>
-      <Field label="Title (optional)">
+      <Field label={t("chats.widgets.config.fields.titleOptional")}>
         <input
           type="text"
           className={TEXT_INPUT_CLASS}
@@ -499,20 +526,20 @@ function QuickSnippetsForm({
           onChange={(e) => setNode({ ...node, title: e.target.value })}
         />
       </Field>
-      <Field label="Snippets">
+      <Field label={t("chats.widgets.config.quickSnippets.snippets")}>
         <div className="flex flex-col gap-2">
           {node.snippets.map((snippet) => (
             <div key={snippet.id} className="flex items-center gap-2">
               <input
                 type="text"
-                placeholder="Label"
+                placeholder={t("chats.widgets.config.quickSnippets.labelPlaceholder")}
                 className={`${TEXT_INPUT_BASE} w-24 shrink-0`}
                 value={snippet.label}
                 onChange={(e) => updateSnippet(snippet.id, { label: e.target.value })}
               />
               <input
                 type="text"
-                placeholder="Inserted text"
+                placeholder={t("chats.widgets.config.quickSnippets.textPlaceholder")}
                 className={`${TEXT_INPUT_BASE} min-w-0 flex-1`}
                 value={snippet.text}
                 onChange={(e) => updateSnippet(snippet.id, { text: e.target.value })}
@@ -526,7 +553,7 @@ function QuickSnippetsForm({
                   })
                 }
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-fg/15 bg-fg/5 text-fg/50 hover:border-danger/40 hover:text-danger"
-                aria-label="Remove snippet"
+                aria-label={t("chats.widgets.config.quickSnippets.removeSnippet")}
               >
                 <Trash2 size={13} />
               </button>
@@ -537,12 +564,12 @@ function QuickSnippetsForm({
             onClick={() =>
               setNode({
                 ...node,
-                snippets: [...node.snippets, { id: makeId(), label: "New", text: "" }],
+                snippets: [...node.snippets, { id: makeId(), label: t("chats.widgets.config.quickSnippets.newSnippet"), text: "" }],
               })
             }
             className="flex items-center justify-center gap-1 rounded-lg border border-dashed border-fg/20 py-1.5 text-[11px] font-medium text-fg/60 hover:border-accent/40 hover:text-accent"
           >
-            <Plus size={12} strokeWidth={2.4} /> Add snippet
+            <Plus size={12} strokeWidth={2.4} /> {t("chats.widgets.config.quickSnippets.addSnippet")}
           </button>
         </div>
       </Field>
@@ -557,9 +584,10 @@ function DiceForm({
   node: DiceNode;
   setNode: (n: DiceNode) => void;
 }) {
+  const { t } = useI18n();
   return (
     <>
-      <Field label="Title (optional)">
+      <Field label={t("chats.widgets.config.fields.titleOptional")}>
         <input
           type="text"
           className={TEXT_INPUT_CLASS}
@@ -567,7 +595,7 @@ function DiceForm({
           onChange={(e) => setNode({ ...node, title: e.target.value })}
         />
       </Field>
-      <Field label="Notation" hint="e.g. 1d20, 2d6+3">
+      <Field label={t("chats.widgets.config.dice.notation")} hint={t("chats.widgets.config.dice.notationHint")}>
         <input
           type="text"
           className={TEXT_INPUT_CLASS}
@@ -587,13 +615,14 @@ function DividerForm({
   node: DividerNode;
   setNode: (n: DividerNode) => void;
 }) {
+  const { t } = useI18n();
   return (
-    <Field label="Style">
+    <Field label={t("chats.widgets.config.divider.style")}>
       <Segmented
         value={node.style ?? "line"}
         options={[
-          { value: "line", label: "Line" },
-          { value: "space", label: "Space" },
+          { value: "line", label: t("chats.widgets.config.divider.line") },
+          { value: "space", label: t("chats.widgets.config.divider.space") },
         ]}
         onChange={(v) => setNode({ ...node, style: v })}
       />
@@ -608,9 +637,10 @@ function BoxForm({
   node: BoxNode;
   setNode: (n: BoxNode) => void;
 }) {
+  const { t } = useI18n();
   return (
     <>
-      <Field label="Title">
+      <Field label={t("chats.widgets.config.fields.title")}>
         <input
           type="text"
           className={TEXT_INPUT_CLASS}
@@ -618,7 +648,7 @@ function BoxForm({
           onChange={(e) => setNode({ ...node, title: e.target.value })}
         />
       </Field>
-      <Field label="Description (optional)">
+      <Field label={t("chats.widgets.config.fields.descriptionOptional")}>
         <input
           type="text"
           className={TEXT_INPUT_CLASS}
@@ -626,22 +656,22 @@ function BoxForm({
           onChange={(e) => setNode({ ...node, description: e.target.value })}
         />
       </Field>
-      <Field label="Variant">
+      <Field label={t("chats.widgets.config.box.variant")}>
         <Segmented<BoxVariant>
           value={node.variant ?? "default"}
           options={[
-            { value: "default", label: "Default" },
-            { value: "subtle", label: "Subtle" },
-            { value: "info", label: "Info" },
-            { value: "warning", label: "Warning" },
-            { value: "success", label: "Success" },
-            { value: "danger", label: "Danger" },
+            { value: "default", label: t("chats.widgets.config.box.default") },
+            { value: "subtle", label: t("chats.widgets.config.box.subtle") },
+            { value: "info", label: t("chats.widgets.config.box.info") },
+            { value: "warning", label: t("chats.widgets.config.box.warning") },
+            { value: "success", label: t("chats.widgets.config.box.success") },
+            { value: "danger", label: t("chats.widgets.config.box.danger") },
           ]}
           onChange={(v) => setNode({ ...node, variant: v })}
         />
       </Field>
       <p className="text-[11px] text-fg/40">
-        Children are edited from the slot list (each child appears as a row).
+        {t("chats.widgets.config.box.childrenHint")}
       </p>
     </>
   );
@@ -654,9 +684,10 @@ function ScratchPadForm({
   node: ScratchPadNode;
   setNode: (n: ScratchPadNode) => void;
 }) {
+  const { t } = useI18n();
   return (
     <>
-      <Field label="Title">
+      <Field label={t("chats.widgets.config.fields.title")}>
         <input
           type="text"
           className={TEXT_INPUT_CLASS}
@@ -664,7 +695,7 @@ function ScratchPadForm({
           onChange={(e) => setNode({ ...node, title: e.target.value })}
         />
       </Field>
-      <Field label="Description (optional)">
+      <Field label={t("chats.widgets.config.fields.descriptionOptional")}>
         <input
           type="text"
           className={TEXT_INPUT_CLASS}
@@ -672,7 +703,7 @@ function ScratchPadForm({
           onChange={(e) => setNode({ ...node, description: e.target.value })}
         />
       </Field>
-      <Field label="Content" hint="Markdown supported.">
+      <Field label={t("common.labels.content")} hint={t("chats.widgets.config.scratchPad.markdownHint")}>
         <textarea
           rows={8}
           className={`${TEXT_INPUT_CLASS} resize-y font-mono text-[12px]`}
@@ -693,6 +724,7 @@ function ImageForm({
   setNode: (n: ImageNode) => void;
   onChooseLibrary: () => void;
 }) {
+  const { t } = useI18n();
   const sourceKind = node.source.kind;
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadBusy, setUploadBusy] = useState(false);
@@ -745,7 +777,7 @@ function ImageForm({
         className="hidden"
         onChange={(e) => void handleFile(e.target.files?.[0])}
       />
-      <Field label="Title (optional)">
+      <Field label={t("chats.widgets.config.fields.titleOptional")}>
         <input
           type="text"
           className={TEXT_INPUT_CLASS}
@@ -753,7 +785,7 @@ function ImageForm({
           onChange={(e) => setNode({ ...node, title: e.target.value })}
         />
       </Field>
-      <Field label="Description (optional)">
+      <Field label={t("chats.widgets.config.fields.descriptionOptional")}>
         <input
           type="text"
           className={TEXT_INPUT_CLASS}
@@ -761,14 +793,14 @@ function ImageForm({
           onChange={(e) => setNode({ ...node, description: e.target.value })}
         />
       </Field>
-      <Field label="Source">
+      <Field label={t("chats.widgets.config.image.source")}>
         <Segmented<ImageSource["kind"]>
           value={sourceKind}
           options={[
-            { value: "character_avatar", label: "Character" },
-            { value: "persona_avatar", label: "Persona" },
-            { value: "library", label: "Library" },
-            { value: "upload", label: "Upload" },
+            { value: "character_avatar", label: t("chats.widgets.config.image.character") },
+            { value: "persona_avatar", label: t("chats.widgets.config.image.persona") },
+            { value: "library", label: t("chats.widgets.config.image.library") },
+            { value: "upload", label: t("chats.widgets.config.image.upload") },
           ]}
           onChange={handleSourceClick}
         />
@@ -790,7 +822,9 @@ function ImageForm({
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[12px] text-fg/60">
-              {currentPath ? "Image selected." : "No image selected yet."}
+              {currentPath
+                ? t("chats.widgets.config.image.imageSelected")
+                : t("chats.widgets.config.image.noImageSelected")}
             </p>
             <button
               type="button"
@@ -806,23 +840,23 @@ function ImageForm({
               )}
               {currentPath
                 ? sourceKind === "library"
-                  ? "Choose another"
-                  : "Replace image"
+                  ? t("chats.widgets.config.image.chooseAnother")
+                  : t("chats.widgets.config.image.replaceImage")
                 : sourceKind === "library"
-                  ? "Choose from library"
-                  : "Choose file"}
+                  ? t("chats.widgets.config.image.chooseFromLibrary")
+                  : t("chats.widgets.config.image.chooseFile")}
             </button>
           </div>
         </div>
       )}
-      <Field label="Shape">
+      <Field label={t("chats.widgets.config.image.shape")}>
         <Segmented<ImageShape>
           value={node.shape ?? "auto"}
           options={[
-            { value: "auto", label: "Auto" },
-            { value: "square", label: "Square" },
-            { value: "wide", label: "Wide" },
-            { value: "circle", label: "Circle" },
+            { value: "auto", label: t("chats.widgets.config.image.auto") },
+            { value: "square", label: t("chats.widgets.config.image.square") },
+            { value: "wide", label: t("chats.widgets.config.image.wide") },
+            { value: "circle", label: t("chats.widgets.config.image.circle") },
           ]}
           onChange={(v) => setNode({ ...node, shape: v })}
         />
@@ -838,9 +872,10 @@ function SelectorForm({
   node: SelectorNode;
   setNode: (n: SelectorNode) => void;
 }) {
+  const { t } = useI18n();
   return (
     <>
-      <Field label="Title (optional)">
+      <Field label={t("chats.widgets.config.fields.titleOptional")}>
         <input
           type="text"
           className={TEXT_INPUT_CLASS}
@@ -848,7 +883,7 @@ function SelectorForm({
           onChange={(e) => setNode({ ...node, title: e.target.value })}
         />
       </Field>
-      <Field label="Description (optional)">
+      <Field label={t("chats.widgets.config.fields.descriptionOptional")}>
         <input
           type="text"
           className={TEXT_INPUT_CLASS}
@@ -856,14 +891,14 @@ function SelectorForm({
           onChange={(e) => setNode({ ...node, description: e.target.value })}
         />
       </Field>
-      <Field label="Selects">
+      <Field label={t("chats.widgets.config.selector.selects")}>
         <Segmented<SelectorKind>
           value={node.kind}
           options={[
-            { value: "persona", label: "Persona" },
-            { value: "model", label: "Model" },
-            { value: "fallback_model", label: "Fallback" },
-            { value: "author_note", label: "Author's note" },
+            { value: "persona", label: t("chats.widgets.config.selector.persona") },
+            { value: "model", label: t("chats.widgets.config.selector.model") },
+            { value: "fallback_model", label: t("chats.widgets.config.selector.fallback") },
+            { value: "author_note", label: t("chats.widgets.config.selector.authorNote") },
           ]}
           onChange={(v) => setNode({ ...node, kind: v })}
         />
@@ -879,9 +914,10 @@ function ButtonForm({
   node: ButtonNode;
   setNode: (n: ButtonNode) => void;
 }) {
+  const { t } = useI18n();
   return (
     <>
-      <Field label="Title (optional)">
+      <Field label={t("chats.widgets.config.fields.titleOptional")}>
         <input
           type="text"
           className={TEXT_INPUT_CLASS}
@@ -889,7 +925,7 @@ function ButtonForm({
           onChange={(e) => setNode({ ...node, title: e.target.value })}
         />
       </Field>
-      <Field label="Description (optional)">
+      <Field label={t("chats.widgets.config.fields.descriptionOptional")}>
         <input
           type="text"
           className={TEXT_INPUT_CLASS}
@@ -897,19 +933,19 @@ function ButtonForm({
           onChange={(e) => setNode({ ...node, description: e.target.value })}
         />
       </Field>
-      <Field label="Action">
+      <Field label={t("chats.widgets.config.button.action")}>
         <Segmented<ButtonAction>
           value={node.action}
           options={[
-            { value: "regenerate", label: "Regenerate" },
-            { value: "continue", label: "Continue" },
-            { value: "swap_places", label: "Swap places" },
-            { value: "abort", label: "Stop" },
-            { value: "new_session", label: "New session" },
-            { value: "view_history", label: "History" },
-            { value: "open_memories", label: "Memories" },
-            { value: "open_search", label: "Search" },
-            { value: "toggle_voice_autoplay", label: "Voice" },
+            { value: "regenerate", label: t("chats.widgets.config.button.regenerate") },
+            { value: "continue", label: t("chats.widgets.config.button.continue") },
+            { value: "swap_places", label: t("chats.widgets.config.button.swapPlaces") },
+            { value: "abort", label: t("chats.widgets.config.button.stop") },
+            { value: "new_session", label: t("chats.widgets.config.button.newSession") },
+            { value: "view_history", label: t("chats.widgets.config.button.history") },
+            { value: "open_memories", label: t("chats.widgets.config.button.memories") },
+            { value: "open_search", label: t("chats.widgets.config.button.search") },
+            { value: "toggle_voice_autoplay", label: t("chats.widgets.config.button.voice") },
           ]}
           onChange={(v) => setNode({ ...node, action: v })}
         />

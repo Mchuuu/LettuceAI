@@ -3,6 +3,7 @@ import { Download } from "lucide-react";
 import { BottomMenu } from "./BottomMenu";
 import { cn, interactive, radius, typography } from "../design-tokens";
 import type { ModelRequirement } from "../modelRequirements";
+import { useI18n } from "../../core/i18n/context";
 
 interface MissingModelRequirementsSheetProps {
   isOpen: boolean;
@@ -23,8 +24,10 @@ export function MissingModelRequirementsSheet({
   onClose,
   onDownload,
   closeLabel,
-  downloadLabel = "Download now",
+  downloadLabel,
 }: MissingModelRequirementsSheetProps) {
+  const { t } = useI18n();
+  const resolvedDownloadLabel = downloadLabel ?? t("components.extra.companionDownloadNow");
   return (
     <BottomMenu isOpen={isOpen} onClose={onClose} title={title}>
       <div className="flex flex-col gap-4 px-4 pb-2 pt-1">
@@ -93,7 +96,7 @@ export function MissingModelRequirementsSheet({
             )}
           >
             <Download className="h-3.5 w-3.5" />
-            {downloadLabel}
+            {resolvedDownloadLabel}
           </button>
         </div>
       </div>

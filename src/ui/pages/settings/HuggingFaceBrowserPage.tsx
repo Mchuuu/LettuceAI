@@ -30,7 +30,9 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 
 import { cn, typography, interactive } from "../../design-tokens";
-import { useI18n } from "../../../core/i18n/context";
+import { useI18n, type TranslationKey, type TranslateParams } from "../../../core/i18n/context";
+
+type TFn = (key: TranslationKey, params?: TranslateParams) => string;
 import { Switch } from "../../components/Switch";
 import { HfReadmeRenderer } from "./components/HfReadmeRenderer";
 import { InlineDownloadCards } from "./components/DownloadQueueBar";
@@ -388,69 +390,84 @@ function calcScore(
   return { score, label, fitsVram, gpuMode, gpuScore };
 }
 
-function getRunabilityModeCopy(gpuMode: string): { short: string; long: string } {
+function getRunabilityModeCopy(t: TFn, gpuMode: string): { short: string; long: string } {
   switch (gpuMode) {
     case "gpuUnavailable":
-      return { short: "Full GPU unavailable", long: "Model does not fit fully on GPU" };
+      return {
+        short: t("hfBrowser.runMode.gpuUnavailableShort"),
+        long: t("hfBrowser.runMode.gpuUnavailableLong"),
+      };
     case "full":
-      return { short: "GPU + VRAM ctx", long: "Run model on GPU, keep ctx in VRAM" };
+      return {
+        short: t("hfBrowser.runMode.fullShort"),
+        long: t("hfBrowser.runMode.fullLong"),
+      };
     case "nearFull":
       return {
-        short: "GPU + mostly VRAM ctx",
-        long: "Run model on GPU, keep most ctx in VRAM",
+        short: t("hfBrowser.runMode.nearFullShort"),
+        long: t("hfBrowser.runMode.nearFullLong"),
       };
     case "kvSpill":
-      return { short: "GPU + RAM ctx", long: "Run model on GPU, keep ctx in RAM" };
+      return {
+        short: t("hfBrowser.runMode.kvSpillShort"),
+        long: t("hfBrowser.runMode.kvSpillLong"),
+      };
     case "kvHeavySpill":
       return {
-        short: "GPU + mostly RAM ctx",
-        long: "Run model on GPU, keep most ctx in RAM",
+        short: t("hfBrowser.runMode.kvHeavySpillShort"),
+        long: t("hfBrowser.runMode.kvHeavySpillLong"),
       };
     case "ramModelVramCtx":
       return {
-        short: "RAM model + VRAM ctx",
-        long: "Run model on RAM, keep ctx in VRAM",
+        short: t("hfBrowser.runMode.ramModelVramCtxShort"),
+        long: t("hfBrowser.runMode.ramModelVramCtxLong"),
       };
     case "ramModelRamCtx":
       return {
-        short: "RAM model + RAM ctx",
-        long: "Run model on RAM, keep ctx in RAM",
+        short: t("hfBrowser.runMode.ramModelRamCtxShort"),
+        long: t("hfBrowser.runMode.ramModelRamCtxLong"),
       };
     case "mostLayers":
-      return { short: "GPU split, RAM ctx", long: "Run most layers on GPU, keep ctx in RAM" };
+      return {
+        short: t("hfBrowser.runMode.mostLayersShort"),
+        long: t("hfBrowser.runMode.mostLayersLong"),
+      };
     case "halfLayers":
       return {
-        short: "Split model, RAM ctx",
-        long: "Split model across GPU and RAM, keep ctx in RAM",
+        short: t("hfBrowser.runMode.halfLayersShort"),
+        long: t("hfBrowser.runMode.halfLayersLong"),
       };
     case "fewLayers":
       return {
-        short: "RAM-first, some GPU",
-        long: "Run most of the model on RAM, keep a few layers on GPU",
+        short: t("hfBrowser.runMode.fewLayersShort"),
+        long: t("hfBrowser.runMode.fewLayersLong"),
       };
     case "cpu":
     default:
-      return { short: "RAM + RAM ctx", long: "Run model on RAM, keep ctx in RAM" };
+      return {
+        short: t("hfBrowser.runMode.cpuShort"),
+        long: t("hfBrowser.runMode.cpuLong"),
+      };
   }
 }
 
-function getKvPlacementCopy(value: KvPlacement): { label: string; description: string } {
+function getKvPlacementCopy(t: TFn, value: KvPlacement): { label: string; description: string } {
   switch (value) {
     case "ram":
       return {
-        label: "RAM",
-        description: "Keep KV cache in RAM",
+        label: t("hfBrowser.kvPlacement.ramLabel"),
+        description: t("hfBrowser.kvPlacement.ramDescription"),
       };
     case "vram":
       return {
-        label: "VRAM",
-        description: "Keep KV cache in VRAM",
+        label: t("hfBrowser.kvPlacement.vramLabel"),
+        description: t("hfBrowser.kvPlacement.vramDescription"),
       };
     case "auto":
     default:
       return {
-        label: "Auto",
-        description: "Let Lettuce choose RAM or VRAM",
+        label: t("hfBrowser.kvPlacement.autoLabel"),
+        description: t("hfBrowser.kvPlacement.autoDescription"),
       };
   }
 }
@@ -467,33 +484,33 @@ function kvPlacementToOffloadKqv(value: KvPlacement): boolean | null {
   }
 }
 
-function getModelOffloadCopy(value: ModelOffload): { label: string; description: string } {
+function getModelOffloadCopy(t: TFn, value: ModelOffload): { label: string; description: string } {
   switch (value) {
     case "cpu":
       return {
-        label: "CPU / RAM",
-        description: "Keep model weights in RAM and avoid GPU layer offload",
+        label: t("hfBrowser.modelOffload.cpuLabel"),
+        description: t("hfBrowser.modelOffload.cpuDescription"),
       };
     case "gpu":
       return {
-        label: "GPU",
-        description: "Require full model offload to GPU when possible",
+        label: t("hfBrowser.modelOffload.gpuLabel"),
+        description: t("hfBrowser.modelOffload.gpuDescription"),
       };
     case "mixed":
       return {
-        label: "Mixed",
-        description: "Split model layers across GPU and RAM",
+        label: t("hfBrowser.modelOffload.mixedLabel"),
+        description: t("hfBrowser.modelOffload.mixedDescription"),
       };
     case "auto":
     default:
       return {
-        label: "Auto",
-        description: "Prefer GPU offload first, then mixed offload, then RAM-only",
+        label: t("hfBrowser.modelOffload.autoLabel"),
+        description: t("hfBrowser.modelOffload.autoDescription"),
       };
   }
 }
 
-function getHeadroomStatus(totalNeeded: number, totalAvailable: number): {
+function getHeadroomStatus(t: TFn, totalNeeded: number, totalAvailable: number): {
   label: string;
   tone: string;
   description: string;
@@ -501,82 +518,85 @@ function getHeadroomStatus(totalNeeded: number, totalAvailable: number): {
   const remaining = totalAvailable - totalNeeded;
   if (totalAvailable <= 0 || totalNeeded > totalAvailable) {
     return {
-      label: "Risky",
+      label: t("hfBrowser.headroom.riskyLabel"),
       tone: "text-red-400",
-      description: "Very little memory slack. Expect failures or heavy slowdown.",
+      description: t("hfBrowser.headroom.riskyDescription"),
     };
   }
   const headroomRatio = remaining / Math.max(totalAvailable, 1);
   if (remaining >= 4_000_000_000 || headroomRatio >= 0.25) {
     return {
-      label: "Comfortable",
+      label: t("hfBrowser.headroom.comfortableLabel"),
       tone: "text-emerald-400",
-      description: "Healthy memory reserve for this run plan.",
+      description: t("hfBrowser.headroom.comfortableDescription"),
     };
   }
   if (remaining >= 1_500_000_000 || headroomRatio >= 0.12) {
     return {
-      label: "OK",
+      label: t("hfBrowser.headroom.okLabel"),
       tone: "text-blue-400",
-      description: "Enough memory headroom for normal use.",
+      description: t("hfBrowser.headroom.okDescription"),
     };
   }
   return {
-    label: "Tight",
+    label: t("hfBrowser.headroom.tightLabel"),
     tone: "text-amber-400",
-    description: "Should run, but memory headroom is limited.",
+    description: t("hfBrowser.headroom.tightDescription"),
   };
 }
 
-function getRunStatus(score: number): { label: string; tone: string; description: string } {
+function getRunStatus(t: TFn, score: number): { label: string; tone: string; description: string } {
   if (score >= 75) {
     return {
-      label: "Yes",
+      label: t("hfBrowser.runStatus.yesLabel"),
       tone: "text-emerald-400",
-      description: "This plan should run cleanly.",
+      description: t("hfBrowser.runStatus.yesDescription"),
     };
   }
   if (score >= 55) {
     return {
-      label: "Borderline",
+      label: t("hfBrowser.runStatus.borderlineLabel"),
       tone: "text-amber-400",
-      description: "This plan should run, but with tighter limits.",
+      description: t("hfBrowser.runStatus.borderlineDescription"),
     };
   }
   return {
-    label: "No",
+    label: t("hfBrowser.runStatus.noLabel"),
     tone: "text-red-400",
-    description: "This plan is likely to fail or perform poorly.",
+    description: t("hfBrowser.runStatus.noDescription"),
   };
 }
 
-function getPerformanceStatus(gpuMode: string): {
+function getPerformanceStatus(t: TFn, gpuMode: string): {
   prefill: { label: string; tone: string };
   generation: { label: string; tone: string };
 } {
+  const fast = t("hfBrowser.perf.fast");
+  const medium = t("hfBrowser.perf.medium");
+  const slow = t("hfBrowser.perf.slow");
   switch (gpuMode) {
     case "full":
       return {
-        prefill: { label: "Fast", tone: "text-emerald-400" },
-        generation: { label: "Fast", tone: "text-emerald-400" },
+        prefill: { label: fast, tone: "text-emerald-400" },
+        generation: { label: fast, tone: "text-emerald-400" },
       };
     case "nearFull":
       return {
-        prefill: { label: "Fast", tone: "text-emerald-400" },
-        generation: { label: "Fast", tone: "text-emerald-400" },
+        prefill: { label: fast, tone: "text-emerald-400" },
+        generation: { label: fast, tone: "text-emerald-400" },
       };
     case "kvSpill":
     case "ramModelVramCtx":
       return {
-        prefill: { label: "Medium", tone: "text-blue-400" },
-        generation: { label: "Medium", tone: "text-blue-400" },
+        prefill: { label: medium, tone: "text-blue-400" },
+        generation: { label: medium, tone: "text-blue-400" },
       };
     case "kvHeavySpill":
     case "mostLayers":
     case "halfLayers":
       return {
-        prefill: { label: "Slow", tone: "text-amber-400" },
-        generation: { label: "Medium", tone: "text-blue-400" },
+        prefill: { label: slow, tone: "text-amber-400" },
+        generation: { label: medium, tone: "text-blue-400" },
       };
     case "fewLayers":
     case "ramModelRamCtx":
@@ -584,8 +604,8 @@ function getPerformanceStatus(gpuMode: string): {
     case "gpuUnavailable":
     default:
       return {
-        prefill: { label: "Slow", tone: "text-amber-400" },
-        generation: { label: "Slow", tone: "text-amber-400" },
+        prefill: { label: slow, tone: "text-amber-400" },
+        generation: { label: slow, tone: "text-amber-400" },
       };
   }
 }
@@ -814,7 +834,7 @@ function DetailReportContent({
   modelOffload: ModelOffload;
   kvPlacement: KvPlacement;
   contextLength: number;
-  t: (key: any, vars?: any) => string;
+  t: TFn;
 }) {
   const bpv = KV_BPV[kvType] || 2;
   const totalAvail = recData.totalAvailable;
@@ -883,8 +903,8 @@ function DetailReportContent({
     }
     return Math.round(50 * (h / kvBytes));
   })();
-  const modelOffloadCopy = getModelOffloadCopy(modelOffload);
-  const kvPlacementCopy = getKvPlacementCopy(kvPlacement);
+  const modelOffloadCopy = getModelOffloadCopy(t, modelOffload);
+  const kvPlacementCopy = getKvPlacementCopy(t, kvPlacement);
   const showGpuPlanning = recData.availableVram > 0 && modelOffload !== "cpu";
 
   const offloadPct = (() => {
@@ -1014,8 +1034,8 @@ function DetailReportContent({
         {row(t("hfBrowser.quantization"), selectedFile.quantization)}
         {row(t("hfBrowser.detailModelSize"), formatBytes(selectedFile.size))}
         {row(t("hfBrowser.contextLength"), clampedCtx.toLocaleString() + " tokens")}
-        {row("Model offload", modelOffloadCopy.label)}
-        {row("KV location", kvPlacementCopy.label)}
+        {row(t("hfBrowser.detailModelOffload"), modelOffloadCopy.label)}
+        {row(t("hfBrowser.detailKvLocation"), kvPlacementCopy.label)}
         {row(t("hfBrowser.kvCacheType"), kvType.toUpperCase())}
         {recData.kvContextCap &&
           row(
@@ -1055,8 +1075,8 @@ function DetailReportContent({
         )}
         {recData.availableVram > 0 &&
           row(
-            "Mode",
-            getRunabilityModeCopy(gpuMode).long,
+            t("hfBrowser.detailMode"),
+            getRunabilityModeCopy(t, gpuMode).long,
             ["full", "nearFull"].includes(gpuMode)
               ? "text-emerald-400"
               : ["kvSpill", "mostLayers", "ramModelVramCtx"].includes(gpuMode)
@@ -1955,13 +1975,13 @@ export function HuggingFaceBrowserPage() {
         });
       } catch (err: any) {
         toast.error(
-          "Download failed",
-          typeof err === "string" ? err : err?.message || "Unknown error",
+          t("hfBrowser.downloadFailedToast"),
+          typeof err === "string" ? err : err?.message || t("hfBrowser.downloadFailedUnknown"),
         );
         return null;
       }
     },
-    [],
+    [t],
   );
 
   const autoCreateModelFromQueuedDownload = useCallback(
@@ -1998,14 +2018,14 @@ export function HuggingFaceBrowserPage() {
       const modelOffloadValue =
         (modelItem.llamaModelOffloadMode as ModelOffload | null | undefined) ??
         gpuLayersToModelOffload(modelItem.llamaGpuLayers ?? null, null);
-      const modelOffloadCopy = getModelOffloadCopy(modelOffloadValue);
+      const modelOffloadCopy = getModelOffloadCopy(t, modelOffloadValue);
       const placementValue: KvPlacement =
         modelItem.llamaOffloadKqv === true
           ? "vram"
           : modelItem.llamaOffloadKqv === false
             ? "ram"
             : "auto";
-      const placementCopy = getKvPlacementCopy(placementValue);
+      const placementCopy = getKvPlacementCopy(t, placementValue);
 
       try {
         const defaultAdvanced = createDefaultAdvancedModelSettings();
@@ -2030,16 +2050,29 @@ export function HuggingFaceBrowserPage() {
         });
 
         const featureNotes = [
-          hasImageSupport ? "image support" : null,
-          hasMtpSupport ? "multi-token prediction" : null,
+          hasImageSupport ? t("hfBrowser.featureImageSupport") : null,
+          hasMtpSupport ? t("hfBrowser.featureMtp") : null,
         ]
           .filter(Boolean)
-          .join(" and ");
+          .join(t("hfBrowser.featureJoin"));
         toast.success(
-          "Model installed",
+          t("hfBrowser.modelInstalled"),
           featureNotes
-            ? `${displayName} added with ${featureNotes}, ${contextLength.toLocaleString()} ctx, ${kvType.toUpperCase()} KV cache, ${modelOffloadCopy.label} model offload, and ${placementCopy.label} KV placement.`
-            : `${displayName} added with ${contextLength.toLocaleString()} ctx, ${kvType.toUpperCase()} KV cache, ${modelOffloadCopy.label} model offload, and ${placementCopy.label} KV placement.`,
+            ? t("hfBrowser.modelInstalledWithFeatures", {
+                name: displayName,
+                features: featureNotes,
+                ctx: contextLength.toLocaleString(),
+                kv: kvType.toUpperCase(),
+                offload: modelOffloadCopy.label,
+                placement: placementCopy.label,
+              })
+            : t("hfBrowser.modelInstalledNoFeatures", {
+                name: displayName,
+                ctx: contextLength.toLocaleString(),
+                kv: kvType.toUpperCase(),
+                offload: modelOffloadCopy.label,
+                placement: placementCopy.label,
+              }),
         );
         setHasPersistedLocalModel(true);
 
@@ -2053,12 +2086,15 @@ export function HuggingFaceBrowserPage() {
       } catch (err: any) {
         processedRecommendedInstallsRef.current.delete(installId);
         toast.error(
-          "Model setup failed",
-          `Downloaded ${displayName}, but auto-add failed: ${err?.message || String(err)}`,
+          t("hfBrowser.modelSetupFailed"),
+          t("hfBrowser.modelSetupFailedBody", {
+            name: displayName,
+            error: err?.message || String(err),
+          }),
         );
       }
     },
-    [dismissItem],
+    [dismissItem, t],
   );
 
   const queueRecommendedDownload = useCallback(async () => {
@@ -2070,7 +2106,10 @@ export function HuggingFaceBrowserPage() {
         ? (mmprojFilesWithSize.find((f) => f.filename === recMmprojFile) ?? null)
         : null;
     if (recImageSupport && !selectedMmproj) {
-      toast.error("Image support unavailable", "Select a multimodal projector file first.");
+      toast.error(
+        t("hfBrowser.imageSupportUnavailable"),
+        t("hfBrowser.imageSupportUnavailableBody"),
+      );
       return;
     }
 
@@ -2145,8 +2184,8 @@ export function HuggingFaceBrowserPage() {
     });
     if (!modelQueueId && selectedMmproj) {
       toast.error(
-        "Download partially queued",
-        "The mmproj file was queued, but the main model file could not be queued.",
+        t("hfBrowser.downloadPartiallyQueued"),
+        t("hfBrowser.downloadPartiallyQueuedBody"),
       );
     }
   }, [
@@ -2167,6 +2206,7 @@ export function HuggingFaceBrowserPage() {
     recMtpBundled,
     gpuOptionsEnabled,
     recommendedMixedGpuLayers,
+    t,
   ]);
 
   const queueFilesDownload = useCallback(
@@ -2303,7 +2343,10 @@ export function HuggingFaceBrowserPage() {
         (!prevItem || prevItem.status !== "cancelled") && item.status === "cancelled";
 
       if (becameComplete && !item.installId) {
-        toast.success("Download complete", `${item.filename} downloaded.`);
+        toast.success(
+          t("hfBrowser.downloadCompleteToast"),
+          t("hfBrowser.downloadCompleteBody", { name: item.filename }),
+        );
         void dismissItem(item.id);
       }
 
@@ -2311,7 +2354,13 @@ export function HuggingFaceBrowserPage() {
         if (item.installId) {
           processedRecommendedInstallsRef.current.delete(item.installId);
         }
-        toast.error("Download failed", `${item.filename}: ${item.error || "Unknown error"}`);
+        toast.error(
+          t("hfBrowser.downloadFailedToast"),
+          t("hfBrowser.downloadFailedFileBody", {
+            name: item.filename,
+            error: item.error || t("hfBrowser.downloadFailedUnknown"),
+          }),
+        );
       }
 
       if (becameCancelled && item.installId) {
@@ -2320,7 +2369,7 @@ export function HuggingFaceBrowserPage() {
     }
 
     prevQueueRef.current = queue;
-  }, [queue, dismissItem]);
+  }, [queue, dismissItem, t]);
 
   return (
     <div className="flex h-full flex-col text-fg">
@@ -2360,7 +2409,7 @@ export function HuggingFaceBrowserPage() {
                       <button
                         onClick={() => setQuery("")}
                         className="absolute right-2.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-fg/40 transition hover:bg-fg/8 hover:text-fg/80"
-                        aria-label="Clear search"
+                        aria-label={t("hfBrowser.clearSearch")}
                       >
                         <X size={13} />
                       </button>
@@ -2378,8 +2427,8 @@ export function HuggingFaceBrowserPage() {
                     )}
                     aria-haspopup="menu"
                     aria-expanded={showFilterMenu}
-                    aria-label="Filters"
-                    title="Filters"
+                    aria-label={t("hfBrowser.filters")}
+                    title={t("hfBrowser.filters")}
                   >
                     <SlidersHorizontal size={14} />
                     {activeFilterCount > 0 && (
@@ -2544,7 +2593,7 @@ export function HuggingFaceBrowserPage() {
                 {!searching && results.length > 0 && displayedResults.length === 0 && (
                   <div className="flex flex-col items-center gap-2 py-12 text-center">
                     <SlidersHorizontal size={20} className="text-fg/30" />
-                    <p className="text-sm text-fg/60">No results match your filters</p>
+                    <p className="text-sm text-fg/60">{t("hfBrowser.noResultsMatchFilters")}</p>
                     <button
                       onClick={() => {
                         setFilterPipelineTags(new Set());
@@ -2553,7 +2602,7 @@ export function HuggingFaceBrowserPage() {
                       }}
                       className="mt-1 rounded-full border border-fg/15 bg-fg/5 px-3 py-1 text-[11px] font-medium text-fg/70 transition hover:border-fg/30"
                     >
-                      Clear filters
+                      {t("hfBrowser.clearFilters")}
                     </button>
                   </div>
                 )}
@@ -2611,11 +2660,11 @@ export function HuggingFaceBrowserPage() {
                               )}
                             </div>
                             <div className="flex shrink-0 items-center gap-2 text-[10.5px] tabular-nums text-fg/50">
-                              <span className="flex items-center gap-0.5" title="Downloads">
+                              <span className="flex items-center gap-0.5" title={t("hfBrowser.downloadsTitle")}>
                                 <ArrowDownToLine size={10} className="text-fg/35" />
                                 {formatNumber(model.downloads)}
                               </span>
-                              <span className="flex items-center gap-0.5" title="Likes">
+                              <span className="flex items-center gap-0.5" title={t("hfBrowser.likesTitle")}>
                                 <Heart size={10} className="text-fg/35" />
                                 {formatNumber(model.likes)}
                               </span>
@@ -2681,11 +2730,11 @@ export function HuggingFaceBrowserPage() {
                               </div>
 
                               <div className="flex items-center gap-3 text-[10.5px] tabular-nums text-fg/50">
-                                <span className="flex items-center gap-1" title="Downloads">
+                                <span className="flex items-center gap-1" title={t("hfBrowser.downloadsTitle")}>
                                   <ArrowDownToLine size={10} className="text-fg/35" />
                                   {formatNumber(model.downloads)}
                                 </span>
-                                <span className="flex items-center gap-1" title="Likes">
+                                <span className="flex items-center gap-1" title={t("hfBrowser.likesTitle")}>
                                   <Heart size={10} className="text-fg/35" />
                                   {formatNumber(model.likes)}
                                 </span>
@@ -2749,11 +2798,11 @@ export function HuggingFaceBrowserPage() {
                           </div>
 
                           <div className="flex shrink-0 items-center gap-2.5 text-[10.5px] tabular-nums text-fg/50">
-                            <span className="flex items-center gap-1" title="Downloads">
+                            <span className="flex items-center gap-1" title={t("hfBrowser.downloadsTitle")}>
                               <ArrowDownToLine size={10} className="text-fg/35" />
                               {formatNumber(model.downloads)}
                             </span>
-                            <span className="flex items-center gap-1" title="Likes">
+                            <span className="flex items-center gap-1" title={t("hfBrowser.likesTitle")}>
                               <Heart size={10} className="text-fg/35" />
                               {formatNumber(model.likes)}
                             </span>
@@ -2779,10 +2828,10 @@ export function HuggingFaceBrowserPage() {
                       {loadingMore ? (
                         <>
                           <Loader size={14} className="animate-spin" />
-                          Loading...
+                          {t("hfBrowser.loading")}
                         </>
                       ) : (
-                        "Load more"
+                        t("hfBrowser.loadMore")
                       )}
                     </button>
                   </div>
@@ -2790,7 +2839,7 @@ export function HuggingFaceBrowserPage() {
 
                 {/* End of results indicator (not for direct lookups) */}
                 {!searching && hasSearched && results.length > 0 && !hasMore && !isDirectLookup && (
-                  <p className="py-4 text-center text-[11px] text-fg/25">No more results</p>
+                  <p className="py-4 text-center text-[11px] text-fg/25">{t("hfBrowser.noMoreResults")}</p>
                 )}
               </div>
             </motion.div>
@@ -2809,7 +2858,7 @@ export function HuggingFaceBrowserPage() {
               {loadingFiles && !modelInfo && (
                 <div className="flex items-center justify-center gap-2 py-20 text-fg/50">
                   <Loader size={18} className="animate-spin" />
-                  <span className="text-sm">Loading model info...</span>
+                  <span className="text-sm">{t("hfBrowser.loadingModelInfo")}</span>
                 </div>
               )}
 
@@ -2897,7 +2946,7 @@ export function HuggingFaceBrowserPage() {
                       {readmeLoading && (
                         <div className="flex items-center justify-center gap-2 py-12 text-fg/40">
                           <Loader size={16} className="animate-spin" />
-                          <span className="text-xs">Loading README...</span>
+                          <span className="text-xs">{t("hfBrowser.loadingReadme")}</span>
                         </div>
                       )}
 
@@ -2906,7 +2955,7 @@ export function HuggingFaceBrowserPage() {
                       {!readmeLoading && !readme && (
                         <div className="flex flex-col items-center gap-2 py-12 text-center text-fg/30">
                           <FileText size={32} />
-                          <p className="text-sm">No README available</p>
+                          <p className="text-sm">{t("hfBrowser.noReadme")}</p>
                         </div>
                       )}
                     </div>
@@ -3024,15 +3073,16 @@ export function HuggingFaceBrowserPage() {
                                     recModelOffload,
                                     recKvPlacement,
                                   );
-                                  const modeCopy = getRunabilityModeCopy(gpuMode);
-                                  const runStatus = getRunStatus(score);
+                                  const modeCopy = getRunabilityModeCopy(t, gpuMode);
+                                  const runStatus = getRunStatus(t, score);
                                   const totalNeeded = selFile.size + kvBytes + computeOverhead(selFile.size);
                                   const remainingHeadroom = Math.max(totalAvail - totalNeeded, 0);
                                   const headroomStatus = getHeadroomStatus(
+                                    t,
                                     totalNeeded,
                                     totalAvail,
                                   );
-                                  const perfStatus = getPerformanceStatus(gpuMode);
+                                  const perfStatus = getPerformanceStatus(t, gpuMode);
                                   const statusRow = (
                                     labelText: string,
                                     value: ReactNode,
@@ -3118,23 +3168,26 @@ export function HuggingFaceBrowserPage() {
                                             </div>
                                             <div className="mt-0.5 flex items-center justify-end gap-1 text-[11px] text-fg/35">
                                               <Monitor size={9} />
-                                              Will run
+                                              {t("hfBrowser.willRun")}
                                             </div>
                                           </div>
                                         </div>
                                         <div className="mt-1.5 divide-y divide-fg/6">
                                           {statusRow(
-                                            "Headroom",
-                                            `${headroomStatus.label} · ${formatBytes(remainingHeadroom)} left`,
+                                            t("hfBrowser.statusHeadroom"),
+                                            t("hfBrowser.headroomLeft", {
+                                              label: headroomStatus.label,
+                                              size: formatBytes(remainingHeadroom),
+                                            }),
                                             headroomStatus.tone,
                                           )}
-                                          {statusRow("Prefill", perfStatus.prefill.label, perfStatus.prefill.tone)}
+                                          {statusRow(t("hfBrowser.statusPrefill"), perfStatus.prefill.label, perfStatus.prefill.tone)}
                                           {statusRow(
-                                            "Generation",
+                                            t("hfBrowser.statusGeneration"),
                                             perfStatus.generation.label,
                                             perfStatus.generation.tone,
                                           )}
-                                          {statusRow("Confidence", `${score}/100`, runStatus.tone)}
+                                          {statusRow(t("hfBrowser.statusConfidence"), t("hfBrowser.confidenceValue", { score }), runStatus.tone)}
                                         </div>
                                       </div>
                                       <p className="text-[12px] leading-snug text-fg/45">
@@ -3239,15 +3292,15 @@ export function HuggingFaceBrowserPage() {
                                           <div className="flex items-center justify-between gap-3 rounded-lg border border-fg/10 bg-fg/5 px-2.5 py-2">
                                             <div className="min-w-0">
                                               <span className="block text-[11px] font-medium text-fg/85">
-                                                Image support
+                                                {t("hfBrowser.imageSupport")}
                                               </span>
                                               <span className="block whitespace-nowrap text-[11px] text-fg/40">
-                                                Download matching mmproj sidecar
+                                                {t("hfBrowser.imageSupportHint")}
                                               </span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                               <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-fg/35">
-                                                {recImageSupport ? "On" : "Off"}
+                                                {recImageSupport ? t("common.labels.on") : t("common.labels.off")}
                                               </span>
                                               <Switch
                                                 id="hf-image-support-toggle"
@@ -3260,7 +3313,7 @@ export function HuggingFaceBrowserPage() {
                                           {recImageSupport && (
                                             <div>
                                               <label className="text-[9px] font-semibold uppercase tracking-wider text-fg/40">
-                                                MMProj
+                                                {t("hfBrowser.mmproj")}
                                               </label>
                                               <select
                                                 value={recMmprojFile}
@@ -3283,17 +3336,17 @@ export function HuggingFaceBrowserPage() {
                                           <div className="flex items-center justify-between gap-3 rounded-lg border border-fg/10 bg-fg/5 px-2.5 py-2">
                                             <div className="min-w-0">
                                               <span className="block text-[11px] font-medium text-fg/85">
-                                                Multi-token prediction
+                                                {t("hfBrowser.mtpTitle")}
                                               </span>
                                               <span className="block whitespace-nowrap text-[11px] text-fg/40">
                                                 {recMtpBundled
-                                                  ? "Use bundled MTP layers for faster output"
-                                                  : "Download MTP draft sidecar for faster output"}
+                                                  ? t("hfBrowser.mtpHintBundled")
+                                                  : t("hfBrowser.mtpHintSidecar")}
                                               </span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                               <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-fg/35">
-                                                {recMtpSupport ? "On" : "Off"}
+                                                {recMtpSupport ? t("common.labels.on") : t("common.labels.off")}
                                               </span>
                                               <Switch
                                                 id="hf-mtp-support-toggle"
@@ -3306,7 +3359,7 @@ export function HuggingFaceBrowserPage() {
                                           {recMtpSupport && !recMtpBundled && (
                                             <div>
                                               <label className="text-[9px] font-semibold uppercase tracking-wider text-fg/40">
-                                                MTP File
+                                                {t("hfBrowser.mtpFile")}
                                               </label>
                                               <select
                                                 value={recMtpFile}
@@ -3503,25 +3556,25 @@ export function HuggingFaceBrowserPage() {
                                           }}
                                           className="mt-1 w-full rounded-md border border-fg/10 bg-fg/5 px-2 py-1.5 text-[11px] text-fg focus:border-fg/25 focus:outline-none"
                                         >
-                                          <option value="f32">F32 (maximum quality)</option>
-                                          <option value="f16">F16 (high quality)</option>
-                                          <option value="q8_0">Q8_0 (balanced)</option>
-                                          <option value="q5_1">Q5_1 (good savings)</option>
-                                          <option value="q5_0">Q5_0 (good savings)</option>
-                                          <option value="q4_1">Q4_1 (memory saver)</option>
-                                          <option value="q4_0">Q4_0 (memory saver)</option>
-                                          <option value="iq4_nl">IQ4_NL (aggressive)</option>
+                                          <option value="f32">{t("hfBrowser.kvF32")}</option>
+                                          <option value="f16">{t("hfBrowser.kvF16")}</option>
+                                          <option value="q8_0">{t("hfBrowser.kvQ80")}</option>
+                                          <option value="q5_1">{t("hfBrowser.kvQ51")}</option>
+                                          <option value="q5_0">{t("hfBrowser.kvQ50")}</option>
+                                          <option value="q4_1">{t("hfBrowser.kvQ41")}</option>
+                                          <option value="q4_0">{t("hfBrowser.kvQ40")}</option>
+                                          <option value="iq4_nl">{t("hfBrowser.kvIq4nl")}</option>
                                         </select>
                                       </div>
 
                                       <div>
                                         <label className="text-[9px] font-semibold uppercase tracking-wider text-fg/40">
-                                          Model offload
+                                          {t("hfBrowser.detailModelOffload")}
                                         </label>
                                         <div className="mt-1 grid grid-cols-4 gap-1 rounded-md border border-fg/10 bg-fg/5 p-1">
                                           {(["auto", "cpu", "gpu", "mixed"] as const).map((value) => {
                                             const active = recModelOffload === value;
-                                            const copy = getModelOffloadCopy(value);
+                                            const copy = getModelOffloadCopy(t, value);
                                             return (
                                               <button
                                                 key={value}
@@ -3545,19 +3598,19 @@ export function HuggingFaceBrowserPage() {
                                         </div>
                                         <p className="mt-1 text-[11px] leading-snug text-fg/40">
                                           {gpuOptionsEnabled
-                                            ? getModelOffloadCopy(recModelOffload).description
-                                            : "GPU offload is unavailable on this backend. Model offload and KV placement stay on automatic CPU-safe defaults."}
+                                            ? getModelOffloadCopy(t, recModelOffload).description
+                                            : t("hfBrowser.gpuOffloadUnavailable")}
                                         </p>
                                       </div>
 
                                       <div>
                                         <label className="text-[9px] font-semibold uppercase tracking-wider text-fg/40">
-                                          KV cache location
+                                          {t("hfBrowser.kvLocationLabel")}
                                         </label>
                                         <div className="mt-1 grid grid-cols-3 gap-1 rounded-md border border-fg/10 bg-fg/5 p-1">
                                           {(["auto", "ram", "vram"] as const).map((value) => {
                                             const active = recKvPlacement === value;
-                                            const copy = getKvPlacementCopy(value);
+                                            const copy = getKvPlacementCopy(t, value);
                                             return (
                                               <button
                                                 key={value}
@@ -3581,8 +3634,8 @@ export function HuggingFaceBrowserPage() {
                                         </div>
                                         <p className="mt-1 text-[11px] leading-snug text-fg/40">
                                           {gpuOptionsEnabled
-                                            ? getKvPlacementCopy(recKvPlacement).description
-                                            : "KV cache placement is unavailable until a Vulkan or CUDA backend is detected."}
+                                            ? getKvPlacementCopy(t, recKvPlacement).description
+                                            : t("hfBrowser.kvPlacementUnavailable")}
                                         </p>
                                       </div>
 
@@ -3618,7 +3671,7 @@ export function HuggingFaceBrowserPage() {
                                         onClick={openCompareModal}
                                         className="flex w-full items-center justify-center gap-1 py-1 text-[12px] text-fg/55 hover:text-fg/75 transition-colors"
                                       >
-                                        Compare
+                                        {t("hfBrowser.compare")}
                                       </button>
 
                                       {/* More details button */}
@@ -3694,12 +3747,18 @@ export function HuggingFaceBrowserPage() {
                                                     ? "border-orange-400/30 bg-orange-400/15 text-orange-500"
                                                     : "border-red-400/30 bg-red-400/15 text-red-500",
                                           )}
-                                          title={`Runability: ${rs.score}/100 (${rs.label}) · ${getRunabilityModeCopy(rs.gpuMode).long}${rs.fitsInRam ? " · Fits in RAM" : ""}${rs.fitsInVram ? " · Fits in VRAM" : ""}`}
+                                          title={t("hfBrowser.runabilityTooltip", {
+                                            score: rs.score,
+                                            label: rs.label,
+                                            mode: getRunabilityModeCopy(t, rs.gpuMode).long,
+                                            ram: rs.fitsInRam ? t("hfBrowser.fitsInRam") : "",
+                                            vram: rs.fitsInVram ? t("hfBrowser.fitsInVram") : "",
+                                          })}
                                         >
                                           {rs.score}
                                         </span>
                                         <span className="max-w-55 text-[10px] leading-tight text-fg/40">
-                                          {getRunabilityModeCopy(rs.gpuMode).short}
+                                          {getRunabilityModeCopy(t, rs.gpuMode).short}
                                         </span>
                                       </div>
                                     )}
@@ -3719,7 +3778,7 @@ export function HuggingFaceBrowserPage() {
                                     {isOllamaMode
                                       ? `${t("hfBrowser.pullToOllama")} ${selectedOllamaProvider?.label ?? ""}`.trim()
                                       : returnTo && !file.isMmproj && !file.isMtp
-                                        ? "Download and Use"
+                                        ? t("hfBrowser.downloadAndUse")
                                         : t("hfBrowser.download")}
                                   </button>
                                 </div>
@@ -3748,16 +3807,16 @@ export function HuggingFaceBrowserPage() {
           >
             <div className="flex items-center justify-between border-b border-fg/10 px-4 py-3">
               <div>
-                <h3 className="text-sm font-semibold text-fg">Compare Configurations</h3>
+                <h3 className="text-sm font-semibold text-fg">{t("hfBrowser.compareTitle")}</h3>
                 <p className="text-[11px] text-fg/50">
-                  Compare up to 3 quantizations with independent KV cache types.
+                  {t("hfBrowser.compareSubtitle")}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setCompareOpen(false)}
                 className="rounded-md border border-fg/15 bg-fg/5 p-1.5 text-fg/60 hover:text-fg hover:border-fg/25"
-                aria-label="Close compare modal"
+                aria-label={t("hfBrowser.compareClose")}
               >
                 <X size={14} />
               </button>
@@ -3781,14 +3840,14 @@ export function HuggingFaceBrowserPage() {
                       className="rounded-xl border border-fg/10 bg-fg/3 p-2.5 space-y-2"
                     >
                       <div className="flex items-center justify-between">
-                        <p className="text-[11px] font-semibold text-fg/70">Config {index + 1}</p>
+                        <p className="text-[11px] font-semibold text-fg/70">{t("hfBrowser.compareConfig", { index: index + 1 })}</p>
                         {compareSelections.length > 1 && (
                           <button
                             type="button"
                             onClick={() => removeCompareSelection(selection.id)}
                             className="text-[10px] text-fg/40 hover:text-red-300 transition-colors"
                           >
-                            Remove
+                            {t("hfBrowser.compareRemove")}
                           </button>
                         )}
                       </div>
@@ -3844,7 +3903,7 @@ export function HuggingFaceBrowserPage() {
                   onClick={addCompareSelection}
                   className="mt-2 text-[11px] font-medium text-accent/80 hover:text-accent transition-colors"
                 >
-                  + Add Comparison
+                  {t("hfBrowser.compareAdd")}
                 </button>
               )}
             </div>
@@ -3879,7 +3938,7 @@ export function HuggingFaceBrowserPage() {
                           {selectedFile.quantization} · {formatBytes(selectedFile.size)}
                         </p>
                         <p className="text-[10px] text-fg/45">
-                          KV: {selection.kvType.toUpperCase()}
+                          {t("hfBrowser.compareKvLabel", { kv: selection.kvType.toUpperCase() })}
                         </p>
                       </div>
 
@@ -3936,17 +3995,17 @@ export function HuggingFaceBrowserPage() {
       <BottomMenu
         isOpen={showFilterMenu}
         onClose={() => setShowFilterMenu(false)}
-        title="Filter results"
+        title={t("hfBrowser.filterTitle")}
       >
         <div>
           <p className="mb-4 text-[12.5px] leading-relaxed text-fg/55">
-            Refine the result list. Filters apply to the loaded results below.
+            {t("hfBrowser.filterSubtitle")}
           </p>
 
           {/* Pipeline tags */}
           <div className="mb-2 flex items-center gap-2">
             <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-fg/40">
-              Pipeline
+              {t("hfBrowser.filterPipeline")}
             </span>
             <div className="h-px flex-1 bg-fg/8" />
             {filterPipelineTags.size > 0 && (
@@ -3954,7 +4013,7 @@ export function HuggingFaceBrowserPage() {
                 onClick={() => setFilterPipelineTags(new Set())}
                 className="text-[10.5px] text-fg/45 hover:text-fg/75"
               >
-                Clear
+                {t("hfBrowser.filterClear")}
               </button>
             )}
           </div>
@@ -3993,7 +4052,7 @@ export function HuggingFaceBrowserPage() {
           {/* Param size */}
           <div className="mb-2 flex items-center gap-2">
             <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-fg/40">
-              Parameter size (B)
+              {t("hfBrowser.filterParamSize")}
             </span>
             <div className="h-px flex-1 bg-fg/8" />
             {(filterParamMin || filterParamMax) && (
@@ -4004,13 +4063,13 @@ export function HuggingFaceBrowserPage() {
                 }}
                 className="text-[10.5px] text-fg/45 hover:text-fg/75"
               >
-                Clear
+                {t("hfBrowser.filterClear")}
               </button>
             )}
           </div>
           <div className="mb-2 grid grid-cols-2 gap-2">
             <label className="flex flex-col gap-1">
-              <span className="text-[10.5px] text-fg/55">Min</span>
+              <span className="text-[10.5px] text-fg/55">{t("hfBrowser.filterMin")}</span>
               <input
                 type="number"
                 inputMode="decimal"
@@ -4018,12 +4077,12 @@ export function HuggingFaceBrowserPage() {
                 step={0.1}
                 value={filterParamMin}
                 onChange={(e) => setFilterParamMin(e.target.value)}
-                placeholder="e.g. 2"
+                placeholder={t("hfBrowser.filterMinPlaceholder")}
                 className="h-9 rounded-lg border border-fg/10 bg-fg/4 px-2.5 text-[13px] text-fg outline-none transition placeholder:text-fg/35 focus:border-accent/40 focus:ring-1 focus:ring-accent/20"
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[10.5px] text-fg/55">Max</span>
+              <span className="text-[10.5px] text-fg/55">{t("hfBrowser.filterMax")}</span>
               <input
                 type="number"
                 inputMode="decimal"
@@ -4031,19 +4090,19 @@ export function HuggingFaceBrowserPage() {
                 step={0.1}
                 value={filterParamMax}
                 onChange={(e) => setFilterParamMax(e.target.value)}
-                placeholder="e.g. 12"
+                placeholder={t("hfBrowser.filterMaxPlaceholder")}
                 className="h-9 rounded-lg border border-fg/10 bg-fg/4 px-2.5 text-[13px] text-fg outline-none transition placeholder:text-fg/35 focus:border-accent/40 focus:ring-1 focus:ring-accent/20"
               />
             </label>
           </div>
           <p className="mb-5 text-[10.5px] text-fg/40">
-            Models without a detectable parameter size are excluded when this filter is active.
+            {t("hfBrowser.filterParamNote")}
           </p>
 
           {/* Quick presets */}
           <div className="mb-2 flex items-center gap-2">
             <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-fg/40">
-              Quick presets
+              {t("hfBrowser.filterQuickPresets")}
             </span>
             <div className="h-px flex-1 bg-fg/8" />
           </div>
@@ -4085,7 +4144,7 @@ export function HuggingFaceBrowserPage() {
               }}
               className="mt-5 w-full rounded-lg border border-fg/10 bg-fg/4 py-2 text-[12px] font-medium text-fg/75 transition hover:border-fg/20 hover:text-fg"
             >
-              Reset all filters
+              {t("hfBrowser.filterResetAll")}
             </button>
           )}
         </div>
@@ -4238,7 +4297,7 @@ export function HuggingFaceBrowserPage() {
                 : "border border-white/10 bg-white/10 text-white/40 cursor-not-allowed",
             )}
           >
-            {hasLocalModel ? "Continue Setup" : "Download a model to continue"}
+            {hasLocalModel ? t("hfBrowser.continueSetup") : t("hfBrowser.downloadToContinue")}
             <ArrowRight size={16} />
           </button>
         </div>

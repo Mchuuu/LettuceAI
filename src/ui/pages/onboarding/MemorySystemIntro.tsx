@@ -205,10 +205,10 @@ export function MemorySystemIntro() {
             </div>
             <div>
               <h3 className={cn("font-semibold text-white", compact ? "text-[17px]" : "text-[19px]")}>
-                Manual Memory
+                {t("onboarding.memory.manualTitle")}
               </h3>
               <p className="text-[13px] text-white/55 mt-0.5 h-5 flex items-center">
-                Classic experience
+                {t("onboarding.memory.manualBadge")}
               </p>
             </div>
           </div>
@@ -230,8 +230,7 @@ export function MemorySystemIntro() {
             compact ? "text-[13px]" : "text-[15px]",
           )}
         >
-          You explicitly pin messages and edit the "World Info" or character definitions yourself.
-          Good for total control.
+          {t("onboarding.memory.manualDescription")}
         </p>
 
         <div
@@ -239,11 +238,11 @@ export function MemorySystemIntro() {
         >
           <div className="flex items-center gap-2 text-[13px] text-white/80">
             <div className="w-1 h-1 rounded-full bg-blue-500" />
-            Total control over facts
+            {t("onboarding.memory.manualFeatures.control")}
           </div>
           <div className="flex items-center gap-2 text-[13px] text-white/80">
             <div className="w-1 h-1 rounded-full bg-blue-500" />
-            Best for specific scenarios
+            {t("onboarding.memory.manualFeatures.scenarios")}
           </div>
         </div>
       </div>
@@ -266,11 +265,11 @@ export function MemorySystemIntro() {
       {isProcessing ? (
         <>
           <Loader size={20} className="animate-spin" />
-          <span>Setting up...</span>
+          <span>{t("onboarding.memory.settingUp")}</span>
         </>
       ) : (
         <>
-          <span>Finish Setup</span>
+          <span>{t("onboarding.memory.finishSetup")}</span>
           {selectedType && (
             <ArrowRight
               size={20}
@@ -301,9 +300,9 @@ export function MemorySystemIntro() {
                 "font-medium uppercase tracking-[0.25em] text-white/55",
               )}
             >
-              Step 3 of 3
+              {t("onboarding.stepIndicator", { current: 3, total: 3 })}
             </p>
-            <p className="text-[13px] text-white/70 mt-0.5">Memory System</p>
+            <p className="text-[13px] text-white/70 mt-0.5">{t("onboarding.steps.memory")}</p>
           </div>
           <div className="w-11" />
         </div>
@@ -315,7 +314,7 @@ export function MemorySystemIntro() {
             <div className="text-center space-y-3 mb-10">
               <h1 className="text-[25px] font-bold text-white">{t("onboarding.steps.memory")}</h1>
               <p className="text-[15px] text-white/70 max-w-md mx-auto leading-relaxed">
-                How should your AI companions remember details about you and your conversations?
+                {t("onboarding.memory.howRemember")}
               </p>
             </div>
 
@@ -369,9 +368,9 @@ export function MemorySystemIntro() {
                 "font-medium uppercase tracking-[0.25em] text-white/55",
               )}
             >
-              Step 3 of 3
+              {t("onboarding.stepIndicator", { current: 3, total: 3 })}
             </p>
-            <p className="text-[13px] text-white/70 mt-0.5">Memory System</p>
+            <p className="text-[13px] text-white/70 mt-0.5">{t("onboarding.steps.memory")}</p>
           </div>
           <div className="w-10" />
         </div>
@@ -379,10 +378,10 @@ export function MemorySystemIntro() {
         {/* Title */}
         <div className="text-center space-y-3 mb-10">
           <h1 className={cn(typography.h3.size, typography.h3.weight, "text-white")}>
-            Choose your memory style
+            {t("onboarding.memory.chooseStyle")}
           </h1>
           <p className="text-[15px] text-white/70 max-w-xs mx-auto leading-relaxed">
-            How should your AI companions remember details about you and your conversations?
+            {t("onboarding.memory.howRemember")}
           </p>
         </div>
 

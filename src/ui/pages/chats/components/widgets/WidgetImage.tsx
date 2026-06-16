@@ -1,5 +1,6 @@
 import type { ImageNode } from "../../../../../core/storage/chatWidgetSchemas";
 import { cn } from "../../../../design-tokens";
+import { useI18n } from "../../../../../core/i18n/context";
 import { useAvatar } from "../../../../hooks/useAvatar";
 import { useImageData } from "../../../../hooks/useImageData";
 import { useWidgetContext } from "./WidgetContext";
@@ -10,6 +11,7 @@ interface WidgetImageProps {
 }
 
 export function WidgetImage({ node }: WidgetImageProps) {
+  const { t } = useI18n();
   const { character, persona, hasBackground } = useWidgetContext();
   const shape = node.shape ?? "auto";
   const characterAvatarUrl = useAvatar(
@@ -30,7 +32,7 @@ export function WidgetImage({ node }: WidgetImageProps) {
   const uploadUrl = useImageData(uploadPath);
 
   let url: string | undefined;
-  let alt = node.title ?? "Widget image";
+  let alt = node.title ?? t("chats.widgets.image.alt");
   switch (node.source.kind) {
     case "character_avatar":
       url = characterAvatarUrl;
@@ -87,7 +89,7 @@ export function WidgetImage({ node }: WidgetImageProps) {
               shape === "circle" ? "aspect-square" : "aspect-video",
             )}
           >
-            No image
+            {t("chats.widgets.image.noImage")}
           </div>
         )}
       </div>

@@ -14,9 +14,7 @@ import {
   type UserVoice,
 } from "../../../core/storage/audioProviders";
 import { cn } from "../../design-tokens";
-
-const DEFAULT_PREVIEW_TEXT =
-  "Hello! This is how I sound when speaking. I can read longer passages with warmth, clarity, and emotion.";
+import { useI18n } from "../../../core/i18n/context";
 
 function voiceDisplayName(id: string): string {
   const stripped = id.includes("_") ? id.split("_").slice(1).join("_") : id;
@@ -65,6 +63,7 @@ function parseStored(voiceId: string): BlendVoice[] {
 }
 
 export function KokoroBlendEditorPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { providerId, blendId } = useParams<{ providerId: string; blendId?: string }>();
 
@@ -73,7 +72,7 @@ export function KokoroBlendEditorPage() {
   const [name, setName] = useState("");
   const [voices, setVoices] = useState<BlendVoice[]>([]);
   const [speed, setSpeed] = useState(1);
-  const [previewText, setPreviewText] = useState(DEFAULT_PREVIEW_TEXT);
+  const [previewText, setPreviewText] = useState(t("kokoroBlend.defaultPreviewText"));
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
@@ -252,12 +251,12 @@ export function KokoroBlendEditorPage() {
     return (
       <div className="flex h-64 flex-col items-center justify-center gap-3">
         <AlertTriangle className="h-10 w-10 text-warning/60" />
-        <p className="text-sm text-fg/60">Provider not found</p>
+        <p className="text-sm text-fg/60">{t("kokoroBlend.providerNotFound")}</p>
         <button
           onClick={() => navigate(-1)}
           className="rounded-lg border border-fg/10 bg-fg/5 px-4 py-2 text-sm text-fg/70 transition hover:border-fg/20 hover:bg-fg/10"
         >
-          Back
+          {t("kokoroBlend.back")}
         </button>
       </div>
     );
@@ -267,13 +266,13 @@ export function KokoroBlendEditorPage() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
         <AlertTriangle className="h-10 w-10 text-warning/60" />
-        <p className="text-sm text-fg/70">Install at least one voice first</p>
-        <p className="text-xs text-fg/45">A blend needs installed voices to mix.</p>
+        <p className="text-sm text-fg/70">{t("kokoroBlend.installVoiceFirst")}</p>
+        <p className="text-xs text-fg/45">{t("kokoroBlend.installVoiceFirstHint")}</p>
         <button
           onClick={() => navigate(`/settings/voices/kokoro/${providerId}`)}
           className="mt-2 rounded-lg border border-accent/30 bg-accent/10 px-4 py-2 text-sm text-accent/90 transition hover:border-accent/50 hover:bg-accent/20"
         >
-          Open voice library
+          {t("kokoroBlend.openVoiceLibrary")}
         </button>
       </div>
     );
@@ -300,13 +299,13 @@ export function KokoroBlendEditorPage() {
           <div className="min-w-0 space-y-5">
             <div>
               <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-fg/40">
-                Name
+                {t("kokoroBlend.name")}
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="My Character Voice"
+                placeholder={t("kokoroBlend.namePlaceholder")}
                 className="w-full rounded-lg border border-fg/10 bg-surface-el/30 px-3 py-2 text-[13px] text-fg placeholder-fg/40 focus:border-fg/25 focus:outline-none"
               />
             </div>
@@ -315,12 +314,12 @@ export function KokoroBlendEditorPage() {
               <div className="mb-2 flex items-center justify-between gap-3 px-0.5">
                 <div>
                   <h2 className="text-[10px] font-bold uppercase tracking-wider text-fg/40">
-                    Voices
+                    {t("kokoroBlend.voices")}
                   </h2>
                   <p className="mt-0.5 text-[11px] text-fg/45">
                     {voices.length === 0
-                      ? "Add at least one voice to begin"
-                      : "Drag the slider or click the value to edit"}
+                      ? t("kokoroBlend.addVoiceHint")
+                      : t("kokoroBlend.editValueHint")}
                   </p>
                 </div>
                 <div className="relative">
@@ -330,7 +329,7 @@ export function KokoroBlendEditorPage() {
                     className="flex items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[11px] font-medium text-accent/90 transition hover:border-accent/50 hover:bg-accent/15 disabled:opacity-40"
                   >
                     <Plus className="h-3 w-3" />
-                    Add voice
+                    {t("kokoroBlend.addVoice")}
                   </button>
                   {pickerOpen && availableToAdd.length > 0 && (
                     <>
@@ -359,13 +358,13 @@ export function KokoroBlendEditorPage() {
 
               {voices.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-fg/15 bg-fg/2.5 px-4 py-8 text-center">
-                  <p className="text-[12px] text-fg/55">No voices added yet</p>
+                  <p className="text-[12px] text-fg/55">{t("kokoroBlend.noVoicesAdded")}</p>
                   <button
                     onClick={() => setPickerOpen(true)}
                     className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-accent/85 hover:text-accent"
                   >
                     <Plus className="h-3 w-3" />
-                    Add your first voice
+                    {t("kokoroBlend.addFirstVoice")}
                   </button>
                 </div>
               ) : (
@@ -385,7 +384,7 @@ export function KokoroBlendEditorPage() {
             <div>
               <div className="mb-1.5 flex items-center justify-between px-0.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-fg/40">
-                  Speed
+                  {t("kokoroBlend.speed")}
                 </label>
                 <SpeedValue value={speed} onChange={setSpeed} />
               </div>
@@ -412,10 +411,10 @@ export function KokoroBlendEditorPage() {
           <div className="min-w-0 space-y-3">
             <div className="px-0.5">
               <h2 className="text-[10px] font-bold uppercase tracking-wider text-fg/40">
-                Test
+                {t("kokoroBlend.test")}
               </h2>
               <p className="mt-0.5 text-[11px] text-fg/45">
-                Hear the blend before you save it.
+                {t("kokoroBlend.testHint")}
               </p>
             </div>
             <div className="overflow-hidden rounded-xl border border-fg/10 bg-fg/4">
@@ -423,14 +422,19 @@ export function KokoroBlendEditorPage() {
                 value={previewText}
                 onChange={(e) => setPreviewText(e.target.value)}
                 rows={5}
-                placeholder="Type a phrase to test…"
+                placeholder={t("kokoroBlend.testPlaceholder")}
                 className="w-full resize-none border-0 bg-transparent px-4 pt-3 pb-1 text-[13px] leading-relaxed text-fg placeholder-fg/35 focus:outline-none"
               />
               <div className="flex items-center justify-between gap-2 border-t border-fg/10 bg-fg/2 px-3 py-2">
                 <span className="text-[10px] text-fg/40">
                   {blendForApi.length === 0
-                    ? "No active voices"
-                    : `${blendForApi.length} voice${blendForApi.length === 1 ? "" : "s"} · ${speed.toFixed(2)}×`}
+                    ? t("kokoroBlend.noActiveVoices")
+                    : t(
+                        blendForApi.length === 1
+                          ? "kokoroBlend.voiceSummary"
+                          : "kokoroBlend.voiceSummaryPlural",
+                        { count: blendForApi.length, speed: speed.toFixed(2) },
+                      )}
                 </span>
                 <button
                   onClick={() => void handleTest()}
@@ -450,20 +454,20 @@ export function KokoroBlendEditorPage() {
                     <Play className="h-3 w-3" fill="currentColor" />
                   )}
                   {isPreviewing
-                    ? "Generating…"
+                    ? t("kokoroBlend.generating")
                     : isPlaying
-                      ? "Stop"
-                      : "Test blend"}
+                      ? t("kokoroBlend.stop")
+                      : t("kokoroBlend.testBlend")}
                 </button>
               </div>
             </div>
 
             <div className="rounded-xl border border-fg/10 bg-fg/3 px-4 py-3 text-[11px] text-fg/55">
-              <p className="font-medium text-fg/70">Tips</p>
+              <p className="font-medium text-fg/70">{t("kokoroBlend.tips")}</p>
               <ul className="mt-1.5 space-y-1 text-fg/50">
-                <li>· Higher weights = more of that voice in the mix.</li>
-                <li>· Click any number to type an exact value.</li>
-                <li>· Voices with weight 0 are skipped on save.</li>
+                <li>· {t("kokoroBlend.tipWeights")}</li>
+                <li>· {t("kokoroBlend.tipClickNumber")}</li>
+                <li>· {t("kokoroBlend.tipZeroSkipped")}</li>
               </ul>
             </div>
           </div>
@@ -475,24 +479,28 @@ export function KokoroBlendEditorPage() {
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
           <p className="truncate text-[11px] text-fg/50">
             {voices.length === 0
-              ? "Add voices to get started"
+              ? t("kokoroBlend.addVoicesToStart")
               : blendForApi.length === 0
-                ? "All weights are 0"
-                : `${blendForApi.length} active · ${voices.length} total · ${speed.toFixed(2)}×`}
+                ? t("kokoroBlend.allWeightsZero")
+                : t("kokoroBlend.statusSummary", {
+                    active: blendForApi.length,
+                    total: voices.length,
+                    speed: speed.toFixed(2),
+                  })}
           </p>
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigate(-1)}
               className="rounded-full border border-fg/10 bg-fg/5 px-4 py-1.5 text-[12px] font-medium text-fg/75 transition hover:border-fg/20 hover:bg-fg/10"
             >
-              Cancel
+              {t("kokoroBlend.cancel")}
             </button>
             <button
               onClick={() => void handleSave()}
               disabled={!canSave}
               className="rounded-full bg-accent px-4 py-1.5 text-[12px] font-semibold text-bg transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50"
             >
-              {isSaving ? "Saving…" : existing ? "Save" : "Create"}
+              {isSaving ? t("kokoroBlend.saving") : existing ? t("kokoroBlend.save") : t("kokoroBlend.create")}
             </button>
           </div>
         </div>
@@ -510,6 +518,7 @@ function BlendVoiceRow({
   onChange: (next: number) => void;
   onRemove: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="rounded-xl border border-fg/10 bg-fg/5 px-3 py-2.5 transition hover:border-fg/20 hover:bg-fg/[0.07]">
       <div className="mb-2 flex items-start gap-2">
@@ -524,7 +533,7 @@ function BlendVoiceRow({
         <button
           onClick={onRemove}
           className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-fg/40 transition hover:bg-danger/10 hover:text-danger"
-          aria-label="Remove"
+          aria-label={t("kokoroBlend.remove")}
         >
           <X className="h-3.5 w-3.5" />
         </button>

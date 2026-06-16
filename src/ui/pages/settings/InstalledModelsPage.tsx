@@ -727,7 +727,7 @@ function LocalView({
           </div>
         }
         meta={[
-          { value: String(sortedModels.length), unit: "files" },
+          { value: String(sortedModels.length), unit: t("installedModels.units.files") },
           { value: formatBytes(totalSize), tone: "accent" },
         ]}
         onRefresh={onRefresh}
@@ -894,7 +894,7 @@ function OllamaView({
           />
         }
         meta={[
-          { value: String(totalCount), unit: "models" },
+          { value: String(totalCount), unit: t("installedModels.units.models") },
           { value: formatBytes(totalSize), tone: "accent" },
         ]}
         onRefresh={onRefresh}
@@ -1162,6 +1162,7 @@ function SearchInput({
 }
 
 function SkeletonList() {
+  const { t } = useI18n();
   return (
     <div className="space-y-2">
       {Array.from({ length: 4 }).map((_, i) => (
@@ -1179,7 +1180,7 @@ function SkeletonList() {
       ))}
       <div className="flex items-center justify-center gap-2 py-2 text-[12px] text-fg/45">
         <Loader size={12} className="animate-spin" />
-        Loading…
+        {t("common.labels.loading")}
       </div>
     </div>
   );

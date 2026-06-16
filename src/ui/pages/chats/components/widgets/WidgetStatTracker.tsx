@@ -3,11 +3,13 @@ import { Minus, Plus } from "lucide-react";
 import type { StatTrackerNode } from "../../../../../core/storage/chatWidgetSchemas";
 import { cn } from "../../../../design-tokens";
 import { NumberInput } from "../../../../components/NumberInput";
+import { useI18n } from "../../../../../core/i18n/context";
 import { useWidgetContext } from "./WidgetContext";
 import { useWidgetEdit } from "./WidgetEditContext";
 import { widgetCardClass } from "./widgetSurface";
 
 export function WidgetStatTracker({ node }: { node: StatTrackerNode }) {
+  const { t } = useI18n();
   const { hasBackground, onUpdateNode } = useWidgetContext();
   const { editing: areaEditing } = useWidgetEdit();
   const interactive = !areaEditing;
@@ -43,7 +45,7 @@ export function WidgetStatTracker({ node }: { node: StatTrackerNode }) {
         </header>
       )}
       {node.stats.length === 0 ? (
-        <p className="text-[12px] italic text-fg/40">No stats yet.</p>
+        <p className="text-[12px] italic text-fg/40">{t("chats.widgets.statTracker.empty")}</p>
       ) : (
         <div className="flex flex-col gap-1.5">
           {node.stats.map((stat) => (
@@ -57,7 +59,7 @@ export function WidgetStatTracker({ node }: { node: StatTrackerNode }) {
                   onClick={() => setValue(stat.id, stat.value - 1)}
                   disabled={!interactive || (stat.min !== undefined && stat.value <= stat.min)}
                   className="flex h-6 w-6 items-center justify-center rounded-md border border-fg/15 bg-fg/5 text-fg/60 transition hover:bg-fg/10 disabled:opacity-40"
-                  aria-label={`Decrease ${stat.label}`}
+                  aria-label={t("chats.widgets.statTracker.decrease", { label: stat.label })}
                 >
                   <Minus size={12} strokeWidth={2.4} />
                 </button>
@@ -86,7 +88,7 @@ export function WidgetStatTracker({ node }: { node: StatTrackerNode }) {
                   onClick={() => setValue(stat.id, stat.value + 1)}
                   disabled={!interactive || (stat.max !== undefined && stat.value >= stat.max)}
                   className="flex h-6 w-6 items-center justify-center rounded-md border border-fg/15 bg-fg/5 text-fg/60 transition hover:bg-fg/10 disabled:opacity-40"
-                  aria-label={`Increase ${stat.label}`}
+                  aria-label={t("chats.widgets.statTracker.increase", { label: stat.label })}
                 >
                   <Plus size={12} strokeWidth={2.4} />
                 </button>

@@ -502,7 +502,7 @@ export function HelpMeReplyPage() {
 
               <div className="space-y-4 pt-2">
                 <h3 className="px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-                  Prompt Templates
+                  {t("helpMeReply.promptTemplates.sectionTitle")}
                 </h3>
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -511,7 +511,7 @@ export function HelpMeReplyPage() {
                       <div className="rounded-lg border border-warning/30 bg-warning/10 p-1.5">
                         <BookOpen className="h-4 w-4 text-warning" />
                       </div>
-                      <h3 className="text-sm font-semibold text-fg">Conversational Prompt</h3>
+                      <h3 className="text-sm font-semibold text-fg">{t("helpMeReply.promptTemplates.conversationalTitle")}</h3>
                     </div>
                     <select
                       value={conversationalPromptTemplateId ?? ""}
@@ -520,7 +520,7 @@ export function HelpMeReplyPage() {
                       }
                       className="w-full appearance-none rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-sm text-fg transition focus:border-fg/25 focus:outline-none"
                     >
-                      <option value="">Use built-in default</option>
+                      <option value="">{t("helpMeReply.promptTemplates.useBuiltInDefault")}</option>
                       {conversationalTemplates.map((template) => (
                         <option key={template.id} value={template.id}>
                           {template.name}
@@ -528,7 +528,7 @@ export function HelpMeReplyPage() {
                       ))}
                     </select>
                     <p className="px-1 text-xs leading-relaxed text-fg/50">
-                      Used when Help Me Reply is set to conversational mode.
+                      {t("helpMeReply.promptTemplates.conversationalDescription")}
                     </p>
                   </div>
 
@@ -537,7 +537,7 @@ export function HelpMeReplyPage() {
                       <div className="rounded-lg border border-warning/30 bg-warning/10 p-1.5">
                         <BookOpen className="h-4 w-4 text-warning" />
                       </div>
-                      <h3 className="text-sm font-semibold text-fg">Roleplay Prompt</h3>
+                      <h3 className="text-sm font-semibold text-fg">{t("helpMeReply.promptTemplates.roleplayTitle")}</h3>
                     </div>
                     <select
                       value={roleplayPromptTemplateId ?? ""}
@@ -546,7 +546,7 @@ export function HelpMeReplyPage() {
                       }
                       className="w-full appearance-none rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-sm text-fg transition focus:border-fg/25 focus:outline-none"
                     >
-                      <option value="">Use built-in default</option>
+                      <option value="">{t("helpMeReply.promptTemplates.useBuiltInDefault")}</option>
                       {roleplayTemplates.map((template) => (
                         <option key={template.id} value={template.id}>
                           {template.name}
@@ -554,7 +554,7 @@ export function HelpMeReplyPage() {
                       ))}
                     </select>
                     <p className="px-1 text-xs leading-relaxed text-fg/50">
-                      Used when Help Me Reply is set to roleplay mode.
+                      {t("helpMeReply.promptTemplates.roleplayDescription")}
                     </p>
                   </div>
                 </div>

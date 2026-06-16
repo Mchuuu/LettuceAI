@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { Camera } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { cn, radius, interactive } from "../../design-tokens";
+import { useI18n } from "../../../core/i18n/context";
 import { resolveAvatarGenerationOptions } from "../../../core/image-generation";
 import { convertFilePathToDataUrl } from "../../../core/storage/images";
 import { readSettings, SETTINGS_UPDATED_EVENT } from "../../../core/storage/repo";
@@ -57,6 +58,7 @@ export function AvatarPicker({
   placeholder,
   size = "lg",
 }: AvatarPickerProps) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
   const [showMenu, setShowMenu] = useState(false);
@@ -443,7 +445,7 @@ export function AvatarPicker({
           )}
         >
           <Camera size={14} strokeWidth={2} />
-          <span>{hasDisplayAvatar ? "Edit" : "Add banner"}</span>
+          <span>{hasDisplayAvatar ? t("common.buttons.edit") : t("components.avatarPicker.bannerAddButton")}</span>
         </button>
       ) : (
         <button

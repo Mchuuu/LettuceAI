@@ -740,7 +740,6 @@ export const zhHansMessages: DeepPartialMessageTree<LocaleMessages> = {
     suggestedReply: "建议回复",
     selectTwoCharactersMinimum: "群聊需选择至少 2 个角色。",
     groupBranchCreated: "群组分支已创建！正在跳转...",
-    memories: "记忆",
     tools: "工具",
     pinned: "已置顶",
     searchMemories: "搜索记忆...",

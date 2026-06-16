@@ -87,7 +87,7 @@ import {
 } from "../../../core/local-diffusion";
 import { cn } from "../../design-tokens";
 import { openDocs } from "../../../core/utils/docs";
-import { useI18n } from "../../../core/i18n/context";
+import { useI18n, type TranslationKey } from "../../../core/i18n/context";
 import { Switch } from "../../components/Switch";
 
 type DownloadedGgufModel = {
@@ -199,51 +199,95 @@ type EditorSectionKey =
 const EDITOR_FADE_DURATION = 0.16;
 
 const LLAMA_KV_TYPE_OPTIONS = [
-  { value: "auto", label: "Auto (model default)" },
-  { value: "f16", label: "F16 (best quality, highest VRAM)" },
-  { value: "q8_0", label: "Q8_0 (recommended)" },
-  { value: "q8_1", label: "Q8_1" },
-  { value: "q6_k", label: "Q6_K" },
-  { value: "q5_k", label: "Q5_K" },
-  { value: "q5_1", label: "Q5_1" },
-  { value: "q5_0", label: "Q5_0" },
-  { value: "q4_k", label: "Q4_K" },
-  { value: "q4_1", label: "Q4_1" },
-  { value: "q4_0", label: "Q4_0" },
-  { value: "q3_k", label: "Q3_K" },
-  { value: "q2_k", label: "Q2_K (max VRAM saving)" },
-] as const;
+  { value: "auto", labelKey: "editModel.llamaKvType.auto" },
+  { value: "f16", labelKey: "editModel.llamaKvType.f16" },
+  { value: "q8_0", labelKey: "editModel.llamaKvType.q8_0" },
+  { value: "q8_1", labelKey: "editModel.llamaKvType.q8_1" },
+  { value: "q6_k", labelKey: "editModel.llamaKvType.q6_k" },
+  { value: "q5_k", labelKey: "editModel.llamaKvType.q5_k" },
+  { value: "q5_1", labelKey: "editModel.llamaKvType.q5_1" },
+  { value: "q5_0", labelKey: "editModel.llamaKvType.q5_0" },
+  { value: "q4_k", labelKey: "editModel.llamaKvType.q4_k" },
+  { value: "q4_1", labelKey: "editModel.llamaKvType.q4_1" },
+  { value: "q4_0", labelKey: "editModel.llamaKvType.q4_0" },
+  { value: "q3_k", labelKey: "editModel.llamaKvType.q3_k" },
+  { value: "q2_k", labelKey: "editModel.llamaKvType.q2_k" },
+] satisfies ReadonlyArray<{ value: string; labelKey: TranslationKey }>;
 
 const LLAMA_CHAT_TEMPLATE_PRESET_OPTIONS = [
-  { value: "auto", label: "Auto (prefer embedded GGUF template)" },
-  { value: "chatml", label: "ChatML" },
-  { value: "llama2", label: "Llama 2" },
-  { value: "llama3", label: "Llama 3" },
-  { value: "mistral-v1", label: "Mistral Instruct v1" },
-  { value: "vicuna", label: "Vicuna" },
-  { value: "gemma", label: "Gemma" },
-] as const;
+  { value: "auto", labelKey: "editModel.chatTemplatePreset.auto" },
+  { value: "chatml", labelKey: "editModel.chatTemplatePreset.chatml" },
+  { value: "llama2", labelKey: "editModel.chatTemplatePreset.llama2" },
+  { value: "llama3", labelKey: "editModel.chatTemplatePreset.llama3" },
+  { value: "mistral-v1", labelKey: "editModel.chatTemplatePreset.mistralV1" },
+  { value: "vicuna", labelKey: "editModel.chatTemplatePreset.vicuna" },
+  { value: "gemma", labelKey: "editModel.chatTemplatePreset.gemma" },
+] satisfies ReadonlyArray<{ value: string; labelKey: TranslationKey }>;
 
 const LLAMA_SAMPLER_PROFILE_OPTIONS = [
-  { value: "balanced", label: "Balanced" },
-  { value: "creative", label: "Creative" },
-  { value: "stable", label: "Stable" },
-  { value: "reasoning", label: "Reasoning" },
-] as const;
+  { value: "balanced", labelKey: "editModel.samplerProfile.balanced" },
+  { value: "creative", labelKey: "editModel.samplerProfile.creative" },
+  { value: "stable", labelKey: "editModel.samplerProfile.stable" },
+  { value: "reasoning", labelKey: "editModel.samplerProfile.reasoning" },
+] satisfies ReadonlyArray<{ value: string; labelKey: TranslationKey }>;
 
 const LLAMA_QUICK_PRESET_DETAILS = {
-  balanced: ["Batch Size 512", "KV Cache q8_0", "Offload KQV On", "Flash Attention Auto"],
-  throughput: ["Batch Size 1024", "KV Cache f16", "Offload KQV On", "Flash Attention Enabled"],
-  vram: ["Batch Size 512", "KV Cache q4_k", "Offload KQV On", "Flash Attention Enabled"],
-  cpu_ram: ["Batch Size 256", "KV Cache q8_0", "Offload KQV Off", "Flash Attention Auto"],
-} as const;
+  balanced: [
+    "editModel.quickPresetDetails.batchSize512",
+    "editModel.quickPresetDetails.kvCacheQ8_0",
+    "editModel.quickPresetDetails.offloadKqvOn",
+    "editModel.quickPresetDetails.flashAttentionAuto",
+  ],
+  throughput: [
+    "editModel.quickPresetDetails.batchSize1024",
+    "editModel.quickPresetDetails.kvCacheF16",
+    "editModel.quickPresetDetails.offloadKqvOn",
+    "editModel.quickPresetDetails.flashAttentionEnabled",
+  ],
+  vram: [
+    "editModel.quickPresetDetails.batchSize512",
+    "editModel.quickPresetDetails.kvCacheQ4_k",
+    "editModel.quickPresetDetails.offloadKqvOn",
+    "editModel.quickPresetDetails.flashAttentionEnabled",
+  ],
+  cpu_ram: [
+    "editModel.quickPresetDetails.batchSize256",
+    "editModel.quickPresetDetails.kvCacheQ8_0",
+    "editModel.quickPresetDetails.offloadKqvOff",
+    "editModel.quickPresetDetails.flashAttentionAuto",
+  ],
+} satisfies Record<string, ReadonlyArray<TranslationKey>>;
 
 const LLAMA_SAMPLER_PROFILE_DETAILS = {
-  balanced: ["Temp 0.80", "Top P 0.95", "Top K 40", "Min P 0.05", "Freq Pen. 0.15"],
-  creative: ["Temp 0.95", "Top P 0.98", "Top K 80", "Min P 0.02", "Presence Pen. 0.25"],
-  stable: ["Temp 0.55", "Top P 0.90", "Top K 32", "Min P 0.08", "Typical P 0.97"],
-  reasoning: ["Temp 0.35", "Top P 0.90", "Top K 24", "Typical P 0.95", "Freq Pen. 0.10"],
-} as const;
+  balanced: [
+    "editModel.samplerProfileDetails.temp080",
+    "editModel.samplerProfileDetails.topP095",
+    "editModel.samplerProfileDetails.topK40",
+    "editModel.samplerProfileDetails.minP005",
+    "editModel.samplerProfileDetails.freqPen015",
+  ],
+  creative: [
+    "editModel.samplerProfileDetails.temp095",
+    "editModel.samplerProfileDetails.topP098",
+    "editModel.samplerProfileDetails.topK80",
+    "editModel.samplerProfileDetails.minP002",
+    "editModel.samplerProfileDetails.presencePen025",
+  ],
+  stable: [
+    "editModel.samplerProfileDetails.temp055",
+    "editModel.samplerProfileDetails.topP090",
+    "editModel.samplerProfileDetails.topK32",
+    "editModel.samplerProfileDetails.minP008",
+    "editModel.samplerProfileDetails.typicalP097",
+  ],
+  reasoning: [
+    "editModel.samplerProfileDetails.temp035",
+    "editModel.samplerProfileDetails.topP090",
+    "editModel.samplerProfileDetails.topK24",
+    "editModel.samplerProfileDetails.typicalP095",
+    "editModel.samplerProfileDetails.freqPen010",
+  ],
+} satisfies Record<string, ReadonlyArray<TranslationKey>>;
 
 const normalizeSearchText = (value?: string) =>
   (value ?? "")
@@ -965,7 +1009,7 @@ export function EditModelPage() {
   const formatOpenRouterPricePerMillion = (price?: number) => {
     if (typeof price !== "number" || !Number.isFinite(price)) return null;
     const perMillion = price * 1_000_000;
-    if (perMillion <= 0) return "Free";
+    if (perMillion <= 0) return t("editModel.pricing.free");
     if (perMillion >= 100) return `$${perMillion.toFixed(0)}/M`;
     if (perMillion >= 10) return `$${perMillion.toFixed(1)}/M`;
     if (perMillion >= 1) return `$${perMillion.toFixed(2)}/M`;
@@ -1244,7 +1288,9 @@ export function EditModelPage() {
   const browseSdFile = async (role: SdModelRole) => {
     const selection = await open({
       multiple: false,
-      filters: [{ name: "Model files", extensions: ["safetensors", "gguf", "ckpt", "sft"] }],
+      filters: [
+        { name: t("editModel.localDiffusion.modelFilesFilter"), extensions: ["safetensors", "gguf", "ckpt", "sft"] },
+      ],
     });
     if (typeof selection !== "string") return;
     setSdFilesDraft((draft) => ({ ...draft, [role]: selection }));
@@ -1294,7 +1340,9 @@ export function EditModelPage() {
   const browseSdMainModel = async () => {
     const selection = await open({
       multiple: false,
-      filters: [{ name: "Model files", extensions: ["safetensors", "gguf", "ckpt", "sft"] }],
+      filters: [
+        { name: t("editModel.localDiffusion.modelFilesFilter"), extensions: ["safetensors", "gguf", "ckpt", "sft"] },
+      ],
     });
     if (typeof selection !== "string") return;
     setSdMainPathDraft(selection);
@@ -2216,8 +2264,16 @@ export function EditModelPage() {
                                     if (!inputPrice && !outputPrice) return null;
                                     return (
                                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-fg/35">
-                                        {inputPrice && <span>Input {inputPrice}</span>}
-                                        {outputPrice && <span>Output {outputPrice}</span>}
+                                        {inputPrice && (
+                                          <span>
+                                            {t("editModel.pricing.input", { price: inputPrice })}
+                                          </span>
+                                        )}
+                                        {outputPrice && (
+                                          <span>
+                                            {t("editModel.pricing.output", { price: outputPrice })}
+                                          </span>
+                                        )}
                                       </div>
                                     );
                                   }
@@ -2372,7 +2428,7 @@ export function EditModelPage() {
                                     <div className="flex items-center justify-between">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Steps
+                                          {t("editModel.genLabels.steps")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
                                           {t("editModel.generationDescriptions.sdSteps")}
@@ -2406,7 +2462,7 @@ export function EditModelPage() {
                                     <div className="flex items-center justify-between">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          CFG Scale
+                                          {t("editModel.genLabels.cfgScale")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
                                           {t("editModel.generationDescriptions.sdCfgScale")}
@@ -2436,7 +2492,7 @@ export function EditModelPage() {
                                     <div className="flex items-center justify-between">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Default Size
+                                          {t("editModel.genLabels.defaultSize")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
                                           {t("editModel.generationDescriptions.sdSize")}
@@ -2461,7 +2517,7 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        Sampler
+                                        {t("editModel.genLabels.sampler")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
                                         {t("editModel.generationDescriptions.sdSampler")}
@@ -2480,7 +2536,7 @@ export function EditModelPage() {
                                     <div className="flex items-center justify-between">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Seed
+                                          {t("editModel.genLabels.seed")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
                                           {t("editModel.generationDescriptions.sdSeed")}
@@ -2514,7 +2570,7 @@ export function EditModelPage() {
                                     <div className="flex items-center justify-between">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Img2img Denoise
+                                          {t("editModel.genLabels.img2imgDenoise")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
                                           {t("editModel.generationDescriptions.sdDenoise")}
@@ -2547,7 +2603,7 @@ export function EditModelPage() {
                                 <div className="space-y-4">
                                   <div className="space-y-0.5">
                                     <span className="block text-[13px] font-medium text-fg/70">
-                                      Negative Prompt
+                                      {t("editModel.genLabels.negativePrompt")}
                                     </span>
                                     <span className="block text-[13px] text-fg/40">
                                       {t("editModel.generationDescriptions.sdNegativePrompt")}
@@ -2669,7 +2725,7 @@ export function EditModelPage() {
                                     <div className="flex items-center gap-2">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Temperature
+                                          {t("editModel.genLabels.temperature")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
                                           {t("editModel.generationDescriptions.temperature")}
@@ -2710,7 +2766,7 @@ export function EditModelPage() {
                                     <div className="flex items-center gap-2">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Top P
+                                          {t("editModel.genLabels.topP")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
                                           {t("editModel.generationDescriptions.topP")}
@@ -2751,7 +2807,7 @@ export function EditModelPage() {
                                     <div className="flex items-center gap-2">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Max Output Tokens
+                                          {t("editModel.genLabels.maxOutputTokens")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
                                           {t("editModel.generationDescriptions.maxOutputTokens")}
@@ -2797,7 +2853,7 @@ export function EditModelPage() {
                                     <div className="flex items-center gap-2">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Top K
+                                          {t("editModel.genLabels.topK")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
                                           {t("editModel.generationDescriptions.topK")}
@@ -2813,7 +2869,9 @@ export function EditModelPage() {
                                       </button>
                                     </div>
                                     <span className="font-mono text-[13px] text-fg/55">
-                                      {modelAdvancedDraft.topK ? modelAdvancedDraft.topK : "Auto"}
+                                      {modelAdvancedDraft.topK
+                                        ? modelAdvancedDraft.topK
+                                        : t("common.labels.auto")}
                                     </span>
                                   </div>
                                   <NumberInput
@@ -2841,7 +2899,7 @@ export function EditModelPage() {
                                     <div className="flex items-center gap-2">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Frequency Penalty
+                                          {t("editModel.genLabels.frequencyPenalty")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
                                           {t("editModel.generationDescriptions.frequencyPenalty")}
@@ -2882,7 +2940,7 @@ export function EditModelPage() {
                                     <div className="flex items-center gap-2">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Presence Penalty
+                                          {t("editModel.genLabels.presencePenalty")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
                                           {t("editModel.generationDescriptions.presencePenalty")}
@@ -3049,10 +3107,10 @@ export function EditModelPage() {
                                 <div className="flex items-center gap-2 border-l-2 border-fg/20 pl-3">
                                   <div className="space-y-0.5">
                                     <span className="block text-[13px] font-bold text-fg/80 uppercase tracking-tight">
-                                      Memory & Context
+                                      {t("editModel.runtimeSections.memoryContextTitle")}
                                     </span>
                                     <span className="block text-[13px] text-fg/40">
-                                      Context window and VRAM optimization
+                                      {t("editModel.runtimeSections.memoryContextDescription")}
                                     </span>
                                   </div>
                                 </div>
@@ -3063,10 +3121,10 @@ export function EditModelPage() {
                                     <div className="flex items-center gap-2">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Context Length
+                                          {t("editModel.layerPlacement.contextLength")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
-                                          Override llama.cpp context window
+                                          {t("editModel.layerPlacement.contextOverride")}
                                         </span>
                                       </div>
                                       <button
@@ -3081,7 +3139,7 @@ export function EditModelPage() {
                                     <span className="font-mono text-[13px] text-fg/55">
                                       {modelAdvancedDraft.contextLength
                                         ? modelAdvancedDraft.contextLength.toLocaleString()
-                                        : "Auto"}
+                                        : t("common.labels.auto")}
                                     </span>
                                   </div>
                                   <div className="space-y-3">
@@ -3104,7 +3162,7 @@ export function EditModelPage() {
                                     </div>
                                     {llamaContextLoading && (
                                       <p className="text-[13px] text-fg/40">
-                                        Calculating memory limits for this model...
+                                        {t("editModel.layerPlacement.calculatingMemory")}
                                       </p>
                                     )}
                                     {llamaContextError && (
@@ -3116,19 +3174,17 @@ export function EditModelPage() {
                                       <div className="flex items-start gap-2 text-[13px] text-warning/80">
                                         <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                                         <span>
-                                          Are you sure? This may not run on your device. We
-                                          recommend {recommendedContextLength?.toLocaleString()}{" "}
-                                          tokens.
+                                          {t("editModel.layerPlacement.contextWarning", {
+                                            recommended:
+                                              recommendedContextLength?.toLocaleString() ?? "",
+                                          })}
                                         </span>
                                       </div>
                                     )}
                                     {showContextCritical && (
                                       <div className="flex items-start gap-2 text-[13px] text-danger/80">
                                         <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-                                        <span>
-                                          This model likely won&apos;t fit in memory on your device.
-                                          Try a smaller model or a much shorter context.
-                                        </span>
+                                        <span>{t("editModel.layerPlacement.contextCritical")}</span>
                                       </div>
                                     )}
                                   </div>
@@ -3177,7 +3233,7 @@ export function EditModelPage() {
                                           <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
                                               <span className="font-medium text-fg/70">
-                                                Runability
+                                                {t("editModel.runability.title")}
                                               </span>
                                               <span
                                                 className={cn(
@@ -3199,12 +3255,12 @@ export function EditModelPage() {
                                             <div className="flex items-center gap-2 text-[11px]">
                                               {runabilityScore.fitsInRam && (
                                                 <span className="rounded-md bg-emerald-400/10 px-1.5 py-0.5 text-emerald-400/80">
-                                                  Fits in RAM
+                                                  {t("editModel.runability.fitsInRam")}
                                                 </span>
                                               )}
                                               {runabilityScore.fitsInVram && (
                                                 <span className="rounded-md bg-emerald-400/10 px-1.5 py-0.5 text-emerald-400/80">
-                                                  Fits in VRAM
+                                                  {t("editModel.runability.fitsInVram")}
                                                 </span>
                                               )}
                                             </div>
@@ -3282,7 +3338,7 @@ export function EditModelPage() {
                                           recommendedContextLength > 0 &&
                                           !runabilityScore && (
                                             <p className="text-fg/52">
-                                              Auto will use the recommended context length.
+                                              {t("editModel.runability.autoRecommended")}
                                             </p>
                                           )}
 
@@ -3354,13 +3410,13 @@ export function EditModelPage() {
                                             {runabilityScore.quantization && (
                                               <div className="flex items-center gap-3 border-t border-fg/8 pt-2 text-[12px] text-fg/45">
                                                 <span>
-                                                  Quantization:{" "}
+                                                  {t("editModel.runability.quantization")}{" "}
                                                   <span className="font-mono text-fg/65">
                                                     {runabilityScore.quantization}
                                                   </span>
                                                 </span>
                                                 <span>
-                                                  Size:{" "}
+                                                  {t("editModel.runability.size")}{" "}
                                                   <span className="font-mono text-fg/65">
                                                     {formatBytes(runabilityScore.modelSize)}
                                                   </span>
@@ -3378,10 +3434,10 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        KV Cache Type
+                                        {t("editModel.layerPlacement.kvCacheType")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Quantize KV cache to save VRAM
+                                        {t("editModel.layerPlacement.kvCacheTypeDescription")}
                                       </span>
                                     </div>
                                     <select
@@ -3403,7 +3459,7 @@ export function EditModelPage() {
                                           value={option.value}
                                           className="bg-[#16171d]"
                                         >
-                                          {option.label}
+                                          {t(option.labelKey)}
                                         </option>
                                       ))}
                                     </select>
@@ -3412,12 +3468,12 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        Offload KQV
+                                        {t("editModel.layerPlacement.offloadKqv")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
                                         {isCpuOnlyLlamaBackend
-                                          ? "Disabled on CPU-only backends"
-                                          : "KV cache & KQV ops on GPU"}
+                                          ? t("editModel.layerPlacement.offloadKqvCpuOnly")
+                                          : t("editModel.layerPlacement.offloadKqvDescription")}
                                       </span>
                                     </div>
                                     <select
@@ -3442,13 +3498,13 @@ export function EditModelPage() {
                                       )}
                                     >
                                       <option value="auto" className="bg-[#16171d]">
-                                        Auto
+                                        {t("common.labels.auto")}
                                       </option>
                                       <option value="on" className="bg-[#16171d]">
-                                        On
+                                        {t("common.labels.on")}
                                       </option>
                                       <option value="off" className="bg-[#16171d]">
-                                        Off
+                                        {t("common.labels.off")}
                                       </option>
                                     </select>
                                   </div>
@@ -3458,12 +3514,10 @@ export function EditModelPage() {
                                   <div className="flex items-center justify-between gap-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        Full SWA Cache
+                                        {t("editModel.layerPlacement.fullSwaCache")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Keep the full attention window for sliding-window models.
-                                        Improves long-context recall at a high VRAM cost. Leave off
-                                        unless you have VRAM to spare.
+                                        {t("editModel.layerPlacement.fullSwaCacheDescription")}
                                       </span>
                                     </div>
                                     <div className="flex shrink-0 items-center gap-3">
@@ -3475,7 +3529,9 @@ export function EditModelPage() {
                                             : "text-fg/42",
                                         )}
                                       >
-                                        {modelAdvancedDraft.llamaSwaFull === true ? "On" : "Off"}
+                                        {modelAdvancedDraft.llamaSwaFull === true
+                                          ? t("common.labels.on")
+                                          : t("common.labels.off")}
                                       </span>
                                       <Switch
                                         id="llama-swa-full"
@@ -3483,7 +3539,7 @@ export function EditModelPage() {
                                         onChange={(next) =>
                                           handleLlamaSwaFullChange(next ? true : null)
                                         }
-                                        aria-label="Toggle full SWA cache"
+                                        aria-label={t("editModel.layerPlacement.toggleFullSwaCache")}
                                       />
                                     </div>
                                   </div>
@@ -3493,10 +3549,10 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        RoPE Base
+                                        {t("editModel.layerPlacement.ropeBase")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Frequency base override
+                                        {t("editModel.layerPlacement.ropeBaseDescription")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -3513,10 +3569,10 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        RoPE Scale
+                                        {t("editModel.layerPlacement.ropeScale")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Frequency scale override
+                                        {t("editModel.layerPlacement.ropeScaleDescription")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -3536,17 +3592,17 @@ export function EditModelPage() {
                                   <div className="flex items-center gap-2 border-l-2 border-fg/20 pl-3">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-bold text-fg/80 uppercase tracking-tight">
-                                        Performance
+                                        {t("editModel.runtimeSections.performanceTitle")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Hardware acceleration and threading
+                                        {t("editModel.runtimeSections.performanceDescription")}
                                       </span>
                                     </div>
                                   </div>
 
                                   <div className="space-y-3">
                                     <span className="block text-[13px] font-medium text-fg/70">
-                                      Quick Presets
+                                      {t("editModel.layerPlacement.quickPresets")}
                                     </span>
                                     <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
                                       <button
@@ -3554,28 +3610,28 @@ export function EditModelPage() {
                                         onClick={() => applyLlamaPreset("balanced")}
                                         className="rounded-lg border border-fg/10 bg-surface-el/20 px-2.5 py-2 text-[13px] text-fg/80 transition hover:border-fg/20 hover:bg-surface-el/30"
                                       >
-                                        Balanced
+                                        {t("editModel.layerPlacement.presetBalanced")}
                                       </button>
                                       <button
                                         type="button"
                                         onClick={() => applyLlamaPreset("throughput")}
                                         className="rounded-lg border border-fg/10 bg-surface-el/20 px-2.5 py-2 text-[13px] text-fg/80 transition hover:border-fg/20 hover:bg-surface-el/30"
                                       >
-                                        Throughput
+                                        {t("editModel.layerPlacement.presetThroughput")}
                                       </button>
                                       <button
                                         type="button"
                                         onClick={() => applyLlamaPreset("vram")}
                                         className="rounded-lg border border-fg/10 bg-surface-el/20 px-2.5 py-2 text-[13px] text-fg/80 transition hover:border-fg/20 hover:bg-surface-el/30"
                                       >
-                                        VRAM Saver
+                                        {t("editModel.layerPlacement.presetVramSaver")}
                                       </button>
                                       <button
                                         type="button"
                                         onClick={() => applyLlamaPreset("cpu_ram")}
                                         className="rounded-lg border border-fg/10 bg-surface-el/20 px-2.5 py-2 text-[13px] text-fg/80 transition hover:border-fg/20 hover:bg-surface-el/30"
                                       >
-                                        CPU + RAM
+                                        {t("editModel.layerPlacement.presetCpuRam")}
                                       </button>
                                     </div>
                                     {selectedLlamaQuickPreset && (
@@ -3586,7 +3642,7 @@ export function EditModelPage() {
                                               key={detail}
                                               className="font-mono text-[13px] text-fg/55"
                                             >
-                                              {detail}
+                                              {t(detail)}
                                             </span>
                                           ),
                                         )}
@@ -3598,12 +3654,12 @@ export function EditModelPage() {
                                     <div className="flex items-center justify-between">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          GPU Layers
+                                          {t("editModel.layerPlacement.gpuLayers")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
                                           {isCpuOnlyLlamaBackend
-                                            ? "Disabled on CPU-only backends"
-                                            : "Offload layers to GPU (0 = CPU only)"}
+                                            ? t("editModel.layerPlacement.gpuLayersCpuOnly")
+                                            : t("editModel.layerPlacement.gpuLayersDescription")}
                                         </span>
                                         {llamaLayerPlacementSummary ? (
                                           <span className="block text-[12px] text-fg/34">
@@ -3615,7 +3671,7 @@ export function EditModelPage() {
                                         {modelAdvancedDraft.llamaGpuLayers !== null &&
                                           modelAdvancedDraft.llamaGpuLayers !== undefined
                                           ? modelAdvancedDraft.llamaGpuLayers
-                                          : "Auto"}
+                                          : t("common.labels.auto")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -3641,10 +3697,10 @@ export function EditModelPage() {
                                     <div className="space-y-4">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Threads
+                                          {t("editModel.layerPlacement.threads")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
-                                          Inference
+                                          {t("editModel.layerPlacement.threadsDescription")}
                                         </span>
                                       </div>
                                       <NumberInput
@@ -3665,10 +3721,10 @@ export function EditModelPage() {
                                     <div className="space-y-4">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Batch Threads
+                                          {t("editModel.layerPlacement.batchThreads")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
-                                          Processing
+                                          {t("editModel.layerPlacement.batchThreadsDescription")}
                                         </span>
                                       </div>
                                       <NumberInput
@@ -3691,10 +3747,10 @@ export function EditModelPage() {
                                     <div className="space-y-4">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Batch Size
+                                          {t("editModel.layerPlacement.batchSize")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
-                                          Prompt chunk
+                                          {t("editModel.layerPlacement.batchSizeDescription")}
                                         </span>
                                       </div>
                                       <NumberInput
@@ -3715,10 +3771,10 @@ export function EditModelPage() {
                                     <div className="space-y-4">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Flash Attention
+                                          {t("editModel.layerPlacement.flashAttention")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
-                                          Optimization
+                                          {t("editModel.layerPlacement.flashAttentionDescription")}
                                         </span>
                                       </div>
                                       <select
@@ -3732,13 +3788,13 @@ export function EditModelPage() {
                                         className={selectInputClassName}
                                       >
                                         <option value="auto" className="bg-[#16171d]">
-                                          Auto
+                                          {t("common.labels.auto")}
                                         </option>
                                         <option value="enabled" className="bg-[#16171d]">
-                                          Enabled
+                                          {t("common.labels.enabled")}
                                         </option>
                                         <option value="disabled" className="bg-[#16171d]">
-                                          Disabled
+                                          {t("common.labels.disabled")}
                                         </option>
                                       </select>
                                     </div>
@@ -3748,11 +3804,10 @@ export function EditModelPage() {
                                     <div className="flex items-center justify-between gap-4">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Multi-Token Prediction
+                                          {t("editModel.mtp.title")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
-                                          Speculative decoding via bundled MTP layers or an
-                                          external draft file. Ignored when the model has neither.
+                                          {t("editModel.mtp.description")}
                                         </span>
                                       </div>
                                       <div className="flex shrink-0 items-center gap-3">
@@ -3765,8 +3820,8 @@ export function EditModelPage() {
                                           )}
                                         >
                                           {modelAdvancedDraft.llamaMtpEnabled === true
-                                            ? "On"
-                                            : "Off"}
+                                            ? t("common.labels.on")
+                                            : t("common.labels.off")}
                                         </span>
                                         <Switch
                                           id="llama-mtp-enabled"
@@ -3774,7 +3829,7 @@ export function EditModelPage() {
                                           onChange={(next) =>
                                             handleLlamaMtpEnabledChange(next ? true : null)
                                           }
-                                          aria-label="Toggle multi-token prediction"
+                                          aria-label={t("editModel.mtp.toggle")}
                                         />
                                       </div>
                                     </div>
@@ -3784,14 +3839,15 @@ export function EditModelPage() {
                                         <div className="flex items-center justify-between">
                                           <div className="space-y-0.5">
                                             <span className="block text-[13px] font-medium text-fg/70">
-                                              Draft Tokens
+                                              {t("editModel.mtp.draftTokens")}
                                             </span>
                                             <span className="block text-[13px] text-fg/40">
-                                              Speculative tokens per step (1 to 8)
+                                              {t("editModel.mtp.draftTokensDescription")}
                                             </span>
                                           </div>
                                           <span className="font-mono text-[13px] text-fg/55">
-                                            {modelAdvancedDraft.llamaMtpDraftTokens ?? "Auto"}
+                                            {modelAdvancedDraft.llamaMtpDraftTokens ??
+                                              t("common.labels.auto")}
                                           </span>
                                         </div>
                                         <NumberInput
@@ -3806,7 +3862,7 @@ export function EditModelPage() {
                                                 : Math.min(8, Math.trunc(next)),
                                             )
                                           }
-                                          placeholder="4"
+                                          placeholder={t("editModel.placeholders.four")}
                                           className={numberInputClassName}
                                         />
                                       </div>
@@ -3817,11 +3873,10 @@ export function EditModelPage() {
                                         <div className="flex items-start justify-between gap-3">
                                           <div className="space-y-0.5">
                                             <span className="block text-[13px] font-medium text-fg/70">
-                                              MTP Draft File
+                                              {t("editModel.mtp.draftFile")}
                                             </span>
                                             <span className="block text-[13px] text-fg/40">
-                                              Optional external draft GGUF. Auto-discovered from a
-                                              sibling mtp-*.gguf when empty.
+                                              {t("editModel.mtp.draftFileDescription")}
                                             </span>
                                           </div>
                                           <button
@@ -3841,7 +3896,7 @@ export function EditModelPage() {
                                               e.target.value === "" ? null : e.target.value,
                                             )
                                           }
-                                          placeholder="Auto-discover"
+                                          placeholder={t("editModel.mtp.draftFilePlaceholder")}
                                           className={selectInputClassName}
                                           spellCheck={false}
                                         />
@@ -3856,10 +3911,10 @@ export function EditModelPage() {
                                 <div className="flex items-center gap-2 border-l-2 border-fg/20 pl-3">
                                   <div className="space-y-0.5">
                                     <span className="block text-[13px] font-bold text-fg/80 uppercase tracking-tight">
-                                      Sampling & Quality
+                                      {t("editModel.runtimeSections.samplingQualityTitle")}
                                     </span>
                                     <span className="block text-[13px] text-fg/40">
-                                      Local-only sampler overrides
+                                      {t("editModel.runtimeSections.samplingQualityDescription")}
                                     </span>
                                   </div>
                                 </div>
@@ -3867,10 +3922,10 @@ export function EditModelPage() {
                                 <div className="space-y-4">
                                   <div className="space-y-0.5">
                                     <span className="block text-[13px] font-medium text-fg/70">
-                                      Sampler Profile
+                                      {t("editModel.llamaSampler.samplerProfile")}
                                     </span>
                                     <span className="block text-[13px] text-fg/40">
-                                      Tuned local defaults for stability or reasoning
+                                      {t("editModel.llamaSampler.samplerProfileDescription")}
                                     </span>
                                   </div>
                                   <select
@@ -3892,7 +3947,7 @@ export function EditModelPage() {
                                         value={option.value}
                                         className="bg-[#16171d]"
                                       >
-                                        {option.label}
+                                        {t(option.labelKey)}
                                       </option>
                                     ))}
                                   </select>
@@ -3903,7 +3958,7 @@ export function EditModelPage() {
                                           key={detail}
                                           className="font-mono text-[13px] text-fg/55"
                                         >
-                                          {detail}
+                                          {t(detail)}
                                         </span>
                                       ),
                                     )}
@@ -3919,10 +3974,10 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        Min P
+                                        {t("editModel.llamaSampler.minP")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Local override
+                                        {t("editModel.llamaSampler.localOverride")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -3939,10 +3994,10 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        Typical P
+                                        {t("editModel.llamaSampler.typicalP")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Local override
+                                        {t("editModel.llamaSampler.localOverride")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -3961,10 +4016,10 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        DRY Multiplier
+                                        {t("editModel.llamaSampler.dryMultiplier")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        `0` disables sequence repetition control
+                                        {t("editModel.llamaSampler.dryMultiplierDescription")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -3973,7 +4028,7 @@ export function EditModelPage() {
                                       step={0.05}
                                       value={modelAdvancedDraft.llamaDryMultiplier ?? null}
                                       onChange={(next) => handleLlamaDryMultiplierChange(next)}
-                                      placeholder="0.80"
+                                      placeholder={t("editModel.placeholders.dryMultiplier")}
                                       className={numberInputClassName}
                                     />
                                   </div>
@@ -3981,10 +4036,10 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        DRY Base
+                                        {t("editModel.llamaSampler.dryBase")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Exponential growth factor
+                                        {t("editModel.llamaSampler.dryBaseDescription")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -3993,7 +4048,7 @@ export function EditModelPage() {
                                       step={0.05}
                                       value={modelAdvancedDraft.llamaDryBase ?? null}
                                       onChange={(next) => handleLlamaDryBaseChange(next)}
-                                      placeholder="1.75"
+                                      placeholder={t("editModel.placeholders.dryBase")}
                                       className={numberInputClassName}
                                     />
                                   </div>
@@ -4003,10 +4058,10 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        DRY Allowed Length
+                                        {t("editModel.llamaSampler.dryAllowedLength")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Ignore repeats shorter than this sequence length
+                                        {t("editModel.llamaSampler.dryAllowedLengthDescription")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -4015,7 +4070,7 @@ export function EditModelPage() {
                                       step={1}
                                       value={modelAdvancedDraft.llamaDryAllowedLength ?? null}
                                       onChange={(next) => handleLlamaDryAllowedLengthChange(next)}
-                                      placeholder="2"
+                                      placeholder={t("editModel.placeholders.dryAllowedLength")}
                                       className={numberInputClassName}
                                     />
                                   </div>
@@ -4023,10 +4078,10 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        DRY Penalty Last N
+                                        {t("editModel.llamaSampler.dryPenaltyLastN")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Use `-1` to scan the full context
+                                        {t("editModel.llamaSampler.dryPenaltyLastNDescription")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -4035,7 +4090,7 @@ export function EditModelPage() {
                                       step={1}
                                       value={modelAdvancedDraft.llamaDryPenaltyLastN ?? null}
                                       onChange={(next) => handleLlamaDryPenaltyLastNChange(next)}
-                                      placeholder="-1"
+                                      placeholder={t("editModel.placeholders.dryPenaltyLastN")}
                                       className={numberInputClassName}
                                     />
                                   </div>
@@ -4044,10 +4099,10 @@ export function EditModelPage() {
                                 <div className="space-y-4">
                                   <div className="space-y-0.5">
                                     <span className="block text-[13px] font-medium text-fg/70">
-                                      DRY Sequence Breakers
+                                      {t("editModel.llamaSampler.drySequenceBreakers")}
                                     </span>
                                     <span className="block text-[13px] text-fg/40">
-                                      Comma-separated boundaries like `\n`, `:`, `"`, `*`
+                                      {t("editModel.llamaSampler.drySequenceBreakersDescription")}
                                     </span>
                                   </div>
                                   <input
@@ -4070,10 +4125,10 @@ export function EditModelPage() {
                                 <div className="space-y-4">
                                   <div className="space-y-0.5">
                                     <span className="block text-[13px] font-medium text-fg/70">
-                                      Seed
+                                      {t("editModel.llamaSampler.seed")}
                                     </span>
                                     <span className="block text-[13px] text-fg/40">
-                                      Leave blank for random
+                                      {t("editModel.llamaSampler.seedDescription")}
                                     </span>
                                   </div>
                                   <NumberInput
@@ -4096,10 +4151,10 @@ export function EditModelPage() {
                                   <div className="flex items-center gap-2 border-l-2 border-fg/20 pl-3">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-bold text-fg/80 uppercase tracking-tight">
-                                        Prompting & Templates
+                                        {t("editModel.runtimeSections.promptingTemplatesTitle")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Format controls and fallbacks
+                                        {t("editModel.runtimeSections.promptingTemplatesDescription")}
                                       </span>
                                     </div>
                                   </div>
@@ -4108,10 +4163,10 @@ export function EditModelPage() {
                                     <div className="flex items-start justify-between gap-3">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Template Override
+                                          {t("editModel.templates.templateOverride")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
-                                          Jinja template or internal name
+                                          {t("editModel.templates.templateOverrideDescription")}
                                         </span>
                                       </div>
                                       <button
@@ -4120,7 +4175,7 @@ export function EditModelPage() {
                                         className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-fg/10 bg-fg/5 px-2.5 py-1.5 text-[12px] font-medium text-fg/68 transition hover:border-fg/20 hover:bg-fg/10 hover:text-fg"
                                       >
                                         <Maximize2 className="h-3.5 w-3.5 text-accent/70" />
-                                        Edit
+                                        {t("common.buttons.edit")}
                                       </button>
                                     </div>
                                     <button
@@ -4138,7 +4193,7 @@ export function EditModelPage() {
                                         ? modelAdvancedDraft.llamaChatTemplateOverride.length > 80
                                           ? `${modelAdvancedDraft.llamaChatTemplateOverride.slice(0, 80)}...`
                                           : modelAdvancedDraft.llamaChatTemplateOverride
-                                        : "Prefer embedded GGUF template"}
+                                        : t("editModel.templates.preferEmbedded")}
                                     </button>
                                   </div>
 
@@ -4146,10 +4201,10 @@ export function EditModelPage() {
                                     <div className="flex items-start justify-between gap-3">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          MMProj Path
+                                          {t("editModel.templates.mmprojPath")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
-                                          Multimodal projector GGUF required for vision models
+                                          {t("editModel.templates.mmprojPathDescription")}
                                         </span>
                                       </div>
                                       <button
@@ -4180,10 +4235,10 @@ export function EditModelPage() {
                                     <div className="space-y-4">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Template Preset
+                                          {t("editModel.templates.templatePreset")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
-                                          Fallback if GGUF has no template
+                                          {t("editModel.templates.templatePresetDescription")}
                                         </span>
                                       </div>
                                       <select
@@ -4201,7 +4256,7 @@ export function EditModelPage() {
                                             value={option.value}
                                             className="bg-[#16171d]"
                                           >
-                                            {option.label}
+                                            {t(option.labelKey)}
                                           </option>
                                         ))}
                                       </select>
@@ -4210,10 +4265,10 @@ export function EditModelPage() {
                                     <div className="space-y-4">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
-                                          Raw Completion Fallback
+                                          {t("editModel.templates.rawCompletionFallback")}
                                         </span>
                                         <span className="block text-[13px] text-fg/40">
-                                          Only for raw-tuned models
+                                          {t("editModel.templates.rawCompletionFallbackDescription")}
                                         </span>
                                       </div>
                                       <select
@@ -4234,13 +4289,13 @@ export function EditModelPage() {
                                         className={selectInputClassName}
                                       >
                                         <option value="default" className="bg-[#16171d]">
-                                          Default (disabled)
+                                          {t("editModel.templates.rawCompletionDefault")}
                                         </option>
                                         <option value="enabled" className="bg-[#16171d]">
-                                          Enabled
+                                          {t("common.labels.enabled")}
                                         </option>
                                         <option value="disabled" className="bg-[#16171d]">
-                                          Disabled
+                                          {t("common.labels.disabled")}
                                         </option>
                                       </select>
                                     </div>
@@ -4255,19 +4310,15 @@ export function EditModelPage() {
                                           </div>
                                           <div className="min-w-0 space-y-1">
                                             <span className="block text-[13px] font-medium text-fg/82">
-                                              Strict Mode
+                                              {t("editModel.templates.strictMode")}
                                             </span>
                                             <span className="block text-[13px] leading-relaxed text-fg/48">
-                                              Don&apos;t use this if you don&apos;t know what you
-                                              are doing. This bypasses llama.cpp safety fallbacks
-                                              that lower GPU layers, clamp context or batch, or
-                                              switch a failed GPU load to CPU.
+                                              {t("editModel.templates.strictModeDescription")}
                                             </span>
                                           </div>
                                         </div>
                                         <span className="block text-[12px] text-danger/75">
-                                          Use only when you want manual layer offload, context, and
-                                          batch settings enforced as-is.
+                                          {t("editModel.templates.strictModeWarning")}
                                         </span>
                                       </div>
                                       <div className="flex shrink-0 items-center gap-3">
@@ -4280,8 +4331,8 @@ export function EditModelPage() {
                                           )}
                                         >
                                           {modelAdvancedDraft.llamaStrictMode === true
-                                            ? "On"
-                                            : "Off"}
+                                            ? t("common.labels.on")
+                                            : t("common.labels.off")}
                                         </span>
                                         <Switch
                                           id="llama-strict-mode"
@@ -4312,7 +4363,7 @@ export function EditModelPage() {
                               <div className="space-y-6">
                                 <div className="flex items-center gap-2 border-l-2 border-fg/20 pl-3">
                                   <span className="text-[13px] font-bold text-fg/80 uppercase tracking-tight">
-                                    Memory & Tokens
+                                    {t("editModel.runtimeSections.memoryTokensTitle")}
                                   </span>
                                 </div>
 
@@ -4320,7 +4371,7 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        Context Length
+                                        {t("editModel.ollamaParams.contextLength")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
                                         {t("editModel.ollama.numCtxShort")}
@@ -4344,10 +4395,10 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        Max Predict
+                                        {t("editModel.ollamaParams.maxPredict")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Num Predict
+                                        {t("editModel.ollamaParams.numPredict")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -4369,10 +4420,10 @@ export function EditModelPage() {
                                 <div className="space-y-4">
                                   <div className="space-y-0.5">
                                     <span className="block text-[13px] font-medium text-fg/70">
-                                      Num Keep
+                                      {t("editModel.ollamaParams.numKeep")}
                                     </span>
                                     <span className="block text-[13px] text-fg/40">
-                                      Tokens to keep from prompt
+                                      {t("editModel.ollamaParams.numKeepDescription")}
                                     </span>
                                   </div>
                                   <NumberInput
@@ -4395,7 +4446,7 @@ export function EditModelPage() {
                               <div className="space-y-6">
                                 <div className="flex items-center gap-2 border-l-2 border-fg/20 pl-3">
                                   <span className="text-[13px] font-bold text-fg/80 uppercase tracking-tight">
-                                    Performance
+                                    {t("editModel.runtimeSections.performanceTitle")}
                                   </span>
                                 </div>
 
@@ -4403,10 +4454,10 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        Num GPU
+                                        {t("editModel.ollamaParams.numGpu")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Layers offload
+                                        {t("editModel.ollamaParams.numGpuDescription")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -4427,10 +4478,10 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        Num Thread
+                                        {t("editModel.ollamaParams.numThread")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        CPU threads
+                                        {t("editModel.ollamaParams.numThreadDescription")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -4452,10 +4503,10 @@ export function EditModelPage() {
                                 <div className="space-y-4">
                                   <div className="space-y-0.5">
                                     <span className="block text-[13px] font-medium text-fg/70">
-                                      Num Batch
+                                      {t("editModel.ollamaParams.numBatch")}
                                     </span>
                                     <span className="block text-[13px] text-fg/40">
-                                      Processing batch
+                                      {t("editModel.ollamaParams.numBatchDescription")}
                                     </span>
                                   </div>
                                   <NumberInput
@@ -4478,7 +4529,7 @@ export function EditModelPage() {
                               <div className="space-y-6">
                                 <div className="flex items-center gap-2 border-l-2 border-fg/20 pl-3">
                                   <span className="text-[13px] font-bold text-fg/80 uppercase tracking-tight">
-                                    Sampling & Penalties
+                                    {t("editModel.runtimeSections.samplingPenaltiesTitle")}
                                   </span>
                                 </div>
 
@@ -4486,10 +4537,10 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        TFS Z
+                                        {t("editModel.ollamaParams.tfsZ")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Tail-free
+                                        {t("editModel.ollamaParams.tfsZDescription")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -4506,10 +4557,10 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        Repeat Penalty
+                                        {t("editModel.ollamaParams.repeatPenalty")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Punish repetition
+                                        {t("editModel.ollamaParams.repeatPenaltyDescription")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -4528,10 +4579,10 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        Min P
+                                        {t("editModel.ollamaParams.minP")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Min-p sampling
+                                        {t("editModel.ollamaParams.minPDescription")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -4548,10 +4599,10 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        Typical P
+                                        {t("editModel.ollamaParams.typicalP")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Typical sampling
+                                        {t("editModel.ollamaParams.typicalPDescription")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -4569,10 +4620,10 @@ export function EditModelPage() {
                                 <div className="space-y-4">
                                   <div className="space-y-0.5">
                                     <span className="block text-[13px] font-medium text-fg/70">
-                                      Mirostat
+                                      {t("editModel.ollamaParams.mirostat")}
                                     </span>
                                     <span className="block text-[13px] text-fg/40">
-                                      0=off, 1, 2
+                                      {t("editModel.ollamaParams.mirostatDescription")}
                                     </span>
                                   </div>
                                   <select
@@ -4591,10 +4642,10 @@ export function EditModelPage() {
                                     className={selectInputClassName}
                                   >
                                     <option value="auto" className="bg-[#16171d]">
-                                      Auto
+                                      {t("common.labels.auto")}
                                     </option>
                                     <option value="0" className="bg-[#16171d]">
-                                      0 (Off)
+                                      {t("editModel.ollamaParams.mirostatOff")}
                                     </option>
                                     <option value="1" className="bg-[#16171d]">
                                       1
@@ -4609,10 +4660,10 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        Tau
+                                        {t("editModel.ollamaParams.tau")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Target entropy
+                                        {t("editModel.ollamaParams.tauDescription")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -4629,10 +4680,10 @@ export function EditModelPage() {
                                   <div className="space-y-4">
                                     <div className="space-y-0.5">
                                       <span className="block text-[13px] font-medium text-fg/70">
-                                        Eta
+                                        {t("editModel.ollamaParams.eta")}
                                       </span>
                                       <span className="block text-[13px] text-fg/40">
-                                        Learning rate
+                                        {t("editModel.ollamaParams.etaDescription")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -4650,10 +4701,10 @@ export function EditModelPage() {
                                 <div className="space-y-4">
                                   <div className="space-y-0.5">
                                     <span className="block text-[13px] font-medium text-fg/70">
-                                      Seed
+                                      {t("editModel.ollamaParams.seed")}
                                     </span>
                                     <span className="block text-[13px] text-fg/40">
-                                      Random if blank
+                                      {t("editModel.ollamaParams.seedDescription")}
                                     </span>
                                   </div>
                                   <NumberInput
@@ -4676,7 +4727,7 @@ export function EditModelPage() {
                               <div className="space-y-4">
                                 <div className="flex items-center gap-2 border-l-2 border-fg/20 pl-3">
                                   <span className="text-[13px] font-bold text-fg/80 uppercase tracking-tight">
-                                    Stop Sequences
+                                    {t("editModel.runtimeSections.stopSequencesTitle")}
                                   </span>
                                 </div>
                                 <textarea
@@ -5003,16 +5054,15 @@ export function EditModelPage() {
                                       </div>
                                       <div className="min-w-0 space-y-1">
                                         <span className="block text-[13px] font-medium text-fg/82">
-                                          Streaming
+                                          {t("editModel.streaming.title")}
                                         </span>
                                         <span className="block text-[13px] leading-relaxed text-fg/48">
-                                          Disable incremental token streaming for this llama.cpp
-                                          model.
+                                          {t("editModel.streaming.description")}
                                         </span>
                                       </div>
                                     </div>
                                     <span className="block text-[12px] text-fg/42">
-                                      When off, responses are delivered only after completion.
+                                      {t("editModel.streaming.offNote")}
                                     </span>
                                   </div>
                                   <div className="flex shrink-0 items-center gap-3">
@@ -5025,8 +5075,8 @@ export function EditModelPage() {
                                       )}
                                     >
                                       {modelAdvancedDraft.llamaStreamingEnabled !== false
-                                        ? "On"
-                                        : "Off"}
+                                        ? t("common.labels.on")
+                                        : t("common.labels.off")}
                                     </span>
                                     <Switch
                                       id="llama-streaming-enabled"
@@ -5034,7 +5084,7 @@ export function EditModelPage() {
                                       onChange={(next) =>
                                         handleLlamaStreamingEnabledChange(next ? true : false)
                                       }
-                                      aria-label="Toggle llama.cpp streaming"
+                                      aria-label={t("editModel.streaming.toggle")}
                                     />
                                   </div>
                                 </div>

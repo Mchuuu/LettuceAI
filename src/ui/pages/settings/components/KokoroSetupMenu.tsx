@@ -3,6 +3,7 @@ import { AlertTriangle, Check, Cpu, Download, Loader2, Sparkles } from "lucide-r
 
 import { BottomMenu } from "../../../components/BottomMenu";
 import { cn } from "../../../design-tokens";
+import { useI18n, type TranslationKey } from "../../../../core/i18n/context";
 import { useDownloadQueue } from "../../../../core/downloads/DownloadQueueContext";
 import {
   kokoroDefaultAssetRoot,
@@ -17,23 +18,23 @@ import {
 
 export const STARTER_PACK_VOICE_IDS = ["af_heart", "am_adam", "bf_emma", "bm_george"];
 
-const VARIANT_COPY: Record<KokoroModelVariant, { description: string; tag: string }> = {
+const VARIANT_COPY = {
   int8: {
-    description:
-      "Light on battery and quick to start. Natural enough for most character voices.",
-    tag: "Mobile",
+    descriptionKey: "voices.extra.kokoroSetup.variantInt8Description",
+    tagKey: "voices.extra.kokoroSetup.variantInt8Tag",
   },
   fp16: {
-    description:
-      "The sweet spot for desktop. Warmer voices than int8 with no real wait between replies.",
-    tag: "Recommended",
+    descriptionKey: "voices.extra.kokoroSetup.variantFp16Description",
+    tagKey: "voices.extra.kokoroSetup.variantFp16Tag",
   },
   fp32: {
-    description:
-      "The most lifelike characters, with the richest detail. Slower and heavier on memory.",
-    tag: "High-end",
+    descriptionKey: "voices.extra.kokoroSetup.variantFp32Description",
+    tagKey: "voices.extra.kokoroSetup.variantFp32Tag",
   },
-};
+} as const satisfies Record<
+  KokoroModelVariant,
+  { descriptionKey: TranslationKey; tagKey: TranslationKey }
+>;
 
 export function KokoroSetupMenu({
   provider,
@@ -44,6 +45,7 @@ export function KokoroSetupMenu({
   onClose: () => void;
   onStarted?: () => void;
 }) {
+  const { t } = useI18n();
   const { queue } = useDownloadQueue();
   const [variants, setVariants] = useState<KokoroSupportedVariant[]>([]);
   const [picked, setPicked] = useState<KokoroModelVariant | undefined>(undefined);
@@ -116,12 +118,11 @@ export function KokoroSetupMenu({
       onClose={() => {
         if (!busy) onClose();
       }}
-      title="Set up voice engine"
+      title={t("voices.extra.kokoroSetup.title")}
     >
       <div className="space-y-3">
         <p className="text-[12px] leading-relaxed text-fg/55">
-          This voice runs entirely on this device. Pick the quality that fits your hardware, then
-          download. You can switch later.
+          {t("voices.extra.kokoroSetup.intro")}
         </p>
 
         <div className="space-y-1.5">
@@ -161,16 +162,18 @@ export function KokoroSetupMenu({
                               : "border-fg/15 bg-fg/5 text-fg/55",
                           )}
                         >
-                          {copy.tag}
+                          {t(copy.tagKey)}
                         </span>
                       )}
                     </div>
                     {copy && (
-                      <p className="mt-0.5 truncate text-[11.5px] text-fg/45">{copy.description}</p>
+                      <p className="mt-0.5 truncate text-[11.5px] text-fg/45">
+                        {t(copy.descriptionKey)}
+                      </p>
                     )}
                   </div>
                   <span className="shrink-0 text-[12px] font-semibold tabular-nums text-fg/75">
-                    {v.sizeMb} MB
+                    {v.sizeMb} {t("common.units.mb")}
                   </span>
                   <span
                     className={cn(
@@ -207,9 +210,11 @@ export function KokoroSetupMenu({
             <Sparkles size={15} />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-medium text-fg">Starter voice pack</p>
+            <p className="text-[13px] font-medium text-fg">
+              {t("voices.extra.kokoroSetup.starterPackTitle")}
+            </p>
             <p className="mt-0.5 text-[11.5px] text-fg/45">
-              Heart, Adam, Emma, and George. A balanced set of US and UK voices.
+              {t("voices.extra.kokoroSetup.starterPackDescription")}
             </p>
           </div>
           <span
@@ -241,7 +246,9 @@ export function KokoroSetupMenu({
           ) : (
             <Download className="h-4 w-4" />
           )}
-          {downloading ? "Downloading..." : "Download"}
+          {downloading
+            ? t("voices.extra.kokoroSetup.downloading")
+            : t("voices.extra.kokoroSetup.download")}
         </button>
       </div>
     </BottomMenu>

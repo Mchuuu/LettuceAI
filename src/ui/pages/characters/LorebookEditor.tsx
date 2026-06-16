@@ -106,7 +106,7 @@ function KeywordTagInput({
               type="button"
               onClick={onGenerate}
               disabled={isGenerating || !canGenerate}
-              title="Generate keywords from content"
+              title={t("characters.lorebook.generateKeywordsTooltip")}
               className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[11px] font-medium text-accent transition hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isGenerating ? (
@@ -114,7 +114,7 @@ function KeywordTagInput({
               ) : (
                 <Sparkles className="h-3 w-3" />
               )}
-              Generate
+              {t("common.buttons.generate")}
             </button>
           )}
           <span className="text-xs text-fg/50">{t("characters.lorebook.caseSensitive")}</span>
@@ -690,7 +690,7 @@ function LorebookListView({
                 const confirmed = await confirmBottomMenu({
                   title: t("characters.lorebook.deleteConfirmTitle"),
                   message: t("characters.lorebook.deleteConfirmMessage"),
-                  confirmLabel: "Delete",
+                  confirmLabel: t("common.buttons.delete"),
                   destructive: true,
                 });
                 if (!confirmed) return;
@@ -991,7 +991,7 @@ export function EntryEditorMenu({
   const handleGenerateKeywords = async () => {
     const content = draft.content.trim();
     if (!content) {
-      toast.error("Keyword generation needs entry content first");
+      toast.error(t("characters.lorebook.generateKeywordsNeedsContent"));
       return;
     }
 
@@ -1004,7 +1004,7 @@ export function EntryEditorMenu({
         existingKeywords: draft.keywords,
       });
       if (!result.keywords.length) {
-        toast.error("Keyword generation returned no usable keywords");
+        toast.error(t("characters.lorebook.generateKeywordsNoneReturned"));
         return;
       }
       setKeywordDraftKeywords(result.keywords);
@@ -1012,7 +1012,7 @@ export function EntryEditorMenu({
     } catch (error) {
       console.error("Failed to generate lorebook keywords:", error);
       toast.error(
-        "Keyword generation failed",
+        t("characters.lorebook.generateKeywordsFailed"),
         error instanceof Error ? error.message : String(error),
       );
     } finally {
@@ -1022,7 +1022,7 @@ export function EntryEditorMenu({
 
   const handleAcceptKeywords = () => {
     if (!keywordDraftKeywords.length) {
-      toast.error("No generated keywords to apply");
+      toast.error(t("characters.lorebook.noGeneratedKeywords"));
       return;
     }
     setDraft((current) =>
@@ -1042,11 +1042,13 @@ export function EntryEditorMenu({
       <BottomMenu isOpen={isOpen} onClose={onClose} title={t("characters.lorebook.editEntry")}>
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-[11px] font-medium text-fg/70">TITLE</label>
+            <label className="text-[11px] font-medium text-fg/70">
+              {t("characters.lorebook.titleLabel")}
+            </label>
             <input
               value={draft.title || ""}
               onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-              placeholder="Name this entry..."
+              placeholder={t("characters.lorebook.titlePlaceholder")}
               className="w-full rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
             />
           </div>
@@ -1054,8 +1056,12 @@ export function EntryEditorMenu({
           <div className="flex gap-3">
             <div className="flex flex-1 items-start justify-between gap-4 rounded-xl border border-fg/10 bg-surface-el/90 p-3">
               <div>
-                <label className="block text-sm font-semibold text-fg">Enabled</label>
-                <p className="mt-0.5 text-xs text-fg/50">Include in prompts</p>
+                <label className="block text-sm font-semibold text-fg">
+                  {t("characters.lorebook.enabled")}
+                </label>
+                <p className="mt-0.5 text-xs text-fg/50">
+                  {t("characters.lorebook.includeInPrompts")}
+                </p>
               </div>
               <Switch
                 checked={draft.enabled}
@@ -1065,8 +1071,12 @@ export function EntryEditorMenu({
 
             <div className="flex flex-1 items-start justify-between gap-4 rounded-xl border border-fg/10 bg-surface-el/90 p-3">
               <div>
-                <label className="block text-sm font-semibold text-fg">Always On</label>
-                <p className="mt-0.5 text-xs text-fg/50">No keywords needed</p>
+                <label className="block text-sm font-semibold text-fg">
+                  {t("characters.lorebook.alwaysOn")}
+                </label>
+                <p className="mt-0.5 text-xs text-fg/50">
+                  {t("characters.lorebook.noKeywordsNeeded")}
+                </p>
               </div>
               <Switch
                 checked={draft.alwaysActive}
@@ -1116,28 +1126,32 @@ export function EntryEditorMenu({
       <BottomMenu
         isOpen={showKeywordReview}
         onClose={() => setShowKeywordReview(false)}
-        title="Review Keywords"
+        title={t("characters.lorebook.reviewKeywordsTitle")}
       >
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-[11px] font-medium text-fg/70">DIRECTION PROMPT</label>
+            <label className="text-[11px] font-medium text-fg/70">
+              {t("characters.lorebook.directionPromptLabel")}
+            </label>
             <textarea
               value={keywordDirectionPrompt}
               onChange={(e) => setKeywordDirectionPrompt(e.target.value)}
-              placeholder="Optional guidance, like: focus on aliases, locations, and broad recall terms."
+              placeholder={t("characters.lorebook.directionPromptPlaceholder")}
               rows={3}
               className="w-full resize-none rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-2 text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
             />
             <p className="text-[11px] leading-relaxed text-fg/45">
               {keywordDraftKeywords.length > 0
-                ? "Edits here affect the next regenerate pass."
-                : "Optional. Leave blank to use defaults."}
+                ? t("characters.lorebook.directionPromptRegenerateHint")
+                : t("characters.lorebook.directionPromptDefaultHint")}
             </p>
           </div>
 
           {keywordDraftKeywords.length > 0 && (
             <div className="space-y-2">
-              <label className="text-[11px] font-medium text-fg/70">MODEL RESPONSE</label>
+              <label className="text-[11px] font-medium text-fg/70">
+                {t("characters.lorebook.modelResponseLabel")}
+              </label>
               <div className="flex flex-wrap gap-2 rounded-xl border border-fg/10 bg-surface-el/20 p-3">
                 {keywordDraftKeywords.map((keyword) => (
                   <span
@@ -1158,7 +1172,7 @@ export function EntryEditorMenu({
                 onClick={() => setShowKeywordReview(false)}
                 className="rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-3 text-sm font-medium text-fg/70 transition hover:bg-surface-el/30"
               >
-                Cancel
+                {t("common.buttons.cancel")}
               </button>
               <button
                 type="button"
@@ -1167,7 +1181,7 @@ export function EntryEditorMenu({
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-accent/40 bg-accent/20 px-3 py-3 text-sm font-semibold text-accent transition hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isKeywordGenerating && <Loader2 className="h-4 w-4 animate-spin" />}
-                Generate
+                {t("common.buttons.generate")}
               </button>
             </div>
           ) : (
@@ -1177,7 +1191,7 @@ export function EntryEditorMenu({
                 onClick={() => setShowKeywordReview(false)}
                 className="rounded-xl border border-fg/10 bg-surface-el/20 px-3 py-3 text-sm font-medium text-fg/70 transition hover:bg-surface-el/30"
               >
-                Reject
+                {t("characters.lorebook.rejectKeywords")}
               </button>
               <button
                 type="button"
@@ -1186,7 +1200,7 @@ export function EntryEditorMenu({
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-3 text-sm font-medium text-warning transition hover:bg-warning/15 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isKeywordGenerating && <Loader2 className="h-4 w-4 animate-spin" />}
-                Regenerate
+                {t("characters.lorebook.regenerateKeywords")}
               </button>
               <button
                 type="button"
@@ -1194,7 +1208,7 @@ export function EntryEditorMenu({
                 disabled={!keywordDraftKeywords.length}
                 className="rounded-xl border border-accent/40 bg-accent/20 px-3 py-3 text-sm font-semibold text-accent transition hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Accept
+                {t("characters.lorebook.acceptKeywords")}
               </button>
             </div>
           )}
@@ -1258,7 +1272,9 @@ export function LorebookEditor() {
     return null;
   }, [characterId, groupId, groupSessionId]);
 
-  const pageTitle = activeLorebook ? `Lorebook - ${activeLorebook.name}` : undefined;
+  const pageTitle = activeLorebook
+    ? t("characters.lorebook.pageTitle", { name: activeLorebook.name })
+    : undefined;
   const assignmentCopy = useMemo(() => {
     if (target?.type === "group") {
       return {
@@ -1544,7 +1560,7 @@ export function LorebookEditor() {
       setShowExportMenu(false);
     } catch (error) {
       console.error("Failed to export lorebook:", error);
-      toast.error("Export failed", String(error));
+      toast.error(t("characters.lorebook.exportFailed"), String(error));
     } finally {
       setIsExporting(false);
     }
@@ -1620,7 +1636,7 @@ export function LorebookEditor() {
   if (!target) {
     return (
       <div className="flex h-full items-center justify-center text-fg/50">
-        No lorebook target provided
+        {t("characters.lorebook.noTarget")}
       </div>
     );
   }
@@ -1647,8 +1663,8 @@ export function LorebookEditor() {
                     )
                   }
                   className="flex items-center px-[0.6em] py-[0.3em] justify-center rounded-full text-fg/70 hover:text-fg hover:bg-fg/10 transition"
-                  aria-label="Generate lorebook entry"
-                  title="Generate lorebook entry"
+                  aria-label={t("characters.lorebook.generateEntryAria")}
+                  title={t("characters.lorebook.generateEntryAria")}
                 >
                   <Sparkles size={18} className="text-fg" />
                 </button>
@@ -1667,8 +1683,8 @@ export function LorebookEditor() {
                 onClick={() => setShowExportMenu(true)}
                 disabled={isExporting}
                 className="flex items-center px-[0.6em] py-[0.3em] justify-center rounded-full text-fg/70 hover:text-fg hover:bg-fg/10 transition disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label="Export lorebook"
-                title="Export lorebook"
+                aria-label={t("characters.lorebook.exportLorebookAria")}
+                title={t("characters.lorebook.exportLorebookAria")}
               >
                 {isExporting ? (
                   <Loader2 size={18} className="animate-spin text-fg" />

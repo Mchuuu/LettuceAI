@@ -29,6 +29,7 @@ import { cn, colors } from "../../design-tokens";
 import { ModelSelectionBottomMenu } from "../../components/ModelSelectionBottomMenu";
 import { NumberInput } from "../../components/NumberInput";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
+import { useI18n } from "../../../core/i18n/context";
 
 function createDefaultHostApiSettings(): HostApiSettings {
   return {
@@ -50,6 +51,7 @@ function sanitizeHostModelId(value: string): string {
 }
 
 export function HostApiPage() {
+  const { t } = useI18n();
   const [isLoading, setIsLoading] = useState(true);
   const [models, setModels] = useState<Model[]>([]);
   const [hostApi, setHostApi] = useState<HostApiSettings>(createDefaultHostApiSettings());
@@ -223,7 +225,7 @@ export function HostApiPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-fg">
-                    {isRunning ? "Server Running" : "Server Stopped"}
+                    {isRunning ? t("hostApi.status.running") : t("hostApi.status.stopped")}
                   </p>
                   {isRunning && hostApiStatus?.baseUrl ? (
                     <button
@@ -240,8 +242,8 @@ export function HostApiPage() {
                   ) : !isRunning ? (
                     <p className="text-[11px] text-fg/40">
                       {hostApi.enabled
-                        ? "Apply changes to start the server"
-                        : "Enable and apply to start"}
+                        ? t("hostApi.status.applyToStart")
+                        : t("hostApi.status.enableToStart")}
                     </p>
                   ) : null}
                 </div>
@@ -252,7 +254,7 @@ export function HostApiPage() {
                   "rounded-lg border border-fg/10 bg-fg/5 p-2 text-fg/50 transition",
                   "hover:border-fg/20 hover:bg-fg/10 hover:text-fg/70",
                 )}
-                aria-label="Refresh status"
+                aria-label={t("hostApi.status.refreshAria")}
               >
                 <RefreshCw className="h-4 w-4" />
               </button>
@@ -263,7 +265,7 @@ export function HostApiPage() {
             {/* Left Column - Server Configuration */}
             <div className="space-y-4">
               <h3 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35 px-1">
-                Server Configuration
+                {t("hostApi.serverConfig")}
               </h3>
 
               {/* Enable Toggle */}
@@ -274,9 +276,9 @@ export function HostApiPage() {
                       <Server className="h-4 w-4 text-info" />
                     </div>
                     <div>
-                      <span className="text-sm font-medium text-fg">Enable API Server</span>
+                      <span className="text-sm font-medium text-fg">{t("hostApi.enableServer.title")}</span>
                       <p className="text-[11px] text-fg/45">
-                        Start an OpenAI-compatible server on your network
+                        {t("hostApi.enableServer.description")}
                       </p>
                     </div>
                   </div>
@@ -310,13 +312,13 @@ export function HostApiPage() {
                   <div className="rounded-lg border border-info/30 bg-info/10 p-1.5">
                     <Network className="h-4 w-4 text-info" />
                   </div>
-                  <h3 className="text-sm font-semibold text-fg">Network</h3>
+                  <h3 className="text-sm font-semibold text-fg">{t("hostApi.network.title")}</h3>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.16em] text-fg/35">
-                      Bind Address
+                      {t("hostApi.network.bindAddress")}
                     </label>
                     <input
                       value={hostApi.bindAddress}
@@ -329,7 +331,7 @@ export function HostApiPage() {
                   </div>
                   <div>
                     <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.16em] text-fg/35">
-                      Port
+                      {t("hostApi.network.port")}
                     </label>
                     <NumberInput
                       min={1}
@@ -354,7 +356,7 @@ export function HostApiPage() {
                     <div className="rounded-lg border border-warning/30 bg-warning/10 p-1.5">
                       <Shield className="h-4 w-4 text-warning" />
                     </div>
-                    <h3 className="text-sm font-semibold text-fg">Authentication</h3>
+                    <h3 className="text-sm font-semibold text-fg">{t("hostApi.auth.title")}</h3>
                   </div>
                   <button
                     onClick={handleGenerateToken}
@@ -364,7 +366,7 @@ export function HostApiPage() {
                       "hover:border-info/35 hover:bg-info/14",
                     )}
                   >
-                    Generate Token
+                    {t("hostApi.auth.generateToken")}
                   </button>
                 </div>
 
@@ -378,7 +380,7 @@ export function HostApiPage() {
                         "w-full rounded-lg border border-fg/15 bg-surface-el/30 px-3 py-2 pr-9",
                         "font-mono text-sm text-fg focus:border-fg/30 focus:outline-none",
                       )}
-                      placeholder="Bearer token for API access"
+                      placeholder={t("hostApi.auth.tokenPlaceholder")}
                     />
                     <button
                       onClick={() => setShowToken(!showToken)}
@@ -393,7 +395,7 @@ export function HostApiPage() {
                       "rounded-lg border border-fg/10 bg-fg/5 px-3 text-fg/50 transition",
                       "hover:border-fg/20 hover:bg-fg/10 hover:text-fg/70",
                     )}
-                    aria-label="Copy token"
+                    aria-label={t("hostApi.auth.copyTokenAria")}
                   >
                     {copied === "token" ? (
                       <Check className="h-4 w-4 text-accent" />
@@ -404,7 +406,7 @@ export function HostApiPage() {
                 </div>
                 {!hostApi.token && (
                   <p className="text-[11px] text-warning/70">
-                    A token is recommended to prevent unauthorized access to your models.
+                    {t("hostApi.auth.tokenRecommended")}
                   </p>
                 )}
               </div>
@@ -414,10 +416,12 @@ export function HostApiPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between px-1">
                 <h3 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-                  Exposed Models
+                  {t("hostApi.exposedModels.title")}
                 </h3>
                 <span className="text-[11px] text-fg/40">
-                  {enabledModels.length} model{enabledModels.length !== 1 ? "s" : ""} selected
+                  {enabledModels.length === 1
+                    ? t("hostApi.exposedModels.selectedCount", { count: enabledModels.length })
+                    : t("hostApi.exposedModels.selectedCountPlural", { count: enabledModels.length })}
                 </span>
               </div>
 
@@ -431,7 +435,7 @@ export function HostApiPage() {
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-info/25 bg-info/10">
                     <Plus className="h-4 w-4 text-info" />
                   </div>
-                  <span className="text-sm text-fg/50">Add models to expose...</span>
+                  <span className="text-sm text-fg/50">{t("hostApi.exposedModels.addPlaceholder")}</span>
                 </div>
                 <ChevronDown className="h-4 w-4 text-fg/30" />
               </button>
@@ -440,9 +444,9 @@ export function HostApiPage() {
               {enabledModels.length === 0 ? (
                 <div className="rounded-xl border border-fg/10 bg-fg/5 px-4 py-6 text-center">
                   <Server className="mx-auto h-7 w-7 text-fg/15" />
-                  <p className="mt-2 text-sm text-fg/35">No models exposed yet</p>
+                  <p className="mt-2 text-sm text-fg/35">{t("hostApi.exposedModels.emptyTitle")}</p>
                   <p className="mt-1 text-[11px] text-fg/25">
-                    Add models above to make them available via the API
+                    {t("hostApi.exposedModels.emptyDescription")}
                   </p>
                 </div>
               ) : (
@@ -466,10 +470,10 @@ export function HostApiPage() {
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-medium text-fg">
-                              {model?.displayName ?? exposed.label ?? "Unknown Model"}
+                              {model?.displayName ?? exposed.label ?? t("hostApi.exposedModels.unknownModel")}
                             </p>
                             <p className="truncate text-[11px] text-fg/40">
-                              {model?.providerLabel ?? "Provider unavailable"}
+                              {model?.providerLabel ?? t("hostApi.exposedModels.providerUnavailable")}
                               {exposed.id && (
                                 <span className="text-fg/25"> &middot; <span className="font-mono">{exposed.id}</span></span>
                               )}
@@ -484,14 +488,14 @@ export function HostApiPage() {
                                   ? "bg-info/15 text-info"
                                   : "text-fg/30 hover:bg-fg/10 hover:text-fg/60",
                               )}
-                              aria-label="Configure model"
+                              aria-label={t("hostApi.exposedModels.configureAria")}
                             >
                               <Settings2 className="h-3.5 w-3.5" />
                             </button>
                             <button
                               onClick={() => removeModel(exposed.modelId)}
                               className="rounded-lg p-1.5 text-fg/30 transition hover:bg-danger/10 hover:text-danger/70"
-                              aria-label="Remove model"
+                              aria-label={t("hostApi.exposedModels.removeAria")}
                             >
                               <X className="h-3.5 w-3.5" />
                             </button>
@@ -503,7 +507,7 @@ export function HostApiPage() {
                           <div className="mt-3 space-y-2.5 border-t border-fg/8 pt-3">
                             <div>
                               <label className="mb-1 block text-[10px] font-medium uppercase tracking-[0.16em] text-fg/30">
-                                API Model ID
+                                {t("hostApi.exposedModels.apiModelId")}
                               </label>
                               <input
                                 value={exposed.id}
@@ -512,15 +516,15 @@ export function HostApiPage() {
                                   "w-full rounded-lg border border-fg/15 bg-surface-el/30 px-3 py-1.5",
                                   "font-mono text-[12px] text-fg focus:border-fg/30 focus:outline-none",
                                 )}
-                                placeholder="api-model-id"
+                                placeholder={t("hostApi.exposedModels.apiModelIdPlaceholder")}
                               />
                               <p className="mt-1 text-[10px] text-fg/25">
-                                The model name clients will use in API requests
+                                {t("hostApi.exposedModels.apiModelIdHint")}
                               </p>
                             </div>
                             <div>
                               <label className="mb-1 block text-[10px] font-medium uppercase tracking-[0.16em] text-fg/30">
-                                Display Label
+                                {t("hostApi.exposedModels.displayLabel")}
                               </label>
                               <input
                                 value={exposed.label ?? ""}
@@ -529,7 +533,7 @@ export function HostApiPage() {
                                   "w-full rounded-lg border border-fg/15 bg-surface-el/30 px-3 py-1.5",
                                   "text-[12px] text-fg focus:border-fg/30 focus:outline-none",
                                 )}
-                                placeholder="Friendly name shown in /v1/models"
+                                placeholder={t("hostApi.exposedModels.displayLabelPlaceholder")}
                               />
                             </div>
                           </div>
@@ -563,10 +567,10 @@ export function HostApiPage() {
             {saving ? (
               <span className="flex items-center justify-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Applying...
+                {t("hostApi.apply.applying")}
               </span>
             ) : (
-              "Apply & Restart Server"
+              t("hostApi.apply.button")
             )}
           </button>
 
@@ -581,11 +585,13 @@ export function HostApiPage() {
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-fg/30" />
             <div className="text-[11px] leading-relaxed text-fg/45 space-y-1.5">
               <p>
-                Exposes an <strong className="text-fg/60">OpenAI-compatible API</strong> on your
-                local network so other devices and apps can use your configured models.
+                {t("hostApi.info.exposesBefore")}
+                <strong className="text-fg/60">{t("hostApi.info.exposesBold")}</strong>
+                {t("hostApi.info.exposesAfter")}
               </p>
               <p>
-                Endpoints: <code className="text-fg/50">/health</code>,{" "}
+                {t("hostApi.info.endpoints")}
+                <code className="text-fg/50">/health</code>,{" "}
                 <code className="text-fg/50">/v1/models</code>,{" "}
                 <code className="text-fg/50">/v1/chat/completions</code>
               </p>
@@ -597,10 +603,10 @@ export function HostApiPage() {
       <ModelSelectionBottomMenu
         isOpen={showModelSelector}
         onClose={() => setShowModelSelector(false)}
-        title="Select Models to Expose"
+        title={t("hostApi.selector.title")}
         models={models}
         selectedModelIds={hostApi.exposedModels.filter((m) => m.enabled).map((m) => m.modelId)}
-        searchPlaceholder="Search models..."
+        searchPlaceholder={t("hostApi.selector.searchPlaceholder")}
         tone="info"
         renderModelDescription={(model) => model.providerLabel}
         onToggleModel={(model, isSelected) => {
@@ -613,12 +619,12 @@ export function HostApiPage() {
         renderEmptyState={(query, hasModels) =>
           hasModels ? (
             <div className="py-6 text-center">
-              <p className="text-sm text-fg/40">No models found matching "{query}"</p>
+              <p className="text-sm text-fg/40">{t("hostApi.selector.noResults", { query })}</p>
             </div>
           ) : (
             <div className="py-6 text-center">
-              <p className="text-sm text-fg/40">No text-capable models configured</p>
-              <p className="mt-1 text-[11px] text-fg/30">Add models in Settings first</p>
+              <p className="text-sm text-fg/40">{t("hostApi.selector.noModels")}</p>
+              <p className="mt-1 text-[11px] text-fg/30">{t("hostApi.selector.addModelsHint")}</p>
             </div>
           )
         }

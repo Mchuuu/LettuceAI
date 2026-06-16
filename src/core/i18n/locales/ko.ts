@@ -693,7 +693,6 @@ export const koMessages: DeepPartialMessageTree<LocaleMessages> = {
     suggestedReply: "추천 답장",
     selectTwoCharactersMinimum: "그룹 채팅에는 최소 2명의 캐릭터를 선택하세요.",
     groupBranchCreated: "그룹 분기가 생성되었습니다! 리디렉션 중...",
-    memories: "기억",
     tools: "도구",
     pinned: "고정됨",
     searchMemories: "기억 검색...",

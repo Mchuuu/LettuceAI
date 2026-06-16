@@ -2,6 +2,7 @@ import { useRef, useState, type PointerEvent, type ReactNode } from "react";
 import type { ChatWidgetLayout } from "../utils/chatWidgetLayout";
 import type { WidgetNode } from "../../../../core/storage/schemas";
 import { cn } from "../../../design-tokens";
+import { useI18n } from "../../../../core/i18n/context";
 import { WidgetList } from "./widgets";
 
 const MIN_COLUMN_PX = 400;
@@ -15,6 +16,7 @@ interface WidgetAreaPanelProps {
 }
 
 function WidgetAreaPanel({ side, nodes, withBorder, canMove }: WidgetAreaPanelProps) {
+  const { t } = useI18n();
   return (
     <aside
       className={cn(
@@ -22,7 +24,11 @@ function WidgetAreaPanel({ side, nodes, withBorder, canMove }: WidgetAreaPanelPr
         withBorder && (side === "left" ? "border-r border-fg/10" : "border-l border-fg/10"),
       )}
       style={{ minWidth: 0 }}
-      aria-label={`${side} widget area`}
+      aria-label={
+        side === "left"
+          ? t("chats.widgetArea.leftLabel")
+          : t("chats.widgetArea.rightLabel")
+      }
     >
       <WidgetList nodes={nodes} side={side} canMove={canMove} />
     </aside>

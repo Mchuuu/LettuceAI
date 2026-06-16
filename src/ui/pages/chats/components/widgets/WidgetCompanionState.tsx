@@ -1,21 +1,22 @@
 import { Sparkles } from "lucide-react";
 import type { CompanionStateNode } from "../../../../../core/storage/chatWidgetSchemas";
 import { cn } from "../../../../design-tokens";
+import { useI18n, type TranslationKey } from "../../../../../core/i18n/context";
 import { useWidgetContext } from "./WidgetContext";
 import { widgetCardClass } from "./widgetSurface";
 import { RELATIONSHIP_AXIS_ANCHORS } from "../../../characters/utils/companionDefaults";
 
-const RELATIONSHIP_METERS: {
+const RELATIONSHIP_METERS = [
+  { key: "closeness", label: "chats.widgets.companionState.closeness", bipolar: true },
+  { key: "trust", label: "chats.widgets.companionState.trust", bipolar: true },
+  { key: "affection", label: "chats.widgets.companionState.affection", bipolar: true },
+  { key: "tension", label: "chats.widgets.companionState.tension" },
+  { key: "stability", label: "chats.widgets.companionState.stability" },
+] satisfies {
   key: keyof typeof RELATIONSHIP_AXIS_ANCHORS;
-  label: string;
+  label: TranslationKey;
   bipolar?: boolean;
-}[] = [
-  { key: "closeness", label: "Closeness", bipolar: true },
-  { key: "trust", label: "Trust", bipolar: true },
-  { key: "affection", label: "Affection", bipolar: true },
-  { key: "tension", label: "Tension" },
-  { key: "stability", label: "Stability" },
-];
+}[];
 
 function Meter({
   label,
@@ -81,6 +82,7 @@ function Meter({
 }
 
 export function WidgetCompanionState({ node }: { node: CompanionStateNode }) {
+  const { t } = useI18n();
   const { character, session, hasBackground } = useWidgetContext();
   const isCompanion = character?.mode === "companion";
   const relationship = session?.companionState?.relationshipState;
@@ -95,21 +97,21 @@ export function WidgetCompanionState({ node }: { node: CompanionStateNode }) {
       <header className="flex items-center gap-2">
         <Sparkles size={14} className="text-fg/50" />
         <h3 className="text-sm font-semibold text-fg/75">
-          {node.title || "Companion"}
+          {node.title || t("chats.widgets.companionState.defaultTitle")}
         </h3>
       </header>
       {!isCompanion ? (
         <p className="text-[12px] italic text-fg/40">
-          Only available for companion characters.
+          {t("chats.widgets.companionState.companionOnly")}
         </p>
       ) : !relationship ? (
-        <p className="text-[12px] italic text-fg/40">No relationship data yet.</p>
+        <p className="text-[12px] italic text-fg/40">{t("chats.widgets.companionState.noData")}</p>
       ) : (
         <div className="flex flex-col gap-2">
           {RELATIONSHIP_METERS.map((m) => (
             <Meter
               key={m.key}
-              label={m.label}
+              label={t(m.label)}
               value={(relationship as Record<string, number>)[m.key] ?? 0}
               low={RELATIONSHIP_AXIS_ANCHORS[m.key].low}
               mid={RELATIONSHIP_AXIS_ANCHORS[m.key].mid}

@@ -1,8 +1,10 @@
 import type { QuickSnippetsNode } from "../../../../../core/storage/chatWidgetSchemas";
 import { cn, interactive } from "../../../../design-tokens";
+import { useI18n } from "../../../../../core/i18n/context";
 import { useWidgetContext } from "./WidgetContext";
 
 export function WidgetQuickSnippets({ node }: { node: QuickSnippetsNode }) {
+  const { t } = useI18n();
   const { onInsertText } = useWidgetContext();
 
   return (
@@ -18,7 +20,7 @@ export function WidgetQuickSnippets({ node }: { node: QuickSnippetsNode }) {
         </header>
       )}
       {node.snippets.length === 0 ? (
-        <p className="px-0.5 text-[12px] italic text-fg/40">No snippets yet.</p>
+        <p className="px-0.5 text-[12px] italic text-fg/40">{t("chats.widgets.quickSnippets.empty")}</p>
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {node.snippets.map((snippet) => (

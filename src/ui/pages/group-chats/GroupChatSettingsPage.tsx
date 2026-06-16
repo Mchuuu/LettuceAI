@@ -380,7 +380,7 @@ export function GroupChatSettingsPage({
               <button
                 onClick={handleBack}
                 className="flex shrink-0 px-[0.6em] py-[0.3em] items-center justify-center -ml-2 text-fg transition hover:text-fg/80"
-                aria-label="Back"
+                aria-label={t("groupChats.chatSettingsExtra.backAria")}
               >
                 <ArrowLeft size={14} strokeWidth={2.5} />
               </button>
@@ -416,7 +416,7 @@ export function GroupChatSettingsPage({
                 <div className="relative h-28">
                   <img
                     src={backgroundImagePath}
-                    alt="Background"
+                    alt={t("groupChats.chatSettingsExtra.backgroundAlt")}
                     className="h-full w-full object-cover"
                   />
                   <div className="absolute inset-0 bg-linear-to-t from-surface-el/90 to-transparent" />

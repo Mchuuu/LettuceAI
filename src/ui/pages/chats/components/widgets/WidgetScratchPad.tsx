@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ScratchPadNode } from "../../../../../core/storage/chatWidgetSchemas";
 import { cn } from "../../../../design-tokens";
+import { useI18n } from "../../../../../core/i18n/context";
 import { MarkdownRenderer } from "../MarkdownRenderer";
 import { useWidgetContext } from "./WidgetContext";
 import { useWidgetEdit } from "./WidgetEditContext";
@@ -11,6 +12,7 @@ interface WidgetScratchPadProps {
 }
 
 export function WidgetScratchPad({ node }: WidgetScratchPadProps) {
+  const { t } = useI18n();
   const { hasBackground, onUpdateScratchPad } = useWidgetContext();
   const { editing: areaEditing } = useWidgetEdit();
   const content = node.content?.trim() ?? "";
@@ -74,7 +76,7 @@ export function WidgetScratchPad({ node }: WidgetScratchPadProps) {
             }}
             rows={Math.max(3, draft.split("\n").length)}
             className="w-full resize-y bg-transparent text-sm text-fg/85 placeholder-fg/30 focus:outline-none"
-            placeholder="Write notes… (markdown supported)"
+            placeholder={t("chats.widgets.scratchPad.placeholder")}
           />
         ) : (
           <div
@@ -97,7 +99,9 @@ export function WidgetScratchPad({ node }: WidgetScratchPadProps) {
               <MarkdownRenderer content={content} />
             ) : (
               <span className="text-[12px] italic text-fg/35">
-                {canInlineEdit ? "Tap to write notes…" : "Empty scratch pad."}
+                {canInlineEdit
+                  ? t("chats.widgets.scratchPad.tapToWrite")
+                  : t("chats.widgets.scratchPad.empty")}
               </span>
             )}
           </div>

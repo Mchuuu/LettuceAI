@@ -6,6 +6,7 @@ import { updateAdvancedSetting } from "../../../core/storage/advanced";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { listen } from "@tauri-apps/api/event";
 import { useI18n } from "../../../core/i18n/context";
+import type { TranslationKey } from "../../../core/i18n/context";
 import {
   ModelDownloadProgress,
   type ModelDownloadPhase,
@@ -14,11 +15,23 @@ import { useModelDownload } from "./hooks/useModelDownload";
 
 type Capacity = 1024 | 2048 | 4096;
 
-const CAPACITY_OPTIONS: { value: Capacity; label: string; description: string }[] = [
-  { value: 1024, label: "1K tokens", description: "Best for quick responses" },
-  { value: 2048, label: "2K tokens", description: "Balanced performance" },
-  { value: 4096, label: "4K tokens", description: "Maximum context" },
-];
+const CAPACITY_OPTIONS = [
+  {
+    value: 1024,
+    labelKey: "embeddingDownload.capacityOptions.oneK",
+    descriptionKey: "embeddingDownload.capacityOptions.oneKDesc",
+  },
+  {
+    value: 2048,
+    labelKey: "embeddingDownload.capacityOptions.twoK",
+    descriptionKey: "embeddingDownload.capacityOptions.twoKDesc",
+  },
+  {
+    value: 4096,
+    labelKey: "embeddingDownload.capacityOptions.fourK",
+    descriptionKey: "embeddingDownload.capacityOptions.fourKDesc",
+  },
+] satisfies { value: Capacity; labelKey: TranslationKey; descriptionKey: TranslationKey }[];
 
 export function EmbeddingDownloadPage() {
   const { t } = useI18n();
@@ -191,47 +204,47 @@ export function EmbeddingDownloadPage() {
 
   const headerTitle = showCapacitySelection
     ? isUpgrade
-      ? `Upgrade to ${downloadVersionLabel} Embedding Model`
-      : `Setup ${downloadVersionLabel} Embedding Model`
+      ? t("embeddingDownload.header.upgradeTitle", { version: downloadVersionLabel })
+      : t("embeddingDownload.header.setupTitle", { version: downloadVersionLabel })
     : testStatus === "testing"
-      ? "Testing Model"
+      ? t("embeddingDownload.header.testingTitle")
       : testStatus === "passed"
-        ? "Test Passed!"
+        ? t("embeddingDownload.header.testPassedTitle")
         : testStatus === "failed"
-          ? "Test Failed"
+          ? t("embeddingDownload.header.testFailedTitle")
           : preStepStatus === "preparing"
-            ? "Preparing Download"
-            : `Downloading ${downloadVersionLabel} Embedding Model`;
+            ? t("embeddingDownload.header.preparingTitle")
+            : t("embeddingDownload.header.downloadingTitle", { version: downloadVersionLabel });
 
   const headerDescription = showCapacitySelection
-    ? "Choose your preferred memory context capacity"
+    ? t("embeddingDownload.header.chooseCapacity")
     : testStatus === "idle"
       ? preStepStatus === "preparing"
-        ? "Preparing download..."
-        : "Dynamic Memory installs the local embedding model"
+        ? t("embeddingDownload.header.preparingDescription")
+        : t("embeddingDownload.header.installDescription")
       : testStatus === "testing"
-        ? "Verifying model functionality..."
+        ? t("embeddingDownload.header.verifyingDescription")
         : testStatus === "passed"
-          ? `Redirecting in ${countdown} seconds...`
-          : "Model verification failed. Please try again.";
+          ? t("embeddingDownload.header.redirecting", { count: countdown })
+          : t("embeddingDownload.header.verificationFailedDescription");
 
   const statusText =
     testStatus === "idle" && preStepStatus === "preparing"
-      ? "Preparing download..."
+      ? t("embeddingDownload.status.preparing")
       : testStatus === "idle" && download.progress.status === "downloading"
-        ? `Downloading ${downloadVersionLabel} files...`
+        ? t("embeddingDownload.status.downloadingFiles", { version: downloadVersionLabel })
         : testStatus === "idle" && download.progress.status === "completed"
-          ? "Download completed!"
+          ? t("embeddingDownload.status.completed")
           : testStatus === "idle" && download.progress.status === "failed"
-            ? "Download failed"
+            ? t("embeddingDownload.status.failed")
             : testStatus === "idle" && download.progress.status === "cancelled"
-              ? "Download cancelled"
+              ? t("embeddingDownload.status.cancelled")
               : testStatus === "testing"
-                ? "Running verification tests..."
+                ? t("embeddingDownload.status.runningTests")
                 : testStatus === "passed"
-                  ? "All tests passed successfully"
+                  ? t("embeddingDownload.status.testsPassed")
                   : testStatus === "failed"
-                    ? "Verification failed"
+                    ? t("embeddingDownload.status.verificationFailed")
                     : "";
 
   return (
@@ -250,7 +263,10 @@ export function EmbeddingDownloadPage() {
               testProgress &&
               testProgress.total > 0 && (
                 <p className="mt-2 text-xs text-fg/50">
-                  Testing {testProgress.current}/{testProgress.total}
+                  {t("embeddingDownload.header.testingProgress", {
+                    current: testProgress.current,
+                    total: testProgress.total,
+                  })}
                 </p>
               )}
           </div>
@@ -263,8 +279,7 @@ export function EmbeddingDownloadPage() {
                     <Zap className="h-8 w-8 text-info" />
                   </div>
                   <p className="mt-4 text-sm text-fg/70">
-                    Higher capacity = better memory for longer conversations, but uses more
-                    processing power per embedding.
+                    {t("embeddingDownload.capacityHint")}
                   </p>
                 </div>
 
@@ -292,13 +307,13 @@ export function EmbeddingDownloadPage() {
                           )}
                         </div>
                         <div className="text-left">
-                          <div className="font-medium text-fg">{option.label}</div>
-                          <div className="text-xs text-fg/50">{option.description}</div>
+                          <div className="font-medium text-fg">{t(option.labelKey)}</div>
+                          <div className="text-xs text-fg/50">{t(option.descriptionKey)}</div>
                         </div>
                       </div>
                       {option.value === 2048 && (
                         <span className="text-[10px] font-medium uppercase tracking-wider text-accent bg-accent/20 px-2 py-0.5 rounded">
-                          Recommended
+                          {t("embeddingDownload.recommended")}
                         </span>
                       )}
                     </button>
@@ -310,7 +325,10 @@ export function EmbeddingDownloadPage() {
                   className="w-full mt-4 py-3 px-4 rounded-xl bg-info hover:bg-info/80 text-fg font-medium transition-colors flex items-center justify-center gap-2"
                 >
                   <Download className="h-5 w-5" />
-                  Download {downloadVersionLabel} Model ({downloadApproxSize})
+                  {t("embeddingDownload.downloadButton", {
+                    version: downloadVersionLabel,
+                    size: downloadApproxSize,
+                  })}
                 </button>
 
                 <button
@@ -345,17 +363,17 @@ export function EmbeddingDownloadPage() {
                   <div className="space-y-2">
                     {[
                       {
-                        label: "Health",
+                        label: t("embeddingDownload.testRows.health"),
                         passed: testResults.health.passed,
                         detail: `identity ${testResults.health.identityCosine.toFixed(4)}`,
                       },
                       {
-                        label: "Retrieval",
+                        label: t("embeddingDownload.testRows.retrieval"),
                         passed: testResults.retrieval.passed,
                         detail: `top-1 ${Math.round(testResults.retrieval.top1Rate * 100)}% · mrr ${testResults.retrieval.mrr.toFixed(2)}`,
                       },
                       {
-                        label: "Separation",
+                        label: t("embeddingDownload.testRows.separation"),
                         passed: testResults.separation.passed,
                         detail: `margin ${testResults.separation.margin.toFixed(3)}`,
                       },
@@ -407,13 +425,13 @@ export function EmbeddingDownloadPage() {
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-info px-6 py-3 text-sm font-medium text-fg transition hover:bg-info/80"
               >
                 <Download className="h-4 w-4" />
-                Retry Download
+                {t("embeddingDownload.retryDownload")}
               </button>
               <button
                 onClick={() => navigate(returnTo ?? "/settings/advanced")}
                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-fg/10 bg-fg/5 px-6 py-3 text-sm font-medium text-fg/60 transition hover:bg-fg/10"
               >
-                Go Back
+                {t("embeddingDownload.goBack")}
               </button>
             </div>
           )}

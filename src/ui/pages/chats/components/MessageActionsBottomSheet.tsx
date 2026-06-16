@@ -340,7 +340,7 @@ export function MessageActionsBottomSheet({
     if (!messageAction) return;
     try {
       await navigator.clipboard?.writeText(messageAction.message.content);
-      setActionStatus("Copied!");
+      setActionStatus(t("common.buttons.copied"));
       setTimeout(() => setActionStatus(null), 1500);
     } catch (copyError) {
       setActionError(copyError instanceof Error ? copyError.message : String(copyError));
@@ -359,7 +359,7 @@ export function MessageActionsBottomSheet({
             : isAssistantLikeMessage
               ? t("chats.actions.assistantMessage")
               : isVisibleSystemMessage
-                ? "System message"
+                ? t("chats.actions.systemMessage")
                 : t("chats.actions.userMessage")
         }
       >
@@ -435,28 +435,28 @@ export function MessageActionsBottomSheet({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-xs font-semibold text-amber-100">
-                          Companion changes
+                          {t("chats.actions.companionChanges")}
                         </span>
                         {companionEffect?.status === "processing" && (
                           <span className="text-[10px] uppercase tracking-[0.18em] text-amber-200/55">
-                            Processing
+                            {t("chats.actions.companionProcessing")}
                           </span>
                         )}
                         {companionEffect?.status === "failed" && (
                           <span className="text-[10px] uppercase tracking-[0.18em] text-rose-200/65">
-                            Failed
+                            {t("chats.actions.companionFailed")}
                           </span>
                         )}
                       </div>
                       <p className="mt-1 text-xs leading-relaxed text-amber-50/70">
                         {companionEffectError
-                          ? "Could not load this turn's companion analysis."
+                          ? t("chats.actions.companionLoadError")
                           : companionEffect?.status === "failed"
-                            ? "Companion analysis failed for this turn."
+                            ? t("chats.actions.companionAnalysisFailed")
                           : companionEffect?.summary ||
                             (companionEffectLoading || companionEffect?.status === "processing"
-                              ? "Analyzing relationship, emotion, and memory changes for this turn."
-                              : "No companion changes were recorded for this turn.")}
+                              ? t("chats.actions.companionAnalyzing")
+                              : t("chats.actions.companionNoChanges"))}
                       </p>
                     </div>
                   </div>
@@ -466,7 +466,7 @@ export function MessageActionsBottomSheet({
                       {relationshipDeltas.length > 0 && (
                         <div>
                           <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">
-                            Relationship
+                            {t("chats.actions.companionRelationship")}
                           </div>
                           <div className="flex flex-wrap gap-1.5">
                             {relationshipDeltas.map(([key, value]) => (
@@ -479,7 +479,7 @@ export function MessageActionsBottomSheet({
                       {emotionDeltas.length > 0 && (
                         <div>
                           <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">
-                            Emotions
+                            {t("chats.actions.companionEmotions")}
                           </div>
                           <div className="flex flex-wrap gap-1.5">
                             {emotionDeltas.map(({ key, value }) => (
@@ -494,7 +494,9 @@ export function MessageActionsBottomSheet({
                         <div className="grid gap-1.5 text-xs text-white/65">
                           {companionEffect.signalChanges.added.length > 0 && (
                             <div>
-                              <span className="text-emerald-200/80">Signals added: </span>
+                              <span className="text-emerald-200/80">
+                                {t("chats.actions.companionSignalsAdded")}{" "}
+                              </span>
                               {companionEffect.signalChanges.added
                                 .map(formatEffectKey)
                                 .join(", ")}
@@ -502,7 +504,9 @@ export function MessageActionsBottomSheet({
                           )}
                           {companionEffect.signalChanges.removed.length > 0 && (
                             <div>
-                              <span className="text-rose-200/80">Signals removed: </span>
+                              <span className="text-rose-200/80">
+                                {t("chats.actions.companionSignalsRemoved")}{" "}
+                              </span>
                               {companionEffect.signalChanges.removed
                                 .map(formatEffectKey)
                                 .join(", ")}
@@ -514,18 +518,30 @@ export function MessageActionsBottomSheet({
                       {memoryChangeCount > 0 && (
                         <div className="rounded-lg border border-white/10 bg-black/20 p-2">
                           <div className="mb-1 text-[11px] font-medium text-white/70">
-                            Memory changes: {memoryChangeCount}
+                            {t("chats.actions.companionMemoryChanges", {
+                              count: memoryChangeCount,
+                            })}
                           </div>
                           <div className="flex flex-wrap gap-1.5 text-[11px] text-white/55">
                             {companionEffect.memoryChanges.added.length > 0 && (
-                              <span>{companionEffect.memoryChanges.added.length} added</span>
+                              <span>
+                                {t("chats.actions.companionMemoryAdded", {
+                                  count: companionEffect.memoryChanges.added.length,
+                                })}
+                              </span>
                             )}
                             {companionEffect.memoryChanges.updated.length > 0 && (
-                              <span>{companionEffect.memoryChanges.updated.length} updated</span>
+                              <span>
+                                {t("chats.actions.companionMemoryUpdated", {
+                                  count: companionEffect.memoryChanges.updated.length,
+                                })}
+                              </span>
                             )}
                             {companionEffect.memoryChanges.superseded.length > 0 && (
                               <span>
-                                {companionEffect.memoryChanges.superseded.length} superseded
+                                {t("chats.actions.companionMemorySuperseded", {
+                                  count: companionEffect.memoryChanges.superseded.length,
+                                })}
                               </span>
                             )}
                           </div>
@@ -777,7 +793,7 @@ export function MessageActionsBottomSheet({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
-                      Attachments
+                      {t("chats.actions.attachments")}
                     </div>
                     <div className="text-[11px] tabular-nums text-white/35">
                       {loadedEditAttachments.length}
@@ -882,7 +898,7 @@ export function MessageActionsBottomSheet({
             {editingAttachment.filename && (
               <div className="space-y-1">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
-                  Filename
+                  {t("chats.actions.filename")}
                 </div>
                 <div className="line-clamp-3 break-words text-sm text-white/75">
                   {editingAttachment.filename}
@@ -918,7 +934,7 @@ export function MessageActionsBottomSheet({
                   radius.lg,
                 )}
               >
-                Remove
+                {t("common.buttons.remove")}
               </button>
             </div>
           </div>

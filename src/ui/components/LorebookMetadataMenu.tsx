@@ -128,7 +128,7 @@ export function LorebookMetadataMenu({
                 className="inline-flex items-center gap-1.5 rounded-md border border-fg/10 bg-fg/[0.04] px-2.5 py-1.5 text-[11px] font-medium text-fg/75 transition hover:border-fg/20 hover:bg-fg/[0.08] hover:text-fg active:scale-[0.97]"
               >
                 <Upload size={11} strokeWidth={2.5} />
-                <span>Upload</span>
+                <span>{t("components.extra.uploadButton")}</span>
               </button>
               {onChooseFromLibrary && (
                 <button
@@ -137,7 +137,7 @@ export function LorebookMetadataMenu({
                   className="inline-flex items-center gap-1.5 rounded-md border border-fg/10 bg-fg/[0.04] px-2.5 py-1.5 text-[11px] font-medium text-fg/75 transition hover:border-fg/20 hover:bg-fg/[0.08] hover:text-fg active:scale-[0.97]"
                 >
                   <FolderOpen size={11} strokeWidth={2.5} />
-                  <span>Library</span>
+                  <span>{t("components.extra.libraryButton")}</span>
                 </button>
               )}
             </div>

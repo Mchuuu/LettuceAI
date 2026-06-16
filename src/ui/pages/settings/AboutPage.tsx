@@ -379,7 +379,7 @@ export function AboutPage() {
               {/* Left column: Information + Updates */}
               <div className="flex flex-col gap-7">
                 <div className="flex flex-col gap-2">
-                  <GroupLabel>Information</GroupLabel>
+                  <GroupLabel>{t("about.sections.information")}</GroupLabel>
                   <Group>
                     <InfoRow
                       label={t("about.info.version")}
@@ -443,7 +443,7 @@ export function AboutPage() {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <GroupLabel>Advanced</GroupLabel>
+                  <GroupLabel>{t("about.sections.advanced")}</GroupLabel>
                   <Group>
                     <button
                       type="button"
@@ -485,8 +485,8 @@ export function AboutPage() {
                           )}
                         >
                           {developerModeEnabled
-                            ? "Developer tools are visible in settings."
-                            : "Reveal developer tools and diagnostics."}
+                            ? t("about.developerMode.enabledDescription")
+                            : t("about.developerMode.enableDescription")}
                         </span>
                       </span>
                     </button>

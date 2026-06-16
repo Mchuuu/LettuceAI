@@ -537,8 +537,8 @@ export function GroupChatFooter({
                     "hover:bg-fg/10 hover:text-fg",
                     "disabled:cursor-not-allowed disabled:opacity-40",
                   )}
-                  title="Cancel recording"
-                  aria-label="Cancel recording"
+                  title={t("groupChats.footerExtra.cancelRecording")}
+                  aria-label={t("groupChats.footerExtra.cancelRecording")}
                 >
                   <X size={18} />
                 </button>
@@ -550,8 +550,8 @@ export function GroupChatFooter({
                     radius.full,
                     "bg-accent text-black",
                   )}
-                  aria-label="Transcribing"
-                  title="Transcribing"
+                  aria-label={t("groupChats.footerExtra.transcribing")}
+                  title={t("groupChats.footerExtra.transcribing")}
                 >
                   <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
                 </div>
@@ -569,8 +569,8 @@ export function GroupChatFooter({
                       "hover:brightness-110",
                       "disabled:cursor-not-allowed disabled:opacity-40",
                     )}
-                    title="Stop and transcribe"
-                    aria-label="Stop and transcribe"
+                    title={t("groupChats.footerExtra.stopAndTranscribe")}
+                    aria-label={t("groupChats.footerExtra.stopAndTranscribe")}
                   >
                     <Check size={18} strokeWidth={2.75} />
                   </button>

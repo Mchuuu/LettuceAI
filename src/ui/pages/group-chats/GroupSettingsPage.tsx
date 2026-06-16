@@ -170,7 +170,7 @@ export function GroupSettingsPage() {
           <button
             onClick={handleBack}
             className="flex shrink-0 px-[0.6em] py-[0.3em] items-center justify-center -ml-2 text-fg transition hover:text-fg/80"
-            aria-label="Back"
+            aria-label={t("groupChats.groupSettingsExtra.backAria")}
           >
             <ArrowLeft size={14} strokeWidth={2.5} />
           </button>

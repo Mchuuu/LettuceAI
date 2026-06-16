@@ -187,7 +187,7 @@ function EditingForm({
           className="flex items-center gap-1.5 rounded-lg border border-fg/10 bg-fg/5 px-2.5 py-1 text-xs font-medium text-fg/60 transition active:bg-fg/10"
         >
           {msg.role === "user" ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
-          {msg.role === "user" ? "You" : characterName}
+          {msg.role === "user" ? t("characters.templateEditor.you") : characterName}
         </button>
       </div>
       <textarea
@@ -205,7 +205,7 @@ function EditingForm({
           className="flex items-center gap-1 rounded-lg bg-accent/20 px-3 py-1.5 text-xs font-medium text-accent transition active:bg-accent/30"
         >
           <Check className="h-3 w-3" />
-          Done
+          {t("characters.templateEditor.done")}
         </button>
         <button
           type="button"
@@ -213,7 +213,7 @@ function EditingForm({
           className="flex items-center gap-1 rounded-lg bg-fg/5 px-3 py-1.5 text-xs font-medium text-fg/50 transition active:bg-fg/10"
         >
           <X className="h-3 w-3" />
-          Cancel
+          {t("characters.templateEditor.cancel")}
         </button>
       </div>
     </motion.div>
@@ -525,10 +525,10 @@ export default function ChatTemplateEditorPage() {
     : [];
   const lorebookLabel =
     lorebookIdsOverride === null
-      ? "Character default"
+      ? t("characters.templateEditor.characterDefault")
       : selectedLorebooks.length > 0
         ? selectedLorebooks.map((lorebook) => lorebook.name).join(", ")
-        : "No lorebooks";
+        : t("characters.templateEditor.noLorebooks");
 
   // Build scene message for display
   const sceneStoredMessage: StoredMessage | null = selectedScene
@@ -634,7 +634,7 @@ export default function ChatTemplateEditorPage() {
             ) : (
               <Bot className="h-3.5 w-3.5" />
             )}
-            {nextRole === "user" ? "You" : character.name}
+            {nextRole === "user" ? t("characters.templateEditor.you") : character.name}
           </button>
           <motion.button
             whileTap={{ scale: 0.97 }}
@@ -707,7 +707,7 @@ export default function ChatTemplateEditorPage() {
 
       <div>
         <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-fg/40">
-          Active Lorebooks
+          {t("characters.templateEditor.activeLorebooks")}
         </label>
         <button
           type="button"
@@ -749,7 +749,7 @@ export default function ChatTemplateEditorPage() {
             }`}
           >
             <User className="h-3.5 w-3.5" />
-            You
+            {t("characters.templateEditor.you")}
           </button>
         </div>
       </div>
@@ -766,7 +766,7 @@ export default function ChatTemplateEditorPage() {
               <span>{t("characters.templateEditor.roles")}</span>
               <span className="font-medium text-fg/70">
                 {messages.filter((m) => m.role === "assistant").length} {character.name},{" "}
-                {messages.filter((m) => m.role === "user").length} You
+                {messages.filter((m) => m.role === "user").length} {t("characters.templateEditor.you")}
               </span>
             </div>
           )}
@@ -812,7 +812,7 @@ export default function ChatTemplateEditorPage() {
                 className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-fg/10 bg-fg/5 px-3 text-xs font-medium text-fg/70 transition active:bg-fg/10"
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
-                Options
+                {t("characters.templateEditor.options")}
               </button>
             </div>
           </div>
@@ -824,7 +824,7 @@ export default function ChatTemplateEditorPage() {
       <BottomMenu
         isOpen={showMobileOptionsMenu}
         onClose={() => setShowMobileOptionsMenu(false)}
-        title="Template Options"
+        title={t("characters.templateEditor.templateOptions")}
       >
         <MenuButtonGroup>
           <MenuButton
@@ -849,7 +849,7 @@ export default function ChatTemplateEditorPage() {
           />
           <MenuButton
             icon={<BookOpen className="h-4 w-4" />}
-            title="Lorebooks"
+            title={t("characters.templateEditor.lorebooks")}
             description={lorebookLabel}
             color="from-amber-500 to-orange-600"
             onClick={() => {
@@ -953,13 +953,13 @@ export default function ChatTemplateEditorPage() {
       <BottomMenu
         isOpen={showLorebookMenu}
         onClose={() => setShowLorebookMenu(false)}
-        title="Active Lorebooks"
+        title={t("characters.templateEditor.activeLorebooks")}
       >
         <MenuButtonGroup>
           <MenuButton
             icon={<BookOpen className="h-4 w-4" />}
-            title="Use character default"
-            description="Template sessions inherit the character active lorebooks."
+            title={t("characters.templateEditor.useCharacterDefault")}
+            description={t("characters.templateEditor.useCharacterDefaultDesc")}
             color="from-blue-500 to-cyan-600"
             rightElement={
               lorebookIdsOverride === null ? (
@@ -973,8 +973,8 @@ export default function ChatTemplateEditorPage() {
           />
           <MenuButton
             icon={<X className="h-4 w-4" />}
-            title="No lorebooks"
-            description="Template sessions override the character and start with no active lorebooks."
+            title={t("characters.templateEditor.noLorebooks")}
+            description={t("characters.templateEditor.noLorebooksDesc")}
             color="from-blue-500 to-cyan-600"
             rightElement={
               Array.isArray(lorebookIdsOverride) && lorebookIdsOverride.length === 0 ? (
@@ -991,7 +991,11 @@ export default function ChatTemplateEditorPage() {
                 key={lorebook.id}
                 icon={<BookOpen className="h-4 w-4" />}
                 title={lorebook.name}
-                description={selected ? "Enabled for this template" : "Tap to toggle"}
+                description={
+                  selected
+                    ? t("characters.templateEditor.lorebookEnabled")
+                    : t("characters.templateEditor.lorebookTapToggle")
+                }
                 color="from-blue-500 to-cyan-600"
                 rightElement={
                   selected ? <Check className="h-4 w-4 text-emerald-300" /> : undefined

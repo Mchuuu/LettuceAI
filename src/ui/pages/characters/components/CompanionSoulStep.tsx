@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { AlertCircle, ArrowLeft, Heart, RefreshCcw } from "lucide-react";
 import type { CompanionConfig, Scene } from "../../../../core/storage/schemas";
 import { generateCompanionSoulDraft } from "../../../../core/companion/soul";
+import { useI18n } from "../../../../core/i18n/context";
 import {
   cn,
   interactive,
@@ -51,6 +52,7 @@ export function CompanionSoulStep({
   onBack,
   onContinue,
 }: CompanionSoulStepProps) {
+  const { t } = useI18n();
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Partial<CompanionConfig> | null>(null);
@@ -59,8 +61,8 @@ export function CompanionSoulStep({
   const value = normalizeCompanionConfig(companion);
 
   const generationDisabledReason = useMemo<string | null>(() => {
-    if (!name.trim()) return "Add a name first.";
-    if (!definition.trim()) return "Add a definition first.";
+    if (!name.trim()) return t("characters.companionSoul.addNameFirst");
+    if (!definition.trim()) return t("characters.companionSoul.addDefinitionFirst");
     return null;
   }, [name, definition]);
 
@@ -113,12 +115,11 @@ export function CompanionSoulStep({
             <Heart className="h-4 w-4 text-rose-300" />
           </div>
           <h2 className={cn(typography.h1.size, typography.h1.weight, "text-fg")}>
-            Companion Soul
+            {t("characters.companionSoul.title")}
           </h2>
         </div>
         <p className={cn(typography.body.size, "text-fg/50")}>
-          Shape who they are underneath. Generation uses the opening context you set in the previous
-          step.
+          {t("characters.companionSoul.subtitle")}
         </p>
       </div>
 
@@ -155,7 +156,7 @@ export function CompanionSoulStep({
             )}
           >
             <RefreshCcw className="h-3 w-3" />
-            Retry
+            {t("characters.companionSoul.retry")}
           </button>
         </div>
       )}
@@ -173,7 +174,7 @@ export function CompanionSoulStep({
           )}
         >
           <ArrowLeft className="h-4 w-4" />
-          Back
+          {t("characters.companionSoul.back")}
         </button>
         <button
           type="button"
@@ -186,7 +187,7 @@ export function CompanionSoulStep({
             interactive.active.scale,
           )}
         >
-          Continue
+          {t("characters.companionSoul.continue")}
         </button>
       </div>
 

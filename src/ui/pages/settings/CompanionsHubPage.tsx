@@ -4,32 +4,34 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Cpu, Sparkles } from "lucide-react";
 
 import { cn } from "../../design-tokens";
+import { useI18n, type TranslationKey } from "../../../core/i18n/context";
 import { CompanionsPage } from "./CompanionsPage";
 import { CompanionSoulWriterPage } from "./CompanionSoulWriterPage";
 
 type CompanionTab = "models" | "soulWriter";
 
-const TABS: Array<{
-  id: CompanionTab;
-  label: string;
-  description: string;
-  icon: React.ComponentType<{ className?: string }>;
-}> = [
+const TABS = [
   {
     id: "models",
-    label: "Models",
-    description: "Local analysis models for emotion, entity, and memory routing.",
+    labelKey: "companion.hub.modelsLabel",
+    descriptionKey: "companion.hub.modelsDescription",
     icon: Cpu,
   },
   {
     id: "soulWriter",
-    label: "Soul Writer",
-    description: "Model and prompt used to draft Companion Souls.",
+    labelKey: "companion.hub.soulWriterLabel",
+    descriptionKey: "companion.hub.soulWriterDescription",
     icon: Sparkles,
   },
-];
+] satisfies Array<{
+  id: CompanionTab;
+  labelKey: TranslationKey;
+  descriptionKey: TranslationKey;
+  icon: React.ComponentType<{ className?: string }>;
+}>;
 
 export function CompanionsHubPage() {
+  const { t } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
   const initialTab: CompanionTab = location.pathname.includes("companion-soul-writer")
@@ -91,9 +93,9 @@ export function CompanionsHubPage() {
                     <Icon className="h-4 w-4" />
                   </span>
                   <span className="relative min-w-0 flex-1">
-                    <span className="block text-sm font-medium">{tab.label}</span>
+                    <span className="block text-sm font-medium">{t(tab.labelKey)}</span>
                     <span className="mt-0.5 block truncate text-[11px] text-fg/45">
-                      {tab.description}
+                      {t(tab.descriptionKey)}
                     </span>
                   </span>
                 </button>

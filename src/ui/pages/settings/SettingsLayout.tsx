@@ -241,7 +241,7 @@ export function SettingsLayout() {
       {
         key: "speechRecognition",
         icon: <Mic />,
-        label: "Speech Recognition",
+        label: t("settings.items.speechRecognition.title"),
         matchPath: "/settings/speech-recognition",
         onSelect: () => navigate("/settings/speech-recognition"),
       },
@@ -311,7 +311,7 @@ export function SettingsLayout() {
           {
             key: "advanced.lorebooks",
             icon: <BookOpen />,
-            label: "Lorebooks",
+            label: t("settings.items.lorebooks.title"),
             matchPath: "/settings/advanced/lorebooks",
             onSelect: () => navigate("/settings/advanced/lorebooks"),
           },
@@ -325,7 +325,7 @@ export function SettingsLayout() {
           {
             key: "advanced.companions",
             icon: <Heart />,
-            label: "Companions",
+            label: t("settings.items.companions.title"),
             matchPath: "/settings/advanced/companions",
             extraMatchPaths: ["/settings/advanced/companion-soul-writer"],
             onSelect: () => navigate("/settings/advanced/companions"),
@@ -333,7 +333,7 @@ export function SettingsLayout() {
           {
             key: "advanced.hostApi",
             icon: <Network />,
-            label: "API Server",
+            label: t("settings.items.hostApi.title"),
             matchPath: "/settings/advanced/host-api",
             onSelect: () => navigate("/settings/advanced/host-api"),
           },
@@ -345,7 +345,7 @@ export function SettingsLayout() {
       {
         key: "help",
         icon: <HelpCircle />,
-        label: "Help & FAQ",
+        label: t("settings.items.help.title"),
         matchPath: "/settings/help",
         onSelect: () => navigate("/settings/help"),
       },
@@ -359,7 +359,7 @@ export function SettingsLayout() {
       {
         key: "whatsNew",
         icon: <Sparkles />,
-        label: "What's New",
+        label: t("settings.items.whatsNew.title"),
         matchPath: "__never__",
         onSelect: () => window.dispatchEvent(new Event("whatsnew:open")),
       },
@@ -432,8 +432,8 @@ export function SettingsLayout() {
     ];
 
     return [
-      { key: "main", label: "Configuration", items: main },
-      { key: "support", label: "Help", items: support },
+      { key: "main", label: t("settings.groups.configuration"), items: main },
+      { key: "support", label: t("settings.groups.help"), items: support },
       { key: "danger", items: danger },
     ];
   }, [providerCount, modelCount, navigate, toModelsList, t]);
@@ -512,8 +512,8 @@ export function SettingsLayout() {
             <button
               type="button"
               onClick={toggleCollapsed}
-              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={collapsed ? t("settings.sidebar.expand") : t("settings.sidebar.collapse")}
+              aria-label={collapsed ? t("settings.sidebar.expand") : t("settings.sidebar.collapse")}
               className={cn(
                 "flex h-8 w-8 shrink-0 items-center justify-center rounded-md",
                 "text-fg/50 hover:bg-fg/6 hover:text-fg",
@@ -537,7 +537,7 @@ export function SettingsLayout() {
                 {t("common.nav.settings")}
               </h2>
               <p className="mt-0.5 text-[11px] leading-snug text-fg/40">
-                Configure providers, models, and app behavior.
+                {t("settings.sidebar.subtitle")}
               </p>
             </div>
           </div>

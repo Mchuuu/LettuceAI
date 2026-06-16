@@ -677,7 +677,7 @@ export function ChatSettingsContent({
       }
     } catch (error) {
       console.error("Failed to import chat:", error);
-      alert(typeof error === "string" ? error : "Failed to import chat");
+      alert(typeof error === "string" ? error : t("chats.settings.failedImportChat"));
     } finally {
       setImportingChatpkg(false);
     }
@@ -717,9 +717,11 @@ export function ChatSettingsContent({
       return t("chats.settings.openChatSessionFirst");
     }
     if (!sessionAdvancedSettings) {
-      return `${advancedDefaultsLabel}: ${formatAdvancedModelSettingsSummary(baseAdvancedSettings, "Default settings")}`;
+      return `${advancedDefaultsLabel}: ${formatAdvancedModelSettingsSummary(baseAdvancedSettings, t("chats.settings.defaultSettings"))}`;
     }
-    return `Overrides: ${formatAdvancedModelSettingsSummary(sessionAdvancedSettings, "Overrides active")}`;
+    return t("chats.settings.overridesSummary", {
+      summary: formatAdvancedModelSettingsSummary(sessionAdvancedSettings, t("chats.settings.overridesActive")),
+    });
   }, [currentSession, sessionAdvancedSettings, baseAdvancedSettings, advancedDefaultsLabel, t]);
 
   const sessionAdvancedOverrideCount = useMemo(() => {
@@ -759,15 +761,15 @@ export function ChatSettingsContent({
     if (!currentSession) return t("chats.settings.openChatSessionFirst");
     if (!isDynamic) {
       const memoryCount = currentSession.memories?.length ?? 0;
-      if (memoryCount > 0) return "Manual memories available for this session";
-      return "No memories yet. Add manual memories from the Memories page.";
+      if (memoryCount > 0) return t("chats.settings.manualMemoriesAvailable");
+      return t("chats.settings.noManualMemories");
     }
     const summary = (currentSession.memorySummary ?? "").trim();
     if (summary) return summary;
     const memoryCount =
       currentSession.memoryEmbeddings?.length ?? currentSession.memories?.length ?? 0;
-    if (memoryCount > 0) return "No summary yet. Memories exist for this session.";
-    return "No memories yet. Open to add summary, tags, and history.";
+    if (memoryCount > 0) return t("chats.settings.noSummaryYet");
+    return t("chats.settings.noMemoriesYet");
   }, [currentSession, isDynamic, t]);
 
   const memoryMetaLine = useMemo(() => {
@@ -777,9 +779,9 @@ export function ChatSettingsContent({
     const toolsCount = isDynamic ? (currentSession.memoryToolEvents?.length ?? 0) : 0;
     const tokenCount = isDynamic ? (currentSession.memorySummaryTokenCount ?? 0) : 0;
     const parts: string[] = [];
-    parts.push(`${memoryCount.toLocaleString()} items`);
-    if (toolsCount > 0) parts.push(`${toolsCount.toLocaleString()} tool events`);
-    if (tokenCount > 0) parts.push(`${tokenCount.toLocaleString()} summary tokens`);
+    parts.push(t("chats.settings.itemsCount", { count: memoryCount.toLocaleString() }));
+    if (toolsCount > 0) parts.push(t("chats.settings.toolEventsCount", { count: toolsCount.toLocaleString() }));
+    if (tokenCount > 0) parts.push(t("chats.settings.summaryTokensCount", { count: tokenCount.toLocaleString() }));
     return parts.join(" • ");
   }, [currentSession, isDynamic, t]);
 
@@ -806,8 +808,8 @@ export function ChatSettingsContent({
       const defaultPersona = personas.find((p) => p.isDefault);
       if (!defaultPersona) return t("chats.settings.noPersona");
       return defaultPersona.nickname
-        ? `${defaultPersona.title} (${defaultPersona.nickname}) (default)`
-        : `${defaultPersona.title} (default)`;
+        ? `${defaultPersona.title} (${defaultPersona.nickname}) ${t("chats.settings.defaultSuffix")}`
+        : `${defaultPersona.title} ${t("chats.settings.defaultSuffix")}`;
     }
     const persona = personas.find((p) => p.id === currentPersonaId);
     if (!persona) return t("chats.settings.customPersona");
@@ -824,7 +826,7 @@ export function ChatSettingsContent({
 
   const getModelDisplay = () => {
     if (!currentModel) return t("chats.settings.noModelAvailable");
-    return currentModel.displayName + (!currentCharacter?.defaultModelId ? " (app default)" : "");
+    return currentModel.displayName + (!currentCharacter?.defaultModelId ? ` ${t("chats.settings.appDefaultSuffix")}` : "");
   };
 
   const getFallbackModelDisplay = () => {
@@ -967,7 +969,7 @@ export function ChatSettingsContent({
                         "text-fg/50",
                       )}
                     >
-                      Memory
+                      {t("chats.settings.memorySection")}
                     </div>
                     <div className={cn(typography.bodySmall.size, "text-fg truncate")}>
                       {memoryMetaLine}
@@ -1052,8 +1054,8 @@ export function ChatSettingsContent({
           {currentCharacter?.mode === "companion" && (
             <section className={spacing.item}>
               <SectionHeader
-                title="Companion Context"
-                subtitle="Session-level grounding for time-sensitive companion recall"
+                title={t("chats.settings.companionContext")}
+                subtitle={t("chats.settings.companionContextDesc")}
               />
               <div
                 className={cn(
@@ -1073,10 +1075,10 @@ export function ChatSettingsContent({
                     <Clock className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-white">Time Awareness</p>
+                    <p className="text-sm font-semibold text-white">{t("chats.settings.timeAwareness")}</p>
                     <p className="mt-1 text-xs text-white/50">
                       {currentSession
-                        ? "Send the local system time with each message and stamp new companion memories with when they happened."
+                        ? t("chats.settings.timeAwarenessDesc")
                         : t("chats.settings.openChatSessionFirst")}
                     </p>
                   </div>
@@ -1117,9 +1119,9 @@ export function ChatSettingsContent({
                       <CalendarClock className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-white">Scheduled Notes</p>
+                      <p className="text-sm font-semibold text-white">{t("chats.settings.scheduledNotes")}</p>
                       <p className="mt-1 text-xs text-white/50">
-                        Dated background context the companion picks up when the date arrives. Birthdays, anniversaries, seasonal beats.
+                        {t("chats.settings.scheduledNotesDesc")}
                       </p>
                     </div>
                   </div>
@@ -1220,7 +1222,7 @@ export function ChatSettingsContent({
                         "text-fg/50 truncate",
                       )}
                     >
-                      Advanced Settings
+                      {t("chats.settings.advancedSettingsLabel")}
                     </div>
                     {currentSession ? (
                       <span
@@ -1236,8 +1238,10 @@ export function ChatSettingsContent({
                         )}
                       >
                         {sessionAdvancedSettings
-                          ? `Overrides${sessionAdvancedOverrideCount ? ` (${sessionAdvancedOverrideCount})` : ""}`
-                          : "Defaults"}
+                          ? sessionAdvancedOverrideCount
+                            ? t("chats.settings.overridesCount", { count: sessionAdvancedOverrideCount })
+                            : t("chats.settings.overrides")
+                          : t("chats.settings.defaults")}
                       </span>
                     ) : null}
                   </div>
@@ -1262,8 +1266,8 @@ export function ChatSettingsContent({
                 title={t("chats.settings.authorNote")}
                 subtitle={
                   currentSession?.authorNote?.trim()
-                    ? "Active for this chat"
-                    : "Private direction for replies"
+                    ? t("chats.settings.authorNoteActive")
+                    : t("chats.settings.authorNoteInactive")
                 }
                 onClick={handleOpenAuthorNote}
                 disabled={!currentSession}
@@ -1332,7 +1336,7 @@ export function ChatSettingsContent({
               ? [selectedModelId]
               : []
         }
-        searchPlaceholder="Search models..."
+        searchPlaceholder={t("chats.settings.searchModels")}
         theme="dark"
         tone="emerald"
         includeExitIcon={false}
@@ -1347,7 +1351,9 @@ export function ChatSettingsContent({
         }}
         clearOption={{
           label:
-            modelSelectorTarget === "fallback" ? "No fallback model" : "Use global default model",
+            modelSelectorTarget === "fallback"
+              ? t("chats.settings.noFallbackModel")
+              : t("chats.settings.useGlobalDefaultModel"),
           icon: Cpu,
           selected:
             modelSelectorTarget === "fallback" ? !selectedFallbackModelId : !selectedModelId,
@@ -1456,7 +1462,7 @@ export function ChatSettingsContent({
         <BottomMenu
           isOpen={showScheduledNotes}
           onClose={() => setShowScheduledNotes(false)}
-          title="Scheduled Notes"
+          title={t("chats.settings.scheduledNotes")}
         >
           <MenuSection>
             <CompanionScheduledNotesEditor characterId={characterId} />

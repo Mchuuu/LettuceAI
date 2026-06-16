@@ -1,5 +1,6 @@
 import { useImageData } from "../hooks/useImageData";
 import { cn } from "../design-tokens";
+import { useI18n } from "../../core/i18n/context";
 
 type LorebookAvatarProps = {
   avatarPath?: string | null;
@@ -26,13 +27,14 @@ export function LorebookAvatar({
   imageClassName,
   fallbackClassName,
 }: LorebookAvatarProps) {
+  const { t } = useI18n();
   const avatarUrl = useImageData(avatarPath);
 
   if (avatarUrl) {
     return (
       <img
         src={avatarUrl}
-        alt={name ? `${name} lorebook image` : "Lorebook image"}
+        alt={name ? t("components.lorebookAvatar.altNamed", { name }) : t("components.lorebookAvatar.alt")}
         loading="lazy"
         decoding="async"
         className={cn("h-full w-full object-cover", className, imageClassName)}

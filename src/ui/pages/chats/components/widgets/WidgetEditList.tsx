@@ -3,6 +3,7 @@ import { AnimatePresence, Reorder } from "framer-motion";
 import { Plus } from "lucide-react";
 import type { WidgetNode } from "../../../../../core/storage/schemas";
 import { cn } from "../../../../design-tokens";
+import { useI18n } from "../../../../../core/i18n/context";
 import { WidgetEditWrapper } from "./WidgetEditWrapper";
 import { WidgetEmptyState } from "./WidgetEmptyState";
 import { useWidgetEdit, type WidgetSide } from "./WidgetEditContext";
@@ -18,6 +19,7 @@ interface WidgetEditListProps {
 }
 
 export function WidgetEditList({ nodes, onChange, nested, side }: WidgetEditListProps) {
+  const { t } = useI18n();
   const { pendingOpenNodeId, clearPendingOpen, moveToOtherSlot } = useWidgetEdit();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editingNode, setEditingNode] = useState<WidgetNode | null>(null);
@@ -78,7 +80,7 @@ export function WidgetEditList({ nodes, onChange, nested, side }: WidgetEditList
           )}
         >
           <Plus size={12} strokeWidth={2.4} />
-          Add widget
+          {t("chats.widgets.list.addWidget")}
         </button>
       )}
 

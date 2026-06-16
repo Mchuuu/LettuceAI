@@ -378,7 +378,7 @@ export function BackgroundPositionModal({
                                 <img
                                     ref={imageRef}
                                     src={imageSrc}
-                                    alt="Background to position"
+                                    alt={t("components.extra.backgroundAlt")}
                                     className="absolute pointer-events-none"
                                     style={{
                                         transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,

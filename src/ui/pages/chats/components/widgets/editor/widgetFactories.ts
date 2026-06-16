@@ -1,45 +1,46 @@
 import { uuidv4 } from "../../../../../../core/storage/repo";
 import type { WidgetNode } from "../../../../../../core/storage/chatWidgetSchemas";
+import type { TranslationKey } from "../../../../../../core/i18n/context";
 
 export type WidgetType = WidgetNode["type"];
 
-export const WIDGET_TYPE_LABEL: Record<WidgetType, string> = {
-  divider: "Divider",
-  box: "Box",
-  character_info: "Character info",
-  persona_info: "Persona info",
-  scratch_pad: "Scratch pad",
-  image: "Image",
-  selector: "Selector",
-  button: "Button",
-  stat_tracker: "Stat tracker",
-  quick_snippets: "Quick snippets",
-  dice: "Dice roller",
-  memory: "Memories",
-  companion_state: "Companion state",
-  session_info: "Session info",
-  author_note: "Author note",
-  time: "Time",
-};
+export const WIDGET_TYPE_LABEL = {
+  divider: "chats.widgets.types.divider.label",
+  box: "chats.widgets.types.box.label",
+  character_info: "chats.widgets.types.character_info.label",
+  persona_info: "chats.widgets.types.persona_info.label",
+  scratch_pad: "chats.widgets.types.scratch_pad.label",
+  image: "chats.widgets.types.image.label",
+  selector: "chats.widgets.types.selector.label",
+  button: "chats.widgets.types.button.label",
+  stat_tracker: "chats.widgets.types.stat_tracker.label",
+  quick_snippets: "chats.widgets.types.quick_snippets.label",
+  dice: "chats.widgets.types.dice.label",
+  memory: "chats.widgets.types.memory.label",
+  companion_state: "chats.widgets.types.companion_state.label",
+  session_info: "chats.widgets.types.session_info.label",
+  author_note: "chats.widgets.types.author_note.label",
+  time: "chats.widgets.types.time.label",
+} satisfies Record<WidgetType, TranslationKey>;
 
-export const WIDGET_TYPE_DESC: Record<WidgetType, string> = {
-  divider: "A line or space between widgets.",
-  box: "Group widgets with an optional title and color.",
-  character_info: "Avatar, name, and description of the current character.",
-  persona_info: "Avatar, name, and description of the current persona.",
-  scratch_pad: "Markdown notes that travel with the chat.",
-  image: "Picture from character, persona, library, or upload.",
-  selector: "Pick persona, model, or fallback model.",
-  button: "Trigger an action like regenerate or swap places.",
-  stat_tracker: "Editable numbers like affection, HP, or gold.",
-  quick_snippets: "Buttons that insert preset text into the composer.",
-  dice: "Roll dice with custom notation.",
-  memory: "What this chat remembers.",
-  companion_state: "Relationship and mood for companion characters.",
-  session_info: "Message count, tokens, and current scene.",
-  author_note: "Edit this chat's author note inline.",
-  time: "Show and set the time the companion sees.",
-};
+export const WIDGET_TYPE_DESC = {
+  divider: "chats.widgets.types.divider.desc",
+  box: "chats.widgets.types.box.desc",
+  character_info: "chats.widgets.types.character_info.desc",
+  persona_info: "chats.widgets.types.persona_info.desc",
+  scratch_pad: "chats.widgets.types.scratch_pad.desc",
+  image: "chats.widgets.types.image.desc",
+  selector: "chats.widgets.types.selector.desc",
+  button: "chats.widgets.types.button.desc",
+  stat_tracker: "chats.widgets.types.stat_tracker.desc",
+  quick_snippets: "chats.widgets.types.quick_snippets.desc",
+  dice: "chats.widgets.types.dice.desc",
+  memory: "chats.widgets.types.memory.desc",
+  companion_state: "chats.widgets.types.companion_state.desc",
+  session_info: "chats.widgets.types.session_info.desc",
+  author_note: "chats.widgets.types.author_note.desc",
+  time: "chats.widgets.types.time.desc",
+} satisfies Record<WidgetType, TranslationKey>;
 
 export function createWidgetNode(type: WidgetType): WidgetNode {
   const id = uuidv4();

@@ -740,7 +740,6 @@ export const hiMessages: DeepPartialMessageTree<LocaleMessages> = {
     "suggestedReply": "सुझाया गया जवाब",
     "selectTwoCharactersMinimum": "ग्रुप चैट के लिए कम से कम 2 कैरेक्टर चुनें।",
     "groupBranchCreated": "ग्रुप शाखा बनाई गई! रीडायरेक्ट हो रहा है...",
-    "memories": "यादें",
     "tools": "उपकरण",
     "pinned": "पिन किए गए",
     "searchMemories": "यादें खोजें...",

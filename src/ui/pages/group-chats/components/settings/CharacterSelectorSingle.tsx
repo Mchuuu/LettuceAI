@@ -6,6 +6,7 @@ import { BottomMenu, MenuSection } from "../../../../components/BottomMenu";
 import { cn, interactive, spacing, typography } from "../../../../design-tokens";
 import { useAvatar } from "../../../../hooks/useAvatar";
 import { AvatarImage } from "../../../../components/AvatarImage";
+import { useI18n } from "../../../../../core/i18n/context";
 import type { Character } from "../../../../../core/storage/schemas";
 
 interface CharacterAvatarProps {
@@ -81,9 +82,12 @@ interface CharacterOptionItemProps {
 }
 
 function CharacterOptionItem({ character, isSelected, onClick }: CharacterOptionItemProps) {
-  const title = character?.name ?? "No Character";
+  const { t } = useI18n();
+  const title = character?.name ?? t("groupChats.characterSelectorExtra.noCharacter");
   const description =
-    character?.description ?? character?.definition ?? "Continue without a character";
+    character?.description ??
+    character?.definition ??
+    t("groupChats.characterSelectorExtra.noCharacterDesc");
 
   return (
     <motion.button
@@ -158,9 +162,11 @@ export function CharacterSelectorSingle({
   selectedCharacterId,
   onSelect,
   showSearch = true,
-  title = "Select Character",
+  title,
 }: CharacterSelectorSingleProps) {
+  const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState("");
+  const resolvedTitle = title ?? t("groupChats.characterSelectorExtra.selectCharacter");
 
   const filteredCharacters = useMemo(() => {
     if (!searchQuery.trim()) return characters;
@@ -191,7 +197,7 @@ export function CharacterSelectorSingle({
   const showSearchBar = showSearch && characters.length > 3;
 
   return (
-    <BottomMenu isOpen={isOpen} onClose={handleClose} title={title}>
+    <BottomMenu isOpen={isOpen} onClose={handleClose} title={resolvedTitle}>
       <div className={spacing.group}>
         {characters.length === 0 ? (
           <div className={cn("rounded-xl", "border border-warning/20 bg-warning/10 px-5 py-4")}>
@@ -201,10 +207,10 @@ export function CharacterSelectorSingle({
               </div>
               <div>
                 <p className={cn(typography.body.size, "font-medium text-warning")}>
-                  No characters available
+                  {t("groupChats.characterSelectorExtra.noCharactersAvailable")}
                 </p>
                 <p className={cn(typography.caption.size, "mt-1 text-warning/60")}>
-                  Create a character first to use it as a generation source.
+                  {t("groupChats.characterSelectorExtra.noCharactersDesc")}
                 </p>
               </div>
             </div>
@@ -218,7 +224,7 @@ export function CharacterSelectorSingle({
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search characters..."
+                  placeholder={t("groupChats.characterSelectorExtra.searchCharacters")}
                   className={cn(
                     "w-full rounded-xl border border-fg/10 bg-surface-el/30",
                     "px-4 py-2.5 pl-10 text-sm text-fg placeholder-fg/40",
@@ -252,10 +258,10 @@ export function CharacterSelectorSingle({
                 <div className="py-8 text-center">
                   <User className="mx-auto h-8 w-8 text-fg/20" />
                   <p className={cn(typography.body.size, "mt-3 text-fg/50")}>
-                    No characters found
+                    {t("groupChats.characterSelectorExtra.noCharactersFound")}
                   </p>
                   <p className={cn(typography.caption.size, "mt-1 text-fg/30")}>
-                    Try a different search term
+                    {t("groupChats.characterSelectorExtra.tryDifferentSearch")}
                   </p>
                 </div>
               )}

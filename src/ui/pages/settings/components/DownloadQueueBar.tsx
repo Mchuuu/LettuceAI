@@ -13,16 +13,15 @@ import {
 import { DownloadGroupCard } from "./DownloadGroupCard";
 import { useI18n, type TranslationKey } from "../../../../core/i18n/context";
 
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
+function formatBytes(bytes: number, units: string[]): string {
+  if (bytes === 0) return `0 ${units[0]}`;
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   const value = bytes / Math.pow(1024, i);
   return `${value.toFixed(i > 1 ? 1 : 0)} ${units[i]}`;
 }
 
-function formatSpeed(bytesPerSec: number): string {
-  return `${formatBytes(bytesPerSec)}/s`;
+function formatSpeed(bytesPerSec: number, units: string[]): string {
+  return `${formatBytes(bytesPerSec, units)}/s`;
 }
 
 function formatEta(seconds: number): string {
@@ -91,6 +90,13 @@ export function InlineDownloadCards({
 }) {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const sizeUnits = [
+    t("common.units.bytes"),
+    t("common.units.kb"),
+    t("common.units.mb"),
+    t("common.units.gb"),
+    t("common.units.tb"),
+  ];
   const { queue: fullQueue, cancelItem, dismissItem } = useDownloadQueue();
   const queue = filter ? fullQueue.filter(filter) : fullQueue;
 
@@ -194,12 +200,13 @@ export function InlineDownloadCards({
                     {pct(item)}%
                     {item.total > 0 && (
                       <span className="ml-1 text-fg/25">
-                        {formatBytes(item.downloaded)}/{formatBytes(item.total)}
+                        {formatBytes(item.downloaded, sizeUnits)}/
+                        {formatBytes(item.total, sizeUnits)}
                       </span>
                     )}
                     {item.speedBytesPerSec > 0 && (
                       <span className="ml-1 text-fg/25">
-                        · {formatSpeed(item.speedBytesPerSec)}
+                        · {formatSpeed(item.speedBytesPerSec, sizeUnits)}
                       </span>
                     )}
                     {eta !== null && (
@@ -239,7 +246,7 @@ export function InlineDownloadCards({
                   <p className="truncate text-[12px] font-medium text-fg/80">{item.filename}</p>
                   <p className="text-[10px] text-emerald-400/60">
                     {t("models.downloadQueue.completed" as TranslationKey, {
-                      size: formatBytes(item.total),
+                      size: formatBytes(item.total, sizeUnits),
                     })}
                   </p>
                 </div>
@@ -255,7 +262,7 @@ export function InlineDownloadCards({
                       )}
                     >
                       <Cpu size={compact ? 10 : 11} />
-                      Create
+                      {t("installedModels.downloads.create")}
                     </button>
                   )}
                   <button
@@ -265,7 +272,7 @@ export function InlineDownloadCards({
                       interactive.transition.fast,
                       "hover:bg-fg/10 hover:text-fg/50 active:scale-90",
                     )}
-                    title="Dismiss"
+                    title={t("installedModels.downloads.dismiss")}
                   >
                     <X size={12} />
                   </button>
@@ -297,7 +304,9 @@ export function InlineDownloadCards({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[11px] font-medium text-fg/60">{item.filename}</p>
                   <p className="truncate text-[10px] text-danger/50">
-                    {item.status === "cancelled" ? "Cancelled" : item.error || "Download failed"}
+                    {item.status === "cancelled"
+                      ? t("installedModels.downloads.cancelled")
+                      : item.error || t("installedModels.downloads.failed")}
                   </p>
                 </div>
                 <button
@@ -307,7 +316,7 @@ export function InlineDownloadCards({
                     interactive.transition.fast,
                     "hover:bg-fg/10 hover:text-fg/50 active:scale-90",
                   )}
-                  title="Dismiss"
+                  title={t("installedModels.downloads.dismiss")}
                 >
                   <X size={12} />
                 </button>

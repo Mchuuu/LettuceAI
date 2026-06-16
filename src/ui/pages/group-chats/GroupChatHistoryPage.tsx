@@ -56,7 +56,7 @@ export function GroupChatHistoryPage() {
             <button
               onClick={() => backOrReplace(Routes.groupChats)}
               className="flex shrink-0 items-center justify-center -ml-2 text-fg transition hover:text-fg/80"
-              aria-label="Back to group chats"
+              aria-label={t("groupChats.historyPage.backAria")}
             >
               <ArrowLeft size={14} strokeWidth={2.5} />
             </button>
@@ -125,7 +125,7 @@ export function GroupChatHistoryPage() {
                     interactive.transition.fast,
                     interactive.active.scale,
                   )}
-                  aria-label="Clear search"
+                  aria-label={t("groupChats.historyPage.clearSearchAria")}
                 >
                   <X size={16} />
                 </button>
@@ -133,8 +133,9 @@ export function GroupChatHistoryPage() {
             </div>
             {query.trim() ? (
               <p className={cn(typography.caption.size, colors.text.tertiary, "mt-2")}>
-                {filteredSessions.length.toLocaleString()} result
-                {filteredSessions.length === 1 ? "" : "s"}
+                {filteredSessions.length === 1
+                  ? t("groupChats.historyPage.resultsLabel", { count: filteredSessions.length })
+                  : t("groupChats.historyPage.resultsLabelPlural", { count: filteredSessions.length })}
               </p>
             ) : null}
           </div>
@@ -241,7 +242,7 @@ export function GroupChatHistoryPage() {
       >
         <div className="rounded-xl border border-fg/10 bg-fg/4 p-3">
           <p className={cn(typography.bodySmall.size, "font-semibold text-fg/90 truncate")}>
-            {deleteTarget?.name || "Untitled Chat"}
+            {deleteTarget?.name || t("groupChats.historyPage.untitledChat")}
           </p>
           {deleteTarget ? (
             <p className={cn(typography.caption.size, "text-fg/45 mt-0.5")}>

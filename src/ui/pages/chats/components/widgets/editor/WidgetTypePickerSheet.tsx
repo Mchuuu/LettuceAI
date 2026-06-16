@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { BottomMenu, MenuButton } from "../../../../../components";
+import { useI18n } from "../../../../../../core/i18n/context";
 import { useWidgetContext } from "../WidgetContext";
 import {
   WIDGET_TYPE_DESC,
@@ -74,20 +75,21 @@ export function WidgetTypePickerSheet({
   onClose,
   onPick,
 }: WidgetTypePickerSheetProps) {
+  const { t } = useI18n();
   const { character } = useWidgetContext();
   const isCompanion = character?.mode === "companion";
   const types = TYPE_ORDER.filter((type) =>
     type === "companion_state" ? isCompanion : true,
   );
   return (
-    <BottomMenu isOpen={open} onClose={onClose} title="Add widget">
+    <BottomMenu isOpen={open} onClose={onClose} title={t("chats.widgets.picker.title")}>
       <div className="flex flex-col gap-2">
         {types.map((type) => (
           <MenuButton
             key={type}
             icon={TYPE_ICON[type]}
-            title={WIDGET_TYPE_LABEL[type]}
-            description={WIDGET_TYPE_DESC[type]}
+            title={t(WIDGET_TYPE_LABEL[type])}
+            description={t(WIDGET_TYPE_DESC[type])}
             onClick={() => {
               onPick(type);
               onClose();

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Brain, Pin, ChevronRight } from "lucide-react";
 import type { MemoryNode } from "../../../../../core/storage/chatWidgetSchemas";
 import { cn } from "../../../../design-tokens";
+import { useI18n } from "../../../../../core/i18n/context";
 import { useWidgetContext } from "./WidgetContext";
 import { widgetCardClass } from "./widgetSurface";
 
@@ -35,6 +36,7 @@ function formatCategory(category: string): string {
 }
 
 export function WidgetMemory({ node }: { node: MemoryNode }) {
+  const { t } = useI18n();
   const { character, session, memories, hasBackground, onOpenMemories } =
     useWidgetContext();
   const limit = node.limit ?? 10;
@@ -93,7 +95,7 @@ export function WidgetMemory({ node }: { node: MemoryNode }) {
       <header className="flex items-center gap-2">
         <Brain size={14} className="text-fg/50" />
         <h3 className="text-sm font-semibold text-fg/75">
-          {node.title || "Memories"}
+          {node.title || t("chats.widgets.memory.defaultTitle")}
         </h3>
         <span className="text-[11px] text-fg/40">{items.length}</span>
         <button
@@ -101,7 +103,7 @@ export function WidgetMemory({ node }: { node: MemoryNode }) {
           onClick={onOpenMemories}
           className="ml-auto flex items-center gap-0.5 text-[11px] text-accent/80 transition hover:text-accent"
         >
-          Manage
+          {t("chats.widgets.memory.manage")}
           <ChevronRight size={12} />
         </button>
       </header>
@@ -109,7 +111,7 @@ export function WidgetMemory({ node }: { node: MemoryNode }) {
       {categories.length > 1 && (
         <div className="flex flex-wrap gap-1">
           <FilterChip
-            label="All"
+            label={t("chats.widgets.memory.all")}
             active={activeCategory === null}
             onClick={() => setActiveCategory(null)}
           />
@@ -125,7 +127,7 @@ export function WidgetMemory({ node }: { node: MemoryNode }) {
       )}
 
       {shown.length === 0 ? (
-        <p className="text-[12px] italic text-fg/40">Nothing remembered yet.</p>
+        <p className="text-[12px] italic text-fg/40">{t("chats.widgets.memory.empty")}</p>
       ) : (
         <ul className="flex max-h-64 flex-col gap-1.5 overflow-y-auto pr-1">
           {shown.map((item) => (
@@ -165,7 +167,7 @@ export function WidgetMemory({ node }: { node: MemoryNode }) {
           onClick={onOpenMemories}
           className="text-[11px] text-fg/45 transition hover:text-fg/70"
         >
-          +{filtered.length - limit} more
+          {t("chats.widgets.memory.more", { count: filtered.length - limit })}
         </button>
       )}
     </section>

@@ -24,6 +24,8 @@ import { ReferenceSelector, ReferenceAvatar, Reference } from "./components/Refe
 import { convertToImageUrl } from "../../../core/storage/images";
 import { listCharacters, listPersonas } from "../../../core/storage/repo";
 import { isRenderableImageUrl } from "../../../core/utils/image";
+import { useI18n } from "../../../core/i18n/context";
+import type { TranslationKey } from "../../../core/i18n/context";
 
 interface CreationMessage {
   id: string;
@@ -136,6 +138,7 @@ function ImageThumbnail({
   filename: string;
   localCache?: Record<string, string>;
 }) {
+  const { t } = useI18n();
   const [imageUrl, setImageUrl] = useState<string | null>(localCache?.[imageId] || null);
   const [loading, setLoading] = useState(!localCache?.[imageId]);
 
@@ -179,7 +182,7 @@ function ImageThumbnail({
     return (
       <div className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs bg-danger/20 text-danger">
         <ImageIcon className="h-3 w-3" />
-        <span>Failed to load</span>
+        <span>{t("characters.creationHelper.failedToLoad")}</span>
       </div>
     );
 
@@ -210,6 +213,7 @@ function GeneratedImagePreview({
   size?: "xs" | "sm" | "md" | "lg";
   className?: string;
 }) {
+  const { t } = useI18n();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const sizeClass =
@@ -264,7 +268,7 @@ function GeneratedImagePreview({
         ) : imageUrl ? (
           <img src={imageUrl} alt={label} className="h-full w-full object-cover" />
         ) : (
-          <span className="text-xs text-fg/40">Failed to load</span>
+          <span className="text-xs text-fg/40">{t("characters.creationHelper.failedToLoad")}</span>
         )}
       </div>
     </div>
@@ -273,13 +277,14 @@ function GeneratedImagePreview({
 
 
 function TypingIndicator() {
+  const { t } = useI18n();
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       className="flex items-center gap-2"
-      aria-label="Assistant is typing"
+      aria-label={t("characters.creationHelper.assistantTyping")}
       aria-live="polite"
     >
       <div className="flex items-center gap-1">
@@ -293,6 +298,7 @@ function TypingIndicator() {
 
 export function CreationHelperPage() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [searchParams] = useSearchParams();
   const creationGoalParam = searchParams.get("goal");
   const sessionIdParam = searchParams.get("sessionId");
@@ -414,7 +420,10 @@ export function CreationHelperPage() {
     return fallback;
   }, []);
   const activeGoal = session?.creationGoal ?? creationGoal;
-  const goalLabel = activeGoal === "persona" ? "Persona" : "Character";
+  const goalLabel =
+    activeGoal === "persona"
+      ? t("characters.creationHelper.goalPersona")
+      : t("characters.creationHelper.goalCharacter");
 
   // Load entity avatars for reference lookup
   useEffect(() => {
@@ -495,7 +504,7 @@ export function CreationHelperPage() {
         setSession(greetingSession);
       } catch (err) {
         console.error("Failed to start creation helper:", err);
-        setError("Failed to start the creation helper. Please try again.");
+        setError(t("characters.creationHelper.startFailed"));
       }
     };
 
@@ -860,7 +869,7 @@ export function CreationHelperPage() {
         } else if (payload.type === "error") {
           const message = resolveErrorMessage(
             payload.data ?? payload,
-            "Streaming error. Please try again.",
+            t("characters.creationHelper.streamingError"),
           );
           setError(message);
           resetStreamingTransient();
@@ -887,7 +896,7 @@ export function CreationHelperPage() {
       const lastMessage = updatedSession.messages[updatedSession.messages.length - 1];
       if (!streamingContentRef.current.trim()) {
         if (!lastMessage || lastMessage.role !== "assistant" || !lastMessage.content?.trim()) {
-          setError("Smart Creator failed to generate a response.");
+          setError(t("characters.creationHelper.noResponse"));
           const snapshot = lastSendSnapshotRef.current;
           if (snapshot) {
             setInputValue((prev) => (prev.trim() ? prev : snapshot.draft));
@@ -898,7 +907,7 @@ export function CreationHelperPage() {
       }
     } catch (err: any) {
       console.error("Failed to send message:", err);
-      setError(resolveErrorMessage(err, "Failed to send message. Please try again."));
+      setError(resolveErrorMessage(err, t("characters.creationHelper.sendFailed")));
 
       // Remove optimistic message on failure
       setSession((prev) =>
@@ -999,7 +1008,7 @@ export function CreationHelperPage() {
         } else if (payload.type === "error") {
           const message = resolveErrorMessage(
             payload.data ?? payload,
-            "Streaming error. Please try again.",
+            t("characters.creationHelper.streamingError"),
           );
           setError(message);
           resetStreamingTransient();
@@ -1018,12 +1027,12 @@ export function CreationHelperPage() {
       const lastMessage = updatedSession.messages[updatedSession.messages.length - 1];
       if (!streamingContentRef.current.trim()) {
         if (!lastMessage || lastMessage.role !== "assistant" || !lastMessage.content?.trim()) {
-          setError("Smart Creator failed to generate a response.");
+          setError(t("characters.creationHelper.noResponse"));
         }
       }
     } catch (err: any) {
       console.error("Failed to regenerate:", err);
-      setError(resolveErrorMessage(err, "Failed to regenerate. Please try again."));
+      setError(resolveErrorMessage(err, t("characters.creationHelper.regenerateFailed")));
     } finally {
       if (unlistenStream) {
         unlistenStream();
@@ -1058,7 +1067,7 @@ export function CreationHelperPage() {
       }
     } catch (err: any) {
       console.error("Failed to complete character:", err);
-      setError(resolveErrorMessage(err, "Failed to save character."));
+      setError(resolveErrorMessage(err, t("characters.creationHelper.saveCharacterFailed")));
     }
   }, [session, navigate]);
 
@@ -1080,7 +1089,7 @@ export function CreationHelperPage() {
       });
     } catch (err: any) {
       console.error("Failed to complete character:", err);
-      setError(resolveErrorMessage(err, "Failed to save character."));
+      setError(resolveErrorMessage(err, t("characters.creationHelper.saveCharacterFailed")));
     }
   }, [session, navigate, resolveErrorMessage]);
 
@@ -1094,7 +1103,7 @@ export function CreationHelperPage() {
       .then(() => {
         setSending(false);
         resetStreamingTransient();
-        setError("Generation cancelled.");
+        setError(t("characters.creationHelper.generationCancelled"));
       })
       .catch(console.error);
   }, [session]);
@@ -1113,57 +1122,60 @@ export function CreationHelperPage() {
   };
 
   const getToolDisplayName = (toolName: string): string => {
-    const names: Record<string, string> = {
-      write_definition: "Write definition",
-      write_scene: "Write scene",
-      write_lore_entry: "Write lorebook entry",
-      set_name: "Set name",
-      set_model: "Set model",
-      set_prompt: "Set prompt",
-      set_avatar_gradient: "Toggle avatar gradient",
-      attach_lorebooks: "Attach lorebooks",
-      edit_scene: "Edit scene",
-      edit_lore_entry: "Edit lorebook entry",
-      delete_scene: "Delete scene",
-      delete_lore_entry: "Delete lorebook entry",
-      delete_persona: "Delete persona",
-      delete_lorebook: "Delete lorebook",
-      reorder_lore_entries: "Reorder entries",
-      generate_image: "Generate image",
-      edit_avatar_image: "Edit image",
-      use_uploaded_image: "Use uploaded image",
-      show_preview: "Show preview",
-      request_confirmation: "Ready to save",
-      list_models: "Look up models",
-      list_prompts: "Look up prompts",
-      list_personas: "Look up personas",
-      list_lorebooks: "Look up lorebooks",
-      list_lore_entries: "Look up entries",
-      set_character_name: "Set name",
-      set_character_definition: "Set definition",
-      set_character_description: "Set definition",
-      add_scene: "Add scene",
-      update_scene: "Update scene",
-      toggle_avatar_gradient: "Toggle gradient",
-      set_default_model: "Set model",
-      set_system_prompt: "Set prompt",
-      use_uploaded_image_as_avatar: "Set avatar",
-      use_uploaded_image_as_chat_background: "Set background",
-      generate_avatar: "Generate avatar",
-      upsert_persona: "Save persona",
-      use_uploaded_image_as_persona_avatar: "Set persona avatar",
-      get_default_persona: "Get default persona",
-      upsert_lorebook: "Save lorebook",
-      list_lorebook_entries: "List lorebook entries",
-      get_lorebook_entry: "Get lorebook entry",
-      upsert_lorebook_entry: "Save lorebook entry",
-      delete_lorebook_entry: "Delete lorebook entry",
-      create_blank_lorebook_entry: "Create lorebook entry",
-      reorder_lorebook_entries: "Reorder lorebook entries",
-      list_character_lorebooks: "List character lorebooks",
-      set_character_lorebooks: "Set character lorebooks",
-    };
-    return names[toolName] || toolName;
+    const names = {
+      write_definition: "characters.creationHelper.toolNames.write_definition",
+      write_scene: "characters.creationHelper.toolNames.write_scene",
+      write_lore_entry: "characters.creationHelper.toolNames.write_lore_entry",
+      set_name: "characters.creationHelper.toolNames.set_name",
+      set_model: "characters.creationHelper.toolNames.set_model",
+      set_prompt: "characters.creationHelper.toolNames.set_prompt",
+      set_avatar_gradient: "characters.creationHelper.toolNames.set_avatar_gradient",
+      attach_lorebooks: "characters.creationHelper.toolNames.attach_lorebooks",
+      edit_scene: "characters.creationHelper.toolNames.edit_scene",
+      edit_lore_entry: "characters.creationHelper.toolNames.edit_lore_entry",
+      delete_scene: "characters.creationHelper.toolNames.delete_scene",
+      delete_lore_entry: "characters.creationHelper.toolNames.delete_lore_entry",
+      delete_persona: "characters.creationHelper.toolNames.delete_persona",
+      delete_lorebook: "characters.creationHelper.toolNames.delete_lorebook",
+      reorder_lore_entries: "characters.creationHelper.toolNames.reorder_lore_entries",
+      generate_image: "characters.creationHelper.toolNames.generate_image",
+      edit_avatar_image: "characters.creationHelper.toolNames.edit_avatar_image",
+      use_uploaded_image: "characters.creationHelper.toolNames.use_uploaded_image",
+      show_preview: "characters.creationHelper.toolNames.show_preview",
+      request_confirmation: "characters.creationHelper.toolNames.request_confirmation",
+      list_models: "characters.creationHelper.toolNames.list_models",
+      list_prompts: "characters.creationHelper.toolNames.list_prompts",
+      list_personas: "characters.creationHelper.toolNames.list_personas",
+      list_lorebooks: "characters.creationHelper.toolNames.list_lorebooks",
+      list_lore_entries: "characters.creationHelper.toolNames.list_lore_entries",
+      set_character_name: "characters.creationHelper.toolNames.set_character_name",
+      set_character_definition: "characters.creationHelper.toolNames.set_character_definition",
+      set_character_description: "characters.creationHelper.toolNames.set_character_description",
+      add_scene: "characters.creationHelper.toolNames.add_scene",
+      update_scene: "characters.creationHelper.toolNames.update_scene",
+      toggle_avatar_gradient: "characters.creationHelper.toolNames.toggle_avatar_gradient",
+      set_default_model: "characters.creationHelper.toolNames.set_default_model",
+      set_system_prompt: "characters.creationHelper.toolNames.set_system_prompt",
+      use_uploaded_image_as_avatar: "characters.creationHelper.toolNames.use_uploaded_image_as_avatar",
+      use_uploaded_image_as_chat_background:
+        "characters.creationHelper.toolNames.use_uploaded_image_as_chat_background",
+      generate_avatar: "characters.creationHelper.toolNames.generate_avatar",
+      upsert_persona: "characters.creationHelper.toolNames.upsert_persona",
+      use_uploaded_image_as_persona_avatar:
+        "characters.creationHelper.toolNames.use_uploaded_image_as_persona_avatar",
+      get_default_persona: "characters.creationHelper.toolNames.get_default_persona",
+      upsert_lorebook: "characters.creationHelper.toolNames.upsert_lorebook",
+      list_lorebook_entries: "characters.creationHelper.toolNames.list_lorebook_entries",
+      get_lorebook_entry: "characters.creationHelper.toolNames.get_lorebook_entry",
+      upsert_lorebook_entry: "characters.creationHelper.toolNames.upsert_lorebook_entry",
+      delete_lorebook_entry: "characters.creationHelper.toolNames.delete_lorebook_entry",
+      create_blank_lorebook_entry: "characters.creationHelper.toolNames.create_blank_lorebook_entry",
+      reorder_lorebook_entries: "characters.creationHelper.toolNames.reorder_lorebook_entries",
+      list_character_lorebooks: "characters.creationHelper.toolNames.list_character_lorebooks",
+      set_character_lorebooks: "characters.creationHelper.toolNames.set_character_lorebooks",
+    } satisfies Record<string, TranslationKey>;
+    const key = names[toolName as keyof typeof names];
+    return key ? t(key) : toolName;
   };
 
   const isImageGenCall = (name: string | undefined) =>
@@ -1290,11 +1302,11 @@ export function CreationHelperPage() {
 
   const previewTitle = showConfirmation
     ? activeGoal === "persona"
-      ? "Ready to Save Persona?"
-      : "Ready to Save?"
+      ? t("characters.creationHelper.readyToSavePersona")
+      : t("characters.creationHelper.readyToSave")
     : activeGoal === "persona"
-      ? "Persona Preview"
-      : "Character Preview";
+      ? t("characters.creationHelper.personaPreview")
+      : t("characters.creationHelper.characterPreview");
 
   const handleOpenPersona = useCallback(async () => {
     if (!session) return;
@@ -1308,7 +1320,7 @@ export function CreationHelperPage() {
         });
       } catch (err) {
         console.error("Failed to save persona edit:", err);
-        setError(resolveErrorMessage(err, "Failed to save persona changes."));
+        setError(resolveErrorMessage(err, t("characters.creationHelper.savePersonaChangesFailed")));
         return;
       }
       navigate(`/personas/${personaId}/edit`);
@@ -1324,7 +1336,7 @@ export function CreationHelperPage() {
       });
     } catch (err) {
       console.error("Failed to complete persona:", err);
-      setError(resolveErrorMessage(err, "Failed to save persona."));
+      setError(resolveErrorMessage(err, t("characters.creationHelper.savePersonaFailed")));
     }
   }, [
     navigate,
@@ -1337,7 +1349,7 @@ export function CreationHelperPage() {
       <TopNav
         currentPath="/create/character/helper"
         onBackOverride={handleBack}
-        titleOverride={`AI ${goalLabel} Creator`}
+        titleOverride={t("characters.creationHelper.creatorTitle", { goal: goalLabel })}
         rightAction={
           activeGoal ? (
             <button
@@ -1353,7 +1365,7 @@ export function CreationHelperPage() {
               )}
             >
               <Eye className="h-4 w-4" />
-              <span className="text-xs font-medium">Preview</span>
+              <span className="text-xs font-medium">{t("characters.creationHelper.preview")}</span>
             </button>
           ) : null
         }
@@ -1364,7 +1376,7 @@ export function CreationHelperPage() {
         <div className="mx-auto max-w-2xl space-y-4 py-4">
           <div className="flex justify-center">
             <div className="rounded-full border border-fg/10 bg-fg/5 px-3 py-1 text-[10px] uppercase tracking-wider text-fg/50">
-              {goalLabel} Mode
+              {t("characters.creationHelper.modeBadge", { goal: goalLabel })}
             </div>
           </div>
           {/* Welcome Message */}
@@ -1377,16 +1389,16 @@ export function CreationHelperPage() {
                 <Sparkles className="h-8 w-8 text-danger" />
               </div>
               <h2 className={cn(typography.h2.size, typography.h2.weight, "text-fg mb-2")}>
-                AI {goalLabel} Creator
+                {t("characters.creationHelper.creatorTitle", { goal: goalLabel })}
               </h2>
               <p className="text-fg/60 text-sm max-w-xs">
                 {activeGoal === "persona"
-                  ? "I'll help you create a persona through conversation. Tell me who you want to be."
-                  : "I'll help you create a character through conversation. Just tell me what you have in mind!"}
+                  ? t("characters.creationHelper.welcomePersona")
+                  : t("characters.creationHelper.welcomeCharacter")}
               </p>
               <div className="mt-4 flex items-center gap-1">
                 <Loader2 className="h-4 w-4 text-fg/40 animate-spin" />
-                <span className="text-xs text-fg/40">Starting...</span>
+                <span className="text-xs text-fg/40">{t("characters.creationHelper.starting")}</span>
               </div>
             </motion.div>
           )}
@@ -1436,7 +1448,7 @@ export function CreationHelperPage() {
                         ) : imageEntry.status === "error" ? (
                           <>
                             <div className="h-36 w-36 rounded-lg border border-danger/30 bg-danger/10 flex items-center justify-center">
-                              <span className="text-xs text-danger">Generation failed</span>
+                              <span className="text-xs text-danger">{t("characters.creationHelper.generationFailed")}</span>
                             </div>
                           </>
                         ) : imageEntry.imageId ? (
@@ -1445,7 +1457,7 @@ export function CreationHelperPage() {
                             onClick={() =>
                               setImagePreview({
                                 id: imageEntry.imageId as string,
-                                label: "Generated image",
+                                label: t("characters.creationHelper.generatedImage"),
                               })
                             }
                             className="group flex flex-col items-center gap-2"
@@ -1453,13 +1465,13 @@ export function CreationHelperPage() {
                             <GeneratedImagePreview
                               sessionId={session?.id ?? ""}
                               imageId={imageEntry.imageId}
-                              label="Image ready"
+                              label={t("characters.creationHelper.imageReady")}
                               size="sm"
                               className="transition-transform group-hover:scale-[1.01]"
                             />
                           </button>
                         ) : (
-                          <span className="text-xs text-fg/40">Image unavailable</span>
+                          <span className="text-xs text-fg/40">{t("characters.creationHelper.imageUnavailable")}</span>
                         )}
                       </div>
                     ) : (
@@ -1498,7 +1510,7 @@ export function CreationHelperPage() {
                                   i++;
                                   if (!call) continue;
                                   const displayName = getToolDisplayName(
-                                    call.name || "Unknown Tool",
+                                    call.name || t("characters.creationHelper.unknownTool"),
                                   );
                                   const isPending = !result;
                                   pillRow.push(
@@ -1732,7 +1744,7 @@ export function CreationHelperPage() {
                   )}
                 >
                   <RefreshCw className="h-4 w-4" />
-                  <span>Regenerate Response</span>
+                  <span>{t("characters.creationHelper.regenerateResponse")}</span>
                 </button>
               </motion.div>
             )}
@@ -1813,8 +1825,8 @@ export function CreationHelperPage() {
               {session.creationMode === "edit" && session.targetType === "character" ? (
                 <MenuButton
                   icon={Check}
-                  title="Save Character Changes"
-                  description="Apply updates to existing character"
+                  title={t("characters.creationHelper.saveCharacterChanges")}
+                  description={t("characters.creationHelper.saveCharacterChangesDesc")}
                   color="from-accent to-accent/80"
                   onClick={handleUseCharacter}
                 />
@@ -1822,15 +1834,15 @@ export function CreationHelperPage() {
                 <>
                   <MenuButton
                     icon={Check}
-                    title="Save & Chat"
-                    description="Commit the character and open a chat"
+                    title={t("characters.creationHelper.saveAndChat")}
+                    description={t("characters.creationHelper.saveAndChatDesc")}
                     color="from-accent to-accent/80"
                     onClick={handleSaveAndChat}
                   />
                   <MenuButton
                     icon={PenLine}
-                    title="Open in Editor"
-                    description="Review fields before saving"
+                    title={t("characters.creationHelper.openInEditor")}
+                    description={t("characters.creationHelper.openInEditorDesc")}
                     color="from-warning to-warning/80"
                     onClick={handleEditManually}
                   />
@@ -1838,8 +1850,8 @@ export function CreationHelperPage() {
               )}
               <MenuButton
                 icon={RefreshCw}
-                title="Keep Editing Here"
-                description="Return to the conversation"
+                title={t("characters.creationHelper.keepEditingHere")}
+                description={t("characters.creationHelper.keepEditingHereDesc")}
                 color="from-info to-info/80"
                 onClick={() => {
                   setShowPreview(false);
@@ -1867,13 +1879,13 @@ export function CreationHelperPage() {
                 icon={User}
                 title={
                   session?.creationMode === "edit" && session?.targetType === "persona"
-                    ? "Save Persona Changes"
-                    : "Use Persona"
+                    ? t("characters.creationHelper.savePersonaChanges")
+                    : t("characters.creationHelper.usePersona")
                 }
                 description={
                   session?.creationMode === "edit" && session?.targetType === "persona"
-                    ? "Apply updates to existing persona"
-                    : "Review and save on the create page"
+                    ? t("characters.creationHelper.savePersonaChangesDesc")
+                    : t("characters.creationHelper.usePersonaDesc")
                 }
                 color="from-accent to-accent/80"
                 onClick={handleOpenPersona}
@@ -1886,8 +1898,8 @@ export function CreationHelperPage() {
               />
               <MenuButton
                 icon={RefreshCw}
-                title="Keep Editing"
-                description="Continue the conversation"
+                title={t("characters.creationHelper.keepEditing")}
+                description={t("characters.creationHelper.keepEditingDesc")}
                 color="from-info to-info/80"
                 onClick={() => {
                   setShowPreview(false);
@@ -1904,7 +1916,11 @@ export function CreationHelperPage() {
       <BottomMenu
         isOpen={showToolDetail}
         onClose={() => setShowToolDetail(false)}
-        title={selectedTool ? getToolDisplayName(selectedTool.call.name) : "Tool Usage Details"}
+        title={
+          selectedTool
+            ? getToolDisplayName(selectedTool.call.name)
+            : t("characters.creationHelper.toolUsageDetails")
+        }
       >
         {selectedTool && (
           <div className="space-y-6 pb-6">
@@ -1925,10 +1941,12 @@ export function CreationHelperPage() {
               </div>
               <div>
                 <h3 className={cn(typography.h2.size, typography.h2.weight, "text-fg text-base")}>
-                  {selectedTool.result.success ? "Execution Successful" : "Execution Failed"}
+                  {selectedTool.result.success
+                    ? t("characters.creationHelper.executionSuccessful")
+                    : t("characters.creationHelper.executionFailed")}
                 </h3>
                 <p className="text-fg/40 text-[10px] uppercase tracking-wider font-bold">
-                  Tool: {selectedTool.call.name}
+                  {t("characters.creationHelper.toolLabel", { tool: selectedTool.call.name })}
                 </p>
               </div>
             </div>
@@ -1936,7 +1954,7 @@ export function CreationHelperPage() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <h4 className="text-[10px] font-bold text-fg/30 uppercase tracking-wider px-1">
-                  Model Input (Arguments)
+                  {t("characters.creationHelper.modelInputArguments")}
                 </h4>
                 <div className="bg-surface-el/40 rounded-xl p-3 border border-fg/5 overflow-x-auto">
                   <pre className="text-xs text-info font-mono leading-relaxed">
@@ -1947,7 +1965,7 @@ export function CreationHelperPage() {
 
               <div className="space-y-2">
                 <h4 className="text-[10px] font-bold text-fg/30 uppercase tracking-wider px-1">
-                  Tool Output (Result)
+                  {t("characters.creationHelper.toolOutputResult")}
                 </h4>
                 <div className="bg-surface-el/40 rounded-xl p-3 border border-fg/5 overflow-x-auto">
                   <pre
@@ -1968,7 +1986,7 @@ export function CreationHelperPage() {
       <BottomMenu
         isOpen={!!imagePreview}
         onClose={() => setImagePreview(null)}
-        title={imagePreview?.label ?? "Generated Image"}
+        title={imagePreview?.label ?? t("characters.creationHelper.generatedImageTitle")}
       >
         {imagePreview && session?.id && (
           <div className="flex flex-col items-center gap-2 py-6">
@@ -1983,14 +2001,14 @@ export function CreationHelperPage() {
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(imagePreview.id);
-                  toast.success("Image id copied");
+                  toast.success(t("characters.creationHelper.imageIdCopied"));
                 } catch {
-                  toast.error("Failed to copy");
+                  toast.error(t("characters.creationHelper.copyFailed"));
                 }
               }}
               className="rounded-md bg-white/10 px-3 py-1.5 font-mono text-sm text-white/90 text-center hover:bg-white/15 transition-colors cursor-pointer"
             >
-              <span className="text-white/60 select-none">Id:</span>{" "}
+              <span className="text-white/60 select-none">{t("characters.creationHelper.idLabel")}</span>{" "}
               <span className="select-all">{imagePreview.id}</span>
             </button>
           </div>

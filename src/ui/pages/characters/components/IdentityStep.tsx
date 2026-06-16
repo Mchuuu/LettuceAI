@@ -145,7 +145,7 @@ export function IdentityStep({
             <div className="space-y-3">
               <div>
                 <p className={cn(typography.label.size, typography.label.weight, "text-fg/70")}>
-                  Card type
+                  {t("characters.identity.cardTypeLabel")}
                 </p>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {(["circle", "banner"] as const).map((value) => (
@@ -160,7 +160,9 @@ export function IdentityStep({
                           : "border-fg/10 bg-surface-el/20 text-fg/60 hover:border-fg/20 hover:text-fg",
                       )}
                     >
-                      {value === "circle" ? "Circle" : "Banner"}
+                      {value === "circle"
+                        ? t("characters.identity.cardTypeCircle")
+                        : t("characters.identity.cardTypeBanner")}
                     </button>
                   ))}
                 </div>
@@ -168,9 +170,9 @@ export function IdentityStep({
 
               <div className="rounded-2xl border border-fg/10 bg-surface-el/10 p-4">
                 <div className="mb-3">
-                  <p className="text-sm font-medium text-fg">Banner image</p>
+                  <p className="text-sm font-medium text-fg">{t("characters.identity.bannerImageLabel")}</p>
                   <p className="text-xs text-fg/45">
-                    Used on banner cards. Falls back to the base avatar when empty.
+                    {t("characters.identity.bannerImageHint")}
                   </p>
                 </div>
 
@@ -202,7 +204,7 @@ export function IdentityStep({
                       }}
                       className="text-xs text-fg/45 transition hover:text-danger"
                     >
-                      Remove banner image
+                      {t("characters.identity.bannerImageRemove")}
                     </button>
                   ) : null}
                 </div>
@@ -382,7 +384,7 @@ export function IdentityStep({
                 )}
               >
                 <Upload size={14} />
-                Upload image
+                {t("characters.identity.uploadImage")}
                 <input
                   type="file"
                   accept="image/*"
@@ -401,11 +403,11 @@ export function IdentityStep({
                 )}
               >
                 <FolderOpen size={14} />
-                Choose from library
+                {t("characters.identity.chooseFromLibrary")}
               </button>
             </div>
             <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-              Optional background image for chat conversations
+              {t("characters.identity.backgroundDesc")}
             </p>
           </div>
           </div>
@@ -431,7 +433,7 @@ export function IdentityStep({
               : "cursor-not-allowed border border-fg/5 bg-fg/5 text-fg/30",
           )}
         >
-          Continue to Description
+          {t("characters.identity.continueToDescription")}
         </motion.button>
       </div>
 
@@ -447,11 +449,11 @@ export function IdentityStep({
             )}
           >
             <Upload className="h-4 w-4" />
-            Import Character from File
+            {t("characters.identity.importCharacterFromFile")}
             <input type="file" onChange={onImport} className="hidden" />
           </label>
           <p className={cn(typography.bodySmall.size, "mt-2 text-center text-fg/40")}>
-            Load a character from a PNG card, .uec, or .json export file
+            {t("characters.identity.importCharacterDesc")}
           </p>
         </div>
       )}

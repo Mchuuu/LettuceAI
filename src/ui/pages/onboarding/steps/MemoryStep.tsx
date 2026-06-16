@@ -92,8 +92,16 @@ export function MemoryStep({
             compact ? "text-[13px]" : "text-[15px]",
           )}
         >
-          Uses a <b>local embedding model</b> to smartly manage context. This cuts token costs while
-          maintaining high quality, even in long chats.
+          {(() => {
+            const parts = t("onboarding.memory.dynamicDescription").split(/<0>|<\/0>/);
+            return (
+              <>
+                {parts[0]}
+                <b>{parts[1]}</b>
+                {parts[2]}
+              </>
+            );
+          })()}
         </p>
 
         <div
@@ -104,19 +112,19 @@ export function MemoryStep({
         >
           <div className="flex items-center gap-2 text-[13px] text-white/80">
             <div className="w-1 h-1 rounded-full bg-emerald-500" />
-            Maintains quality in long chats
+            {t("onboarding.memory.dynamicFeatures.quality")}
           </div>
           <div className="flex items-center gap-2 text-[13px] text-white/80">
             <div className="w-1 h-1 rounded-full bg-emerald-500" />
-            Reduces API costs significantly
+            {t("onboarding.memory.dynamicFeatures.cost")}
           </div>
           <div className="flex items-center gap-2 text-[13px] text-white/80">
             <div className="w-1 h-1 rounded-full bg-emerald-500" />
-            Automatic context management
+            {t("onboarding.memory.dynamicFeatures.auto")}
           </div>
           <div className="flex items-center gap-2 text-[13px] text-white/80">
             <div className="w-1 h-1 rounded-full bg-emerald-500" />
-            Zero configuration needed
+            {t("onboarding.memory.dynamicFeatures.zeroConfig")}
           </div>
         </div>
       </div>
@@ -157,10 +165,10 @@ export function MemoryStep({
             </div>
             <div>
               <h3 className={cn("font-semibold text-white", compact ? "text-[17px]" : "text-[19px]")}>
-                Manual Memory
+                {t("onboarding.memory.manualTitle")}
               </h3>
               <p className="text-[13px] text-white/55 mt-0.5 h-5 flex items-center">
-                Classic experience
+                {t("onboarding.memory.manualBadge")}
               </p>
             </div>
           </div>
@@ -182,8 +190,7 @@ export function MemoryStep({
             compact ? "text-[13px]" : "text-[15px]",
           )}
         >
-          You explicitly pin messages and edit the "World Info" or character definitions yourself.
-          Good for total control.
+          {t("onboarding.memory.manualDescription")}
         </p>
 
         <div
@@ -194,11 +201,11 @@ export function MemoryStep({
         >
           <div className="flex items-center gap-2 text-[13px] text-white/80">
             <div className="w-1 h-1 rounded-full bg-blue-500" />
-            Total control over facts
+            {t("onboarding.memory.manualFeatures.control")}
           </div>
           <div className="flex items-center gap-2 text-[13px] text-white/80">
             <div className="w-1 h-1 rounded-full bg-blue-500" />
-            Best for specific scenarios
+            {t("onboarding.memory.manualFeatures.scenarios")}
           </div>
         </div>
       </div>
@@ -246,7 +253,7 @@ export function MemoryStep({
           <div className="text-center space-y-3 mb-10">
             <h1 className="text-[25px] font-bold text-white">{t("onboarding.steps.memory")}</h1>
             <p className="text-[15px] text-white/70 max-w-md mx-auto leading-relaxed">
-              How should your AI companions remember details about you and your conversations?
+              {t("onboarding.memory.howRemember")}
             </p>
           </div>
 
@@ -284,10 +291,10 @@ export function MemoryStep({
               "text-white [text-shadow:0_1px_16px_rgba(0,0,0,0.85)]",
             )}
           >
-            Choose your memory style
+            {t("onboarding.memory.chooseStyle")}
           </h1>
           <p className="text-[15px] text-white/85 max-w-xs mx-auto leading-relaxed [text-shadow:0_1px_12px_rgba(0,0,0,0.75)]">
-            How should your AI companions remember details about you and your conversations?
+            {t("onboarding.memory.howRemember")}
           </p>
         </div>
 

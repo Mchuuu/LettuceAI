@@ -632,7 +632,7 @@ function GroupChatMessageInner({
                     )}
                     onClick={() =>
                       attachment.data &&
-                      onImageClick?.(attachment.data, attachment.filename || "Attached image")
+                      onImageClick?.(attachment.data, attachment.filename || t("groupChats.message.attachedImage"))
                     }
                   >
                     {attachment.data ? (
@@ -803,8 +803,9 @@ export const GroupChatMessage = React.memo(GroupChatMessageInner, (prev, next) =
 });
 
 function TypingIndicator() {
+  const { t } = useI18n();
   return (
-    <div className="flex items-center gap-1" aria-label="Assistant is typing" aria-live="polite">
+    <div className="flex items-center gap-1" aria-label={t("groupChats.message.assistantIsTyping")} aria-live="polite">
       <span className="typing-dot" />
       <span className="typing-dot" style={{ animationDelay: "0.2s" }} />
       <span className="typing-dot" style={{ animationDelay: "0.4s" }} />

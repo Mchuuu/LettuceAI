@@ -684,7 +684,6 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     suggestedReply: "建議回覆",
     selectTwoCharactersMinimum: "群組對話需選擇至少 2 個角色。",
     groupBranchCreated: "群組分支已建立！重新導向中...",
-    memories: "記憶",
     tools: "工具",
     pinned: "已釘選",
     searchMemories: "搜尋記憶...",

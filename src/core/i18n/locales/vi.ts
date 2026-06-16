@@ -740,7 +740,6 @@ export const viMessages: DeepPartialMessageTree<LocaleMessages> = {
     "suggestedReply": "Gợi ý trả lời",
     "selectTwoCharactersMinimum": "Chọn ít nhất 2 nhân vật cho nhóm trò chuyện.",
     "groupBranchCreated": "Đã tạo nhánh nhóm! Đang chuyển hướng...",
-    "memories": "Ký ức",
     "tools": "Công cụ",
     "pinned": "Đã ghim",
     "searchMemories": "Tìm ký ức...",

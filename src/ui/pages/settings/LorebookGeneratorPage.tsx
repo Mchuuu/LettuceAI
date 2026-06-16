@@ -17,25 +17,27 @@ import {
 } from "../../../core/prompts/constants";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
 import { cn } from "../../design-tokens";
+import { useI18n } from "../../../core/i18n/context";
+import type { TranslationKey } from "../../../core/i18n/context";
 import { ModelSelectionBottomMenu } from "../../components/ModelSelectionBottomMenu";
 import { NumberInput } from "../../components/NumberInput";
 
-const FALLBACK_OPTIONS: Array<{
-  value: DynamicMemoryStructuredFallbackFormat;
-  title: string;
-  description: string;
-}> = [
+const FALLBACK_OPTIONS = [
   {
     value: "json",
-    title: "JSON",
-    description: "Compact structured output when tool calling is unavailable.",
+    titleKey: "lorebookGen.full.fallbackJsonTitle",
+    descriptionKey: "lorebookGen.full.fallbackJsonDescription",
   },
   {
     value: "xml",
-    title: "XML",
-    description: "Use when the model formats XML more reliably than JSON.",
+    titleKey: "lorebookGen.full.fallbackXmlTitle",
+    descriptionKey: "lorebookGen.full.fallbackXmlDescription",
   },
-];
+] satisfies Array<{
+  value: DynamicMemoryStructuredFallbackFormat;
+  titleKey: TranslationKey;
+  descriptionKey: TranslationKey;
+}>;
 
 const MIN_TARGET = 5;
 const MAX_TARGET = 50;
@@ -50,8 +52,8 @@ interface PromptStage {
     | "lorebookGeneratorWriter"
     | "lorebookGeneratorRefine"
     | "lorebookGeneratorCoherence";
-  title: string;
-  description: string;
+  titleKey: TranslationKey;
+  descriptionKey: TranslationKey;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
 }
@@ -75,6 +77,7 @@ function ensureAdvancedSettings(settings: Settings): NonNullable<Settings["advan
 }
 
 export function LorebookGeneratorPage() {
+  const { t } = useI18n();
   const [isLoading, setIsLoading] = useState(true);
   const [models, setModels] = useState<Model[]>([]);
   const [defaultModelId, setDefaultModelId] = useState<string | null>(null);
@@ -148,10 +151,10 @@ export function LorebookGeneratorPage() {
   const defaultModel = defaultModelId
     ? models.find((m) => m.id === defaultModelId) ?? null
     : null;
-  const selectedModelLabel = selectedModel?.displayName ?? "Generation Model";
+  const selectedModelLabel = selectedModel?.displayName ?? t("lorebookGen.full.generationModelFallback");
   const appDefaultLabel = defaultModel
-    ? `Use App Default (${defaultModel.displayName})`
-    : "Use App Default";
+    ? t("lorebookGen.full.useAppDefaultWith", { name: defaultModel.displayName })
+    : t("lorebookGen.full.useAppDefault");
 
   const handleModelChange = async (modelId: string | null) => {
     setSelectedModelId(modelId);
@@ -190,8 +193,8 @@ export function LorebookGeneratorPage() {
     {
       appTemplateId: APP_LOREBOOK_GENERATOR_PLANNER_TEMPLATE_ID,
       promptType: "lorebookGeneratorPlanner",
-      title: "Planner Prompt",
-      description: "Used to plan the outline of entries from the brief and sources.",
+      titleKey: "lorebookGen.full.plannerTitle",
+      descriptionKey: "lorebookGen.full.plannerDescription",
       selectedId: plannerTemplateId,
       onSelect: (id) => {
         setPlannerTemplateId(id);
@@ -203,8 +206,8 @@ export function LorebookGeneratorPage() {
     {
       appTemplateId: APP_LOREBOOK_GENERATOR_WRITER_TEMPLATE_ID,
       promptType: "lorebookGeneratorWriter",
-      title: "Writer Prompt",
-      description: "Used to draft each individual entry from the approved outline.",
+      titleKey: "lorebookGen.full.writerTitle",
+      descriptionKey: "lorebookGen.full.writerDescription",
       selectedId: writerTemplateId,
       onSelect: (id) => {
         setWriterTemplateId(id);
@@ -216,8 +219,8 @@ export function LorebookGeneratorPage() {
     {
       appTemplateId: APP_LOREBOOK_GENERATOR_REFINE_TEMPLATE_ID,
       promptType: "lorebookGeneratorRefine",
-      title: "Refine Prompt",
-      description: "Used to revise an entry from a user feedback message.",
+      titleKey: "lorebookGen.full.refineTitle",
+      descriptionKey: "lorebookGen.full.refineDescription",
       selectedId: refineTemplateId,
       onSelect: (id) => {
         setRefineTemplateId(id);
@@ -229,8 +232,8 @@ export function LorebookGeneratorPage() {
     {
       appTemplateId: APP_LOREBOOK_GENERATOR_COHERENCE_TEMPLATE_ID,
       promptType: "lorebookGeneratorCoherence",
-      title: "Coherence Prompt",
-      description: "Used to propose surgical changes across all drafted entries.",
+      titleKey: "lorebookGen.full.coherenceTitle",
+      descriptionKey: "lorebookGen.full.coherenceDescription",
       selectedId: coherenceTemplateId,
       onSelect: (id) => {
         setCoherenceTemplateId(id);
@@ -251,10 +254,7 @@ export function LorebookGeneratorPage() {
             <div className="flex items-start gap-2">
               <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
               <p className="text-xs leading-relaxed text-accent/80">
-                The Lorebook Generator plans, drafts, and refines a complete lorebook from a brief
-                and source materials. Tool calling is attempted first; if unsupported, all stages
-                fall back to <span className="font-mono">{fallbackFormat.toUpperCase()}</span>{" "}
-                structured output.
+                {t("lorebookGen.full.infoText", { format: fallbackFormat.toUpperCase() })}
               </p>
             </div>
           </div>
@@ -262,7 +262,7 @@ export function LorebookGeneratorPage() {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div className="space-y-4">
               <h3 className="px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-                Generation
+                {t("lorebookGen.full.generationHeading")}
               </h3>
 
               <div className="space-y-3">
@@ -270,7 +270,7 @@ export function LorebookGeneratorPage() {
                   <div className="rounded-lg border border-accent/30 bg-accent/10 p-1.5">
                     <Cpu className="h-4 w-4 text-accent" />
                   </div>
-                  <h3 className="text-sm font-semibold text-fg">Generation Model</h3>
+                  <h3 className="text-sm font-semibold text-fg">{t("lorebookGen.full.generationModel")}</h3>
                 </div>
 
                 {models.length > 0 ? (
@@ -297,12 +297,11 @@ export function LorebookGeneratorPage() {
                   </button>
                 ) : (
                   <div className="rounded-xl border border-fg/10 bg-surface-el/20 px-4 py-3">
-                    <p className="text-sm text-fg/50">No text-capable models configured.</p>
+                    <p className="text-sm text-fg/50">{t("lorebookGen.full.noTextModels")}</p>
                   </div>
                 )}
                 <p className="px-1 text-xs text-fg/50">
-                  Used for all four pipeline stages. Leave unset to use the app's default text
-                  model.
+                  {t("lorebookGen.full.modelHint")}
                 </p>
               </div>
 
@@ -311,7 +310,7 @@ export function LorebookGeneratorPage() {
                   <div className="rounded-lg border border-info/30 bg-info/10 p-1.5">
                     <Code2 className="h-4 w-4 text-info" />
                   </div>
-                  <h3 className="text-sm font-semibold text-fg">Structured Fallback</h3>
+                  <h3 className="text-sm font-semibold text-fg">{t("lorebookGen.full.structuredFallback")}</h3>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -336,7 +335,7 @@ export function LorebookGeneratorPage() {
                               active ? "text-info" : "text-fg/80",
                             )}
                           >
-                            {option.title}
+                            {t(option.titleKey)}
                           </span>
                           {active && (
                             <div className="flex h-5 w-5 items-center justify-center rounded-full bg-info">
@@ -345,7 +344,7 @@ export function LorebookGeneratorPage() {
                           )}
                         </div>
                         <span className="text-[11px] leading-relaxed text-fg/50">
-                          {option.description}
+                          {t(option.descriptionKey)}
                         </span>
                       </button>
                     );
@@ -359,7 +358,7 @@ export function LorebookGeneratorPage() {
                     <Hash className="h-4 w-4 text-warning" />
                   </div>
                   <h3 className="text-sm font-semibold text-fg">
-                    Default Entry Count: {targetCount}
+                    {t("lorebookGen.full.defaultEntryCount", { count: targetCount })}
                   </h3>
                 </div>
                 <div className="flex items-center gap-3">
@@ -384,7 +383,7 @@ export function LorebookGeneratorPage() {
                   />
                 </div>
                 <p className="px-1 text-xs text-fg/50">
-                  Pre-fills the slider on the generator page. Range {MIN_TARGET}–{MAX_TARGET}.
+                  {t("lorebookGen.full.entryCountHint", { min: MIN_TARGET, max: MAX_TARGET })}
                 </p>
               </div>
 
@@ -393,7 +392,7 @@ export function LorebookGeneratorPage() {
                   <div className="rounded-lg border border-info/30 bg-info/10 p-1.5">
                     <Gauge className="h-4 w-4 text-info" />
                   </div>
-                  <h3 className="text-sm font-semibold text-fg">Max output tokens</h3>
+                  <h3 className="text-sm font-semibold text-fg">{t("lorebookGen.full.maxOutputTokens")}</h3>
                 </div>
                 <NumberInput
                   min={MIN_MAX_TOKENS}
@@ -406,15 +405,14 @@ export function LorebookGeneratorPage() {
                   className="w-full rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-sm focus:border-fg/25 focus:outline-none"
                 />
                 <p className="px-1 text-xs text-fg/50">
-                  Per-stage completion cap. Larger entries and big outlines need higher limits.
-                  Range {MIN_MAX_TOKENS}–{MAX_MAX_TOKENS}.
+                  {t("lorebookGen.full.maxTokensHint", { min: MIN_MAX_TOKENS, max: MAX_MAX_TOKENS })}
                 </p>
               </div>
             </div>
 
             <div className="space-y-4">
               <h3 className="px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-                Stage Prompts
+                {t("lorebookGen.full.stagePromptsHeading")}
               </h3>
 
               {stages.map((stage) => (
@@ -423,14 +421,14 @@ export function LorebookGeneratorPage() {
                     <div className="rounded-lg border border-warning/30 bg-warning/10 p-1.5">
                       <BookOpen className="h-4 w-4 text-warning" />
                     </div>
-                    <h3 className="text-sm font-semibold text-fg">{stage.title}</h3>
+                    <h3 className="text-sm font-semibold text-fg">{t(stage.titleKey)}</h3>
                   </div>
                   <select
                     value={stage.selectedId ?? ""}
                     onChange={(e) => stage.onSelect(e.target.value || null)}
                     className="w-full appearance-none rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-sm text-fg transition focus:border-fg/25 focus:outline-none"
                   >
-                    <option value="">Use built-in default</option>
+                    <option value="">{t("lorebookGen.full.useBuiltInDefault")}</option>
                     {templates
                       .filter((t) => t.promptType === stage.promptType)
                       .filter((t) => t.id !== stage.appTemplateId)
@@ -440,7 +438,7 @@ export function LorebookGeneratorPage() {
                         </option>
                       ))}
                   </select>
-                  <p className="px-1 text-xs leading-relaxed text-fg/50">{stage.description}</p>
+                  <p className="px-1 text-xs leading-relaxed text-fg/50">{t(stage.descriptionKey)}</p>
                 </div>
               ))}
             </div>
@@ -449,11 +447,7 @@ export function LorebookGeneratorPage() {
           <div className="flex items-start gap-3 rounded-xl border border-fg/10 bg-fg/3 px-4 py-3.5">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-fg/30" />
             <div className="text-[11px] leading-relaxed text-fg/45">
-              <p>
-                Open Library, click "New Lorebook", and choose "Generate with AI" to start a
-                generation flow that uses these defaults. Manage prompt templates in Settings →
-                Prompts.
-              </p>
+              <p>{t("lorebookGen.full.footerHint")}</p>
             </div>
           </div>
         </div>
@@ -462,7 +456,7 @@ export function LorebookGeneratorPage() {
       <ModelSelectionBottomMenu
         isOpen={showModelMenu}
         onClose={() => setShowModelMenu(false)}
-        title="Generation Model"
+        title={t("lorebookGen.full.generationModel")}
         models={models}
         selectedModelIds={selectedModelId ? [selectedModelId] : []}
         onSelectModel={(modelId) => {
@@ -470,8 +464,8 @@ export function LorebookGeneratorPage() {
           setShowModelMenu(false);
         }}
         clearOption={{
-          label: "Use App Default",
-          description: defaultModel ? defaultModel.displayName : "No app default model configured",
+          label: t("lorebookGen.full.useAppDefault"),
+          description: defaultModel ? defaultModel.displayName : t("lorebookGen.full.noAppDefaultModel"),
           icon: Cpu,
           selected: !selectedModelId,
           onClick: () => {

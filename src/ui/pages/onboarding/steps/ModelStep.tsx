@@ -5,6 +5,9 @@ import { ModelConfigForm } from "../components/ConfigForm";
 import { getPlatform } from "../../../../core/utils/platform";
 import { getProviderIcon } from "../../../../core/utils/providerIcons";
 import { useI18n } from "../../../../core/i18n/context";
+import type { TranslationKey, TranslateParams } from "../../../../core/i18n/context";
+
+type TFunction = (key: TranslationKey, params?: TranslateParams) => string;
 
 interface ModelStepProps {
   providers: ProviderCredential[];
@@ -101,8 +104,8 @@ export function ModelStep({
         {/* Left Panel - Provider List */}
         <div className="flex-1 flex flex-col border-r border-white/10">
           <div className="p-6 pb-3">
-            <h2 className="text-[15px] font-medium text-white/70">Your Providers</h2>
-            <p className="text-[13px] text-white/55 mt-0.5">Select which provider to use</p>
+            <h2 className="text-[15px] font-medium text-white/70">{t("onboarding.model.yourProviders")}</h2>
+            <p className="text-[13px] text-white/55 mt-0.5">{t("onboarding.model.yourProvidersHint")}</p>
           </div>
           <div className="flex-1 overflow-y-auto px-6">
             <div className="space-y-2">
@@ -135,7 +138,7 @@ export function ModelStep({
                           {provider.label}
                         </h3>
                         <p className="text-[13px] text-white/55 truncate">
-                          {getProviderDisplayName(provider.providerId)}
+                          {getProviderDisplayName(provider.providerId, t)}
                         </p>
                       </div>
                       <div
@@ -159,12 +162,14 @@ export function ModelStep({
         <div className="w-100 shrink-0 p-8 overflow-y-auto">
           <div className="space-y-1 mb-6">
             <h1 className="text-[21px] font-bold text-white">
-              {selectedCredential ? "Model Details" : "Set your default model"}
+              {selectedCredential
+                ? t("onboarding.model.modelDetails")
+                : t("onboarding.model.setDefaultModel")}
             </h1>
             <p className="text-[15px] text-white/70 leading-relaxed">
               {selectedCredential
-                ? "Define the API identifier and the label you'll see inside the app."
-                : "Select a provider from the list to configure your model."}
+                ? t("onboarding.model.modelDetailsDesc")
+                : t("onboarding.model.setDefaultModelDescDesktop")}
             </p>
           </div>
 
@@ -183,7 +188,7 @@ export function ModelStep({
             />
           ) : (
             <div className="rounded-xl border border-dashed border-white/20 bg-white/5 p-6 text-center">
-              <p className="text-[15px] text-white/55">Select a provider to configure</p>
+              <p className="text-[15px] text-white/55">{t("onboarding.common.selectAProvider")}</p>
             </div>
           )}
         </div>
@@ -196,10 +201,9 @@ export function ModelStep({
     <div className="flex flex-col items-center pb-8">
       {/* Title */}
       <div className="text-center space-y-2 mb-6">
-        <h1 className="text-[25px] font-bold text-white">Set your default model</h1>
+        <h1 className="text-[25px] font-bold text-white">{t("onboarding.model.setDefaultModel")}</h1>
         <p className="text-[15px] text-white/70 max-w-sm leading-relaxed">
-          Choose which provider and model name LettuceAI should use by default. You'll be able to
-          add more later.
+          {t("onboarding.model.setDefaultModelDesc")}
         </p>
       </div>
 
@@ -224,7 +228,7 @@ export function ModelStep({
                 <div className="flex-1 min-w-0">
                   <h3 className="text-[15px] font-semibold text-white">{provider.label}</h3>
                   <p className="text-[13px] text-white/70 truncate">
-                    {getProviderDisplayName(provider.providerId)}
+                    {getProviderDisplayName(provider.providerId, t)}
                   </p>
                 </div>
                 <div
@@ -248,9 +252,9 @@ export function ModelStep({
         className={`w-full max-w-sm transition-all duration-300 ${showForm ? "opacity-100" : "opacity-0 pointer-events-none"}`}
       >
         <div className="text-center space-y-2 mb-6">
-          <h2 className="text-[19px] font-semibold text-white">Model Details</h2>
+          <h2 className="text-[19px] font-semibold text-white">{t("onboarding.model.modelDetails")}</h2>
           <p className="text-[13px] text-white/70 leading-relaxed">
-            Define the API identifier and the label you'll see inside the app.
+            {t("onboarding.model.modelDetailsDesc")}
           </p>
         </div>
 
@@ -273,20 +277,20 @@ export function ModelStep({
   );
 }
 
-function getProviderDisplayName(providerId: string): string {
+function getProviderDisplayName(providerId: string, t: TFunction): string {
   switch (providerId) {
     case "chutes":
-      return "Chutes";
+      return t("onboarding.model.providerNames.chutes");
     case "openai":
-      return "OpenAI";
+      return t("onboarding.model.providerNames.openai");
     case "anthropic":
-      return "Anthropic";
+      return t("onboarding.model.providerNames.anthropic");
     case "openrouter":
-      return "OpenRouter";
+      return t("onboarding.model.providerNames.openrouter");
     case "openai-compatible":
-      return "OpenAI compatible";
+      return t("onboarding.model.providerNames.openaiCompatible");
     case "custom":
-      return "Custom endpoint";
+      return t("onboarding.model.providerNames.custom");
     default:
       return providerId;
   }

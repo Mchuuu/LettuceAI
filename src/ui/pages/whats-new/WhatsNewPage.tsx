@@ -7,15 +7,16 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { cn } from "../../design-tokens";
 import { setLastSeenAppVersion } from "../../../core/storage/appState";
 import { changelog, type ChangelogEntry } from "../settings/ChangelogPage";
+import { useI18n, type TranslationKey } from "../../../core/i18n/context";
 
 type ChangeType = ChangelogEntry["changes"][number]["type"];
 
-const TYPE_LABEL: Record<ChangeType, string> = {
-  feature: "Added",
-  improvement: "Improved",
-  bugfix: "Fixed",
-  breaking: "Breaking",
-};
+const TYPE_LABEL = {
+  feature: "updates.whatsNew.types.added",
+  improvement: "updates.whatsNew.types.improved",
+  bugfix: "updates.whatsNew.types.fixed",
+  breaking: "updates.whatsNew.types.breaking",
+} satisfies Record<ChangeType, TranslationKey>;
 
 const TYPE_ORDER: ChangeType[] = ["feature", "improvement", "bugfix", "breaking"];
 
@@ -33,6 +34,7 @@ export function WhatsNewDrawer({
   isOpen: boolean;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const [currentVersion, setCurrentVersion] = useState<string | null>(null);
 
   useEffect(() => {
@@ -137,13 +139,13 @@ export function WhatsNewDrawer({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-accent/80">
-                    Welcome back
+                    {t("updates.whatsNew.welcomeBack")}
                   </p>
                   <h2
                     id="whats-new-title"
                     className="text-base font-semibold tracking-tight text-fg"
                   >
-                    What's new
+                    {t("updates.whatsNew.title")}
                   </h2>
                 </div>
               </div>
@@ -178,7 +180,7 @@ export function WhatsNewDrawer({
                       <div className="mb-2 flex items-center gap-2">
                         <span className={cn("h-1.5 w-1.5 rounded-full", TYPE_DOT[type])} />
                         <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/55">
-                          {TYPE_LABEL[type]}
+                          {t(TYPE_LABEL[type])}
                         </p>
                         <span className="font-mono text-[10px] tabular-nums text-fg/30">
                           {items.length.toString().padStart(2, "0")}
@@ -199,7 +201,7 @@ export function WhatsNewDrawer({
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-fg/55">Release notes aren't available yet.</p>
+                <p className="text-sm text-fg/55">{t("updates.whatsNew.noNotes")}</p>
               )}
             </div>
 
@@ -215,7 +217,7 @@ export function WhatsNewDrawer({
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
                 )}
               >
-                Continue
+                {t("common.buttons.continue")}
                 <ArrowRight className="h-4 w-4" />
               </button>
             </footer>

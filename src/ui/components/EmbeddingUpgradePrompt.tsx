@@ -107,7 +107,7 @@ export function EmbeddingUpgradePrompt({
         // Fall back to a sensible English string if the locale doesn't
         // have a v3-specific entry yet.
         return translated === "components.embeddingUpgrade.v3Message"
-          ? "lettuce-emb-v4 is out and dramatically improves roleplay memory recall. Upgrading is recommended."
+          ? t("components.extra.v3MessageFallback")
           : translated;
       }
     }
@@ -133,7 +133,7 @@ export function EmbeddingUpgradePrompt({
             <button
               onClick={handleDismiss}
               className="shrink-0 p-1.5 text-amber-400/50 hover:text-amber-400 transition-colors rounded-lg hover:bg-amber-400/10"
-              aria-label="Dismiss"
+              aria-label={t("components.extra.dismissAria")}
             >
               <X className="h-4 w-4" />
             </button>

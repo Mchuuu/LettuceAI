@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AlertCircle, ChevronDown, Copy, Info, X } from "lucide-react";
 import { cn, radius, typography } from "../../../design-tokens";
 import { explainChatError } from "../../../../core/chat/errorExplainer";
+import { useI18n } from "../../../../core/i18n/context";
 
 interface ChatErrorBannerProps {
   error: string;
@@ -9,6 +10,7 @@ interface ChatErrorBannerProps {
 }
 
 export function ChatErrorBanner({ error, onDismiss }: ChatErrorBannerProps) {
+  const { t } = useI18n();
   const explained = explainChatError(error);
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -73,7 +75,9 @@ export function ChatErrorBanner({ error, onDismiss }: ChatErrorBannerProps) {
               strokeWidth={2}
               className={cn("transition-transform", expanded && "rotate-180")}
             />
-            {expanded ? "Hide details" : "Show details"}
+            {expanded
+              ? t("chats.errorBanner.hideDetails")
+              : t("chats.errorBanner.showDetails")}
           </button>
           {expanded && (
             <div className="mt-2 space-y-1.5">
@@ -86,7 +90,9 @@ export function ChatErrorBanner({ error, onDismiss }: ChatErrorBannerProps) {
                 className="inline-flex items-center gap-1 text-[11px] font-medium text-fg/40 transition hover:text-fg/65"
               >
                 <Copy size={10} strokeWidth={2} />
-                {copied ? "Copied" : "Copy raw error"}
+                {copied
+                  ? t("chats.errorBanner.copied")
+                  : t("chats.errorBanner.copyRawError")}
               </button>
             </div>
           )}
@@ -96,7 +102,7 @@ export function ChatErrorBanner({ error, onDismiss }: ChatErrorBannerProps) {
             type="button"
             onClick={onDismiss}
             className="shrink-0 rounded-md p-1 text-fg/35 transition hover:bg-fg/[0.06] hover:text-fg/70"
-            aria-label="Dismiss"
+            aria-label={t("chats.errorBanner.dismiss")}
           >
             <X size={13} strokeWidth={2} />
           </button>

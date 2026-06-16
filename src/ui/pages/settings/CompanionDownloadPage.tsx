@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Download, Heart, Tag, Waypoints, X } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { storageBridge } from "../../../core/storage/files";
-import { useI18n } from "../../../core/i18n/context";
+import { useI18n, type TranslationKey } from "../../../core/i18n/context";
 import {
   ModelDownloadProgress,
   type ModelDownloadPhase,
@@ -12,30 +12,29 @@ import { useModelDownload } from "./hooks/useModelDownload";
 
 type Kind = "emotion" | "ner" | "router";
 
-const META: Record<
-  Kind,
-  { title: string; subtitle: string; approxSize: string; icon: typeof Heart }
-> = {
+const META = {
   emotion: {
-    title: "Emotion classifier",
-    subtitle: "Reads turns and updates the companion's felt, expressed, and blocked emotion vectors.",
-    approxSize: "~120 MB",
+    titleKey: "companion.models.emotionTitle",
+    subtitleKey: "companion.models.emotionSubtitle",
+    sizeKey: "companion.models.emotionSize",
     icon: Heart,
   },
   ner: {
-    title: "Entity extractor (NER)",
-    subtitle: "Identifies people, places, and objects so memories can be canonicalized and linked.",
-    approxSize: "~140 MB",
+    titleKey: "companion.models.nerTitle",
+    subtitleKey: "companion.models.nerSubtitle",
+    sizeKey: "companion.models.nerSize",
     icon: Tag,
   },
   router: {
-    title: "Memory router",
-    subtitle:
-      "Decides whether new turns should be stored as relationship, milestone, episodic, or other memory categories.",
-    approxSize: "~70 MB",
+    titleKey: "companion.models.routerTitle",
+    subtitleKey: "companion.models.routerSubtitle",
+    sizeKey: "companion.models.routerSize",
     icon: Waypoints,
   },
-};
+} satisfies Record<
+  Kind,
+  { titleKey: TranslationKey; subtitleKey: TranslationKey; sizeKey: TranslationKey; icon: typeof Heart }
+>;
 
 function isKind(value: string | null): value is Kind {
   return value === "emotion" || value === "ner" || value === "router";
@@ -52,6 +51,9 @@ export function CompanionDownloadPage() {
 
   const kind: Kind | null = isKind(kindParam) ? kindParam : null;
   const meta = useMemo(() => (kind ? META[kind] : null), [kind]);
+  const title = meta ? t(meta.titleKey) : "";
+  const subtitle = meta ? t(meta.subtitleKey) : "";
+  const approxSize = meta ? t(meta.sizeKey) : "";
 
   const download = useModelDownload({
     onComplete: () => {
@@ -79,7 +81,7 @@ export function CompanionDownloadPage() {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="rounded-xl border border-danger/20 bg-danger/10 p-4 text-sm text-danger/80">
-          Unknown companion model. Provide ?kind=emotion|ner|router.
+          {t("companion.download.unknownModel")}
         </div>
       </div>
     );
@@ -112,26 +114,26 @@ export function CompanionDownloadPage() {
         : "idle";
 
   const headerTitle = completed
-    ? `${meta.title} installed`
+    ? t("companion.download.installedTitle", { name: title })
     : download.isDownloading
-      ? `Downloading ${meta.title}`
-      : `Install ${meta.title}`;
+      ? t("companion.download.downloadingTitle", { name: title })
+      : t("companion.download.installTitle", { name: title });
 
   const headerDescription = completed
-    ? `Redirecting in ${countdown} seconds...`
+    ? t("companion.download.redirecting", { count: countdown })
     : download.isDownloading
-      ? "Fetching model files…"
-      : meta.subtitle;
+      ? t("companion.download.fetchingFiles")
+      : subtitle;
 
   const statusText = completed
-    ? "Installed and ready"
+    ? t("companion.download.statusInstalled")
     : download.progress.status === "downloading"
-      ? `Downloading ${meta.title.toLowerCase()}…`
+      ? t("companion.download.statusDownloading", { name: title.toLowerCase() })
       : download.progress.status === "failed"
-        ? "Download failed"
+        ? t("companion.download.statusFailed")
         : download.progress.status === "cancelled"
-          ? "Download cancelled"
-          : "Ready to install";
+          ? t("companion.download.statusCancelled")
+          : t("companion.download.statusReady");
 
   const showStartButton = !download.isDownloading && !completed && download.progress.status !== "failed";
 
@@ -154,7 +156,7 @@ export function CompanionDownloadPage() {
                 <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-full border border-info/20 bg-info/10">
                   <Icon className="h-8 w-8 text-info" />
                 </div>
-                <p className="mt-4 text-sm text-fg/70">{meta.subtitle}</p>
+                <p className="mt-4 text-sm text-fg/70">{subtitle}</p>
               </div>
 
               <button
@@ -162,7 +164,7 @@ export function CompanionDownloadPage() {
                 className="w-full mt-2 py-3 px-4 rounded-xl bg-info hover:bg-info/80 text-fg font-medium transition-colors flex items-center justify-center gap-2"
               >
                 <Download className="h-5 w-5" />
-                Download {meta.title} ({meta.approxSize})
+                {t("companion.download.downloadButton", { name: title, size: approxSize })}
               </button>
 
               <button
@@ -206,13 +208,13 @@ export function CompanionDownloadPage() {
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-info px-6 py-3 text-sm font-medium text-fg transition hover:bg-info/80"
               >
                 <Download className="h-4 w-4" />
-                Retry Download
+                {t("companion.download.retryDownload")}
               </button>
               <button
                 onClick={() => navigate(returnTo)}
                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-fg/10 bg-fg/5 px-6 py-3 text-sm font-medium text-fg/60 transition hover:bg-fg/10"
               >
-                Go Back
+                {t("common.buttons.goBack")}
               </button>
             </div>
           )}

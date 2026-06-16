@@ -740,7 +740,6 @@ export const ptMessages: DeepPartialMessageTree<LocaleMessages> = {
     "suggestedReply": "Resposta Sugerida",
     "selectTwoCharactersMinimum": "Selecione pelo menos 2 personagens para uma conversa em grupo.",
     "groupBranchCreated": "Ramificação de grupo criada! Redirecionando...",
-    "memories": "Memórias",
     "tools": "Ferramentas",
     "pinned": "Fixadas",
     "searchMemories": "Pesquisar memórias...",

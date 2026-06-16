@@ -233,11 +233,12 @@ function SyncingPanel({
   subtitle,
   details,
   showSpinner = true,
-  itemsLabel = "Items",
+  itemsLabel,
   showProgressBar = true,
   showCounters = true,
   showBreakdown = true,
 }: SyncingPanelProps) {
+  const { t } = useI18n();
   const itemsDone = details?.items_done ?? null;
   const itemsTotal = details?.items_total ?? null;
   const bytesDone = details?.bytes_done ?? null;
@@ -306,7 +307,7 @@ function SyncingPanel({
                 "text-fg/35",
               )}
             >
-              {itemsLabel}
+              {itemsLabel ?? t("sync.panel.items")}
             </p>
             <p className="mt-1 font-mono text-[13px] font-semibold tabular-nums text-fg/85">
               {(itemsDone ?? 0).toLocaleString()}
@@ -325,7 +326,7 @@ function SyncingPanel({
                 "text-fg/35",
               )}
             >
-              Transferred
+              {t("sync.panel.transferred")}
             </p>
             <p className="mt-1 font-mono text-[13px] font-semibold tabular-nums text-fg/85">
               {formatBytes(bytesDone ?? 0)}
@@ -349,7 +350,7 @@ function SyncingPanel({
               "mb-2 text-fg/35",
             )}
           >
-            Breakdown
+            {t("sync.panel.breakdown")}
           </p>
           <ul className="space-y-1.5">
             {breakdown.map((d) => {
@@ -929,7 +930,6 @@ export function SyncPage() {
                       showProgressBar={isSyncing}
                       showCounters={isSyncing}
                       showBreakdown={isSyncing}
-                      itemsLabel="Items"
                     />
 
                     <button
@@ -985,7 +985,7 @@ export function SyncPage() {
                       title={t("sync.status.syncing")}
                       subtitle={details?.phase || t("sync.status.transferringData")}
                       details={details}
-                      itemsLabel="Items sent"
+                      itemsLabel={t("sync.panel.itemsSent")}
                     />
                   );
                 })()
@@ -1037,7 +1037,7 @@ export function SyncPage() {
                             interactive.active.scale,
                             "hover:border-fg/20 hover:bg-fg/10 hover:text-fg",
                           )}
-                          aria-label="Copy address"
+                          aria-label={t("sync.aria.copyAddress")}
                         >
                           {copied ? (
                             <Check className="h-4 w-4 text-accent/90" />
@@ -1208,13 +1208,13 @@ export function SyncPage() {
       {missingRequirements.length > 0 && (
         <MissingModelRequirementsSheet
           isOpen
-          title="More setup needed"
-          description="This synced data uses local features that need on-device models before they can fully run. You can download everything in one queue now or continue and install them later."
+          title={t("sync.requirements.title")}
+          description={t("sync.requirements.description")}
           missing={missingRequirements}
           onClose={() => void handleContinueWithoutRequirements()}
           onDownload={handleDownloadRequirements}
-          closeLabel="Continue for now"
-          downloadLabel="Download required models"
+          closeLabel={t("sync.requirements.continueForNow")}
+          downloadLabel={t("sync.requirements.download")}
         />
       )}
     </div>

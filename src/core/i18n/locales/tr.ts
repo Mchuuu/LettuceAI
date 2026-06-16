@@ -740,7 +740,6 @@ export const trMessages: DeepPartialMessageTree<LocaleMessages> = {
     "suggestedReply": "Önerilen yanıt",
     "selectTwoCharactersMinimum": "Grup sohbeti için en az 2 karakter seç.",
     "groupBranchCreated": "Grup dalı oluşturuldu! Yönlendiriliyor...",
-    "memories": "Anılar",
     "tools": "Araçlar",
     "pinned": "Sabitlenmiş",
     "searchMemories": "Anılarda ara...",

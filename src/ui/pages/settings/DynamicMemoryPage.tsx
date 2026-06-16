@@ -46,7 +46,7 @@ import { BottomMenu } from "../../components/BottomMenu";
 import { confirmBottomMenu } from "../../components/ConfirmBottomMenu";
 import { ModelSelectionBottomMenu } from "../../components/ModelSelectionBottomMenu";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
-import { useI18n } from "../../../core/i18n/context";
+import { useI18n, type TranslationKey } from "../../../core/i18n/context";
 import { Switch } from "../../components/Switch";
 import { NumberInput } from "../../components/NumberInput";
 import { getPlatform } from "../../../core/utils/platform";
@@ -62,22 +62,22 @@ const DYNAMIC_MEMORY_LLAMA_OVERWRITE_ORDER = [
   "typical",
 ] as const;
 
-const DYNAMIC_MEMORY_OVERWRITE_SAMPLING: ReadonlyArray<[string, string]> = [
-  ["Temperature", "0.4"],
-  ["Top P", "1.0"],
-  ["Top K", "40"],
-  ["Min P", "off"],
-  ["Typical P", "off"],
-  ["Frequency penalty", "0.0"],
-  ["Presence penalty", "0.0"],
-];
+const DYNAMIC_MEMORY_OVERWRITE_SAMPLING = [
+  ["dynamicMemory.page.samplerTemperature", "0.4"],
+  ["dynamicMemory.page.samplerTopP", "1.0"],
+  ["dynamicMemory.page.samplerTopK", "40"],
+  ["dynamicMemory.page.samplerMinP", "off"],
+  ["dynamicMemory.page.samplerTypicalP", "off"],
+  ["dynamicMemory.page.samplerFrequencyPenalty", "0.0"],
+  ["dynamicMemory.page.samplerPresencePenalty", "0.0"],
+] satisfies ReadonlyArray<[TranslationKey, string]>;
 
-const DYNAMIC_MEMORY_OVERWRITE_DRY: ReadonlyArray<[string, string]> = [
-  ["Multiplier", "0.8"],
-  ["Base", "1.75"],
-  ["Allowed length", "2"],
-  ["Range", "full context"],
-];
+const DYNAMIC_MEMORY_OVERWRITE_DRY = [
+  ["dynamicMemory.page.samplerDryMultiplier", "0.8"],
+  ["dynamicMemory.page.samplerDryBase", "1.75"],
+  ["dynamicMemory.page.samplerDryAllowedLength", "2"],
+  ["dynamicMemory.page.samplerDryRange", "full context"],
+] satisfies ReadonlyArray<[TranslationKey, string]>;
 
 const DEFAULT_DYNAMIC_MEMORY_SETTINGS: DynamicMemorySettings = {
   enabled: false,
@@ -907,17 +907,14 @@ export function DynamicMemoryPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-sm font-medium text-fg">
-                              Recursive Memory Loops
+                              {t("dynamicMemory.page.recursiveMemoryLoops")}
                             </span>
                             <span className="rounded-md border border-info/30 bg-info/10 px-1.5 py-0.5 text-[10px] font-medium text-info/80">
                               {t("dynamicMemory.page.experimental")}
                             </span>
                           </div>
                           <div className="text-[11px] text-fg/45 leading-relaxed">
-                            When enabled, Dynamic Memory sends tool results back to the model and
-                            keeps looping until it calls <span className="font-mono">done</span>.
-                            This can help weaker models extract multiple memories, but increases
-                            latency and token usage.
+                            {t("dynamicMemory.page.recursiveMemoryLoopsDescription")}
                           </div>
                         </div>
                         <Switch
@@ -1141,8 +1138,8 @@ export function DynamicMemoryPage() {
                           />
 
                           <SettingRow
-                            label="Delete Confidence Default"
-                            description="Used when the model omits delete confidence. Lower values prefer cold storage instead of hard delete."
+                            label={t("dynamicMemory.page.deleteConfidenceDefault")}
+                            description={t("dynamicMemory.page.deleteConfidenceDefaultDescription")}
                             value={currentSettings.deleteConfidenceDefault}
                             min={0}
                             max={1}
@@ -1158,8 +1155,8 @@ export function DynamicMemoryPage() {
                           />
 
                           <SettingRow
-                            label="Max Hard Delete Ratio"
-                            description="Caps how much of the starting memory set can be hard-deleted in one cycle. Extra deletes are downgraded to cold storage."
+                            label={t("dynamicMemory.page.maxHardDeleteRatio")}
+                            description={t("dynamicMemory.page.maxHardDeleteRatioDescription")}
                             value={currentSettings.maxHardDeleteRatioPerCycle}
                             min={0.1}
                             max={1}
@@ -1176,10 +1173,10 @@ export function DynamicMemoryPage() {
 
                           {currentSettings.recursiveMemoryLoops && (
                             <SettingRow
-                              label="Recursive Loop Hard Cap"
-                              description="Maximum number of recursive memory-manager turns before the system stops even if the model never calls done."
+                              label={t("dynamicMemory.page.recursiveLoopHardCap")}
+                              description={t("dynamicMemory.page.recursiveLoopHardCapDescription")}
                               value={currentSettings.recursiveMemoryLoopHardCap}
-                              unit="turns"
+                              unit={t("dynamicMemory.page.turnsUnit")}
                               min={1}
                               max={100}
                               step={1}
@@ -1210,7 +1207,7 @@ export function DynamicMemoryPage() {
 
               {/* Summarisation */}
               <section className="space-y-4">
-                <SectionLabel>Summarisation</SectionLabel>
+                <SectionLabel>{t("dynamicMemory.page.summarisationSection")}</SectionLabel>
 
                 {/* Model selector */}
                 <div className="space-y-3">
@@ -1264,7 +1261,9 @@ export function DynamicMemoryPage() {
                       <div className="rounded-lg border border-warning/30 bg-warning/10 p-1.5">
                         <BookOpen className="h-4 w-4 text-warning" />
                       </div>
-                      <h3 className="text-sm font-semibold text-fg">Summary Prompt</h3>
+                      <h3 className="text-sm font-semibold text-fg">
+                        {t("dynamicMemory.page.summaryPrompt")}
+                      </h3>
                     </div>
                     <select
                       value={selectedSummaryPromptTemplateId ?? ""}
@@ -1273,7 +1272,7 @@ export function DynamicMemoryPage() {
                       }
                       className="w-full appearance-none rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-sm text-fg transition focus:border-fg/25 focus:outline-none"
                     >
-                      <option value="">Use built-in default</option>
+                      <option value="">{t("dynamicMemory.page.useBuiltInDefault")}</option>
                       {summaryPromptTemplates.map((template) => (
                         <option key={template.id} value={template.id}>
                           {template.name}
@@ -1281,7 +1280,7 @@ export function DynamicMemoryPage() {
                       ))}
                     </select>
                     <p className="px-1 text-xs leading-relaxed text-fg/50">
-                      Used to summarize recent conversation turns into durable context.
+                      {t("dynamicMemory.page.summaryPromptDescription")}
                     </p>
                   </div>
 
@@ -1290,7 +1289,9 @@ export function DynamicMemoryPage() {
                       <div className="rounded-lg border border-warning/30 bg-warning/10 p-1.5">
                         <BookOpen className="h-4 w-4 text-warning" />
                       </div>
-                      <h3 className="text-sm font-semibold text-fg">Memory Manager Prompt</h3>
+                      <h3 className="text-sm font-semibold text-fg">
+                        {t("dynamicMemory.page.memoryManagerPrompt")}
+                      </h3>
                     </div>
                     <select
                       value={selectedMemoryManagerPromptTemplateId ?? ""}
@@ -1299,7 +1300,7 @@ export function DynamicMemoryPage() {
                       }
                       className="w-full appearance-none rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-sm text-fg transition focus:border-fg/25 focus:outline-none"
                     >
-                      <option value="">Use built-in default</option>
+                      <option value="">{t("dynamicMemory.page.useBuiltInDefault")}</option>
                       {memoryManagerPromptTemplates.map((template) => (
                         <option key={template.id} value={template.id}>
                           {template.name}
@@ -1307,7 +1308,7 @@ export function DynamicMemoryPage() {
                       ))}
                     </select>
                     <p className="px-1 text-xs leading-relaxed text-fg/50">
-                      Used to add, update, and delete memories for both direct and group chats.
+                      {t("dynamicMemory.page.memoryManagerPromptDescription")}
                     </p>
                   </div>
                 </div>
@@ -1318,7 +1319,9 @@ export function DynamicMemoryPage() {
                     <div className="rounded-lg border border-info/30 bg-info/10 p-1.5">
                       <Code2 className="h-4 w-4 text-info" />
                     </div>
-                    <h3 className="text-sm font-semibold text-fg">Structured Fallback</h3>
+                    <h3 className="text-sm font-semibold text-fg">
+                      {t("dynamicMemory.page.structuredFallback")}
+                    </h3>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -1326,14 +1329,13 @@ export function DynamicMemoryPage() {
                       [
                         {
                           value: "json" as const,
-                          title: "JSON",
-                          description:
-                            "Compact structured output when tool calling is unavailable.",
+                          title: t("dynamicMemory.page.structuredFallbackJsonTitle"),
+                          description: t("dynamicMemory.page.structuredFallbackJsonDescription"),
                         },
                         {
                           value: "xml" as const,
-                          title: "XML",
-                          description: "Use when the model formats XML more reliably than JSON.",
+                          title: t("dynamicMemory.page.structuredFallbackXmlTitle"),
+                          description: t("dynamicMemory.page.structuredFallbackXmlDescription"),
                         },
                       ]
                     ).map((option) => {
@@ -1375,7 +1377,7 @@ export function DynamicMemoryPage() {
                     })}
                   </div>
                   <p className="px-1 text-xs leading-relaxed text-fg/50">
-                    Used only when the model can&apos;t call tools directly.
+                    {t("dynamicMemory.page.structuredFallbackHint")}
                   </p>
                 </div>
 
@@ -1385,13 +1387,10 @@ export function DynamicMemoryPage() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-medium text-fg">
-                          Overwrite Sampler Configuration
+                          {t("dynamicMemory.page.overwriteSampler")}
                         </div>
                         <div className="mt-1 text-[11px] leading-relaxed text-fg/45">
-                          Use a fixed, loop-resistant llama.cpp sampler setup for dynamic memory
-                          instead of the summarisation model&apos;s saved configuration. Enables DRY
-                          repetition suppression to stop models (e.g. Gemma) from getting stuck in
-                          repeating loops during memory generation.
+                          {t("dynamicMemory.page.overwriteSamplerDescription")}
                         </div>
                       </div>
                       <Switch
@@ -1404,14 +1403,22 @@ export function DynamicMemoryPage() {
                       <details className="group border-t border-fg/8 pt-2.5">
                         <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[11px] text-fg/40 transition-colors hover:text-fg/70">
                           <ChevronDown className="h-3 w-3 -rotate-90 text-fg/30 transition-transform group-open:rotate-0" />
-                          Sampler values
+                          {t("dynamicMemory.page.samplerValues")}
                         </summary>
                         <div className="mt-2.5 space-y-3 text-[11px]">
                           <div className="grid grid-cols-1 gap-x-8 gap-y-1.5 sm:grid-cols-2">
                             {[
-                              ...DYNAMIC_MEMORY_OVERWRITE_SAMPLING,
+                              ...DYNAMIC_MEMORY_OVERWRITE_SAMPLING.map(
+                                ([key, v]) => [t(key), v] as [string, string],
+                              ),
                               ...DYNAMIC_MEMORY_OVERWRITE_DRY.map(
-                                ([l, v]) => [`DRY ${l.toLowerCase()}`, v] as [string, string],
+                                ([key, v]) =>
+                                  [
+                                    t("dynamicMemory.page.samplerDryPrefix", {
+                                      label: t(key).toLowerCase(),
+                                    }),
+                                    v,
+                                  ] as [string, string],
                               ),
                             ].map(([label, value]) => (
                               <div
@@ -1424,7 +1431,7 @@ export function DynamicMemoryPage() {
                             ))}
                           </div>
                           <div className="flex items-baseline gap-2 text-fg/40">
-                            <span className="shrink-0">order</span>
+                            <span className="shrink-0">{t("dynamicMemory.page.samplerOrder")}</span>
                             <span className="font-mono text-fg/60">
                               {DYNAMIC_MEMORY_LLAMA_OVERWRITE_ORDER.join(" → ")}
                             </span>
@@ -1442,7 +1449,7 @@ export function DynamicMemoryPage() {
                 supportsMatryoshkaDimensions ||
                 modelVersion) && (
                 <section className="space-y-4">
-                  <SectionLabel>Embedding Model</SectionLabel>
+                  <SectionLabel>{t("dynamicMemory.page.embeddingModelSection")}</SectionLabel>
 
                   {availableEmbeddingVersions.filter((v) => v === "v3" || v === "v4").length >
                     1 && (
@@ -1450,8 +1457,8 @@ export function DynamicMemoryPage() {
                       label={t("dynamicMemory.page.embeddingModel")}
                       helper={
                         selectedEmbeddingVersion === "v3"
-                          ? "v3 remains usable but is deprecated."
-                          : "v4 is the latest memory model and supports Matryoshka dimensions."
+                          ? t("dynamicMemory.page.embeddingV3Deprecated")
+                          : t("dynamicMemory.page.embeddingV4Latest")
                       }
                     >
                       <SegmentedRow
@@ -1483,8 +1490,8 @@ export function DynamicMemoryPage() {
 
                   {supportsMatryoshkaDimensions && (
                     <FieldRow
-                      label="Embedding dimensions"
-                      helper="v4 supports Matryoshka slicing. Lower dimensions use less storage and run faster; higher dimensions preserve more recall."
+                      label={t("dynamicMemory.page.embeddingDimensions")}
+                      helper={t("dynamicMemory.page.embeddingDimensionsHelper")}
                     >
                       <SegmentedRow
                         options={V4_DIMENSION_OPTIONS}
@@ -1525,9 +1532,11 @@ export function DynamicMemoryPage() {
 
                   {modelVersion && (
                     <p className="px-1 text-[11px] text-fg/40">
-                      Installed memory model{" "}
-                      {(modelSourceVersion ?? modelVersion).toUpperCase()} · {embeddingMaxTokens}{" "}
-                      tokens · {effectiveEmbeddingDimensions}d
+                      {t("dynamicMemory.page.installedMemoryModel", {
+                        version: (modelSourceVersion ?? modelVersion).toUpperCase(),
+                        tokens: embeddingMaxTokens,
+                        dimensions: effectiveEmbeddingDimensions,
+                      })}
                     </p>
                   )}
                 </section>
@@ -1616,7 +1625,7 @@ export function DynamicMemoryPage() {
                   {t("dynamicMemory.page.downloadVersion", { version: "v4" })}
                 </div>
                 <div className="text-[11px] text-fg/45">
-                  Latest roleplay memory quality with Matryoshka dimensions
+                  {t("dynamicMemory.page.downloadV4Description")}
                 </div>
               </div>
             </div>

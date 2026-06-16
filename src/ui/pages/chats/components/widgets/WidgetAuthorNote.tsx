@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { AuthorNoteNode } from "../../../../../core/storage/chatWidgetSchemas";
 import { cn } from "../../../../design-tokens";
+import { useI18n } from "../../../../../core/i18n/context";
 import { MarkdownRenderer } from "../MarkdownRenderer";
 import { useWidgetContext } from "./WidgetContext";
 import { useWidgetEdit } from "./WidgetEditContext";
@@ -11,6 +12,7 @@ interface WidgetAuthorNoteProps {
 }
 
 export function WidgetAuthorNote({ node }: WidgetAuthorNoteProps) {
+  const { t } = useI18n();
   const { hasBackground, session, onUpdateAuthorNote } = useWidgetContext();
   const { editing: areaEditing } = useWidgetEdit();
   const authorNote = session?.authorNote ?? "";
@@ -46,7 +48,7 @@ export function WidgetAuthorNote({ node }: WidgetAuthorNoteProps) {
   return (
     <section className="flex flex-col gap-1.5">
       <header className="flex flex-col gap-0.5 px-0.5">
-        <h3 className="text-sm font-semibold text-fg/75">{node.title || "Author note"}</h3>
+        <h3 className="text-sm font-semibold text-fg/75">{node.title || t("chats.widgets.authorNote.defaultTitle")}</h3>
         {node.description && (
           <p className="text-[11px] leading-snug text-fg/45">{node.description}</p>
         )}
@@ -71,7 +73,7 @@ export function WidgetAuthorNote({ node }: WidgetAuthorNoteProps) {
             }}
             rows={Math.max(3, draft.split("\n").length)}
             className="w-full resize-y bg-transparent text-sm text-fg/85 placeholder-fg/30 focus:outline-none"
-            placeholder="Write an author note… (steers the model)"
+            placeholder={t("chats.widgets.authorNote.placeholder")}
           />
         ) : (
           <div
@@ -94,7 +96,9 @@ export function WidgetAuthorNote({ node }: WidgetAuthorNoteProps) {
               <MarkdownRenderer content={content} />
             ) : (
               <span className="text-[12px] italic text-fg/35">
-                {canInlineEdit ? "Tap to write an author note…" : "No author note."}
+                {canInlineEdit
+                  ? t("chats.widgets.authorNote.tapToWrite")
+                  : t("chats.widgets.authorNote.empty")}
               </span>
             )}
           </div>

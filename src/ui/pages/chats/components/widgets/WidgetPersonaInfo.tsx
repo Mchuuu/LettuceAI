@@ -2,11 +2,13 @@ import { User } from "lucide-react";
 import { cn } from "../../../../design-tokens";
 import type { PersonaInfoNode } from "../../../../../core/storage/chatWidgetSchemas";
 import { AvatarImage } from "../../../../components/AvatarImage";
+import { useI18n } from "../../../../../core/i18n/context";
 import { useAvatar } from "../../../../hooks/useAvatar";
 import { useWidgetContext } from "./WidgetContext";
 import { widgetCardClass } from "./widgetSurface";
 
 export function WidgetPersonaInfo({ node }: { node: PersonaInfoNode }) {
+  const { t } = useI18n();
   const { persona, hasBackground } = useWidgetContext();
   const avatarUrl = useAvatar("persona", persona?.id ?? "", persona?.avatarPath, "round");
 
@@ -18,7 +20,7 @@ export function WidgetPersonaInfo({ node }: { node: PersonaInfoNode }) {
           widgetCardClass(hasBackground, node.design),
         )}
       >
-        No persona selected.
+        {t("chats.widgets.personaInfo.noPersona")}
       </section>
     );
   }

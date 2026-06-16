@@ -445,12 +445,12 @@ export function ProvidersPage() {
                         {isDownloading ? (
                           <span className="flex items-center gap-1 text-info/80">
                             <Loader2 className="h-3 w-3 animate-spin" />
-                            Downloading...
+                            {t("providers.list.downloading")}
                           </span>
                         ) : needsSetup ? (
                           <span className="flex items-center gap-1 font-medium text-warning/90">
                             <AlertTriangle className="h-3 w-3" />
-                            Not set up. Tap to download.
+                            {t("providers.list.notSetUp")}
                           </span>
                         ) : (
                           <>
@@ -480,12 +480,12 @@ export function ProvidersPage() {
             })}
             {audioProviders.length > 0 && (
               <p className="px-1 pt-3 text-[11px] text-fg/40 lg:col-span-2">
-                Manage voices, voice library, and audio cache from{" "}
+                {t("providers.list.manageVoicesPrefix")}{" "}
                 <button
                   onClick={() => navigate("/settings/voices")}
                   className="text-fg/60 underline-offset-2 hover:text-fg hover:underline"
                 >
-                  Voices
+                  {t("providers.list.voicesLink")}
                 </button>
                 .
               </p>
@@ -500,7 +500,7 @@ export function ProvidersPage() {
           <BottomMenu
             isOpen={!!selectedProvider}
             onClose={() => setSelectedProvider(null)}
-            title={selectedProvider?.label || "Provider"}
+            title={selectedProvider?.label || t("providers.fallbackTitle")}
           >
             {selectedProvider && (
               <div className="space-y-4">
@@ -535,8 +535,8 @@ export function ProvidersPage() {
                 )}
                 <MenuButton
                   icon={Trash2}
-                  title={isDeleting ? "Deleting..." : "Delete"}
-                  description="Remove this provider"
+                  title={isDeleting ? t("common.buttons.deleting") : t("common.buttons.delete")}
+                  description={t("providers.actions.deleteDesc")}
                   onClick={() => void handleDeleteProvider(selectedProvider.id)}
                   disabled={isDeleting}
                   color="from-danger to-danger/80"
@@ -548,12 +548,12 @@ export function ProvidersPage() {
           <BottomMenu
             isOpen={isEditorOpen}
             onClose={closeEditor}
-            title={editorProvider?.label ? "Edit Provider" : "Add Provider"}
+            title={editorProvider?.label ? t("providers.editor.titleEdit") : t("providers.editor.titleCreate")}
           >
             {editorProvider && (
               <div className="space-y-4 pb-2">
                 <SelectField
-                  label="Provider Type"
+                  label={t("providers.editor.providerType")}
                   value={editorProvider.providerId}
                   onChange={(providerId) => {
                     updateEditorProvider({
@@ -610,26 +610,30 @@ export function ProvidersPage() {
                   ))}
                 </SelectField>
                 <TextField
-                  label="Label"
+                  label={t("providers.editor.label")}
                   value={editorProvider.label}
                   onChange={(value) => updateEditorProvider({ label: value })}
-                  placeholder={`My ${visibleCapabilities.find((p) => p.id === editorProvider.providerId)?.name || "Provider"}`}
+                  placeholder={t("providers.editor.labelPlaceholder", {
+                    name:
+                      visibleCapabilities.find((p) => p.id === editorProvider.providerId)?.name ||
+                      t("providers.editor.labelPlaceholderFallback"),
+                  })}
                 />
                 {showApiKeyInput && (
                   <TextField
-                    label="API Key"
+                    label={t("providers.editor.apiKey")}
                     type="password"
                     value={apiKey}
                     onChange={(value) => {
                       setApiKey(value);
                       if (validationError) setValidationError(null);
                     }}
-                    placeholder="Enter your API key"
+                    placeholder={t("providers.editor.apiKeyPlaceholder")}
                   />
                 )}
                 {showBaseUrl && (
                   <TextField
-                    label="Base URL"
+                    label={t("providers.editor.baseUrl")}
                     type="url"
                     value={editorProvider.baseUrl || ""}
                     onChange={(value) => {
@@ -651,21 +655,21 @@ export function ProvidersPage() {
                 )}
                 {isEngineProvider && (
                   <TextField
-                    label="API Key (optional)"
+                    label={t("providers.editor.apiKeyOptional")}
                     type="password"
                     value={apiKey}
                     onChange={(value) => {
                       setApiKey(value);
                       if (validationError) setValidationError(null);
                     }}
-                    placeholder="Bearer token for auth"
+                    placeholder={t("providers.editor.apiKeyOptionalPlaceholder")}
                   />
                 )}
                 {showOfficialProviderStreamingToggle && (
                   <ToggleRow
                     id="providerStreamingEnabled"
-                    title="Streaming"
-                    description="Stream responses for this provider when a feature allows it"
+                    title={t("providers.editor.streaming")}
+                    description={t("providers.editor.streamingDesc")}
                     checked={providerStreamingEnabled}
                     onChange={(next) =>
                       updateEditorProvider({
@@ -677,8 +681,8 @@ export function ProvidersPage() {
                 {allowsTlsException && (
                   <ToggleRow
                     id="providerAllowInvalidTls"
-                    title="Allow Invalid TLS"
-                    description="Ignore certificate validation errors for this self-hosted endpoint"
+                    title={t("providers.editor.allowInvalidTls")}
+                    description={t("providers.editor.allowInvalidTlsDesc")}
                     checked={providerAllowInvalidTls}
                     onChange={(next) =>
                       updateEditorProvider({
@@ -691,7 +695,7 @@ export function ProvidersPage() {
                 {isCustomProvider && (
                   <>
                     <TextField
-                      label="Chat Endpoint"
+                      label={t("providers.editor.chatEndpoint")}
                       value={
                         (customConfig.chatEndpoint as string | undefined) ?? "/v1/chat/completions"
                       }
@@ -704,8 +708,8 @@ export function ProvidersPage() {
                     />
                     <ToggleRow
                       id="fetchModelsEnabled"
-                      title="Fetch Models"
-                      description="Enable model discovery for this custom endpoint"
+                      title={t("providers.editor.fetchModels")}
+                      description={t("providers.editor.fetchModelsDesc")}
                       checked={customFetchModelsEnabled}
                       onChange={(next) =>
                         updateEditorProvider({
@@ -714,7 +718,7 @@ export function ProvidersPage() {
                       }
                     />
                     <SelectField
-                      label="Auth Mode"
+                      label={t("providers.editor.authMode")}
                       value={customAuthMode}
                       onChange={(value) =>
                         updateEditorProvider({
@@ -723,21 +727,21 @@ export function ProvidersPage() {
                       }
                     >
                       <option value="bearer" className="bg-surface-el">
-                        Bearer Token
+                        {t("providers.editor.authModeBearer")}
                       </option>
                       <option value="header" className="bg-surface-el">
-                        API Key Header
+                        {t("providers.editor.authModeHeader")}
                       </option>
                       <option value="query" className="bg-surface-el">
-                        Query Param
+                        {t("providers.editor.authModeQuery")}
                       </option>
                       <option value="none" className="bg-surface-el">
-                        None
+                        {t("providers.editor.authModeNone")}
                       </option>
                     </SelectField>
                     {editorProvider.providerId === "custom" && (
                       <SelectField
-                        label="Tool Choice Mode"
+                        label={t("providers.editor.toolChoiceMode")}
                         value={(customConfig.toolChoiceMode as string | undefined) ?? "auto"}
                         onChange={(value) =>
                           updateEditorProvider({
@@ -746,25 +750,25 @@ export function ProvidersPage() {
                         }
                       >
                         <option value="auto" className="bg-surface-el">
-                          Auto
+                          {t("providers.editor.toolChoiceAuto")}
                         </option>
                         <option value="required" className="bg-surface-el">
-                          Required
+                          {t("providers.editor.toolChoiceRequired")}
                         </option>
                         <option value="none" className="bg-surface-el">
-                          None
+                          {t("providers.editor.toolChoiceNone")}
                         </option>
                         <option value="omit" className="bg-surface-el">
-                          Omit Field
+                          {t("providers.editor.toolChoiceOmit")}
                         </option>
                         <option value="passthrough" className="bg-surface-el">
-                          Passthrough (Tool Config)
+                          {t("providers.editor.toolChoicePassthrough")}
                         </option>
                       </SelectField>
                     )}
                     {customAuthMode === "header" && (
                       <TextField
-                        label="Auth Header Name"
+                        label={t("providers.editor.authHeaderName")}
                         value={(customConfig.authHeaderName as string | undefined) ?? "x-api-key"}
                         onChange={(value) =>
                           updateEditorProvider({
@@ -776,7 +780,7 @@ export function ProvidersPage() {
                     )}
                     {customAuthMode === "query" && (
                       <TextField
-                        label="Auth Query Param Name"
+                        label={t("providers.editor.authQueryParamName")}
                         value={
                           (customConfig.authQueryParamName as string | undefined) ?? "api_key"
                         }
@@ -791,7 +795,7 @@ export function ProvidersPage() {
                     {customFetchModelsEnabled && (
                       <>
                         <TextField
-                          label="Models Endpoint"
+                          label={t("providers.editor.modelsEndpoint")}
                           value={(customConfig.modelsEndpoint as string | undefined) ?? ""}
                           onChange={(value) =>
                             updateEditorProvider({
@@ -802,7 +806,7 @@ export function ProvidersPage() {
                         />
                         <div className="grid grid-cols-2 gap-3">
                           <TextField
-                            label="List Path"
+                            label={t("providers.editor.listPath")}
                             value={(customConfig.modelsListPath as string | undefined) ?? "data"}
                             onChange={(value) =>
                               updateEditorProvider({
@@ -812,7 +816,7 @@ export function ProvidersPage() {
                             placeholder="data"
                           />
                           <TextField
-                            label="Model ID Path"
+                            label={t("providers.editor.modelIdPath")}
                             value={(customConfig.modelsIdPath as string | undefined) ?? "id"}
                             onChange={(value) =>
                               updateEditorProvider({
@@ -824,7 +828,7 @@ export function ProvidersPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <TextField
-                            label="Display Name Path"
+                            label={t("providers.editor.displayNamePath")}
                             value={
                               (customConfig.modelsDisplayNamePath as string | undefined) ?? "name"
                             }
@@ -839,7 +843,7 @@ export function ProvidersPage() {
                             placeholder="name"
                           />
                           <TextField
-                            label="Description Path"
+                            label={t("providers.editor.descriptionPath")}
                             value={
                               (customConfig.modelsDescriptionPath as string | undefined) ??
                               "description"
@@ -856,7 +860,7 @@ export function ProvidersPage() {
                           />
                         </div>
                         <TextField
-                          label="Context Length Path (Optional)"
+                          label={t("providers.editor.contextLengthPath")}
                           value={
                             (customConfig.modelsContextLengthPath as string | undefined) ?? ""
                           }
@@ -873,7 +877,7 @@ export function ProvidersPage() {
                       </>
                     )}
                     <TextField
-                      label="System Role"
+                      label={t("providers.editor.systemRole")}
                       value={(customConfig.systemRole as string | undefined) ?? "system"}
                       onChange={(value) =>
                         updateEditorProvider({
@@ -884,7 +888,7 @@ export function ProvidersPage() {
                     />
                     <div className="grid grid-cols-2 gap-3">
                       <TextField
-                        label="User Role"
+                        label={t("providers.editor.userRole")}
                         value={(customConfig.userRole as string | undefined) ?? "user"}
                         onChange={(value) =>
                           updateEditorProvider({
@@ -894,7 +898,7 @@ export function ProvidersPage() {
                         placeholder="user"
                       />
                       <TextField
-                        label="Assistant Role"
+                        label={t("providers.editor.assistantRole")}
                         value={(customConfig.assistantRole as string | undefined) ?? "assistant"}
                         onChange={(value) =>
                           updateEditorProvider({
@@ -906,7 +910,7 @@ export function ProvidersPage() {
                     </div>
                     <div className="flex items-center justify-between pt-1">
                       <span className="text-sm font-medium text-fg/70">
-                        Supports Streaming (SSE/Delta)
+                        {t("providers.editor.supportsStreaming")}
                       </span>
                       <Switch
                         id="supportsStream"
@@ -923,7 +927,7 @@ export function ProvidersPage() {
                     </div>
                     <div className="flex items-center justify-between pt-1">
                       <span className="text-sm font-medium text-fg/70">
-                        Merge Same-role Messages
+                        {t("providers.editor.mergeSameRoleMessages")}
                       </span>
                       <Switch
                         id="mergeSameRoleMessages"
@@ -945,9 +949,11 @@ export function ProvidersPage() {
                 {isCustomProvider && (
                   <div className="flex items-center justify-between pt-1">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-fg/70">Sync Reasoning State</p>
+                      <p className="text-sm font-medium text-fg/70">
+                        {t("providers.editor.syncReasoningState")}
+                      </p>
                       <p className="text-[10px] text-fg/40 leading-tight">
-                        Send template kwargs to synchronize internal thinking state
+                        {t("providers.editor.syncReasoningStateDesc")}
                       </p>
                     </div>
                     <Switch
@@ -975,14 +981,14 @@ export function ProvidersPage() {
                     onClick={closeEditor}
                     className="flex-1 rounded-lg border border-fg/10 bg-fg/5 px-4 py-2 text-sm font-medium text-fg/70 transition hover:border-fg/20 hover:bg-fg/10 hover:text-fg"
                   >
-                    Cancel
+                    {t("common.buttons.cancel")}
                   </button>
                   <button
                     onClick={() => void handleSaveProvider()}
                     disabled={isSaving || !editorProvider.label}
                     className="flex-1 rounded-lg border border-accent/40 bg-accent/20 px-4 py-2 text-sm font-semibold text-accent/90 transition hover:border-accent/60 hover:bg-accent/30 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isSaving ? "Saving..." : "Save"}
+                    {isSaving ? t("common.buttons.saving") : t("common.buttons.save")}
                   </button>
                 </div>
               </div>
@@ -996,7 +1002,7 @@ export function ProvidersPage() {
           <BottomMenu
             isOpen={!!selectedAudioProvider}
             onClose={() => setSelectedAudioProvider(null)}
-            title={selectedAudioProvider?.label || "Provider"}
+            title={selectedAudioProvider?.label || t("providers.fallbackTitle")}
           >
             {selectedAudioProvider && (
               <div className="space-y-4">
@@ -1012,8 +1018,8 @@ export function ProvidersPage() {
                   kokoroInstalled[selectedAudioProvider.id] === false && (
                     <MenuButton
                       icon={Download}
-                      title="Download model"
-                      description="Choose a quality and download the voice engine"
+                      title={t("providers.actions.downloadModel")}
+                      description={t("providers.actions.downloadModelDesc")}
                       onClick={() => {
                         const provider = selectedAudioProvider;
                         setSelectedAudioProvider(null);
@@ -1025,8 +1031,8 @@ export function ProvidersPage() {
                 {selectedAudioProvider.providerType === "kokoro" && (
                   <MenuButton
                     icon={LayoutDashboard}
-                    title="Open Kokoro Studio"
-                    description="Manage voices and design blends"
+                    title={t("providers.actions.openKokoroStudio")}
+                    description={t("providers.actions.openKokoroStudioDesc")}
                     onClick={() => {
                       const id = selectedAudioProvider.id;
                       setSelectedAudioProvider(null);
@@ -1037,16 +1043,16 @@ export function ProvidersPage() {
                 )}
                 <MenuButton
                   icon={Edit3}
-                  title="Edit"
-                  description="Modify provider settings"
+                  title={t("providers.actions.edit")}
+                  description={t("providers.actions.editAudioDesc")}
                   onClick={() => openAudioEditor(selectedAudioProvider)}
                   color="from-info to-info/80"
                 />
                 {selectedAudioProvider.id !== "system-kokoro" && (
                   <MenuButton
                     icon={Trash2}
-                    title={isAudioDeleting ? "Deleting..." : "Delete"}
-                    description="Remove this provider"
+                    title={isAudioDeleting ? t("common.buttons.deleting") : t("common.buttons.delete")}
+                    description={t("providers.actions.deleteDesc")}
                     onClick={() => void handleDeleteAudioProvider(selectedAudioProvider.id)}
                     disabled={isAudioDeleting}
                     color="from-danger to-danger/80"
@@ -1072,7 +1078,7 @@ export function ProvidersPage() {
       )}
 
       {/* Engine Setup Bottom Sheet */}
-      <BottomMenu isOpen={!!engineSetupResult} onClose={dismissEngineSetup} title="Lettuce Engine">
+      <BottomMenu isOpen={!!engineSetupResult} onClose={dismissEngineSetup} title={t("providers.engineSetup.title")}>
         {engineSetupResult && (
           <div className="space-y-4 pb-2">
             {engineSetupResult.needsSetup ? (
@@ -1082,9 +1088,11 @@ export function ProvidersPage() {
                     <Sparkles className="h-7 w-7 text-accent/80" />
                   </div>
                   <div className="text-center">
-                    <h3 className="text-base font-semibold text-fg">New Engine Detected</h3>
+                    <h3 className="text-base font-semibold text-fg">
+                      {t("providers.engineSetup.newEngineTitle")}
+                    </h3>
                     <p className="mt-1 text-sm text-fg/60">
-                      Let's configure your AI character engine. This will take about 2 minutes.
+                      {t("providers.engineSetup.newEngineDesc")}
                     </p>
                   </div>
                 </div>
@@ -1095,7 +1103,7 @@ export function ProvidersPage() {
                   }}
                   className="w-full rounded-lg border border-accent/40 bg-accent/20 px-4 py-3 text-sm font-semibold text-accent/90 transition hover:border-accent/60 hover:bg-accent/30"
                 >
-                  Start Setup
+                  {t("providers.engineSetup.startSetup")}
                 </button>
               </>
             ) : (
@@ -1105,9 +1113,11 @@ export function ProvidersPage() {
                     <Leaf className="h-7 w-7 text-accent/80" />
                   </div>
                   <div className="text-center">
-                    <h3 className="text-base font-semibold text-fg">Engine Connected</h3>
+                    <h3 className="text-base font-semibold text-fg">
+                      {t("providers.engineSetup.connectedTitle")}
+                    </h3>
                     <p className="mt-1 text-sm text-fg/60">
-                      Your Engine is ready. View your characters and usage dashboard.
+                      {t("providers.engineSetup.connectedDesc")}
                     </p>
                   </div>
                 </div>
@@ -1118,7 +1128,7 @@ export function ProvidersPage() {
                   }}
                   className="w-full rounded-lg border border-accent/40 bg-accent/20 px-4 py-3 text-sm font-semibold text-accent/90 transition hover:border-accent/60 hover:bg-accent/30"
                 >
-                  Open Dashboard
+                  {t("providers.engineSetup.openDashboard")}
                 </button>
               </>
             )}
@@ -1126,7 +1136,7 @@ export function ProvidersPage() {
               onClick={dismissEngineSetup}
               className="w-full rounded-lg border border-fg/10 bg-fg/5 px-4 py-2.5 text-sm font-medium text-fg/70 transition hover:border-fg/20 hover:bg-fg/10 hover:text-fg"
             >
-              Dismiss
+              {t("providers.engineSetup.dismiss")}
             </button>
           </div>
         )}
@@ -1140,12 +1150,12 @@ export function ProvidersPage() {
       >
         <div
           role="tablist"
-          aria-label="Provider categories"
+          aria-label={t("providers.tabs.ariaLabel")}
           className={cn(radius.lg, "grid grid-cols-2 gap-2 p-1", colors.surface.elevated)}
         >
           {[
-            { id: "llm" as const, icon: Cpu, label: "AI" },
-            { id: "audio" as const, icon: Volume2, label: "Audio" },
+            { id: "llm" as const, icon: Cpu, label: t("providers.tabs.ai") },
+            { id: "audio" as const, icon: Volume2, label: t("providers.tabs.audio") },
           ].map(({ id, icon: Icon, label }) => (
             <button
               key={id}

@@ -25,7 +25,7 @@ import {
   cn,
   interactive,
 } from "../../../../design-tokens";
-import { useI18n } from "../../../../../core/i18n/context";
+import { useI18n, type TranslationKey } from "../../../../../core/i18n/context";
 
 type MemoryToolEvent = NonNullable<GroupSession["memoryToolEvents"]>[number];
 
@@ -49,52 +49,61 @@ function relativeTime(ts: number): string {
   return new Date(ts).toLocaleDateString();
 }
 
-const ACTION_STYLES: Record<
-  string,
-  {
-    icon: ComponentType<{ size?: string | number; className?: string }>;
-    color: string;
-    label: string;
-    bg: string;
-    border: string;
-  }
-> = {
+const ACTION_STYLES = {
   create_memory: {
     icon: Plus,
     color: "text-accent/80",
-    label: "Created",
+    labelKey: "groupChats.toolLog.actionCreated",
     bg: "bg-accent/10",
     border: "border-accent/20",
   },
   delete_memory: {
     icon: Trash2,
     color: "text-danger",
-    label: "Deleted",
+    labelKey: "groupChats.toolLog.actionDeleted",
     bg: "bg-danger/10",
     border: "border-danger/20",
   },
   pin_memory: {
     icon: Pin,
     color: "text-warning",
-    label: "Pinned",
+    labelKey: "groupChats.toolLog.actionPinned",
     bg: "bg-warning/10",
     border: "border-warning/20",
   },
   unpin_memory: {
     icon: Pin,
     color: "text-warning/60",
-    label: "Unpinned",
+    labelKey: "groupChats.toolLog.actionUnpinned",
     bg: "bg-warning/10",
     border: "border-warning/20",
   },
   done: {
     icon: Check,
     color: "text-info",
-    label: "Done",
+    labelKey: "groupChats.toolLog.actionDone",
     bg: "bg-info/10",
     border: "border-info/20",
   },
-};
+} satisfies Record<
+  string,
+  {
+    icon: ComponentType<{ size?: string | number; className?: string }>;
+    color: string;
+    labelKey: TranslationKey;
+    bg: string;
+    border: string;
+  }
+>;
+
+type ActionStyle = (typeof ACTION_STYLES)[keyof typeof ACTION_STYLES];
+
+function getActionStyle(name: string): ActionStyle | undefined {
+  for (const [key, value] of Object.entries(ACTION_STYLES)) {
+    if (key === name) return value;
+  }
+  return undefined;
+}
 
 function ActionCard({
   action,
@@ -103,13 +112,17 @@ function ActionCard({
   action: NonNullable<MemoryToolEvent["actions"]>[number];
   isReverted?: boolean;
 }) {
-  const style = ACTION_STYLES[action.name] || {
-    icon: Cpu,
-    color: "text-zinc-300",
-    label: action.name,
-    bg: "bg-fg/5",
-    border: "border-fg/10",
-  };
+  const { t } = useI18n();
+  const known = getActionStyle(action.name);
+  const style = known
+    ? { ...known, label: t(known.labelKey) }
+    : {
+        icon: Cpu,
+        color: "text-zinc-300",
+        label: action.name,
+        bg: "bg-fg/5",
+        border: "border-fg/10",
+      };
   const Icon = style.icon;
   const args = action.arguments as Record<string, unknown> | undefined;
   const rawAction = action as Record<string, unknown>;
@@ -152,7 +165,7 @@ function ActionCard({
           </span>
           {isReverted && (
             <span className="rounded-md border border-fg/10 bg-fg/5 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-fg/40">
-              undone
+              {t("groupChats.toolLog.badgeUndone")}
             </span>
           )}
           {category && (
@@ -167,7 +180,7 @@ function ActionCard({
           )}
           {important && !isReverted && (
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning border border-warning/30">
-              pinned
+              {t("groupChats.toolLog.badgePinned")}
             </span>
           )}
           {confidence != null && !isReverted && (
@@ -179,7 +192,7 @@ function ActionCard({
                   : "bg-danger/20 text-danger border-danger/30",
               )}
             >
-              {confidence < 0.7 ? "soft-delete" : `${Math.round(confidence * 100)}%`}
+              {confidence < 0.7 ? t("groupChats.toolLog.badgeSoftDelete") : `${Math.round(confidence * 100)}%`}
             </span>
           )}
         </div>
@@ -210,10 +223,14 @@ function ActionCard({
   );
 }
 
-function summarizeActions(actions: NonNullable<MemoryToolEvent["actions"]>): string {
+function summarizeActions(
+  actions: NonNullable<MemoryToolEvent["actions"]>,
+  t: (key: TranslationKey) => string,
+): string {
   const counts: Record<string, number> = {};
   for (const a of actions) {
-    const label = ACTION_STYLES[a.name]?.label || a.name;
+    const known = getActionStyle(a.name);
+    const label = known ? t(known.labelKey) : a.name;
     counts[label] = (counts[label] || 0) + 1;
   }
   return Object.entries(counts)
@@ -232,12 +249,13 @@ function CycleCard({
   onRevert?: (event: MemoryToolEvent) => void;
   reverting?: boolean;
 }) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [showDebug, setShowDebug] = useState(false);
   const hasError = !!event.error;
   const isReverted = !!event.revertedAt;
   const actions = event.actions || [];
-  const actionSummary = actions.length ? summarizeActions(actions) : null;
+  const actionSummary = actions.length ? summarizeActions(actions, t) : null;
   const eventTime = event.createdAt || event.timestamp || 0;
   const windowStart = event.windowStart ?? 0;
   const windowEnd = event.windowEnd ?? 0;
@@ -284,7 +302,7 @@ function CycleCard({
                 isReverted ? "text-fg/40" : colors.text.secondary,
               )}
             >
-              {eventTime ? relativeTime(eventTime) : "Memory Cycle"}
+              {eventTime ? relativeTime(eventTime) : t("groupChats.toolLog.memoryCycle")}
             </span>
             {actionSummary && (
               <span
@@ -298,7 +316,7 @@ function CycleCard({
             )}
             {isReverted && (
               <span className="rounded-md border border-warning/20 bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-warning">
-                reverted
+                {t("groupChats.toolLog.badgeReverted")}
               </span>
             )}
             {hasError && <AlertTriangle size={12} className="text-danger shrink-0" />}
@@ -319,8 +337,8 @@ function CycleCard({
               onRevert(event);
             }}
             disabled={reverting}
-            title={reverting ? "Reverting..." : "Revert this cycle"}
-            aria-label="Revert this cycle"
+            title={reverting ? t("groupChats.toolLog.revertingTitle") : t("groupChats.toolLog.revertCycleTitle")}
+            aria-label={t("groupChats.toolLog.revertCycleTitle")}
             className={cn(
               "shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-md",
               "border border-fg/10 bg-fg/5 text-fg/60",
@@ -353,7 +371,7 @@ function CycleCard({
               )}
             >
               <RefreshCw size={12} className="text-warning/70" />
-              <span>Reverted {relativeTime(event.revertedAt)}</span>
+              <span>{t("groupChats.toolLog.revertedAt", { time: relativeTime(event.revertedAt) })}</span>
               <span className="text-warning/40">·</span>
               <span className="text-warning/50">
                 {new Date(event.revertedAt).toLocaleString()}
@@ -371,7 +389,9 @@ function CycleCard({
             <div className={cn(radius.md, "border border-danger/20 bg-danger/10 px-3 py-2.5")}>
               <p className="text-[12px] text-danger/90">{event.error}</p>
               {event.stage && (
-                <p className="text-[11px] mt-1 text-danger/60">Failed at: {event.stage}</p>
+                <p className="text-[11px] mt-1 text-danger/60">
+                  {t("groupChats.toolLog.failedAtStage", { stage: event.stage })}
+                </p>
               )}
             </div>
           )}
@@ -386,7 +406,7 @@ function CycleCard({
                   "text-[11px] font-medium text-fg/60 transition hover:bg-fg/8 hover:text-fg/80",
                 )}
               >
-                {showDebug ? "Hide Debug" : "Debug"}
+                {showDebug ? t("groupChats.toolLog.hideDebug") : t("groupChats.toolLog.debug")}
               </button>
               {showDebug && (
                 <pre className="max-h-96 overflow-auto rounded-md border border-fg/10 bg-black/30 p-3 text-[10px] leading-5 text-fg/75 whitespace-pre-wrap break-all">
@@ -414,7 +434,7 @@ function CycleCard({
             )}
           >
             <span>
-              Window {windowStart}–{windowEnd}
+              {t("groupChats.toolLog.windowRange", { start: windowStart, end: windowEnd })}
             </span>
             {eventTime > 0 && <span>{new Date(eventTime).toLocaleString()}</span>}
           </div>
@@ -448,7 +468,7 @@ export function ToolLog({
         </div>
         <h3 className="mb-1 text-base font-semibold text-fg">{t("common.labels.none")}</h3>
         <p className={cn("text-center text-sm max-w-[240px]", colors.text.tertiary)}>
-          Tool calls appear when AI manages memories in dynamic mode
+          {t("groupChats.toolLog.activityEmptyDesc")}
         </p>
       </motion.div>
     );

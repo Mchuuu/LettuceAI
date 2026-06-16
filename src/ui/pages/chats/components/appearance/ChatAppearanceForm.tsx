@@ -41,6 +41,7 @@ function OptionGrid<T extends string>({
   overridden,
   onReset,
 }: OptionGridProps<T>) {
+  const { t } = useI18n();
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -52,7 +53,7 @@ function OptionGrid<T extends string>({
             className="flex items-center gap-1 text-[10px] text-accent/70 hover:text-accent"
           >
             <RotateCcw size={10} />
-            Reset
+            {t("chatAppearance.extra.reset")}
           </button>
         )}
       </div>
@@ -100,6 +101,7 @@ function SliderControl({
   overridden,
   onReset,
 }: SliderControlProps) {
+  const { t } = useI18n();
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -112,7 +114,7 @@ function SliderControl({
               className="flex items-center gap-1 text-[10px] text-accent/70 hover:text-accent"
             >
               <RotateCcw size={10} />
-              Reset
+              {t("chatAppearance.extra.reset")}
             </button>
           )}
           <span className="text-[11px] text-fg/50">
@@ -143,6 +145,7 @@ interface HexColorControlProps {
 }
 
 function HexColorControl({ label, value, onChange, overridden, onReset }: HexColorControlProps) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState(value ?? "");
   useEffect(() => {
     setDraft(value ?? "");
@@ -166,7 +169,7 @@ function HexColorControl({ label, value, onChange, overridden, onReset }: HexCol
               className="flex items-center gap-1 text-[10px] text-accent/70 hover:text-accent"
             >
               <RotateCcw size={10} />
-              Reset
+              {t("chatAppearance.extra.reset")}
             </button>
           )}
           <button
@@ -174,7 +177,7 @@ function HexColorControl({ label, value, onChange, overridden, onReset }: HexCol
             onClick={() => onChange(undefined)}
             className="text-[10px] text-fg/45 transition hover:text-fg/70"
           >
-            Use token
+            {t("chatAppearance.colors.useToken")}
           </button>
         </div>
       </div>
@@ -201,11 +204,11 @@ function HexColorControl({ label, value, onChange, overridden, onReset }: HexCol
             onChange(normalizeHexColor(e.target.value));
           }}
           className="h-9 w-12 cursor-pointer rounded-md border border-fg/15 bg-fg/5 p-1"
-          aria-label={`${label} picker`}
+          aria-label={t("chatAppearance.colors.pickerLabel", { label })}
         />
       </div>
       {draft.trim().length > 0 && !normalizeHexColor(draft) && (
-        <p className="text-[10px] text-warning">Use 3, 4, 6, or 8-digit hex. Example: #22CCAA</p>
+        <p className="text-[10px] text-warning">{t("chatAppearance.colors.hexHint")}</p>
       )}
     </div>
   );
@@ -230,6 +233,7 @@ function ToggleControl({
   onReset,
   disabled,
 }: ToggleControlProps) {
+  const { t } = useI18n();
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
@@ -245,7 +249,7 @@ function ToggleControl({
               className="flex items-center gap-1 text-[10px] text-accent/70 hover:text-accent"
             >
               <RotateCcw size={10} />
-              Reset
+              {t("chatAppearance.extra.reset")}
             </button>
           )}
           <Switch checked={checked} onChange={onChange} disabled={disabled} aria-label={label} />
@@ -579,7 +583,7 @@ export function ChatAppearanceForm({
                   className="flex items-center gap-1 text-[10px] text-accent/70 hover:text-accent"
                 >
                   <RotateCcw size={10} />
-                  Reset
+                  {t("chatAppearance.extra.reset")}
                 </button>
               )}
             </div>
@@ -878,8 +882,8 @@ export function ChatAppearanceForm({
   return (
     <div className="space-y-4 rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
       <ToggleControl
-        label="Transparent Header"
-        description="When a chat background image is active, remove the header scrim and let the image show through."
+        label={t("chatAppearance.backgroundTransparency.transparentHeader")}
+        description={t("chatAppearance.backgroundTransparency.transparentHeaderDesc")}
         checked={settings.transparentHeader}
         onChange={(v) => onUpdate("transparentHeader", v)}
         overridden={isOverridden("transparentHeader")}

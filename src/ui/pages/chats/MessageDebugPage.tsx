@@ -200,6 +200,7 @@ function MessageListBlock({ title, messages }: { title: string; messages: unknow
 
 export function MessageDebugPage() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const { sessionId, messageId } = useParams<{
     characterId: string;
     sessionId: string;
@@ -283,13 +284,13 @@ export function MessageDebugPage() {
     latestRequestPayload?.providerId ??
       snapshot?.providerId ??
       resolvedModel?.providerId ??
-      "unknown",
+      t("chats.debugPage.unknown"),
   );
   const modelLabel = String(
     latestRequestPayload?.model ??
       snapshot?.modelDisplayName ??
       resolvedModel?.displayName ??
-      "unknown",
+      t("chats.debugPage.unknown"),
   );
   const inferredOperation =
     trace?.operation ??
@@ -316,58 +317,57 @@ export function MessageDebugPage() {
           className="inline-flex items-center gap-2 rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 font-mono text-xs text-fg/70 hover:bg-fg/10 hover:text-fg transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          Return
+          {t("chats.debugPage.return")}
         </button>
 
-        <Collapsible title="Message Debug" defaultOpen>
+        <Collapsible title={t("chats.debugPage.title")} defaultOpen>
           <div className="font-mono text-xs">
-            <SummaryRow label="Session ID" value={sessionId ?? "unknown"} />
-            <SummaryRow label="Message ID" value={messageId ?? "unknown"} />
-            <SummaryRow label="Role" value={message?.role ?? "unknown"} />
-            <SummaryRow label="Request ID" value={trace?.requestId ?? "missing"} />
-            <SummaryRow label="Operation" value={inferredOperation} />
-            <SummaryRow label="Provider" value={providerLabel} />
-            <SummaryRow label="Model" value={modelLabel} />
-            <SummaryRow label="Prompt Template" value={snapshot?.promptTemplateName ?? "unknown"} />
-            <SummaryRow label="Prompt Template ID" value={snapshot?.promptTemplateId ?? "missing"} />
+            <SummaryRow label={t("chats.debugPage.sessionId")} value={sessionId ?? t("chats.debugPage.unknown")} />
+            <SummaryRow label={t("chats.debugPage.messageId")} value={messageId ?? t("chats.debugPage.unknown")} />
+            <SummaryRow label={t("chats.debugPage.role")} value={message?.role ?? t("chats.debugPage.unknown")} />
+            <SummaryRow label={t("chats.debugPage.requestId")} value={trace?.requestId ?? t("chats.debugPage.missing")} />
+            <SummaryRow label={t("chats.debugPage.operation")} value={inferredOperation} />
+            <SummaryRow label={t("chats.debugPage.provider")} value={providerLabel} />
+            <SummaryRow label={t("chats.debugPage.model")} value={modelLabel} />
+            <SummaryRow label={t("chats.debugPage.promptTemplate")} value={snapshot?.promptTemplateName ?? t("chats.debugPage.unknown")} />
+            <SummaryRow label={t("chats.debugPage.promptTemplateId")} value={snapshot?.promptTemplateId ?? t("chats.debugPage.missing")} />
             <SummaryRow
-              label="Prompt Template Source"
-              value={snapshot?.promptTemplateSource ?? "unknown"}
+              label={t("chats.debugPage.promptTemplateSource")}
+              value={snapshot?.promptTemplateSource ?? t("chats.debugPage.unknown")}
             />
-            <SummaryRow label="Attempt count" value={String(attempts.length)} />
-            <SummaryRow label="Transport retries" value={String(totalTransportRetries)} />
+            <SummaryRow label={t("chats.debugPage.attemptCount")} value={String(attempts.length)} />
+            <SummaryRow label={t("chats.debugPage.transportRetries")} value={String(totalTransportRetries)} />
             <SummaryRow
-              label="Request time"
+              label={t("chats.debugPage.requestTime")}
               value={
                 latestResponsePayload?.elapsedMs != null
-                  ? `${String(latestResponsePayload.elapsedMs)} ms`
-                  : "unknown"
+                  ? t("chats.debugPage.milliseconds", { value: String(latestResponsePayload.elapsedMs) })
+                  : t("chats.debugPage.unknown")
               }
             />
             <SummaryRow
-              label="Tokens"
+              label={t("chats.debugPage.tokens")}
               value={String(message?.usage?.totalTokens ?? message?.usage?.completionTokens ?? 0)}
             />
             <SummaryRow
-              label="Prompt / completion"
+              label={t("chats.debugPage.promptCompletion")}
               value={`${message?.usage?.promptTokens ?? 0} / ${message?.usage?.completionTokens ?? 0}`}
             />
             <SummaryRow
-              label="Created"
-              value={message ? formatTimestamp(message.createdAt) : "unknown"}
+              label={t("chats.debugPage.created")}
+              value={message ? formatTimestamp(message.createdAt) : t("chats.debugPage.unknown")}
             />
           </div>
         </Collapsible>
 
         {!trace ? (
           <section className="rounded-xl border border-fg/10 bg-fg/5 p-4 font-mono text-xs text-fg/60">
-            No in-memory debug trace found for this message. Showing a reconstructed request
-            snapshot from the current session state where possible.
+            {t("chats.debugPage.noTraceFound")}
           </section>
         ) : null}
 
         {snapshot?.notes?.length ? (
-          <Collapsible title={`Reconstruction Notes (${snapshot.notes.length})`}>
+          <Collapsible title={t("chats.debugPage.reconstructionNotes", { count: snapshot.notes.length })}>
             <div className="space-y-2 font-mono text-xs">
               {snapshot.notes.map((note, index) => (
                 <div key={`${index}-${note}`} className="text-fg/60">
@@ -380,39 +380,41 @@ export function MessageDebugPage() {
 
         {snapshotError ? (
           <section className="rounded-xl border border-danger/20 bg-danger/5 p-4 font-mono text-xs text-danger/80">
-            Failed to reconstruct request snapshot: {snapshotError}
+            {t("chats.debugPage.reconstructFailed", { error: snapshotError })}
           </section>
         ) : null}
 
         {attempts.map((attempt, index) => (
           <Collapsible
             key={`${trace?.requestId ?? "trace"}-${index}`}
-            title={`Attempt ${index + 1}${attempt.providerError ? " (error)" : ""}${attempt.transportRetries.length > 0 ? ` — ${attempt.transportRetries.length} retry` : ""}`}
+            title={`${t("chats.debugPage.attempt", { number: index + 1 })}${attempt.providerError ? ` ${t("chats.debugPage.attemptError")}` : ""}${attempt.transportRetries.length > 0 ? `. ${t("chats.debugPage.attemptRetryCount", { count: attempt.transportRetries.length })}` : ""}`}
           >
             <div className="space-y-3 font-mono text-xs">
               {attempt.transportRetries.length > 0 ? (
                 <div className="rounded-lg border border-warning/20 bg-warning/5 px-3 py-2 text-warning/80">
-                  {attempt.transportRetries.length} transport retr
-                  {attempt.transportRetries.length === 1 ? "y" : "ies"} before final provider
-                  response.
+                  {attempt.transportRetries.length === 1
+                    ? t("chats.debugPage.transportRetryNoticeOne")
+                    : t("chats.debugPage.transportRetryNoticeMany", {
+                        count: attempt.transportRetries.length,
+                      })}
                 </div>
               ) : null}
-              {attempt.request ? <JsonBlock title="Request" value={attempt.request.payload} /> : null}
+              {attempt.request ? <JsonBlock title={t("chats.debugPage.request")} value={attempt.request.payload} /> : null}
               {attempt.request && getPayloadObject(attempt.request.payload)?.requestBody !== undefined ? (
                 <JsonBlock
-                  title="Request Body"
+                  title={t("chats.debugPage.requestBody")}
                   value={getPayloadObject(attempt.request.payload)?.requestBody}
                 />
               ) : null}
               {attempt.response ? (
-                <JsonBlock title="Response" value={attempt.response.payload} />
+                <JsonBlock title={t("chats.debugPage.response")} value={attempt.response.payload} />
               ) : null}
               {attempt.providerError ? (
-                <JsonBlock title="Provider Error" value={attempt.providerError.payload} />
+                <JsonBlock title={t("chats.debugPage.providerError")} value={attempt.providerError.payload} />
               ) : null}
               {attempt.transportRetries.length > 0 ? (
                 <JsonBlock
-                  title="Transport Retries"
+                  title={t("chats.debugPage.transportRetriesTitle")}
                   value={attempt.transportRetries.map((event) => event.payload)}
                 />
               ) : null}
@@ -420,29 +422,29 @@ export function MessageDebugPage() {
           </Collapsible>
         ))}
 
-        {requestSettings ? <JsonBlock title="Request Settings" value={requestSettings} /> : null}
-        {promptEntries ? <JsonBlock title="System Prompt Entries" value={promptEntries} /> : null}
+        {requestSettings ? <JsonBlock title={t("chats.debugPage.requestSettings")} value={requestSettings} /> : null}
+        {promptEntries ? <JsonBlock title={t("chats.debugPage.systemPromptEntries")} value={promptEntries} /> : null}
         {relativePromptEntries ? (
-          <JsonBlock title="Relative Prompt Entries" value={relativePromptEntries} />
+          <JsonBlock title={t("chats.debugPage.relativePromptEntries")} value={relativePromptEntries} />
         ) : null}
         {inChatPromptEntries ? (
-          <JsonBlock title="In-Chat Prompt Entries" value={inChatPromptEntries} />
+          <JsonBlock title={t("chats.debugPage.inChatPromptEntries")} value={inChatPromptEntries} />
         ) : null}
         {Array.isArray(requestMessages) ? (
-          <MessageListBlock title="Pre-Adapter Request Messages" messages={requestMessages} />
+          <MessageListBlock title={t("chats.debugPage.preAdapterMessages")} messages={requestMessages} />
         ) : null}
         {providerSystem !== undefined ? (
-          <JsonBlock title="Final Provider System Field" value={providerSystem} />
+          <JsonBlock title={t("chats.debugPage.finalProviderSystem")} value={providerSystem} />
         ) : null}
         {providerMessages ? (
-          <MessageListBlock title="Final Provider Messages" messages={providerMessages} />
+          <MessageListBlock title={t("chats.debugPage.finalProviderMessages")} messages={providerMessages} />
         ) : null}
         {requestBody !== undefined ? (
-          <JsonBlock title="Full Request Body" value={requestBody} />
+          <JsonBlock title={t("chats.debugPage.fullRequestBody")} value={requestBody} />
         ) : null}
-        <JsonBlock title="Full Session JSON" value={session} />
-        <JsonBlock title="Stored Message JSON" value={message} />
-        <JsonBlock title="Full Trace Events" value={trace?.events ?? []} />
+        <JsonBlock title={t("chats.debugPage.fullSessionJson")} value={session} />
+        <JsonBlock title={t("chats.debugPage.storedMessageJson")} value={message} />
+        <JsonBlock title={t("chats.debugPage.fullTraceEvents")} value={trace?.events ?? []} />
       </div>
     </div>
   );

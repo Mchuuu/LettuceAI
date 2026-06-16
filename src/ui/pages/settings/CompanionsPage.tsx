@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { getEmbeddingModelInfo } from "../../../core/storage/repo";
 import { storageBridge } from "../../../core/storage/files";
+import { useI18n } from "../../../core/i18n/context";
 import { cn, colors, interactive, spacing, typography } from "../../design-tokens";
 
 type CompanionKind = "emotion" | "ner" | "router";
@@ -88,6 +89,7 @@ function ModelRow({
   onInstall: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div
       className={cn(
@@ -117,7 +119,7 @@ function ModelRow({
                   : "border-warning/40 bg-warning/15 text-warning/80",
               )}
             >
-              {installed ? "Ready" : "Missing"}
+              {installed ? t("companion.modelStatus.ready") : t("companion.modelStatus.missing")}
             </span>
           </div>
           <p className="mt-1 text-[11px] leading-relaxed text-fg/50">{description}</p>
@@ -139,7 +141,7 @@ function ModelRow({
                 ) : (
                   <Trash2 className="h-3 w-3" />
                 )}
-                {busy ? "Removing…" : "Uninstall"}
+                {busy ? t("companion.modelStatus.removing") : t("companion.modelStatus.uninstall")}
               </button>
             ) : (
               <button
@@ -153,7 +155,7 @@ function ModelRow({
                 )}
               >
                 <Download className="h-3 w-3" />
-                Install
+                {t("common.buttons.install")}
               </button>
             )}
           </div>
@@ -164,6 +166,7 @@ function ModelRow({
 }
 
 export function CompanionsPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [status, setStatus] = useState<ModelStatus>(DEFAULT_STATUS);
   const [loading, setLoading] = useState(true);
@@ -279,13 +282,13 @@ export function CompanionsPage() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-fg">
                   {status.bundleComplete
-                    ? "Companion runtime ready"
-                    : "Companion runtime incomplete"}
+                    ? t("companion.runtime.readyTitle")
+                    : t("companion.runtime.incompleteTitle")}
                 </p>
                 <p className="mt-1 text-[11px] leading-relaxed text-fg/55">
                   {status.bundleComplete
-                    ? "All local analysis models for companion characters are installed."
-                    : `${installedCount} of 3 analysis models installed. Install the remaining models below.`}
+                    ? t("companion.runtime.readyDescription")
+                    : t("companion.runtime.incompleteDescription", { count: installedCount })}
                 </p>
 
                 <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-fg/10">
@@ -306,7 +309,7 @@ export function CompanionsPage() {
                   "transition hover:border-fg/20 hover:bg-fg/10 hover:text-fg/80",
                   refreshing && "pointer-events-none opacity-60",
                 )}
-                aria-label="Refresh status"
+                aria-label={t("companion.runtime.refreshAria")}
               >
                 <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
               </button>
@@ -321,7 +324,7 @@ export function CompanionsPage() {
 
           {/* Memory backend */}
           <section>
-            <SectionHeader icon={Brain} title="Memory backend" />
+            <SectionHeader icon={Brain} title={t("companion.sections.memoryBackend")} />
             <button
               type="button"
               onClick={() => navigate("/settings/advanced/memory")}
@@ -345,14 +348,12 @@ export function CompanionsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-medium text-fg">
-                      Companion chats use Dynamic Memory
+                      {t("companion.sections.dynamicMemoryTitle")}
                     </span>
                     <ChevronRight className="h-4 w-4 shrink-0 text-fg/25 transition-colors group-hover:text-fg/50" />
                   </div>
                   <p className="mt-1 text-[11px] leading-relaxed text-fg/50">
-                    Long-term memory creation and retrieval share the Dynamic Memory backend with
-                    normal chats. Companion mode keeps its own emotional state, relationship state,
-                    Soul data, and per-turn effect tracking.
+                    {t("companion.sections.dynamicMemoryDescription")}
                   </p>
                 </div>
               </div>
@@ -363,7 +364,7 @@ export function CompanionsPage() {
           <section>
             <SectionHeader
               icon={Cpu}
-              title="Local analysis models"
+              title={t("companion.sections.localAnalysisModels")}
               trailing={
                 <span
                   className={cn(
@@ -381,8 +382,8 @@ export function CompanionsPage() {
             <div className="space-y-2.5">
               <ModelRow
                 icon={Heart}
-                title="Emotion classifier"
-                description="Reads turns and updates the companion's felt, expressed, and blocked emotion vectors."
+                title={t("companion.models.emotionTitle")}
+                description={t("companion.models.emotionSubtitle")}
                 installed={status.emotion}
                 busy={busyKind === "emotion"}
                 onInstall={() => handleInstall("emotion")}
@@ -390,8 +391,8 @@ export function CompanionsPage() {
               />
               <ModelRow
                 icon={Tag}
-                title="Entity extractor (NER)"
-                description="Identifies people, places, and objects so memories can be canonicalized and linked."
+                title={t("companion.models.nerTitle")}
+                description={t("companion.models.nerSubtitle")}
                 installed={status.ner}
                 busy={busyKind === "ner"}
                 onInstall={() => handleInstall("ner")}
@@ -399,8 +400,8 @@ export function CompanionsPage() {
               />
               <ModelRow
                 icon={Waypoints}
-                title="Memory router"
-                description="Decides whether new turns should be stored as relationship, milestone, episodic, or other memory categories."
+                title={t("companion.models.routerTitle")}
+                description={t("companion.models.routerSubtitle")}
                 installed={status.router}
                 busy={busyKind === "router"}
                 onInstall={() => handleInstall("router")}
@@ -411,7 +412,7 @@ export function CompanionsPage() {
 
           {/* About companion mode */}
           <section>
-            <SectionHeader icon={Heart} title="About companion mode" />
+            <SectionHeader icon={Heart} title={t("companion.sections.aboutCompanionMode")} />
             <div
               className={cn(
                 "rounded-xl border px-4 py-3.5",
@@ -421,15 +422,8 @@ export function CompanionsPage() {
             >
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-fg/30" />
               <div className="space-y-2 text-[11px] leading-relaxed text-fg/55">
-                <p>
-                  Companion mode turns a character into a long-running social agent. It tracks an
-                  emotional state, a relationship state with you, and a richer episodic memory store
-                  rather than a single chat summary.
-                </p>
-                <p>
-                  Switch any character to companion mode from its character settings. Companion
-                  chats use a dedicated memory and relationship UI accessible from the chat header.
-                </p>
+                <p>{t("companion.about.paragraph1")}</p>
+                <p>{t("companion.about.paragraph2")}</p>
               </div>
             </div>
           </section>

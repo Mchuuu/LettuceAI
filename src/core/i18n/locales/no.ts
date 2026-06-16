@@ -702,7 +702,6 @@ export const noMessages: DeepPartialMessageTree<LocaleMessages> = {
     suggestedReply: "Foreslått svar",
     selectTwoCharactersMinimum: "Velg minst 2 karakterer for en gruppechat.",
     groupBranchCreated: "Gruppeforgrening opprettet! Omdirigerer...",
-    memories: "Minner",
     tools: "Verktøy",
     pinned: "Festet",
     searchMemories: "Søk i minner...",

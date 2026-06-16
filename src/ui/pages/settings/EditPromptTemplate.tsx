@@ -30,7 +30,7 @@ import { cn, radius, interactive } from "../../design-tokens";
 import { MessageStructurePreview } from "./components/MessageStructurePreview";
 import { BottomMenu, NumberInput } from "../../components";
 import { confirmBottomMenu } from "../../components/ConfirmBottomMenu";
-import { useI18n } from "../../../core/i18n/context";
+import { useI18n, type TranslationKey } from "../../../core/i18n/context";
 import { Switch } from "../../components/Switch";
 import { useNavigationManager } from "../../navigation";
 import {
@@ -97,13 +97,14 @@ import {
 type PromptEntryImageSlot = "character" | "persona" | "chatBackground" | "avatar" | "references";
 type PromptEntryKind = "text" | "image";
 type PromptType = PromptTemplateType;
+type Translate = (key: TranslationKey, params?: Record<string, string | number>) => string;
 
-const IMAGE_ENTRY_SLOT_LABELS: Record<PromptEntryImageSlot, string> = {
-  character: "Character reference",
-  persona: "Persona reference",
-  chatBackground: "Chat background",
-  avatar: "Avatar image",
-  references: "Reference images",
+const IMAGE_ENTRY_SLOT_LABEL_KEYS: Record<PromptEntryImageSlot, TranslationKey> = {
+  character: "editPrompt.imageSlots.character",
+  persona: "editPrompt.imageSlots.persona",
+  chatBackground: "editPrompt.imageSlots.chatBackground",
+  avatar: "editPrompt.imageSlots.avatar",
+  references: "editPrompt.imageSlots.references",
 };
 
 const IMAGE_ENTRY_SLOT_TOKENS: Record<PromptEntryImageSlot, string> = {
@@ -123,17 +124,17 @@ const IMAGE_ENTRY_SLOT_OPTIONS_BY_PROMPT_TYPE: Partial<Record<PromptType, Prompt
 };
 
 const ENTRY_ROLE_OPTIONS = [
-  { value: "system", label: "System" },
-  { value: "user", label: "User" },
-  { value: "assistant", label: "Assistant" },
-] as const;
+  { value: "system", labelKey: "editPrompt.roles.system" },
+  { value: "user", labelKey: "editPrompt.roles.user" },
+  { value: "assistant", labelKey: "editPrompt.roles.assistant" },
+] as const satisfies ReadonlyArray<{ value: string; labelKey: TranslationKey }>;
 
 const ENTRY_POSITION_OPTIONS = [
-  { value: "relative", label: "Relative" },
-  { value: "inChat", label: "In Chat" },
-  { value: "conditional", label: "Conditional" },
-  { value: "interval", label: "Interval" },
-] as const;
+  { value: "relative", labelKey: "editPrompt.positions.relative" },
+  { value: "inChat", labelKey: "editPrompt.positions.inChat" },
+  { value: "conditional", labelKey: "editPrompt.positions.conditional" },
+  { value: "interval", labelKey: "editPrompt.positions.interval" },
+] as const satisfies ReadonlyArray<{ value: string; labelKey: TranslationKey }>;
 
 const DRAG_HOLD_MS = 450;
 const AUTO_SCROLL_EDGE_PX = 96;
@@ -258,71 +259,140 @@ type ConditionRowGroup = {
 
 const SIMPLE_CONDITION_OPTIONS: Array<{
   value: SimplePromptEntryConditionType;
-  label: string;
+  labelKey: TranslationKey;
   kind: "boolean" | "number" | "list" | "chatMode" | "infoSource";
-  placeholder?: string;
+  placeholderKey?: TranslationKey;
 }> = [
-  { value: "chatMode", label: "Chat mode", kind: "chatMode" },
-  { value: "infoSource", label: "Info source", kind: "infoSource" },
-  { value: "sceneGenerationEnabled", label: "Scene generation enabled", kind: "boolean" },
-  { value: "avatarGenerationEnabled", label: "Avatar generation enabled", kind: "boolean" },
-  { value: "hasScene", label: "Has scene", kind: "boolean" },
-  { value: "hasSceneDirection", label: "Has scene direction", kind: "boolean" },
-  { value: "hasPersona", label: "Has persona", kind: "boolean" },
-  { value: "messageCountAtLeast", label: "Message count at least", kind: "number" },
+  { value: "chatMode", labelKey: "editPrompt.conditions.chatMode", kind: "chatMode" },
+  { value: "infoSource", labelKey: "editPrompt.conditions.infoSource", kind: "infoSource" },
   {
-    value: "participantCountAtLeast",
-    label: "Participant count at least",
+    value: "sceneGenerationEnabled",
+    labelKey: "editPrompt.conditions.sceneGenerationEnabled",
+    kind: "boolean",
+  },
+  {
+    value: "avatarGenerationEnabled",
+    labelKey: "editPrompt.conditions.avatarGenerationEnabled",
+    kind: "boolean",
+  },
+  { value: "hasScene", labelKey: "editPrompt.conditions.hasScene", kind: "boolean" },
+  {
+    value: "hasSceneDirection",
+    labelKey: "editPrompt.conditions.hasSceneDirection",
+    kind: "boolean",
+  },
+  { value: "hasPersona", labelKey: "editPrompt.conditions.hasPersona", kind: "boolean" },
+  {
+    value: "messageCountAtLeast",
+    labelKey: "editPrompt.conditions.messageCountAtLeast",
     kind: "number",
   },
-  { value: "keywordAny", label: "Keyword any", kind: "list", placeholder: "beach, sunset" },
-  { value: "keywordAll", label: "Keyword all", kind: "list", placeholder: "storm, harbor" },
-  { value: "keywordNone", label: "Keyword none", kind: "list", placeholder: "violence, gore" },
-  { value: "dynamicMemoryEnabled", label: "Dynamic memory enabled", kind: "boolean" },
-  { value: "hasMemorySummary", label: "Has memory summary", kind: "boolean" },
-  { value: "hasKeyMemories", label: "Has key memories", kind: "boolean" },
-  { value: "hasLorebookContent", label: "Has lorebook content", kind: "boolean" },
-  { value: "doesAuthorNoteExists", label: "Author note exists", kind: "boolean" },
-  { value: "hasActiveScheduledNote", label: "Has active scheduled note", kind: "boolean" },
-  { value: "hasSubjectDescription", label: "Has subject description", kind: "boolean" },
-  { value: "hasCurrentDescription", label: "Has current description", kind: "boolean" },
+  {
+    value: "participantCountAtLeast",
+    labelKey: "editPrompt.conditions.participantCountAtLeast",
+    kind: "number",
+  },
+  {
+    value: "keywordAny",
+    labelKey: "editPrompt.conditions.keywordAny",
+    kind: "list",
+    placeholderKey: "editPrompt.conditionPlaceholders.keywordAny",
+  },
+  {
+    value: "keywordAll",
+    labelKey: "editPrompt.conditions.keywordAll",
+    kind: "list",
+    placeholderKey: "editPrompt.conditionPlaceholders.keywordAll",
+  },
+  {
+    value: "keywordNone",
+    labelKey: "editPrompt.conditions.keywordNone",
+    kind: "list",
+    placeholderKey: "editPrompt.conditionPlaceholders.keywordNone",
+  },
+  {
+    value: "dynamicMemoryEnabled",
+    labelKey: "editPrompt.conditions.dynamicMemoryEnabled",
+    kind: "boolean",
+  },
+  { value: "hasMemorySummary", labelKey: "editPrompt.conditions.hasMemorySummary", kind: "boolean" },
+  { value: "hasKeyMemories", labelKey: "editPrompt.conditions.hasKeyMemories", kind: "boolean" },
+  {
+    value: "hasLorebookContent",
+    labelKey: "editPrompt.conditions.hasLorebookContent",
+    kind: "boolean",
+  },
+  {
+    value: "doesAuthorNoteExists",
+    labelKey: "editPrompt.conditions.doesAuthorNoteExists",
+    kind: "boolean",
+  },
+  {
+    value: "hasActiveScheduledNote",
+    labelKey: "editPrompt.conditions.hasActiveScheduledNote",
+    kind: "boolean",
+  },
+  {
+    value: "hasSubjectDescription",
+    labelKey: "editPrompt.conditions.hasSubjectDescription",
+    kind: "boolean",
+  },
+  {
+    value: "hasCurrentDescription",
+    labelKey: "editPrompt.conditions.hasCurrentDescription",
+    kind: "boolean",
+  },
   {
     value: "hasCharacterReferenceImages",
-    label: "Has character reference images",
+    labelKey: "editPrompt.conditions.hasCharacterReferenceImages",
     kind: "boolean",
   },
   {
     value: "hasChatBackground",
-    label: "Has chat background",
+    labelKey: "editPrompt.conditions.hasChatBackground",
     kind: "boolean",
   },
   {
     value: "hasPersonaReferenceImages",
-    label: "Has persona reference images",
+    labelKey: "editPrompt.conditions.hasPersonaReferenceImages",
     kind: "boolean",
   },
   {
     value: "hasCharacterReferenceText",
-    label: "Has character reference text",
+    labelKey: "editPrompt.conditions.hasCharacterReferenceText",
     kind: "boolean",
   },
   {
     value: "hasPersonaReferenceText",
-    label: "Has persona reference text",
+    labelKey: "editPrompt.conditions.hasPersonaReferenceText",
     kind: "boolean",
   },
-  { value: "inputScopeAny", label: "Input scope any", kind: "list", placeholder: "text, image" },
+  {
+    value: "inputScopeAny",
+    labelKey: "editPrompt.conditions.inputScopeAny",
+    kind: "list",
+    placeholderKey: "editPrompt.conditionPlaceholders.inputScopeAny",
+  },
   {
     value: "outputScopeAny",
-    label: "Output scope any",
+    labelKey: "editPrompt.conditions.outputScopeAny",
     kind: "list",
-    placeholder: "text, image",
+    placeholderKey: "editPrompt.conditionPlaceholders.outputScopeAny",
   },
-  { value: "providerIdAny", label: "Provider any", kind: "list", placeholder: "openai, ollama" },
-  { value: "reasoningEnabled", label: "Reasoning enabled", kind: "boolean" },
-  { value: "visionEnabled", label: "Vision enabled", kind: "boolean" },
-  { value: "isTimeAwarenessEnabled", label: "Time awareness enabled", kind: "boolean" },
-  { value: "isCompanionMode", label: "Companion mode", kind: "boolean" },
+  {
+    value: "providerIdAny",
+    labelKey: "editPrompt.conditions.providerIdAny",
+    kind: "list",
+    placeholderKey: "editPrompt.conditionPlaceholders.providerIdAny",
+  },
+  { value: "reasoningEnabled", labelKey: "editPrompt.conditions.reasoningEnabled", kind: "boolean" },
+  { value: "visionEnabled", labelKey: "editPrompt.conditions.visionEnabled", kind: "boolean" },
+  {
+    value: "isTimeAwarenessEnabled",
+    labelKey: "editPrompt.conditions.isTimeAwarenessEnabled",
+    kind: "boolean",
+  },
+  { value: "isCompanionMode", labelKey: "editPrompt.conditions.isCompanionMode", kind: "boolean" },
 ];
 
 function isSimpleCondition(
@@ -497,87 +567,172 @@ function composeConditionTree(draft: ConditionDraft): PromptEntryCondition | nul
   };
 }
 
-function describeSimpleCondition(condition: SimplePromptEntryCondition): string {
+function describeSimpleCondition(t: Translate, condition: SimplePromptEntryCondition): string {
   switch (condition.type) {
     case "chatMode":
-      return `chat is ${condition.value}`;
+      return t("editPrompt.describe.chatMode", {
+        value: t(
+          condition.value === "group"
+            ? "editPrompt.conditionValues.chatModeGroup"
+            : "editPrompt.conditionValues.chatModeDirect",
+        ),
+      });
     case "infoSource":
-      return `info source is ${condition.value}`;
+      return t("editPrompt.describe.infoSource", {
+        value: t(
+          condition.value === "memory"
+            ? "editPrompt.conditionValues.infoSourceMemory"
+            : condition.value === "mixed"
+              ? "editPrompt.conditionValues.infoSourceMixed"
+              : "editPrompt.conditionValues.infoSourceMessages",
+        ),
+      });
     case "sceneGenerationEnabled":
-      return `scene generation is ${condition.value ? "on" : "off"}`;
+      return t(
+        condition.value
+          ? "editPrompt.describe.sceneGenerationOn"
+          : "editPrompt.describe.sceneGenerationOff",
+      );
     case "avatarGenerationEnabled":
-      return `avatar generation is ${condition.value ? "on" : "off"}`;
+      return t(
+        condition.value
+          ? "editPrompt.describe.avatarGenerationOn"
+          : "editPrompt.describe.avatarGenerationOff",
+      );
     case "hasScene":
-      return condition.value ? "scene exists" : "scene missing";
+      return t(condition.value ? "editPrompt.describe.sceneExists" : "editPrompt.describe.sceneMissing");
     case "hasSceneDirection":
-      return condition.value ? "scene has direction" : "scene has no direction";
+      return t(
+        condition.value
+          ? "editPrompt.describe.sceneHasDirection"
+          : "editPrompt.describe.sceneHasNoDirection",
+      );
     case "hasPersona":
-      return condition.value ? "persona exists" : "persona missing";
+      return t(
+        condition.value ? "editPrompt.describe.personaExists" : "editPrompt.describe.personaMissing",
+      );
     case "messageCountAtLeast":
-      return `messages >= ${condition.value}`;
+      return t("editPrompt.describe.messagesAtLeast", { count: condition.value });
     case "participantCountAtLeast":
-      return `participants >= ${condition.value}`;
+      return t("editPrompt.describe.participantsAtLeast", { count: condition.value });
     case "keywordAny":
-      return `any keyword: ${condition.values.join(", ")}`;
+      return t("editPrompt.describe.anyKeyword", { values: condition.values.join(", ") });
     case "keywordAll":
-      return `all keywords: ${condition.values.join(", ")}`;
+      return t("editPrompt.describe.allKeywords", { values: condition.values.join(", ") });
     case "keywordNone":
-      return `no keywords: ${condition.values.join(", ")}`;
+      return t("editPrompt.describe.noKeywords", { values: condition.values.join(", ") });
     case "dynamicMemoryEnabled":
-      return `dynamic memory is ${condition.value ? "on" : "off"}`;
+      return t(
+        condition.value ? "editPrompt.describe.dynamicMemoryOn" : "editPrompt.describe.dynamicMemoryOff",
+      );
     case "hasMemorySummary":
-      return condition.value ? "memory summary exists" : "memory summary missing";
+      return t(
+        condition.value
+          ? "editPrompt.describe.memorySummaryExists"
+          : "editPrompt.describe.memorySummaryMissing",
+      );
     case "hasKeyMemories":
-      return condition.value ? "key memories exist" : "key memories missing";
+      return t(
+        condition.value
+          ? "editPrompt.describe.keyMemoriesExist"
+          : "editPrompt.describe.keyMemoriesMissing",
+      );
     case "hasLorebookContent":
-      return condition.value ? "lorebook content exists" : "lorebook content missing";
+      return t(
+        condition.value
+          ? "editPrompt.describe.lorebookContentExists"
+          : "editPrompt.describe.lorebookContentMissing",
+      );
     case "doesAuthorNoteExists":
-      return condition.value ? "author note exists" : "author note missing";
+      return t(
+        condition.value
+          ? "editPrompt.describe.authorNoteExists"
+          : "editPrompt.describe.authorNoteMissing",
+      );
     case "hasActiveScheduledNote":
-      return condition.value ? "active scheduled note exists" : "active scheduled note missing";
+      return t(
+        condition.value
+          ? "editPrompt.describe.scheduledNoteExists"
+          : "editPrompt.describe.scheduledNoteMissing",
+      );
     case "hasSubjectDescription":
-      return condition.value ? "subject description exists" : "subject description missing";
+      return t(
+        condition.value
+          ? "editPrompt.describe.subjectDescriptionExists"
+          : "editPrompt.describe.subjectDescriptionMissing",
+      );
     case "hasCurrentDescription":
-      return condition.value ? "current description exists" : "current description missing";
+      return t(
+        condition.value
+          ? "editPrompt.describe.currentDescriptionExists"
+          : "editPrompt.describe.currentDescriptionMissing",
+      );
     case "hasCharacterReferenceImages":
-      return condition.value
-        ? "character reference images exist"
-        : "character reference images missing";
+      return t(
+        condition.value
+          ? "editPrompt.describe.characterReferenceImagesExist"
+          : "editPrompt.describe.characterReferenceImagesMissing",
+      );
     case "hasChatBackground":
-      return condition.value ? "chat background exists" : "chat background missing";
+      return t(
+        condition.value
+          ? "editPrompt.describe.chatBackgroundExists"
+          : "editPrompt.describe.chatBackgroundMissing",
+      );
     case "hasPersonaReferenceImages":
-      return condition.value
-        ? "persona reference images exist"
-        : "persona reference images missing";
+      return t(
+        condition.value
+          ? "editPrompt.describe.personaReferenceImagesExist"
+          : "editPrompt.describe.personaReferenceImagesMissing",
+      );
     case "hasCharacterReferenceText":
-      return condition.value
-        ? "character reference text exists"
-        : "character reference text missing";
+      return t(
+        condition.value
+          ? "editPrompt.describe.characterReferenceTextExists"
+          : "editPrompt.describe.characterReferenceTextMissing",
+      );
     case "hasPersonaReferenceText":
-      return condition.value ? "persona reference text exists" : "persona reference text missing";
+      return t(
+        condition.value
+          ? "editPrompt.describe.personaReferenceTextExists"
+          : "editPrompt.describe.personaReferenceTextMissing",
+      );
     case "inputScopeAny":
-      return `input scope: ${condition.values.join(", ")}`;
+      return t("editPrompt.describe.inputScope", { values: condition.values.join(", ") });
     case "outputScopeAny":
-      return `output scope: ${condition.values.join(", ")}`;
+      return t("editPrompt.describe.outputScope", { values: condition.values.join(", ") });
     case "providerIdAny":
-      return `provider: ${condition.values.join(", ")}`;
+      return t("editPrompt.describe.provider", { values: condition.values.join(", ") });
     case "reasoningEnabled":
-      return `reasoning is ${condition.value ? "on" : "off"}`;
+      return t(
+        condition.value ? "editPrompt.describe.reasoningOn" : "editPrompt.describe.reasoningOff",
+      );
     case "visionEnabled":
-      return `vision is ${condition.value ? "on" : "off"}`;
+      return t(condition.value ? "editPrompt.describe.visionOn" : "editPrompt.describe.visionOff");
     case "isTimeAwarenessEnabled":
-      return `time awareness is ${condition.value ? "on" : "off"}`;
+      return t(
+        condition.value
+          ? "editPrompt.describe.timeAwarenessOn"
+          : "editPrompt.describe.timeAwarenessOff",
+      );
     case "isCompanionMode":
-      return `companion mode is ${condition.value ? "on" : "off"}`;
+      return t(
+        condition.value
+          ? "editPrompt.describe.companionModeOn"
+          : "editPrompt.describe.companionModeOff",
+      );
   }
 }
 
-function describeConditionTree(condition: PromptEntryCondition | null | undefined): string {
+function describeConditionTree(
+  t: Translate,
+  condition: PromptEntryCondition | null | undefined,
+): string {
   const draft = decomposeConditionTree(condition);
   const describeRows = (rows: ConditionRow[]) =>
     rows
       .map((row, index) => {
-        const label = describeSimpleCondition(row.condition);
+        const label = describeSimpleCondition(t, row.condition);
         return index === 0 ? label : `${row.joinWithPrevious.toUpperCase()} ${label}`;
       })
       .join(" ");
@@ -585,20 +740,23 @@ function describeConditionTree(condition: PromptEntryCondition | null | undefine
   const include = describeRows(draft.include);
   const exclude = describeRows(draft.exclude);
   if (!include && !exclude) {
-    return "Always active";
+    return t("editPrompt.describe.alwaysActive");
   }
   if (include && exclude) {
-    return `${include} · EXCLUDE ${exclude}`;
+    return t("editPrompt.describe.includeExclude", { include, exclude });
   }
   if (exclude) {
-    return `EXCLUDE ${exclude}`;
+    return t("editPrompt.describe.excludePrefix", { value: exclude });
   }
   return include;
 }
 
-function describeConditionSentence(condition: PromptEntryCondition | null | undefined): string {
+function describeConditionSentence(
+  t: Translate,
+  condition: PromptEntryCondition | null | undefined,
+): string {
   if (!condition) {
-    return "This entry is always active.";
+    return t("editPrompt.describe.sentenceAlways");
   }
 
   const draft = decomposeConditionTree(condition);
@@ -632,7 +790,9 @@ function describeConditionSentence(condition: PromptEntryCondition | null | unde
     const groups = groupConditionRows(rows);
     const describeGroup = (group: ConditionRowGroup) => {
       const connector = group.join === "or" ? " or " : " and ";
-      const text = group.rows.map((row) => describeSimpleCondition(row.condition)).join(connector);
+      const text = group.rows
+        .map((row) => describeSimpleCondition(t, row.condition))
+        .join(connector);
       return group.rows.length > 1 ? `(${text})` : text;
     };
 
@@ -649,14 +809,14 @@ function describeConditionSentence(condition: PromptEntryCondition | null | unde
   const exclude = describeGroupedSequence(draft.exclude);
 
   if (include && exclude) {
-    return `This entry is active when ${include} and not (${exclude}).`;
+    return t("editPrompt.describe.sentenceWhenAndNot", { include, exclude });
   }
 
   if (exclude) {
-    return `This entry is active unless ${exclude}.`;
+    return t("editPrompt.describe.sentenceUnless", { exclude });
   }
 
-  return `This entry is active when ${include}.`;
+  return t("editPrompt.describe.sentenceWhen", { include });
 }
 
 function getConditionRowKey(row: ConditionRow): string {
@@ -682,6 +842,7 @@ function getConditionIdentity(condition: SimplePromptEntryCondition): string {
 }
 
 function getScalarConditionBucket(
+  t: Translate,
   condition: SimplePromptEntryCondition,
 ): { type: SimplePromptEntryConditionType; value: string; label: string } | null {
   switch (condition.type) {
@@ -690,7 +851,7 @@ function getScalarConditionBucket(
       return {
         type: condition.type,
         value: condition.value,
-        label: describeSimpleCondition(condition),
+        label: describeSimpleCondition(t, condition),
       };
     case "sceneGenerationEnabled":
     case "avatarGenerationEnabled":
@@ -717,31 +878,34 @@ function getScalarConditionBucket(
       return {
         type: condition.type,
         value: String(condition.value),
-        label: describeSimpleCondition(condition),
+        label: describeSimpleCondition(t, condition),
       };
     default:
       return null;
   }
 }
 
-function getConditionWarnings(draft: ConditionDraft): string[] {
+function getConditionWarnings(t: Translate, draft: ConditionDraft): string[] {
   const warnings = new Set<string>();
   const includeLabels = new Map<string, string>();
 
   draft.include.forEach((row) => {
-    includeLabels.set(getConditionIdentity(row.condition), describeSimpleCondition(row.condition));
+    includeLabels.set(
+      getConditionIdentity(row.condition),
+      describeSimpleCondition(t, row.condition),
+    );
   });
 
   draft.exclude.forEach((row) => {
     const label = includeLabels.get(getConditionIdentity(row.condition));
     if (label) {
-      warnings.add(`This entry both requires and excludes "${label}".`);
+      warnings.add(t("editPrompt.warnings.requiresAndExcludes", { label }));
     }
   });
 
   const scalarBuckets = new Map<SimplePromptEntryConditionType, Map<string, string>>();
   draft.include.forEach((row) => {
-    const bucket = getScalarConditionBucket(row.condition);
+    const bucket = getScalarConditionBucket(t, row.condition);
     if (!bucket) {
       return;
     }
@@ -754,7 +918,7 @@ function getConditionWarnings(draft: ConditionDraft): string[] {
   scalarBuckets.forEach((values) => {
     if (values.size > 1) {
       warnings.add(
-        `This entry requires mutually exclusive conditions: ${[...values.values()].join(" and ")}.`,
+        t("editPrompt.warnings.mutuallyExclusive", { values: [...values.values()].join(" and ") }),
       );
     }
   });
@@ -763,11 +927,12 @@ function getConditionWarnings(draft: ConditionDraft): string[] {
 }
 
 const createDefaultEntry = (
+  t: Translate,
   content: string,
   overrides?: Partial<SystemPromptEntry>,
 ): SystemPromptEntry => ({
   id: createEntryId(),
-  name: "System Prompt",
+  name: t("editPrompt.defaults.systemPromptName"),
   role: DEFAULT_ENTRY_ROLE,
   content,
   enabled: true,
@@ -781,8 +946,12 @@ const createDefaultEntry = (
   ...overrides,
 });
 
-const createExtraEntry = (overrides?: Partial<SystemPromptEntry>) =>
-  createDefaultEntry("", { name: "Prompt Entry", systemPrompt: false, ...overrides });
+const createExtraEntry = (t: Translate, overrides?: Partial<SystemPromptEntry>) =>
+  createDefaultEntry(t, "", {
+    name: t("editPrompt.defaults.promptEntryName"),
+    systemPrompt: false,
+    ...overrides,
+  });
 
 function getPromptEntryKind(entry: SystemPromptEntry): PromptEntryKind {
   return entry.promptEntryPayload?.type === "imageSlot" ? "image" : "text";
@@ -810,15 +979,15 @@ function entryHasEditableContent(entry: SystemPromptEntry) {
   return entry.content.trim().length > 0 || getPromptEntryKind(entry) === "image";
 }
 
-function getEntryKindSummary(entry: SystemPromptEntry) {
+function getEntryKindSummary(t: Translate, entry: SystemPromptEntry) {
   const slot = getPromptEntryImageSlot(entry);
   if (!slot) {
-    return "Text";
+    return t("editPrompt.entryKind.text");
   }
-  return `Image · ${IMAGE_ENTRY_SLOT_LABELS[slot]}`;
+  return t("editPrompt.entryKind.imageWithSlot", { slot: t(IMAGE_ENTRY_SLOT_LABEL_KEYS[slot]) });
 }
 
-function getEntryPreviewText(entry: SystemPromptEntry) {
+function getEntryPreviewText(t: Translate, entry: SystemPromptEntry) {
   const trimmed = entry.content.trim();
   if (trimmed) {
     return trimmed;
@@ -826,56 +995,64 @@ function getEntryPreviewText(entry: SystemPromptEntry) {
 
   const slot = getPromptEntryImageSlot(entry);
   if (slot) {
-    return `${IMAGE_ENTRY_SLOT_LABELS[slot]} attachment`;
+    return t("editPrompt.entryKind.attachment", { slot: t(IMAGE_ENTRY_SLOT_LABEL_KEYS[slot]) });
   }
 
-  return "Click to edit this entry.";
+  return t("editPrompt.entryKind.clickToEdit");
 }
 
-function getInjectionModeHint(position: SystemPromptEntry["injectionPosition"]) {
+function getInjectionModeHint(t: Translate, position: SystemPromptEntry["injectionPosition"]) {
   switch (position) {
     case "relative":
-      return "Before chat history (system context).";
+      return t("editPrompt.behavior.relativeHint");
     case "inChat":
-      return "Always inject inside chat history.";
+      return t("editPrompt.behavior.inChatHint");
     case "conditional":
-      return "Inject only after a minimum number of chat messages.";
+      return t("editPrompt.behavior.conditionalHint");
     case "interval":
-      return "Inject every N chat messages.";
+      return t("editPrompt.behavior.intervalHint");
     default:
       return "";
   }
 }
 
-function getEntryRoleLabel(role: SystemPromptEntry["role"]) {
-  return ENTRY_ROLE_OPTIONS.find((option) => option.value === role)?.label ?? role;
+function getEntryRoleLabel(t: Translate, role: SystemPromptEntry["role"]) {
+  const option = ENTRY_ROLE_OPTIONS.find((opt) => opt.value === role);
+  return option ? t(option.labelKey) : role;
 }
 
-function getEntryPositionLabel(position: SystemPromptEntry["injectionPosition"]) {
-  return ENTRY_POSITION_OPTIONS.find((option) => option.value === position)?.label ?? position;
+function getEntryPositionLabel(t: Translate, position: SystemPromptEntry["injectionPosition"]) {
+  const option = ENTRY_POSITION_OPTIONS.find((opt) => opt.value === position);
+  return option ? t(option.labelKey) : position;
 }
 
-function getEntryBehaviorSummary(entry: SystemPromptEntry) {
+function getEntryBehaviorSummary(t: Translate, entry: SystemPromptEntry) {
   switch (entry.injectionPosition) {
     case "conditional":
-      return `After ${entry.conditionalMinMessages ?? DEFAULT_CONDITIONAL_MIN_MESSAGES} messages`;
+      return t("editPrompt.behavior.afterMessages", {
+        count: entry.conditionalMinMessages ?? DEFAULT_CONDITIONAL_MIN_MESSAGES,
+      });
     case "interval":
-      return `Every ${entry.intervalTurns ?? DEFAULT_INTERVAL_TURNS} messages`;
+      return t("editPrompt.behavior.everyMessages", {
+        count: entry.intervalTurns ?? DEFAULT_INTERVAL_TURNS,
+      });
     case "inChat":
-      return "Inline in chat history";
+      return t("editPrompt.behavior.inlineInChat");
     case "relative":
     default:
-      return "Before chat history";
+      return t("editPrompt.behavior.beforeChatHistory");
   }
 }
 
-function getEntryActivationSummary(entry: SystemPromptEntry) {
+function getEntryActivationSummary(t: Translate, entry: SystemPromptEntry) {
   const conditionDraft = decomposeConditionTree(entry.conditions);
   const conditionCount = conditionDraft.include.length + conditionDraft.exclude.length;
   if (conditionCount === 0) {
-    return "Always active";
+    return t("editPrompt.activation.alwaysActive");
   }
-  return conditionCount === 1 ? describeConditionTree(entry.conditions) : `${conditionCount} rules`;
+  return conditionCount === 1
+    ? describeConditionTree(t, entry.conditions)
+    : t("editPrompt.activation.ruleCount", { count: conditionCount });
 }
 
 function MetaPill({
@@ -907,6 +1084,7 @@ function ConditionRuleRow({
   onChange: (next: SimplePromptEntryCondition) => void;
   onRemove: () => void;
 }) {
+  const { t } = useI18n();
   const meta =
     SIMPLE_CONDITION_OPTIONS.find((option) => option.value === condition.type) ??
     SIMPLE_CONDITION_OPTIONS[0];
@@ -939,7 +1117,7 @@ function ConditionRuleRow({
         >
           {SIMPLE_CONDITION_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
-              {option.label}
+              {t(option.labelKey)}
             </option>
           ))}
         </select>
@@ -957,8 +1135,8 @@ function ConditionRuleRow({
             }
             className={controlClasses}
           >
-            <option value="direct">Direct</option>
-            <option value="group">Group</option>
+            <option value="direct">{t("editPrompt.conditionValues.chatModeDirect")}</option>
+            <option value="group">{t("editPrompt.conditionValues.chatModeGroup")}</option>
           </select>
         ) : meta.kind === "infoSource" ? (
           <select
@@ -971,9 +1149,9 @@ function ConditionRuleRow({
             }
             className={controlClasses}
           >
-            <option value="messages">Messages</option>
-            <option value="memory">Memory</option>
-            <option value="mixed">Mixed</option>
+            <option value="messages">{t("editPrompt.conditionValues.infoSourceMessages")}</option>
+            <option value="memory">{t("editPrompt.conditionValues.infoSourceMemory")}</option>
+            <option value="mixed">{t("editPrompt.conditionValues.infoSourceMixed")}</option>
           </select>
         ) : meta.kind === "boolean" ? (
           <div className="flex w-full gap-0.5 rounded border border-fg/15 bg-surface-el/50 p-0.5">
@@ -994,7 +1172,9 @@ function ConditionRuleRow({
                     : "text-fg/40 hover:bg-fg/5 hover:text-fg/60",
                 )}
               >
-                {val === "true" ? "True" : "False"}
+                {val === "true"
+                  ? t("editPrompt.conditionValues.true")
+                  : t("editPrompt.conditionValues.false")}
               </button>
             ))}
           </div>
@@ -1022,7 +1202,7 @@ function ConditionRuleRow({
                 values: normalizeListInput(nextInput),
               } as SimplePromptEntryCondition);
             }}
-            placeholder={meta.placeholder}
+            placeholder={meta.placeholderKey ? t(meta.placeholderKey) : undefined}
             className={controlClasses}
           />
         )}
@@ -1035,7 +1215,7 @@ function ConditionRuleRow({
           "flex h-8 w-8 shrink-0 items-center justify-center rounded border border-fg/10 bg-surface-el/50 text-fg/40 transition-colors",
           "hover:border-danger/30 hover:bg-danger/5 hover:text-danger",
         )}
-        title="Remove condition"
+        title={t("editPrompt.conditionsPanel.removeCondition")}
       >
         <X className="h-3.5 w-3.5" />
       </button>
@@ -1075,6 +1255,7 @@ function ConditionJoinRow({
   value: ConditionJoin;
   onChange: (next: ConditionJoin) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="relative flex items-center justify-center py-1">
       <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-fg/10" />
@@ -1086,8 +1267,8 @@ function ConditionJoinRow({
           "hover:border-fg/30 hover:text-fg/80 focus:outline-none focus:ring-1 focus:ring-fg/20",
         )}
       >
-        <option value="and">AND</option>
-        <option value="or">OR</option>
+        <option value="and">{t("editPrompt.conditionValues.and")}</option>
+        <option value="or">{t("editPrompt.conditionValues.or")}</option>
       </select>
     </div>
   );
@@ -1100,8 +1281,9 @@ function PromptEntryConditionsPanel({
   entry: SystemPromptEntry;
   onUpdate: (updates: Partial<SystemPromptEntry>) => void;
 }) {
+  const { t } = useI18n();
   const draft = useMemo(() => decomposeConditionTree(entry.conditions), [entry.conditions]);
-  const warnings = useMemo(() => getConditionWarnings(draft), [draft]);
+  const warnings = useMemo(() => getConditionWarnings(t, draft), [t, draft]);
   const includeGroups = useMemo(() => groupConditionRows(draft.include), [draft.include]);
   const excludeGroups = useMemo(() => groupConditionRows(draft.exclude), [draft.exclude]);
 
@@ -1160,7 +1342,7 @@ function PromptEntryConditionsPanel({
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-danger/75" />
             <div className="min-w-0 space-y-1">
               <p className="text-xs font-medium text-danger/85">
-                Fix contradictory rules before saving.
+                {t("editPrompt.warnings.fixContradictory")}
               </p>
               {warnings.map((warning) => (
                 <p key={warning} className="text-xs leading-relaxed text-fg/68">
@@ -1174,20 +1356,21 @@ function PromptEntryConditionsPanel({
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-bold text-fg/60">Include Rules</h4>
+          <h4 className="text-sm font-bold text-fg/60">
+            {t("editPrompt.conditionsPanel.includeRules")}
+          </h4>
           <button
             type="button"
             onClick={() => addRule("include")}
             className="flex items-center gap-1.5 rounded-lg border border-accent/20 bg-accent/5 px-3 py-1.5 text-xs font-bold text-accent transition-all hover:bg-accent/10"
           >
             <Plus className="h-3.5 w-3.5" />
-            Add Rule
+            {t("editPrompt.conditionsPanel.addRule")}
           </button>
         </div>
 
         <p className="max-w-[72ch] text-[11px] leading-relaxed text-fg/42">
-          Adjacent rules with the same join are grouped together. Those groups are then evaluated
-          from top to bottom.
+          {t("editPrompt.conditionsPanel.groupingHint")}
         </p>
 
         <div className="space-y-3">
@@ -1228,7 +1411,9 @@ function PromptEntryConditionsPanel({
             })
           ) : (
             <div className="rounded-xl border border-dashed border-fg/10 bg-fg/2 py-8 text-center">
-              <p className="text-sm text-fg/30">Entry is active for all messages.</p>
+              <p className="text-sm text-fg/30">
+                {t("editPrompt.conditionsPanel.activeForAll")}
+              </p>
             </div>
           )}
         </div>
@@ -1236,14 +1421,16 @@ function PromptEntryConditionsPanel({
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-bold text-fg/60">Exclusions</h4>
+          <h4 className="text-sm font-bold text-fg/60">
+            {t("editPrompt.conditionsPanel.exclusions")}
+          </h4>
           <button
             type="button"
             onClick={() => addRule("exclude")}
             className="flex items-center gap-1.5 rounded-lg border border-danger/20 bg-danger/5 px-3 py-1.5 text-xs font-bold text-danger/70 transition-all hover:bg-danger/10"
           >
             <Plus className="h-3.5 w-3.5" />
-            Add Exclusion
+            {t("editPrompt.conditionsPanel.addExclusion")}
           </button>
         </div>
 
@@ -1285,7 +1472,9 @@ function PromptEntryConditionsPanel({
             })
           ) : (
             <div className="rounded-xl border border-dashed border-fg/10 bg-fg/2 py-6 text-center">
-              <p className="text-sm text-fg/30">No exclusions defined.</p>
+              <p className="text-sm text-fg/30">
+                {t("editPrompt.conditionsPanel.noExclusions")}
+              </p>
             </div>
           )}
         </div>
@@ -1294,10 +1483,12 @@ function PromptEntryConditionsPanel({
       <div className="border-t border-fg/10 pt-4">
         <div className="flex items-center gap-2">
           <Code2 className="h-3.5 w-3.5 text-fg/26" />
-          <p className="text-[10px] font-medium uppercase tracking-wide text-fg/30">Evaluates As</p>
+          <p className="text-[10px] font-medium uppercase tracking-wide text-fg/30">
+            {t("editPrompt.conditionsPanel.evaluatesAs")}
+          </p>
         </div>
         <p className="mt-2 max-w-[72ch] text-sm leading-relaxed text-fg/58">
-          {describeConditionSentence(entry.conditions)}
+          {describeConditionSentence(t, entry.conditions)}
         </p>
       </div>
     </div>
@@ -1338,6 +1529,7 @@ function PromptEntryEditorForm({
   onTextareaFocus: (id: string) => void;
   contentRows?: number;
 }) {
+  const { t } = useI18n();
   const toggleId = `entry-editor-toggle-${entry.id}`;
   const entryKind = getPromptEntryKind(entry);
   const currentSlot = getPromptEntryImageSlot(entry);
@@ -1348,17 +1540,18 @@ function PromptEntryEditorForm({
   const roleValue = entryKind === "image" ? "user" : entry.role;
   const roleDescription =
     entryKind === "image"
-      ? "Image attachment entries are always sent as user content."
-      : "Which role the model receives for this entry.";
-  const contentLabel = entryKind === "image" ? "Attachment Note" : "Prompt Content";
+      ? t("editPrompt.form.roleImageHint")
+      : t("editPrompt.form.roleHint");
+  const contentLabel =
+    entryKind === "image" ? t("editPrompt.form.attachmentNote") : t("editPrompt.form.promptContent");
   const contentHint =
     entryKind === "image"
-      ? "Optional text sent alongside the attached image slot. Leave blank if the image alone is enough."
-      : "Write the prompt entry exactly as it should be sent.";
+      ? t("editPrompt.form.imageContentHint")
+      : t("editPrompt.form.textContentHint");
   const contentPlaceholder =
     entryKind === "image"
-      ? "Optional note for this image attachment..."
-      : "Write the prompt entry...";
+      ? t("editPrompt.form.imageContentPlaceholder")
+      : t("editPrompt.form.textContentPlaceholder");
   const showsLegacyImageToken = Object.values(IMAGE_ENTRY_SLOT_TOKENS).includes(
     entry.content.trim(),
   );
@@ -1373,11 +1566,11 @@ function PromptEntryEditorForm({
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3 rounded-lg border border-fg/10 bg-fg/4 px-3 py-2.5">
         <div>
-          <p className="text-sm font-medium text-fg">Entry State</p>
+          <p className="text-sm font-medium text-fg">{t("editPrompt.form.entryState")}</p>
           <p className="text-xs text-fg/45">
             {entry.systemPrompt
-              ? "System prompt entries are always enabled."
-              : "Controls whether this entry can be injected."}
+              ? t("editPrompt.form.systemAlwaysEnabled")
+              : t("editPrompt.form.controlsInjection")}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -1388,7 +1581,11 @@ function PromptEntryEditorForm({
             disabled={entry.systemPrompt || !onToggle}
           />
           <span className="text-xs text-fg/55">
-            {entry.systemPrompt ? "Required" : entry.enabled ? "Enabled" : "Disabled"}
+            {entry.systemPrompt
+              ? t("editPrompt.card.required")
+              : entry.enabled
+                ? t("common.labels.enabled")
+                : t("common.labels.disabled")}
           </span>
         </div>
       </div>
@@ -1408,28 +1605,26 @@ function PromptEntryEditorForm({
         />
         <p className="text-[11px] text-fg/45">{contentHint}</p>
         {entryKind === "image" && showsLegacyImageToken ? (
-          <p className="text-[11px] text-fg/38">
-            Legacy token detected. It is no longer required once this entry has an image attachment.
-          </p>
+          <p className="text-[11px] text-fg/38">{t("editPrompt.form.legacyTokenDetected")}</p>
         ) : null}
       </div>
 
-      <SectionHeader label="Basic" />
+      <SectionHeader label={t("editPrompt.form.basic")} />
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-fg/55">Entry Name</label>
+          <label className="text-xs font-medium text-fg/55">{t("editPrompt.form.entryName")}</label>
           <input
             value={entry.name}
             onChange={(event) => onUpdate({ name: event.target.value })}
             className="w-full rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-sm text-fg"
-            placeholder="Entry name"
+            placeholder={t("editPrompt.form.entryNamePlaceholder")}
           />
-          <p className="text-[11px] text-fg/45">Used for organization and quick scanning.</p>
+          <p className="text-[11px] text-fg/45">{t("editPrompt.form.entryNameHint")}</p>
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-fg/55">Entry Kind</label>
+          <label className="text-xs font-medium text-fg/55">{t("editPrompt.form.entryKind")}</label>
           <select
             value={entryKind}
             onChange={(event) => {
@@ -1462,15 +1657,17 @@ function PromptEntryEditorForm({
             }}
             className="h-10 w-full rounded-lg border border-fg/10 bg-fg/5 px-3 text-sm text-fg"
           >
-            <option value="text">Text</option>
-            {canSelectImageKind ? <option value="image">Image attachment</option> : null}
+            <option value="text">{t("editPrompt.form.kindText")}</option>
+            {canSelectImageKind ? (
+              <option value="image">{t("editPrompt.form.kindImage")}</option>
+            ) : null}
           </select>
           <p className="text-[11px] text-fg/45">
             {entryKind === "image"
-              ? "Attach a runtime image slot instead of relying on raw {{image[...]}} tokens."
+              ? t("editPrompt.form.kindImageHint")
               : canSelectImageKind
-                ? "Standard text content. Switch to image attachment for reference-image entries."
-                : "Standard text content for this prompt type."}
+                ? t("editPrompt.form.kindTextHintImageAllowed")
+                : t("editPrompt.form.kindTextHint")}
           </p>
         </div>
       </div>
@@ -1478,7 +1675,9 @@ function PromptEntryEditorForm({
       {entryKind === "image" ? (
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-fg/55">Attachment Slot</label>
+            <label className="text-xs font-medium text-fg/55">
+              {t("editPrompt.form.attachmentSlot")}
+            </label>
             <select
               value={selectedImageSlot}
               onChange={(event) => {
@@ -1500,31 +1699,29 @@ function PromptEntryEditorForm({
             >
               {imageSlotOptions.map((slot) => (
                 <option key={slot} value={slot}>
-                  {IMAGE_ENTRY_SLOT_LABELS[slot]}
+                  {t(IMAGE_ENTRY_SLOT_LABEL_KEYS[slot])}
                 </option>
               ))}
             </select>
-            <p className="text-[11px] text-fg/45">
-              Picks which runtime image source this entry attaches.
-            </p>
+            <p className="text-[11px] text-fg/45">{t("editPrompt.form.attachmentSlotHint")}</p>
           </div>
 
           <div className="rounded-lg border border-fg/10 bg-fg/4 px-3 py-2.5">
             <p className="text-[10px] font-medium uppercase tracking-wide text-fg/35">
-              Attachment Behavior
+              {t("editPrompt.form.attachmentBehavior")}
             </p>
             <p className="mt-1.5 text-sm leading-relaxed text-fg/72">
-              Sends the selected image slot as user content. Any note below is sent with it.
+              {t("editPrompt.form.attachmentBehaviorHint")}
             </p>
           </div>
         </div>
       ) : null}
 
-      <SectionHeader label="Injection" />
+      <SectionHeader label={t("editPrompt.form.injection")} />
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-fg/55">Role</label>
+          <label className="text-xs font-medium text-fg/55">{t("editPrompt.form.role")}</label>
           <select
             value={roleValue}
             onChange={(event) => onUpdate({ role: event.target.value as any })}
@@ -1533,7 +1730,7 @@ function PromptEntryEditorForm({
           >
             {ENTRY_ROLE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {t(option.labelKey)}
               </option>
             ))}
           </select>
@@ -1541,7 +1738,7 @@ function PromptEntryEditorForm({
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-fg/55">Placement</label>
+          <label className="text-xs font-medium text-fg/55">{t("editPrompt.form.placement")}</label>
           <select
             value={entry.injectionPosition}
             onChange={(event) => {
@@ -1562,11 +1759,13 @@ function PromptEntryEditorForm({
           >
             {ENTRY_POSITION_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {t(option.labelKey)}
               </option>
             ))}
           </select>
-          <p className="text-[11px] text-fg/45">{getInjectionModeHint(entry.injectionPosition)}</p>
+          <p className="text-[11px] text-fg/45">
+            {getInjectionModeHint(t, entry.injectionPosition)}
+          </p>
         </div>
       </div>
 
@@ -1579,7 +1778,9 @@ function PromptEntryEditorForm({
         )}
       >
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-fg/55">Insertion Depth</label>
+          <label className="text-xs font-medium text-fg/55">
+            {t("editPrompt.form.insertionDepth")}
+          </label>
           <NumberInput
             min={0}
             value={entry.injectionDepth}
@@ -1587,40 +1788,40 @@ function PromptEntryEditorForm({
             className="h-10 w-full rounded-lg border border-fg/10 bg-fg/5 px-3 text-sm text-fg"
             placeholder="0"
           />
-          <p className="text-[11px] text-fg/45">
-            Depth 0 is newest; higher numbers insert earlier.
-          </p>
+          <p className="text-[11px] text-fg/45">{t("editPrompt.form.insertionDepthHint")}</p>
         </div>
 
         {entry.injectionPosition === "conditional" ? (
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-fg/55">Min Messages</label>
+            <label className="text-xs font-medium text-fg/55">
+              {t("editPrompt.form.minMessages")}
+            </label>
             <NumberInput
               min={1}
               value={entry.conditionalMinMessages ?? DEFAULT_CONDITIONAL_MIN_MESSAGES}
               onChange={(next) => onUpdate({ conditionalMinMessages: next })}
               className="h-10 w-full rounded-lg border border-fg/10 bg-fg/5 px-3 text-sm text-fg"
             />
-            <p className="text-[11px] text-fg/45">
-              Inject only when at least this many messages are present.
-            </p>
+            <p className="text-[11px] text-fg/45">{t("editPrompt.form.minMessagesHint")}</p>
           </div>
         ) : entry.injectionPosition === "interval" ? (
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-fg/55">Every N Messages</label>
+            <label className="text-xs font-medium text-fg/55">
+              {t("editPrompt.form.everyNMessages")}
+            </label>
             <NumberInput
               min={1}
               value={entry.intervalTurns ?? DEFAULT_INTERVAL_TURNS}
               onChange={(next) => onUpdate({ intervalTurns: next })}
               className="h-10 w-full rounded-lg border border-fg/10 bg-fg/5 px-3 text-sm text-fg"
             />
-            <p className="text-[11px] text-fg/45">Inject every N context turns.</p>
+            <p className="text-[11px] text-fg/45">{t("editPrompt.form.everyNMessagesHint")}</p>
           </div>
         ) : null}
       </div>
 
       <SectionHeader
-        label="Conditions"
+        label={t("editPrompt.form.conditionsSection")}
         trailing={
           <button
             type="button"
@@ -1629,8 +1830,10 @@ function PromptEntryEditorForm({
           >
             <span>
               {conditionsCount > 0
-                ? `${conditionsCount} rule${conditionsCount === 1 ? "" : "s"}`
-                : "None"}
+                ? conditionsCount === 1
+                  ? t("editPrompt.form.conditionsCount", { count: conditionsCount })
+                  : t("editPrompt.form.conditionsCountPlural", { count: conditionsCount })
+                : t("editPrompt.form.conditionsNone")}
             </span>
             {conditionsOpen ? (
               <ChevronUp className="h-3 w-3" />
@@ -1667,6 +1870,7 @@ function DesktopEntryEditorDrawer({
   onTextareaRef: (id: string, el: HTMLTextAreaElement | null) => void;
   onTextareaFocus: (id: string) => void;
 }) {
+  const { t } = useI18n();
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -1703,15 +1907,17 @@ function DesktopEntryEditorDrawer({
           >
             <div className="flex items-center justify-between border-b border-fg/10 px-5 py-4">
               <div>
-                <h2 className="text-base font-semibold text-fg">Edit Entry</h2>
-                <p className="text-xs text-fg/45">{entry.name || "Prompt Entry"}</p>
+                <h2 className="text-base font-semibold text-fg">{t("editPrompt.drawer.editEntry")}</h2>
+                <p className="text-xs text-fg/45">
+                  {entry.name || t("editPrompt.defaults.promptEntryName")}
+                </p>
               </div>
               <button
                 type="button"
                 onClick={onClose}
                 className="rounded-md border border-fg/10 px-3 py-1.5 text-xs font-medium text-fg/65 transition hover:bg-fg/8 hover:text-fg"
               >
-                Close
+                {t("editPrompt.drawer.close")}
               </button>
             </div>
 
@@ -1752,6 +1958,7 @@ function MobileEntryEditorPage({
   onTextareaRef: (id: string, el: HTMLTextAreaElement | null) => void;
   onTextareaFocus: (id: string) => void;
 }) {
+  const { t } = useI18n();
   return (
     <AnimatePresence>
       {isOpen && entry ? (
@@ -1765,15 +1972,17 @@ function MobileEntryEditorPage({
         >
           <div className="flex items-center justify-between border-b border-fg/10 px-4 py-3">
             <div>
-              <h2 className="text-base font-semibold text-fg">Edit Entry</h2>
-              <p className="text-xs text-fg/45">{entry.name || "Prompt Entry"}</p>
+              <h2 className="text-base font-semibold text-fg">{t("editPrompt.drawer.editEntry")}</h2>
+              <p className="text-xs text-fg/45">
+                {entry.name || t("editPrompt.defaults.promptEntryName")}
+              </p>
             </div>
             <button
               type="button"
               onClick={onClose}
               className="rounded-md border border-fg/10 px-3 py-1.5 text-xs font-medium text-fg/65 transition hover:bg-fg/8 hover:text-fg"
             >
-              Done
+              {t("common.buttons.done")}
             </button>
           </div>
 
@@ -1819,8 +2028,8 @@ function entriesToValidationSource(entries: SystemPromptEntry[]) {
     .join("\n\n");
 }
 
-const ensureSystemEntry = (entries: SystemPromptEntry[]) => {
-  if (entries.length === 0) return [createDefaultEntry("")];
+const ensureSystemEntry = (t: Translate, entries: SystemPromptEntry[]) => {
+  if (entries.length === 0) return [createDefaultEntry(t, "")];
   if (entries.some((entry) => entry.systemPrompt)) return entries;
   return [{ ...entries[0], systemPrompt: true, enabled: true }, ...entries.slice(1)];
 };
@@ -1848,8 +2057,8 @@ function PromptEntryCard({
   const controls = useDragControls();
   const autoScroll = useDragEdgeAutoScroll();
   const toggleId = `prompt-entry-${entry.id}`;
-  const conditionSummary = getEntryActivationSummary(entry);
-  const contentPreview = getEntryPreviewText(entry);
+  const conditionSummary = getEntryActivationSummary(t, entry);
+  const contentPreview = getEntryPreviewText(t, entry);
   const isImageEntry = getPromptEntryKind(entry) === "image";
 
   return (
@@ -1892,7 +2101,7 @@ function PromptEntryCard({
             "border border-fg/10 bg-fg/5 text-fg/40",
           )}
           style={{ touchAction: "none" }}
-          title="Drag to reorder"
+          title={t("editPrompt.card.dragToReorder")}
         >
           <GripVertical className="h-4 w-4" />
         </button>
@@ -1903,7 +2112,7 @@ function PromptEntryCard({
             "flex h-8 w-8 items-center justify-center rounded-lg",
             "border border-fg/10 bg-fg/5 text-fg/40",
           )}
-          title={collapsed ? "Expand entry" : "Collapse entry"}
+          title={collapsed ? t("editPrompt.card.expandEntry") : t("editPrompt.card.collapseEntry")}
         >
           {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
         </button>
@@ -1912,14 +2121,18 @@ function PromptEntryCard({
           value={entry.name}
           onChange={(event) => onUpdate(entry.id, { name: event.target.value })}
           className="flex-1 rounded-lg border border-fg/10 bg-surface-el/30 px-3 py-2 text-sm text-fg"
-          placeholder="Entry name"
+          placeholder={t("editPrompt.card.entryNamePlaceholder")}
         />
 
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-3">
             <span
               onClick={(event) => event.stopPropagation()}
-              title={entry.systemPrompt ? "System prompt entries are always enabled" : "Toggle"}
+              title={
+                entry.systemPrompt
+                  ? t("editPrompt.card.systemAlwaysEnabledTitle")
+                  : t("editPrompt.card.toggle")
+              }
             >
               <Switch
                 id={toggleId}
@@ -1929,7 +2142,11 @@ function PromptEntryCard({
               />
             </span>
             <span className="text-xs text-fg/50">
-              {entry.systemPrompt ? "Required" : entry.enabled ? "Enabled" : "Disabled"}
+              {entry.systemPrompt
+                ? t("editPrompt.card.required")
+                : entry.enabled
+                  ? t("common.labels.enabled")
+                  : t("common.labels.disabled")}
             </span>
           </div>
 
@@ -1961,21 +2178,26 @@ function PromptEntryCard({
             <div className="space-y-3 pt-0.5">
               <div className="flex flex-wrap items-center gap-1.5">
                 <MetaPill
-                  label="Role"
+                  label={t("editPrompt.meta.role")}
                   value={
-                    getEntryKindSummary(entry) === "Text" ? getEntryRoleLabel(entry.role) : "User"
+                    getPromptEntryKind(entry) === "image"
+                      ? t("editPrompt.roles.user")
+                      : getEntryRoleLabel(t, entry.role)
                   }
                 />
-                <MetaPill label="Kind" value={getEntryKindSummary(entry)} />
+                <MetaPill label={t("editPrompt.meta.kind")} value={getEntryKindSummary(t, entry)} />
                 <MetaPill
-                  label="Placement"
-                  value={getEntryPositionLabel(entry.injectionPosition)}
-                  title={getInjectionModeHint(entry.injectionPosition)}
+                  label={t("editPrompt.meta.placement")}
+                  value={getEntryPositionLabel(t, entry.injectionPosition)}
+                  title={getInjectionModeHint(t, entry.injectionPosition)}
                 />
-                <MetaPill label="Behavior" value={getEntryBehaviorSummary(entry)} />
-                <MetaPill label="Activation" value={conditionSummary} />
+                <MetaPill
+                  label={t("editPrompt.meta.behavior")}
+                  value={getEntryBehaviorSummary(t, entry)}
+                />
+                <MetaPill label={t("editPrompt.meta.activation")} value={conditionSummary} />
                 {entry.injectionDepth > 0 ? (
-                  <MetaPill label="Depth" value={String(entry.injectionDepth)} />
+                  <MetaPill label={t("editPrompt.meta.depth")} value={String(entry.injectionDepth)} />
                 ) : null}
               </div>
 
@@ -1983,10 +2205,10 @@ function PromptEntryCard({
                 <div className="flex items-center justify-between gap-3 rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3">
                   <div className="min-w-0">
                     <p className="text-[11px] font-medium uppercase tracking-wide text-fg/40">
-                      Prompt Content
+                      {t("editPrompt.card.promptContent")}
                     </p>
                     <p className="mt-1 truncate text-sm text-fg/72">
-                      {entry.content.trim() || "No note added."}
+                      {entry.content.trim() || t("editPrompt.card.noNoteAdded")}
                     </p>
                   </div>
                   <button
@@ -1997,7 +2219,7 @@ function PromptEntryCard({
                       "hover:border-fg/20 hover:bg-surface-el/30 hover:text-fg",
                     )}
                   >
-                    Edit
+                    {t("common.buttons.edit")}
                   </button>
                 </div>
               ) : (
@@ -2011,10 +2233,10 @@ function PromptEntryCard({
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-[11px] font-medium uppercase tracking-wide text-fg/40">
-                      Prompt Content
+                      {t("editPrompt.card.promptContent")}
                     </span>
                     <span className="inline-flex items-center gap-1 text-[11px] text-fg/40 transition-colors group-hover:text-fg/70">
-                      Open editor
+                      {t("editPrompt.card.openEditor")}
                       <ChevronRight className="h-3 w-3" />
                     </span>
                   </div>
@@ -2045,7 +2267,7 @@ function PromptEntryListItem({
   const { t } = useI18n();
   const controls = useDragControls();
   const autoScroll = useDragEdgeAutoScroll();
-  const conditionSummary = describeConditionTree(entry.conditions);
+  const conditionSummary = describeConditionTree(t, entry.conditions);
   const dragTimeoutRef = useRef<number | null>(null);
   const draggingRef = useRef(false);
   const pendingEventRef = useRef<PointerEvent | null>(null);
@@ -2185,14 +2407,14 @@ function PromptEntryListItem({
               "border border-fg/10 bg-fg/5 text-fg/40",
             )}
             style={{ touchAction: "none" }}
-            title="Drag to reorder"
+            title={t("editPrompt.card.dragToReorder")}
           >
             <GripVertical className="h-4 w-4" />
           </button>
           <div className="min-w-0">
             <p className="text-sm font-medium text-fg truncate">{entry.name}</p>
             <p className="text-[11px] text-fg/40 uppercase tracking-wide">
-              {getEntryKindSummary(entry)} · {entry.injectionPosition}
+              {getEntryKindSummary(t, entry)} · {entry.injectionPosition}
             </p>
             {entry.conditions && (
               <p className="mt-0.5 text-[11px] text-fg/35 truncate">{conditionSummary}</p>
@@ -2204,7 +2426,11 @@ function PromptEntryListItem({
           <div className="flex items-center gap-2">
             <span
               onClick={(event) => event.stopPropagation()}
-              title={entry.systemPrompt ? "System prompt entries are always enabled" : "Toggle"}
+              title={
+                entry.systemPrompt
+                  ? t("editPrompt.card.systemAlwaysEnabledTitle")
+                  : t("editPrompt.card.toggle")
+              }
             >
               <Switch
                 id={toggleId}
@@ -2247,45 +2473,57 @@ function PromptEntryListItem({
   );
 }
 
-export function getPromptTypeName(type: PromptType): string {
-  switch (type) {
-    case "undefined":
-      return "Undefined";
-    case "directChat":
-      return "Direct Chat";
-    case "companionChat":
-      return "Companion Chat";
-    case "groupChatRoleplay":
-      return "Group Chat (Roleplay)";
-    case "groupChatConversational":
-      return "Group Chat (Conversation)";
-    case "dynamicMemorySummarizer":
-      return "Dynamic Memory Summarizer";
-    case "dynamicMemoryManager":
-      return "Dynamic Memory Manager";
-    case "replyHelperRoleplay":
-      return "Reply Helper (Roleplay)";
-    case "replyHelperConversational":
-      return "Reply Helper (Conversational)";
-    case "avatarGeneration":
-      return "Avatar Generation";
-    case "avatarEditRequest":
-      return "Avatar Edit Request";
-    case "sceneGeneration":
-      return "Scene Generation";
-    case "scenePromptWriter":
-      return "Scene Prompt Writer";
-    case "designReferenceWriter":
-      return "Design Reference Writer";
-    case "companionSoulWriter":
-      return "Companion Soul Writer";
-    case "lorebookEntryWriter":
-      return "Lorebook Entry Writer";
-    case "lorebookKeywordGenerator":
-      return "Lorebook Keyword Generator";
-    default:
-      return "Undefined";
+const PROMPT_TYPE_NAME_KEYS: Partial<Record<PromptType, TranslationKey>> = {
+  undefined: "editPrompt.promptTypes.undefined",
+  directChat: "editPrompt.promptTypes.directChat",
+  companionChat: "editPrompt.promptTypes.companionChat",
+  groupChatRoleplay: "editPrompt.promptTypes.groupChatRoleplay",
+  groupChatConversational: "editPrompt.promptTypes.groupChatConversational",
+  dynamicMemorySummarizer: "editPrompt.promptTypes.dynamicMemorySummarizer",
+  dynamicMemoryManager: "editPrompt.promptTypes.dynamicMemoryManager",
+  replyHelperRoleplay: "editPrompt.promptTypes.replyHelperRoleplay",
+  replyHelperConversational: "editPrompt.promptTypes.replyHelperConversational",
+  avatarGeneration: "editPrompt.promptTypes.avatarGeneration",
+  avatarEditRequest: "editPrompt.promptTypes.avatarEditRequest",
+  sceneGeneration: "editPrompt.promptTypes.sceneGeneration",
+  scenePromptWriter: "editPrompt.promptTypes.scenePromptWriter",
+  designReferenceWriter: "editPrompt.promptTypes.designReferenceWriter",
+  companionSoulWriter: "editPrompt.promptTypes.companionSoulWriter",
+  lorebookEntryWriter: "editPrompt.promptTypes.lorebookEntryWriter",
+  lorebookKeywordGenerator: "editPrompt.promptTypes.lorebookKeywordGenerator",
+};
+
+export function getPromptTypeNameKey(type: PromptType): TranslationKey {
+  return PROMPT_TYPE_NAME_KEYS[type] ?? "editPrompt.promptTypes.undefined";
+}
+
+const PROMPT_TYPE_NAME_FALLBACKS: Partial<Record<PromptType, string>> = {
+  undefined: "Undefined",
+  directChat: "Direct Chat",
+  companionChat: "Companion Chat",
+  groupChatRoleplay: "Group Chat (Roleplay)",
+  groupChatConversational: "Group Chat (Conversation)",
+  dynamicMemorySummarizer: "Dynamic Memory Summarizer",
+  dynamicMemoryManager: "Dynamic Memory Manager",
+  replyHelperRoleplay: "Reply Helper (Roleplay)",
+  replyHelperConversational: "Reply Helper (Conversational)",
+  avatarGeneration: "Avatar Generation",
+  avatarEditRequest: "Avatar Edit Request",
+  sceneGeneration: "Scene Generation",
+  scenePromptWriter: "Scene Prompt Writer",
+  designReferenceWriter: "Design Reference Writer",
+  companionSoulWriter: "Companion Soul Writer",
+  lorebookEntryWriter: "Lorebook Entry Writer",
+  lorebookKeywordGenerator: "Lorebook Keyword Generator",
+};
+
+export function getPromptTypeName(type: PromptType): string;
+export function getPromptTypeName(t: Translate, type: PromptType): string;
+export function getPromptTypeName(arg1: Translate | PromptType, arg2?: PromptType): string {
+  if (typeof arg1 === "function") {
+    return arg1(getPromptTypeNameKey(arg2 as PromptType));
   }
+  return PROMPT_TYPE_NAME_FALLBACKS[arg1] ?? PROMPT_TYPE_NAME_FALLBACKS.undefined ?? "Undefined";
 }
 
 function cloneTemplateEntries(entries: SystemPromptEntry[]): SystemPromptEntry[] {
@@ -2312,6 +2550,7 @@ function LoadingSkeleton() {
 }
 
 export function EditPromptTemplate() {
+  const { t } = useI18n();
   const { go } = useNavigationManager();
   const { id } = useParams<{ id: string }>();
   const isEditing = !!id;
@@ -2392,12 +2631,13 @@ export function EditPromptTemplate() {
   const conditionValidationErrors = useMemo(
     () =>
       entries.flatMap((entry, index) =>
-        getConditionWarnings(decomposeConditionTree(entry.conditions)).map((warning) => {
-          const label = entry.name.trim() || `Entry ${index + 1}`;
+        getConditionWarnings(t, decomposeConditionTree(entry.conditions)).map((warning) => {
+          const label =
+            entry.name.trim() || t("editPrompt.validation.entryFallback", { index: index + 1 });
           return `${label}: ${warning}`;
         }),
       ),
-    [entries],
+    [t, entries],
   );
   const serializeEntries = (items: SystemPromptEntry[]) =>
     JSON.stringify(
@@ -2537,8 +2777,8 @@ export function EditPromptTemplate() {
           const nextEntries =
             template.entries?.length > 0
               ? template.entries
-              : [createDefaultEntry(template.content)];
-          const normalizedEntries = ensureSystemEntry(nextEntries);
+              : [createDefaultEntry(t, template.content)];
+          const normalizedEntries = ensureSystemEntry(t, nextEntries);
           setEntries(normalizedEntries);
           setCondensePromptEntries(Boolean(template.condensePromptEntries));
           setCollapsedEntries(
@@ -2604,7 +2844,7 @@ export function EditPromptTemplate() {
   };
 
   const handleAddEntry = () => {
-    const entry = createExtraEntry();
+    const entry = createExtraEntry(t);
     setEntries((prev) => [...prev, entry]);
     setCollapsedEntries((prev) => ({ ...prev, [entry.id]: false }));
     window.setTimeout(() => {
@@ -2623,8 +2863,8 @@ export function EditPromptTemplate() {
     const nextEntries =
       template.entries?.length > 0
         ? cloneTemplateEntries(template.entries)
-        : [createDefaultEntry(template.content)];
-    const normalizedEntries = ensureSystemEntry(nextEntries);
+        : [createDefaultEntry(t, template.content)];
+    const normalizedEntries = ensureSystemEntry(t, nextEntries);
 
     setName((currentName) => (currentName.trim().length > 0 ? currentName : template.name));
     setContent(template.content);
@@ -2695,13 +2935,19 @@ export function EditPromptTemplate() {
         : [];
 
     if (currentMissingVariables.length > 0) {
-      alert(`Cannot save: Missing required variables: ${currentMissingVariables.join(", ")}`);
+      alert(
+        t("editPrompt.alerts.missingVariables", {
+          variables: currentMissingVariables.join(", "),
+        }),
+      );
       return;
     }
 
     if (conditionValidationErrors.length > 0) {
       alert(
-        `Cannot save: Fix contradictory activation rules.\n\n${conditionValidationErrors.join("\n")}`,
+        t("editPrompt.alerts.contradictoryRules", {
+          errors: conditionValidationErrors.join("\n"),
+        }),
       );
       return;
     }
@@ -2732,7 +2978,7 @@ export function EditPromptTemplate() {
 
       const normalizedEntries =
         usesEntryEditor && savedTemplate.entries?.length
-          ? ensureSystemEntry(savedTemplate.entries)
+          ? ensureSystemEntry(t, savedTemplate.entries)
           : entriesSnapshot;
 
       setName(savedTemplate.name);
@@ -2757,7 +3003,7 @@ export function EditPromptTemplate() {
       }
     } catch (error) {
       console.error("Failed to save template:", error);
-      alert("Failed to save template: " + String(error));
+      alert(t("editPrompt.alerts.saveFailed", { error: String(error) }));
     } finally {
       setSaving(false);
     }
@@ -2768,11 +3014,11 @@ export function EditPromptTemplate() {
       return;
     }
 
-    const promptTypeName = name.trim() || getPromptTypeName(promptType);
+    const promptTypeName = name.trim() || getPromptTypeName(t, promptType);
     const confirmed = await confirmBottomMenu({
-      title: `Reset ${promptTypeName}?`,
-      message: `Reset to the original default ${promptTypeName}? This cannot be undone.`,
-      confirmLabel: "Reset",
+      title: t("editPrompt.reset.title", { name: promptTypeName }),
+      message: t("editPrompt.reset.message", { name: promptTypeName }),
+      confirmLabel: t("editPrompt.reset.confirmLabel"),
       destructive: true,
     });
     if (!confirmed) return;
@@ -2826,14 +3072,14 @@ export function EditPromptTemplate() {
       setCondensePromptEntries(Boolean(updated.condensePromptEntries));
       if (usesEntryEditor) {
         const nextEntries =
-          updated.entries?.length > 0 ? updated.entries : [createDefaultEntry(updated.content)];
-        const normalizedEntries = ensureSystemEntry(nextEntries);
+          updated.entries?.length > 0 ? updated.entries : [createDefaultEntry(t, updated.content)];
+        const normalizedEntries = ensureSystemEntry(t, nextEntries);
         setEntries(normalizedEntries);
         setCollapsedEntries(Object.fromEntries(normalizedEntries.map((entry) => [entry.id, true])));
       }
     } catch (error) {
       console.error("Failed to reset template:", error);
-      alert("Failed to reset template");
+      alert(t("editPrompt.reset.failed"));
     } finally {
       setResetting(false);
     }
@@ -2883,7 +3129,7 @@ export function EditPromptTemplate() {
       }
     } catch (e) {
       console.error("Preview failed", e);
-      setPreview("<failed to render preview>");
+      setPreview(t("editPrompt.alerts.previewFailed"));
       if (usesEntryEditor) {
         setPreviewEntries([]);
       }
@@ -2972,7 +3218,7 @@ export function EditPromptTemplate() {
           )}
         >
           <Sparkles className="h-3.5 w-3.5" />
-          Rendered
+          {t("editPrompt.preview.rendered")}
         </button>
         <button
           onClick={() => setPreviewMode("raw")}
@@ -2984,7 +3230,7 @@ export function EditPromptTemplate() {
           )}
         >
           <Code2 className="h-3.5 w-3.5" />
-          Raw
+          {t("editPrompt.preview.raw")}
         </button>
       </div>
 
@@ -3003,7 +3249,7 @@ export function EditPromptTemplate() {
                 "focus:border-fg/20 focus:outline-none",
               )}
             >
-              <option value="">Select character…</option>
+              <option value="">{t("editPrompt.preview.selectCharacter")}</option>
               {characters.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -3022,7 +3268,7 @@ export function EditPromptTemplate() {
                 "focus:border-fg/20 focus:outline-none",
               )}
             >
-              <option value="">Select persona…</option>
+              <option value="">{t("editPrompt.preview.selectPersona")}</option>
               {personas.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.title}
@@ -3043,7 +3289,9 @@ export function EditPromptTemplate() {
                 : "border-accent/40 bg-accent/15 text-accent/80 hover:bg-accent/25",
             )}
           >
-            {previewing ? "Rendering…" : "Generate Preview"}
+            {previewing
+              ? t("editPrompt.preview.rendering")
+              : t("editPrompt.preview.generatePreview")}
           </button>
         </>
       )}
@@ -3064,23 +3312,25 @@ export function EditPromptTemplate() {
               return (
                 <div className="flex flex-col items-center justify-center h-full py-8 text-center">
                   <Eye className="h-8 w-8 text-fg/20 mb-2" />
-                  <p className="text-sm text-fg/50">No preview yet</p>
-                  <p className="text-xs text-fg/30">Select a character and generate</p>
+                  <p className="text-sm text-fg/50">{t("editPrompt.preview.noPreviewYet")}</p>
+                  <p className="text-xs text-fg/30">{t("editPrompt.preview.selectAndGenerate")}</p>
                 </div>
               );
             }
             if (entriesToShow.length === 0) {
-              return <p className="text-xs text-fg/40">No entries to preview</p>;
+              return (
+                <p className="text-xs text-fg/40">{t("editPrompt.preview.noEntriesToPreview")}</p>
+              );
             }
             return (
               <div className="space-y-4">
                 {entriesToShow.map((entry) => (
                   <div key={entry.id} className="space-y-1">
                     <div className="text-[11px] uppercase tracking-wide text-fg/40">
-                      {getEntryKindSummary(entry)} · {entry.name}
+                      {getEntryKindSummary(t, entry)} · {entry.name}
                     </div>
                     <pre className="whitespace-pre-wrap text-xs leading-relaxed text-fg/80 font-mono">
-                      {entry.content || getEntryPreviewText(entry)}
+                      {entry.content || getEntryPreviewText(t, entry)}
                     </pre>
                   </div>
                 ))}
@@ -3095,13 +3345,13 @@ export function EditPromptTemplate() {
           ) : (
             <div className="flex flex-col items-center justify-center h-full py-8 text-center">
               <Eye className="h-8 w-8 text-fg/20 mb-2" />
-              <p className="text-sm text-fg/50">No preview yet</p>
-              <p className="text-xs text-fg/30">Select a character and generate</p>
+              <p className="text-sm text-fg/50">{t("editPrompt.preview.noPreviewYet")}</p>
+              <p className="text-xs text-fg/30">{t("editPrompt.preview.selectAndGenerate")}</p>
             </div>
           )
         ) : (
           <pre className="whitespace-pre-wrap text-xs leading-relaxed text-fg/80 font-mono">
-            {content || "No content to preview"}
+            {content || t("editPrompt.preview.noContentToPreview")}
           </pre>
         )}
       </div>
@@ -3123,10 +3373,12 @@ export function EditPromptTemplate() {
                     <div className="flex items-center gap-2 min-w-0">
                       <Lock className="h-4 w-4 text-warning/80 shrink-0" />
                       <div className="min-w-0">
-                        <span className="text-sm font-medium text-warning/80">Protected</span>
+                        <span className="text-sm font-medium text-warning/80">
+                          {t("editPrompt.page.protected")}
+                        </span>
                         {promptType && (
                           <span className="text-xs text-warning/70 ml-2">
-                            {getPromptTypeName(promptType)}
+                            {getPromptTypeName(t, promptType)}
                           </span>
                         )}
                       </div>
@@ -3145,7 +3397,7 @@ export function EditPromptTemplate() {
                         )}
                       >
                         <RotateCcw className={cn("h-3.5 w-3.5", resetting && "animate-spin")} />
-                        Reset
+                        {t("editPrompt.page.reset")}
                       </button>
                     )}
                   </div>
@@ -3165,7 +3417,7 @@ export function EditPromptTemplate() {
                       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-danger/80" />
                       <div className="space-y-1">
                         <p className="text-sm font-medium text-danger/80">
-                          Contradictory Activation Rules
+                          {t("editPrompt.page.contradictoryRules")}
                         </p>
                         {conditionValidationErrors.map((error) => (
                           <p key={error} className="text-xs text-danger/70">
@@ -3188,10 +3440,11 @@ export function EditPromptTemplate() {
                       <AlertTriangle className="h-4 w-4 text-danger/80 shrink-0 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium text-danger/80">
-                          Missing Required Variables
+                          {t("editPrompt.page.missingRequiredVariables")}
                         </p>
                         <p className="text-xs text-danger/70 mt-0.5">
-                          Include: <span className="font-mono">{missingVariables.join(", ")}</span>
+                          {t("editPrompt.page.include")}{" "}
+                          <span className="font-mono">{missingVariables.join(", ")}</span>
                         </p>
                       </div>
                     </div>
@@ -3202,13 +3455,13 @@ export function EditPromptTemplate() {
               {/* Name Input */}
               <div className="space-y-2">
                 <label className="text-xs font-medium uppercase tracking-wider text-fg/50">
-                  Template Name
+                  {t("editPrompt.page.templateName")}
                 </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g., Creative Roleplay"
+                  placeholder={t("editPrompt.page.templateNamePlaceholder")}
                   className={cn(
                     "w-full px-4 py-3",
                     radius.lg,
@@ -3222,7 +3475,7 @@ export function EditPromptTemplate() {
 
               <div className="space-y-2">
                 <label className="text-xs font-medium uppercase tracking-wider text-fg/50">
-                  Prompt Type
+                  {t("editPrompt.page.promptType")}
                 </label>
                 <select
                   value={promptType}
@@ -3246,8 +3499,11 @@ export function EditPromptTemplate() {
                 </select>
                 <p className="text-xs leading-relaxed text-fg/42">
                   {currentPromptTypeDefinition
-                    ? `${currentPromptTypeDefinition.requiredVariables.length} required variables, ${currentPromptTypeDefinition.allowedVariables.length} available variables.`
-                    : "Prompt types control allowed variables and required variables."}
+                    ? t("editPrompt.page.promptTypeVariablesSummary", {
+                        required: currentPromptTypeDefinition.requiredVariables.length,
+                        available: currentPromptTypeDefinition.allowedVariables.length,
+                      })
+                    : t("editPrompt.page.promptTypeFallback")}
                 </p>
               </div>
 
@@ -3267,7 +3523,7 @@ export function EditPromptTemplate() {
                             : "text-fg/40 hover:text-fg/60",
                         )}
                       >
-                        Entries
+                        {t("editPrompt.page.entries")}
                       </button>
                       <button
                         onClick={() => setEditorView("structure")}
@@ -3281,12 +3537,12 @@ export function EditPromptTemplate() {
                         )}
                       >
                         <Layers className="h-3 w-3" />
-                        Structure
+                        {t("editPrompt.page.structure")}
                       </button>
                     </div>
                   ) : (
                     <label className="text-xs font-medium uppercase tracking-wider text-fg/50">
-                      Prompt Content
+                      {t("editPrompt.page.promptContent")}
                     </label>
                   )}
                   {usesEntryEditor && (
@@ -3296,7 +3552,9 @@ export function EditPromptTemplate() {
                         checked={condensePromptEntries}
                         onChange={(next) => setCondensePromptEntries(next)}
                       />
-                      <span className="text-xs text-fg/70">Send entries as one system message</span>
+                      <span className="text-xs text-fg/70">
+                        {t("editPrompt.page.condenseEntries")}
+                      </span>
                     </div>
                   )}
                   <div className="flex flex-wrap items-center gap-2">
@@ -3313,7 +3571,7 @@ export function EditPromptTemplate() {
                         )}
                       >
                         <Plus className="h-3.5 w-3.5" />
-                        Add Entry
+                        {t("editPrompt.page.addEntry")}
                       </button>
                     )}
                     <button
@@ -3328,7 +3586,7 @@ export function EditPromptTemplate() {
                       )}
                     >
                       <Sparkles className="h-3.5 w-3.5" />
-                      Variables
+                      {t("editPrompt.page.variables")}
                     </button>
                     <button
                       onClick={() => setShowMobilePreview(true)}
@@ -3342,7 +3600,7 @@ export function EditPromptTemplate() {
                       )}
                     >
                       <Eye className="h-3.5 w-3.5" />
-                      Preview
+                      {t("editPrompt.page.preview")}
                     </button>
                   </div>
                 </div>
@@ -3386,9 +3644,11 @@ export function EditPromptTemplate() {
                               <div className="mb-3 flex justify-center text-fg/35">
                                 <Layers className="h-5 w-5" />
                               </div>
-                              <p className="text-sm font-medium text-fg/75">No entries yet</p>
+                              <p className="text-sm font-medium text-fg/75">
+                                {t("editPrompt.page.noEntriesYet")}
+                              </p>
                               <p className="mt-1 text-sm text-fg/45">
-                                Add an entry or start from one of the protected defaults.
+                                {t("editPrompt.page.noEntriesHint")}
                               </p>
                               <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                                 <button
@@ -3402,7 +3662,7 @@ export function EditPromptTemplate() {
                                   )}
                                 >
                                   <Plus className="h-4 w-4" />
-                                  Add entry
+                                  {t("editPrompt.page.addEntryLower")}
                                 </button>
                                 {showTemplateEmptyState && protectedTemplates.length > 0 && (
                                   <button
@@ -3416,7 +3676,7 @@ export function EditPromptTemplate() {
                                     )}
                                   >
                                     <Wand2 className="h-4 w-4" />
-                                    Use a template
+                                    {t("editPrompt.page.useATemplate")}
                                   </button>
                                 )}
                               </div>
@@ -3484,7 +3744,7 @@ export function EditPromptTemplate() {
                       ref={textareaRef}
                       value={content}
                       onChange={(e) => setContent(e.target.value)}
-                      placeholder="You are a creative and engaging AI assistant..."
+                      placeholder={t("editPrompt.page.contentPlaceholder")}
                       rows={20}
                       className={cn(
                         "w-full px-4 py-3 resize-none",
@@ -3525,9 +3785,13 @@ export function EditPromptTemplate() {
                 >
                   <div className="flex items-center gap-2">
                     <Eye className="h-4 w-4 text-fg/50" />
-                    <span className="text-sm font-medium text-fg">Preview</span>
+                    <span className="text-sm font-medium text-fg">
+                      {t("editPrompt.page.preview")}
+                    </span>
                     {!previewExpanded && preview && (
-                      <span className="text-xs text-fg/40 ml-2">(has generated preview)</span>
+                      <span className="text-xs text-fg/40 ml-2">
+                        {t("editPrompt.page.hasGeneratedPreview")}
+                      </span>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
@@ -3566,16 +3830,16 @@ export function EditPromptTemplate() {
       <BottomMenu
         isOpen={showVariables}
         onClose={() => setShowVariables(false)}
-        title="Template Variables"
+        title={t("editPrompt.variablesSheet.title")}
       >
         <div className="space-y-4">
-          <p className="text-xs text-fg/50">Tap to insert a variable into your prompt</p>
+          <p className="text-xs text-fg/50">{t("editPrompt.variablesSheet.tapToInsert")}</p>
 
           {requiredVariables.length > 0 && (
             <div className={cn(radius.lg, "border border-warning/30 bg-warning/10 p-3")}>
               <p className="text-xs text-warning/80">
-                <span className="font-semibold">Required:</span> Variables marked with ★ must be
-                included
+                <span className="font-semibold">{t("editPrompt.variablesSheet.requiredNote")}</span>{" "}
+                {t("editPrompt.variablesSheet.requiredNoteRest")}
               </p>
             </div>
           )}
@@ -3616,7 +3880,7 @@ export function EditPromptTemplate() {
                         {copiedVar === item.variable && (
                           <span className="flex items-center gap-1 text-xs text-accent/80">
                             <Check className="h-3 w-3" />
-                            Copied
+                            {t("editPrompt.variablesSheet.copied")}
                           </span>
                         )}
                       </div>
@@ -3635,7 +3899,7 @@ export function EditPromptTemplate() {
                           interactive.transition.fast,
                           "hover:bg-fg/10 hover:text-fg",
                         )}
-                        title="Copy"
+                        title={t("editPrompt.variablesSheet.copy")}
                       >
                         <Copy className="h-4 w-4" />
                       </button>
@@ -3653,7 +3917,7 @@ export function EditPromptTemplate() {
                           "hover:bg-accent/25",
                         )}
                       >
-                        Insert
+                        {t("editPrompt.variablesSheet.insert")}
                       </button>
                     </div>
                   </div>
@@ -3667,12 +3931,10 @@ export function EditPromptTemplate() {
       <BottomMenu
         isOpen={showTemplatePicker}
         onClose={() => setShowTemplatePicker(false)}
-        title="Use a Template"
+        title={t("editPrompt.templatePicker.title")}
       >
         <div className="space-y-4">
-          <p className="text-sm text-fg/50">
-            Choose a protected default to preload its prompt type and entry structure.
-          </p>
+          <p className="text-sm text-fg/50">{t("editPrompt.templatePicker.description")}</p>
 
           <div className="space-y-2">
             {protectedTemplates.map((template) => {
@@ -3691,7 +3953,7 @@ export function EditPromptTemplate() {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-fg">{template.name}</p>
                     <p className="mt-1 text-xs text-fg/45">
-                      {getPromptTypeName(template.promptType)}
+                      {getPromptTypeName(t, template.promptType)}
                     </p>
                   </div>
                   <ChevronRight className="h-4 w-4 shrink-0 text-fg/35" />
@@ -3706,7 +3968,7 @@ export function EditPromptTemplate() {
       <BottomMenu
         isOpen={showMobilePreview}
         onClose={() => setShowMobilePreview(false)}
-        title="Preview"
+        title={t("editPrompt.page.preview")}
       >
         {usesEntryEditor && (
           <div className="flex items-center gap-1 p-1 rounded-lg border border-fg/10 bg-fg/5 mb-3">
@@ -3721,7 +3983,7 @@ export function EditPromptTemplate() {
                   : "text-fg/50 hover:text-fg/70",
               )}
             >
-              Content
+              {t("editPrompt.preview.content")}
             </button>
             <button
               onClick={() => setMobilePreviewTab("structure")}
@@ -3734,7 +3996,7 @@ export function EditPromptTemplate() {
                   : "text-fg/50 hover:text-fg/70",
               )}
             >
-              Structure
+              {t("editPrompt.preview.structure")}
             </button>
           </div>
         )}

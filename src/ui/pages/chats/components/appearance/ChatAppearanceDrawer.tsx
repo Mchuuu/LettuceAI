@@ -162,14 +162,20 @@ export function ChatAppearanceDrawer({
       onCharacterUpdate({ ...saved, chatAppearance: normalized });
       setOverride(normalized);
       setInitialOverride(normalized);
-      toast.success("Saved", "Character chat appearance updated.");
+      toast.success(
+        t("chatAppearance.drawer.savedTitle"),
+        t("chatAppearance.drawer.savedDesc"),
+      );
     } catch (err) {
       console.error("ChatAppearanceDrawer: save failed", err);
-      toast.error("Save failed", err instanceof Error ? err.message : String(err));
+      toast.error(
+        t("chatAppearance.drawer.saveFailed"),
+        err instanceof Error ? err.message : String(err),
+      );
     } finally {
       setIsSaving(false);
     }
-  }, [isDirty, isSaving, globalSettings, effectiveSettings, character.id, onCharacterUpdate]);
+  }, [isDirty, isSaving, globalSettings, effectiveSettings, character.id, onCharacterUpdate, t]);
 
   useEffect(() => {
     const globalWindow = window as any;
@@ -198,16 +204,16 @@ export function ChatAppearanceDrawer({
   const handleCloseAttempt = useCallback(() => {
     if (isDirty) {
       toast.warningSticky(
-        "Unsaved appearance changes",
-        "Save or discard before closing.",
-        "Discard",
+        t("chatAppearance.drawer.unsavedTitle"),
+        t("chatAppearance.drawer.unsavedDesc"),
+        t("common.buttons.discard"),
         () => {
           handleDiscard();
           onClose();
         },
         "appearance-drawer-unsaved",
         {
-          label: "Save",
+          label: t("common.buttons.save"),
           onAction: () => {
             void handleSave().then(() => {
               toast.dismiss("appearance-drawer-unsaved");
@@ -219,7 +225,7 @@ export function ChatAppearanceDrawer({
       return;
     }
     onClose();
-  }, [isDirty, handleDiscard, handleSave, onClose]);
+  }, [isDirty, handleDiscard, handleSave, onClose, t]);
 
   const isRight = side === "right";
   const exitX = isRight ? "100%" : "-100%";
@@ -240,15 +246,21 @@ export function ChatAppearanceDrawer({
         >
           <header className="flex items-center justify-between border-b border-fg/10 px-4 py-3">
             <div>
-              <div className="text-sm font-semibold text-fg">Chat Appearance</div>
-              <div className="text-[11px] text-fg/45">{character.name} only</div>
+              <div className="text-sm font-semibold text-fg">{t("chats.chatAppearance")}</div>
+              <div className="text-[11px] text-fg/45">
+                {t("chatAppearance.drawer.characterOnly", { name: character.name })}
+              </div>
             </div>
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={toggleSide}
                 className="rounded-lg p-1.5 text-fg/50 hover:bg-fg/10 hover:text-fg"
-                aria-label={isRight ? "Move drawer to left" : "Move drawer to right"}
+                aria-label={
+                  isRight
+                    ? t("chatAppearance.drawer.moveLeft")
+                    : t("chatAppearance.drawer.moveRight")
+                }
               >
                 {isRight ? <PanelLeftOpen size={16} /> : <PanelRightOpen size={16} />}
               </button>
@@ -256,7 +268,7 @@ export function ChatAppearanceDrawer({
                 type="button"
                 onClick={handleCloseAttempt}
                 className="rounded-lg p-1.5 text-fg/50 hover:bg-fg/10 hover:text-fg"
-                aria-label="Close"
+                aria-label={t("chatAppearance.drawer.close")}
               >
                 <X size={16} />
               </button>
@@ -274,7 +286,7 @@ export function ChatAppearanceDrawer({
                 )}
               >
                 <RefreshCw size={11} />
-                Clear all overrides
+                {t("chatAppearance.drawer.clearAllOverrides")}
               </button>
             </div>
 
@@ -312,7 +324,7 @@ export function ChatAppearanceDrawer({
                   "disabled:opacity-40 disabled:pointer-events-none",
                 )}
               >
-                {isSaving ? "Saving..." : t("topNav.save")}
+                {isSaving ? t("common.buttons.saving") : t("common.buttons.save")}
               </button>
           </footer>
         </motion.aside>

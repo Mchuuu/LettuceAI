@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { BookOpen, MessageCircleHeart } from "lucide-react";
 import type { CharacterMode } from "../../../../core/storage/schemas";
+import { useI18n, type TranslationKey } from "../../../../core/i18n/context";
 import { cn, interactive, radius, typography } from "../../../design-tokens";
 import { MissingCompanionModelsSheet } from "../../../components/MissingCompanionModelsSheet";
 import { useCompanionRequirements } from "../hooks/useCompanionRequirements";
@@ -15,20 +16,20 @@ interface InteractionModeSelectorProps {
 
 const modes: Array<{
   id: CharacterMode;
-  title: string;
-  subtitle: string;
+  titleKey: TranslationKey;
+  subtitleKey: TranslationKey;
   icon: typeof BookOpen;
 }> = [
   {
     id: "roleplay",
-    title: "Roleplay",
-    subtitle: "Scene-driven chats, narrative framing, and starting scenarios.",
+    titleKey: "characters.interactionMode.roleplayTitle",
+    subtitleKey: "characters.interactionMode.roleplaySubtitle",
     icon: BookOpen,
   },
   {
     id: "companion",
-    title: "Companion",
-    subtitle: "Relationship-driven chats with emotional state and companion memory.",
+    titleKey: "characters.interactionMode.companionTitle",
+    subtitleKey: "characters.interactionMode.companionSubtitle",
     icon: MessageCircleHeart,
   },
 ];
@@ -38,6 +39,7 @@ export function InteractionModeSelector({
   onChange,
   disabled = false,
 }: InteractionModeSelectorProps) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
   const { missing, refresh } = useCompanionRequirements();
@@ -71,10 +73,10 @@ export function InteractionModeSelector({
               "uppercase text-fg/70",
             )}
           >
-            Interaction Mode
+            {t("characters.interactionMode.sectionLabel")}
           </div>
           <p className={cn(typography.bodySmall.size, "mt-1 text-fg/45")}>
-            Choose whether this character behaves like an RP character or a persistent companion.
+            {t("characters.interactionMode.sectionHint")}
           </p>
         </div>
       </div>
@@ -112,7 +114,7 @@ export function InteractionModeSelector({
 
               {selected && (
                 <span className="pointer-events-none absolute right-3 top-3 rounded-md border border-accent/35 bg-accent/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase leading-none tracking-[0.2em] text-accent/90">
-                  Active
+                  {t("characters.interactionMode.activeBadge")}
                 </span>
               )}
 
@@ -136,7 +138,7 @@ export function InteractionModeSelector({
                       selected ? "text-fg" : "text-fg/85 group-hover:text-fg",
                     )}
                   >
-                    {option.title}
+                    {t(option.titleKey)}
                   </p>
                   <p
                     className={cn(
@@ -144,7 +146,7 @@ export function InteractionModeSelector({
                       selected ? "text-fg/60" : "text-fg/45",
                     )}
                   >
-                    {option.subtitle}
+                    {t(option.subtitleKey)}
                   </p>
                 </div>
               </div>

@@ -56,18 +56,19 @@ import {
   type CompanionMemoryItem,
 } from "./companionUi";
 import { useI18n } from "../../../core/i18n/context";
+import type { TranslationKey } from "../../../core/i18n/context";
 import { RELATIONSHIP_AXIS_ANCHORS } from "../characters/utils/companionDefaults";
 import { storageBridge } from "../../../core/storage/files";
 
 type MemoryFilter = "all" | "active" | "superseded";
 
 const MEMORY_PROGRESS_TOTAL = 4;
-const MEMORY_STEP_LABELS: Record<number, string> = {
-  1: "Summarizing conversation",
-  2: "Analyzing memories",
-  3: "Applying changes",
-  4: "Organizing memories",
-};
+const MEMORY_STEP_LABELS = {
+  1: "chats.companionMemoryPage.steps.summarizing",
+  2: "chats.companionMemoryPage.steps.analyzing",
+  3: "chats.companionMemoryPage.steps.applying",
+  4: "chats.companionMemoryPage.steps.organizing",
+} as const satisfies Record<number, TranslationKey>;
 
 const sectionIcons: Record<CompanionMemoryCategory, React.ComponentType<{ className?: string; size?: number }>> = {
   relationship: Heart,
@@ -404,9 +405,9 @@ function MemoryCard({
                 </div>
               ) : (
                 <div className="grid gap-2 sm:grid-cols-3">
-                  <MetricMini label="Persistence" value={memory.persistenceImportance} />
-                  <MetricMini label="Prompt weight" value={memory.promptImportance} tone="warm" />
-                  <MetricMini label="Volatility" value={memory.volatility} tone="warning" />
+                  <MetricMini label={t("chats.companionMemoryPage.metrics.persistence")} value={memory.persistenceImportance} />
+                  <MetricMini label={t("chats.companionMemoryPage.metrics.promptWeight")} value={memory.promptImportance} tone="warm" />
+                  <MetricMini label={t("chats.companionMemoryPage.metrics.volatility")} value={memory.volatility} tone="warning" />
                 </div>
               )}
 
@@ -434,18 +435,18 @@ function MemoryCard({
                   {memory.observedAt ? (
                     <span className="inline-flex items-center gap-1 text-fg/55">
                       <CalendarClock size={10} />
-                      Dated {formatRelativeTime(t, memory.observedAt)}
+                      {t("chats.companionMemoryPage.detail.dated", { time: formatRelativeTime(t, memory.observedAt) })}
                     </span>
                   ) : null}
                   {memory.lastAccessedAt ? (
-                    <span>Last used {formatRelativeTime(t, memory.lastAccessedAt)}</span>
+                    <span>{t("chats.companionMemoryPage.detail.lastUsed", { time: formatRelativeTime(t, memory.lastAccessedAt) })}</span>
                   ) : null}
-                  {memory.factSignature ? <span>Key: {memory.factSignature}</span> : null}
+                  {memory.factSignature ? <span>{t("chats.companionMemoryPage.detail.key", { key: memory.factSignature })}</span> : null}
                   {memory.supersedes.length ? (
-                    <span>Replaces {memory.supersedes.length}</span>
+                    <span>{t("chats.companionMemoryPage.detail.replaces", { count: memory.supersedes.length })}</span>
                   ) : null}
                   {memory.supersededAt ? (
-                    <span>Superseded {formatRelativeTime(t, memory.supersededAt)}</span>
+                    <span>{t("chats.companionMemoryPage.detail.superseded", { time: formatRelativeTime(t, memory.supersededAt) })}</span>
                   ) : null}
                 </div>
               ) : null}
@@ -455,43 +456,43 @@ function MemoryCard({
                   <>
                     <ActionPill
                       icon={Save}
-                      label={saving ? "Saving..." : "Save"}
+                      label={saving ? t("common.buttons.saving") : t("common.buttons.save")}
                       onClick={() => onSaveEdit(memory)}
                       disabled={saving}
                       tone="accent"
                     />
-                    <ActionPill icon={X} label="Cancel" onClick={onCancelEdit} disabled={saving} />
+                    <ActionPill icon={X} label={t("common.buttons.cancel")} onClick={onCancelEdit} disabled={saving} />
                   </>
                 ) : (
                   <>
                     <ActionPill
                       icon={memory.isPinned ? PinOff : Pin}
-                      label={memory.isPinned ? "Unpin" : "Pin"}
+                      label={memory.isPinned ? t("chats.togglePin.unpin") : t("chats.togglePin.pin")}
                       onClick={() => onTogglePin(memory)}
                       disabled={actionBusy}
                       tone={memory.isPinned ? "accent" : "default"}
                     />
                     <ActionPill
                       icon={memory.isCold ? Brain : Snowflake}
-                      label={memory.isCold ? "Warm up" : "Cool down"}
+                      label={memory.isCold ? t("chats.companionMemoryPage.actions.warmUp") : t("chats.companionMemoryPage.actions.coolDown")}
                       onClick={() => onToggleCold(memory)}
                       disabled={actionBusy}
                     />
                     <ActionPill
                       icon={Save}
-                      label="Edit"
+                      label={t("common.buttons.edit")}
                       onClick={() => onStartEdit(memory)}
                       disabled={actionBusy}
                     />
                     <ActionPill
                       icon={CalendarClock}
-                      label="Date"
+                      label={t("chats.companionMemoryPage.actions.date")}
                       onClick={() => onEditDate(memory)}
                       disabled={actionBusy}
                     />
                     <ActionPill
                       icon={Trash2}
-                      label="Delete"
+                      label={t("common.buttons.delete")}
                       onClick={() => onDelete(memory)}
                       disabled={actionBusy}
                       tone="danger"
@@ -817,9 +818,9 @@ export function CompanionMemoryPage() {
     async (memory: CompanionMemoryItem) => {
       if (!session?.id) return;
       const confirmed = await confirmBottomMenu({
-        title: "Delete memory",
-        message: "Remove this companion memory from the session store?",
-        confirmLabel: "Delete",
+        title: t("chats.companionMemoryPage.deleteMemoryTitle"),
+        message: t("chats.companionMemoryPage.deleteMemoryDesc"),
+        confirmLabel: t("common.buttons.delete"),
         destructive: true,
       });
       if (!confirmed) return;
@@ -832,7 +833,7 @@ export function CompanionMemoryPage() {
         setActionBusyId(null);
       }
     },
-    [session?.id, setSession],
+    [session?.id, setSession, t],
   );
 
   const handleTogglePin = useCallback(
@@ -891,7 +892,7 @@ export function CompanionMemoryPage() {
       <div className="flex min-h-screen items-center justify-center bg-base text-fg">
         <div className="flex items-center gap-3 text-sm text-fg/60">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Loading companion memory...
+          {t("chats.companionMemoryPage.loading")}
         </div>
       </div>
     );
@@ -901,13 +902,13 @@ export function CompanionMemoryPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-base px-6">
         <div className={cn("w-full max-w-md border border-fg/10 bg-surface p-5 text-center", radius.lg)}>
-          <p className="text-base font-semibold text-fg">Companion memory is unavailable</p>
-          <p className="mt-2 text-sm text-fg/60">{error || "The chat session could not be loaded."}</p>
+          <p className="text-base font-semibold text-fg">{t("chats.companionMemoryPage.unavailable")}</p>
+          <p className="mt-2 text-sm text-fg/60">{error || t("chats.companionMemoryPage.sessionLoadFailed")}</p>
           <button
             onClick={() => backOrReplace(characterId ? Routes.chatSession(characterId, sessionId) : Routes.chat)}
             className={cn("mt-4 inline-flex items-center justify-center px-4 py-2 text-sm text-fg", components.button.primary, "border border-fg/10 bg-fg/5")}
           >
-            Back to chat
+            {t("chats.companionMemoryPage.backToChat")}
           </button>
         </div>
       </div>
@@ -918,23 +919,22 @@ export function CompanionMemoryPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-base px-6">
         <div className={cn("w-full max-w-lg border border-fg/10 bg-surface p-5", radius.lg)}>
-          <p className="text-base font-semibold text-fg">This chat is not in companion mode</p>
+          <p className="text-base font-semibold text-fg">{t("chats.companionMemoryPage.notCompanionTitle")}</p>
           <p className="mt-2 text-sm text-fg/60">
-            Roleplay chats still use the regular memory screen. Companion pages only appear for
-            chats whose character mode is set to companion.
+            {t("chats.companionMemoryPage.notCompanionDesc")}
           </p>
           <div className="mt-4 flex gap-3">
             <button
               onClick={() => go(Routes.chatMemories(character.id, session.id))}
               className={cn("px-4 py-2 text-sm text-fg", components.button.primary, "border border-fg/10 bg-fg/5")}
             >
-              Open regular memories
+              {t("chats.companionMemoryPage.openRegularMemories")}
             </button>
             <button
               onClick={() => backOrReplace(Routes.chatSession(character.id, session.id))}
               className={cn("px-4 py-2 text-sm text-fg/70", components.button.primary, "border border-fg/10 bg-transparent")}
             >
-              Back to chat
+              {t("chats.companionMemoryPage.backToChat")}
             </button>
           </div>
         </div>
@@ -945,7 +945,7 @@ export function CompanionMemoryPage() {
   return (
     <div className={cn("flex h-full flex-col bg-base text-fg")}>
       <PageHeader
-        title="Companion memory"
+        title={t("chats.companionMemoryPage.pageTitle")}
         subtitle={session.title || character.name}
         onBack={() => backOrReplace(Routes.chatSession(character.id, session.id))}
         right={
@@ -962,8 +962,8 @@ export function CompanionMemoryPage() {
               )}
               title={
                 memoryCycleActive
-                  ? "Cancel the running memory cycle"
-                  : "Run companion memory extraction on this chat now"
+                  ? t("chats.companionMemoryPage.cancelCycleTitle")
+                  : t("chats.companionMemoryPage.processMemoryTitle")
               }
             >
               {memoryCycleActive ? (
@@ -971,7 +971,7 @@ export function CompanionMemoryPage() {
               ) : (
                 <Sparkles size={12} />
               )}
-              {cancelling ? "Cancelling" : memoryCycleActive ? "Cancel" : "Process memory"}
+              {cancelling ? t("chats.companionMemoryPage.cancelling") : memoryCycleActive ? t("common.buttons.cancel") : t("chats.companionMemoryPage.processMemory")}
             </button>
             <button
               onClick={() => go(Routes.chatCompanionRelationship(character.id, session.id))}
@@ -981,7 +981,7 @@ export function CompanionMemoryPage() {
                 interactive.transition.fast,
               )}
             >
-              <Heart size={12} /> Relationship
+              <Heart size={12} /> {t("chats.companionMemoryPage.relationship")}
             </button>
           </>
         }
@@ -995,7 +995,9 @@ export function CompanionMemoryPage() {
                 <div className="flex items-center gap-2">
                   <RefreshCw className="h-4 w-4 shrink-0 animate-spin text-blue-400" />
                   <span className="text-[13px] font-semibold text-blue-200">
-                    {progressStep ? MEMORY_STEP_LABELS[progressStep] : "Processing memories..."}
+                    {progressStep && MEMORY_STEP_LABELS[progressStep as keyof typeof MEMORY_STEP_LABELS]
+                      ? t(MEMORY_STEP_LABELS[progressStep as keyof typeof MEMORY_STEP_LABELS])
+                      : t("chats.companionMemoryPage.processingMemories")}
                   </span>
                 </div>
                 {progressStep ? (
@@ -1018,12 +1020,12 @@ export function CompanionMemoryPage() {
                 (generationStalled ? (
                   <p className="flex items-center gap-1.5 text-[11px] tabular-nums text-amber-300/80">
                     <AlertTriangle size={11} className="shrink-0" />
-                    no response from model · stalled {Math.round((generationStalledMs ?? 0) / 1000)}s
+                    {t("chats.companionMemoryPage.stalled", { seconds: Math.round((generationStalledMs ?? 0) / 1000) })}
                   </p>
                 ) : (
                   <p className="text-[11px] tabular-nums text-blue-300/60">
-                    generating · {genTokens} tokens
-                    {genTps && genTps > 0 ? ` · ${genTps.toFixed(1)} tok/s` : ""}
+                    {t("chats.companionMemoryPage.generatingTokens", { count: genTokens })}
+                    {genTps && genTps > 0 ? ` · ${t("chats.companionMemoryPage.tokensPerSecond", { tps: genTps.toFixed(1) })}` : ""}
                   </p>
                 ))}
               {developerMode && genRecentText != null && (
@@ -1033,7 +1035,7 @@ export function CompanionMemoryPage() {
                   className="mt-1 inline-flex items-center gap-1.5 self-start rounded-md border border-blue-500/25 bg-blue-500/10 px-2 py-1 text-[11px] font-medium text-blue-200/80 transition hover:bg-blue-500/20"
                 >
                   <ScrollText size={12} />
-                  View live output
+                  {t("chats.companionMemoryPage.viewLiveOutput")}
                 </button>
               )}
             </div>
@@ -1047,12 +1049,12 @@ export function CompanionMemoryPage() {
         >
           {/* Snapshot */}
           <section className="space-y-3 xl:sticky xl:top-4">
-            <SectionLabel right={`Updated ${formatRelativeTime(t, emotionalState?.updatedAt)}`}>
-              Current state
+            <SectionLabel right={t("chats.companionMemoryPage.updatedAt", { time: formatRelativeTime(t, emotionalState?.updatedAt) })}>
+              {t("chats.companionMemoryPage.currentState")}
             </SectionLabel>
             <div className="grid grid-cols-2 gap-2 xl:grid-cols-2">
               <StatTile
-                label="Closeness"
+                label={t("chats.companionMemoryPage.stats.closeness")}
                 value={relationshipState?.closeness ?? companion?.relationshipDefaults?.closeness ?? 0.1}
                 low={RELATIONSHIP_AXIS_ANCHORS.closeness.low}
                 mid={RELATIONSHIP_AXIS_ANCHORS.closeness.mid}
@@ -1060,7 +1062,7 @@ export function CompanionMemoryPage() {
                 bipolar
               />
               <StatTile
-                label="Trust"
+                label={t("chats.companionMemoryPage.stats.trust")}
                 value={relationshipState?.trust ?? companion?.relationshipDefaults?.trust ?? 0.1}
                 low={RELATIONSHIP_AXIS_ANCHORS.trust.low}
                 mid={RELATIONSHIP_AXIS_ANCHORS.trust.mid}
@@ -1068,7 +1070,7 @@ export function CompanionMemoryPage() {
                 bipolar
               />
               <StatTile
-                label="Affection"
+                label={t("chats.companionMemoryPage.stats.affection")}
                 value={relationshipState?.affection ?? companion?.relationshipDefaults?.affection ?? 0.05}
                 tone="warm"
                 low={RELATIONSHIP_AXIS_ANCHORS.affection.low}
@@ -1077,7 +1079,7 @@ export function CompanionMemoryPage() {
                 bipolar
               />
               <StatTile
-                label="Tension"
+                label={t("chats.companionMemoryPage.stats.tension")}
                 value={relationshipState?.tension ?? companion?.relationshipDefaults?.tension ?? 0}
                 tone="warning"
                 low={RELATIONSHIP_AXIS_ANCHORS.tension.low}
@@ -1090,7 +1092,7 @@ export function CompanionMemoryPage() {
                 {topFelt.length > 0 && (
                   <div>
                     <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-fg/45">
-                      Felt right now
+                      {t("chats.companionMemoryPage.feltRightNow")}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {topFelt.map((entry) => (
@@ -1105,7 +1107,7 @@ export function CompanionMemoryPage() {
                 {activeSignals.length > 0 && (
                   <div className={cn(topFelt.length > 0 && "mt-3")}>
                     <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-fg/45">
-                      Active drivers
+                      {t("chats.companionMemoryPage.activeDrivers")}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {activeSignals.map((signal) => (
@@ -1128,11 +1130,11 @@ export function CompanionMemoryPage() {
               <div className="mb-1.5 flex items-center gap-2">
                 <Sparkles size={13} className="shrink-0 text-emerald-500" />
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600">
-                  Context summary
+                  {t("chats.companionMemoryPage.contextSummary")}
                 </span>
                 {session?.memorySummaryTokenCount && session.memorySummaryTokenCount > 0 ? (
                   <span className="ml-auto text-[10px] text-fg/45">
-                    {session.memorySummaryTokenCount.toLocaleString()} tokens
+                    {t("chats.companionMemoryPage.tokenCount", { count: session.memorySummaryTokenCount.toLocaleString() })}
                   </span>
                 ) : null}
               </div>
@@ -1142,15 +1144,15 @@ export function CompanionMemoryPage() {
                   summaryDraft ? "text-fg/78" : "italic text-fg/42",
                 )}
               >
-                {summaryDraft || "Tap to add a context summary..."}
+                {summaryDraft || t("chats.companionMemoryPage.addContextSummaryPrompt")}
               </p>
             </button>
           </section>
 
           {/* Memory store */}
           <section>
-            <SectionLabel right={`${counts.total} total · ${counts.pinned} pinned`}>
-              Memory store
+            <SectionLabel right={t("chats.companionMemoryPage.storeSummary", { total: counts.total, pinned: counts.pinned })}>
+              {t("chats.companionMemoryPage.memoryStore")}
             </SectionLabel>
 
             {/* Search + Add row */}
@@ -1160,7 +1162,7 @@ export function CompanionMemoryPage() {
                 <input
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Search stored memories"
+                  placeholder={t("chats.companionMemoryPage.searchPlaceholder")}
                   className={cn(
                     "w-full py-2.5 pl-10 pr-9 text-sm text-fg placeholder:text-fg/35",
                     components.input.base,
@@ -1172,7 +1174,7 @@ export function CompanionMemoryPage() {
                     type="button"
                     onClick={() => setSearchTerm("")}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-fg/35 hover:text-fg/70"
-                    aria-label="Clear search"
+                    aria-label={t("common.buttons.clearSearch")}
                   >
                     <X size={14} />
                   </button>
@@ -1186,7 +1188,7 @@ export function CompanionMemoryPage() {
                   "transition-all active:scale-95",
                   showComposer && "border-accent/30 bg-accent/12 text-accent",
                 )}
-                aria-label="Add memory"
+                aria-label={t("chats.addMemory")}
               >
                 {showComposer ? <X size={18} /> : <Plus size={18} />}
               </button>
@@ -1207,7 +1209,7 @@ export function CompanionMemoryPage() {
                     <textarea
                       value={newMemory}
                       onChange={(event) => setNewMemory(event.target.value)}
-                      placeholder="Store a relationship fact, boundary, preference, or milestone..."
+                      placeholder={t("chats.companionMemoryPage.composerPlaceholder")}
                       className={cn(
                         components.input.base,
                         "min-h-[88px] w-full resize-y px-3 py-2 text-sm text-fg placeholder:text-fg/35",
@@ -1235,7 +1237,7 @@ export function CompanionMemoryPage() {
                         )}
                       >
                         {composerBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus size={13} />}
-                        Save memory
+                        {t("chats.companionMemoryPage.saveMemory")}
                       </button>
                     </div>
                   </div>
@@ -1252,10 +1254,10 @@ export function CompanionMemoryPage() {
                   onClick={() => setStateFilter(option)}
                 >
                   {option === "all"
-                    ? "All states"
+                    ? t("chats.companionMemoryPage.filters.allStates")
                     : option === "active"
-                      ? `Active · ${counts.active}`
-                      : `Superseded · ${counts.superseded}`}
+                      ? t("chats.companionMemoryPage.filters.active", { count: counts.active })
+                      : t("chats.companionMemoryPage.filters.superseded", { count: counts.superseded })}
                 </FilterChip>
               ))}
             </div>
@@ -1264,7 +1266,7 @@ export function CompanionMemoryPage() {
                 active={categoryFilter === "all"}
                 onClick={() => setCategoryFilter("all")}
               >
-                All
+                {t("chats.companionMemoryPage.filters.all")}
               </FilterChip>
               {COMPANION_CATEGORY_ORDER.map((category) => {
                 const count = memoryItems.filter((item) => item.category === category).length;
@@ -1283,12 +1285,12 @@ export function CompanionMemoryPage() {
             </div>
 
             <div className="mb-2 flex items-center gap-2 text-[10px] text-fg/35">
-              <span>{counts.ai} AI</span>
+              <span>{t("chats.companionMemoryPage.aiCount", { count: counts.ai })}</span>
               <span>·</span>
-              <span>{counts.user} You</span>
+              <span>{t("chats.companionMemoryPage.youCount", { count: counts.user })}</span>
               {filteredItems.length !== memoryItems.length && (
                 <>
-                  <span className="ml-auto">{filteredItems.length} shown</span>
+                  <span className="ml-auto">{t("chats.companionMemoryPage.shownCount", { count: filteredItems.length })}</span>
                 </>
               )}
             </div>
@@ -1308,12 +1310,12 @@ export function CompanionMemoryPage() {
                   )}
                 </div>
                 <h3 className="mb-1 text-sm font-semibold text-fg/85">
-                  {searchTerm ? "No matching memories" : "Nothing stored yet"}
+                  {searchTerm ? t("chats.companionMemoryPage.noMatchingTitle") : t("chats.companionMemoryPage.emptyTitle")}
                 </h3>
                 <p className="max-w-sm text-center text-xs text-fg/45">
                   {searchTerm
-                    ? "Try a different search term, or switch the state and category filters."
-                    : "Memories appear as the companion learns. You can also add the first one manually."}
+                    ? t("chats.companionMemoryPage.noMatchingDesc")
+                    : t("chats.companionMemoryPage.emptyDesc")}
                 </p>
               </motion.div>
             ) : (
@@ -1356,7 +1358,7 @@ export function CompanionMemoryPage() {
       <BottomMenu
         isOpen={showSummaryEditor}
         onClose={() => setShowSummaryEditor(false)}
-        title="Context summary"
+        title={t("chats.companionMemoryPage.contextSummary")}
       >
         <div className="space-y-4 text-fg">
           <textarea
@@ -1371,12 +1373,12 @@ export function CompanionMemoryPage() {
               "focus:border-fg/20 focus:outline-none focus:ring-1 focus:ring-fg/10",
               "placeholder:text-fg/30",
             )}
-            placeholder="Short recap used to keep context consistent across companion messages..."
+            placeholder={t("chats.companionMemoryPage.summaryEditorPlaceholder")}
             autoFocus
           />
           {session?.memorySummaryTokenCount && session.memorySummaryTokenCount > 0 ? (
             <p className="text-[10px] text-fg/30">
-              {session.memorySummaryTokenCount.toLocaleString()} tokens
+              {t("chats.companionMemoryPage.tokenCount", { count: session.memorySummaryTokenCount.toLocaleString() })}
             </p>
           ) : null}
           <div className="flex gap-2">
@@ -1392,7 +1394,7 @@ export function CompanionMemoryPage() {
                 "transition-all hover:border-fg/15 hover:bg-fg/8 hover:text-fg/80 active:scale-[0.98]",
               )}
             >
-              Cancel
+              {t("common.buttons.cancel")}
             </button>
             <button
               onClick={() => void handleSaveSummary()}
@@ -1405,7 +1407,7 @@ export function CompanionMemoryPage() {
                 "disabled:pointer-events-none disabled:opacity-40",
               )}
             >
-              {savingSummary ? "Saving..." : "Save"}
+              {savingSummary ? t("common.buttons.saving") : t("common.buttons.save")}
             </button>
           </div>
         </div>
@@ -1414,7 +1416,7 @@ export function CompanionMemoryPage() {
       <BottomMenu
         isOpen={showLiveOutput}
         onClose={() => setShowLiveOutput(false)}
-        title="Live model output"
+        title={t("chats.companionMemoryPage.liveOutputTitle")}
       >
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-[11px] text-fg/45">
@@ -1422,20 +1424,20 @@ export function CompanionMemoryPage() {
               <>
                 <RefreshCw className="h-3 w-3 animate-spin text-blue-400" />
                 <span>
-                  generating
-                  {genTokens != null ? ` · ${genTokens} tokens` : ""}
-                  {genTps && genTps > 0 ? ` · ${genTps.toFixed(1)} tok/s` : ""}
+                  {t("chats.companionMemoryPage.generating")}
+                  {genTokens != null ? ` · ${t("chats.companionMemoryPage.tokensSuffix", { count: genTokens })}` : ""}
+                  {genTps && genTps > 0 ? ` · ${t("chats.companionMemoryPage.tokensPerSecond", { tps: genTps.toFixed(1) })}` : ""}
                 </span>
               </>
             ) : (
-              <span>generation finished</span>
+              <span>{t("chats.companionMemoryPage.generationFinished")}</span>
             )}
           </div>
           <pre
             ref={liveOutputRef}
             className="max-h-[55vh] overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-fg/10 bg-black/40 p-3 font-mono text-[11px] leading-relaxed text-fg/75"
           >
-            {genRecentText || "Waiting for output…"}
+            {genRecentText || t("chats.companionMemoryPage.waitingForOutput")}
           </pre>
         </div>
       </BottomMenu>
@@ -1443,12 +1445,11 @@ export function CompanionMemoryPage() {
       <BottomMenu
         isOpen={dateMenuMemory !== null}
         onClose={() => setDateMenuMemory(null)}
-        title="Memory date"
+        title={t("chats.companionMemoryPage.memoryDateTitle")}
       >
         <div className="space-y-4 text-fg">
           <p className="text-xs text-fg/50">
-            Set when this memory happened. The companion reads recency from this date, so it
-            stays correct as the conversation moves forward.
+            {t("chats.companionMemoryPage.memoryDateDesc")}
           </p>
           <DateTimePicker valueMs={dateDraftMs} onChange={setDateDraftMs} />
           <div className="flex gap-2">
@@ -1462,7 +1463,7 @@ export function CompanionMemoryPage() {
                   "transition-all hover:border-fg/15 hover:bg-fg/8 hover:text-fg/80 active:scale-[0.98]",
                 )}
               >
-                Clear
+                {t("chats.authorNote.clear")}
               </button>
             ) : null}
             <button
@@ -1474,7 +1475,7 @@ export function CompanionMemoryPage() {
                 "transition-all hover:border-fg/15 hover:bg-fg/8 hover:text-fg/80 active:scale-[0.98]",
               )}
             >
-              Cancel
+              {t("common.buttons.cancel")}
             </button>
             <button
               onClick={() => void commitObservedAt(dateDraftMs)}
@@ -1485,7 +1486,7 @@ export function CompanionMemoryPage() {
                 "transition-all hover:border-emerald-400/50 hover:bg-emerald-500/25 active:scale-[0.98]",
               )}
             >
-              Save
+              {t("common.buttons.save")}
             </button>
           </div>
         </div>

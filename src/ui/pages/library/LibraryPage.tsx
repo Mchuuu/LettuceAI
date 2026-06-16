@@ -186,7 +186,7 @@ export function LibraryPage() {
         (selectedItem as Character).defaultSceneId ?? (selectedItem as Character).scenes?.[0]?.id;
       const session = await createSession(
         selectedItem.id,
-        `Chat with ${getItemName(selectedItem)}`,
+        t("library.actions.startChatWith", { name: getItemName(selectedItem) }),
         sceneId,
       );
 

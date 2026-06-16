@@ -4,10 +4,13 @@ import { ArrowLeft, ChevronDown, ChevronRight, HelpCircle, ExternalLink } from "
 import { motion, AnimatePresence } from "framer-motion";
 import { cn, typography } from "../../design-tokens";
 import { DISCORD_SERVER_LINK } from "../../../core/utils/links";
+import { useI18n, type TranslationKey } from "../../../core/i18n/context";
+
+type Translate = (key: TranslationKey, params?: Record<string, string | number>) => string;
 
 interface FaqItem {
-  question: string;
-  answer: React.ReactNode;
+  question: TranslationKey;
+  answer: (t: Translate) => React.ReactNode;
 }
 
 function Crumb() {
@@ -22,343 +25,212 @@ function Crumb() {
 }
 
 interface FaqSection {
-  title: string;
+  title: TranslationKey;
   items: FaqItem[];
 }
 
 const SECTIONS: FaqSection[] = [
   {
-    title: "Getting started",
+    title: "helpPage.sections.gettingStarted",
     items: [
       {
-        question: "What is LettuceAI?",
-        answer: (
-          <p>
-            LettuceAI is a chat app for AI characters. Unlike apps that route your messages
-            through a single hosted service, LettuceAI lets you bring your own API key from
-            providers like Mistral, Cerebras, Google AI Studio, OpenAI, Anthropic, or run
-            models locally on your device. Your chats stay on your device.
-          </p>
-        ),
+        question: "helpPage.faq.whatIsLettuceai.question",
+        answer: (t) => <p>{t("helpPage.faq.whatIsLettuceai.answer")}</p>,
       },
       {
-        question: "What is an API key and why do I need one? (BYOK explained)",
-        answer: (
+        question: "helpPage.faq.whatIsApiKey.question",
+        answer: (t) => (
           <div className="space-y-3">
-            <p>
-              BYOK means "Bring Your Own Key." Think of an API key as a personal pass
-              card that lets an app talk to a service on your behalf. When you sign up
-              with a provider like Mistral, Cerebras, Google AI Studio, or OpenAI, they
-              give you a long string of letters and numbers. That's your key.
-            </p>
-            <p>
-              The AI models that write the replies don't live on your phone. They run on
-              big servers owned by those providers. Every message you send needs to
-              travel to one of those servers, get a reply, and come back. The key tells
-              the provider "this request is from me, charge it to my account."
-            </p>
-            <p>
-              Most other AI chat apps hide this from you by running their own server in
-              the middle: they hold one big key, you pay them a subscription, and your
-              conversations pass through their machines. LettuceAI doesn't do that. You
-              put your own key in the app, and messages go straight from your device to
-              the provider you picked. Nothing in between.
-            </p>
-            <p>
-              That's why you have to add a key once before you can chat, and also why
-              the app is free, your chats stay private, and you only pay for what you
-              actually use.
-            </p>
+            <p>{t("helpPage.faq.whatIsApiKey.p1")}</p>
+            <p>{t("helpPage.faq.whatIsApiKey.p2")}</p>
+            <p>{t("helpPage.faq.whatIsApiKey.p3")}</p>
+            <p>{t("helpPage.faq.whatIsApiKey.p4")}</p>
           </div>
         ),
       },
       {
-        question: "What's the cheapest or easiest way to start?",
-        answer: (
+        question: "helpPage.faq.cheapestStart.question",
+        answer: (t) => (
           <div className="space-y-2">
             <p>
-              <span className="font-medium text-fg">Mistral</span> has a generous free
-              tier and good open-weight models. Sign up at console.mistral.ai, create a
-              key, and paste it into Settings <Crumb /> Providers.
+              <span className="font-medium text-fg">{t("helpPage.faq.cheapestStart.mistralName")}</span>
+              {t("helpPage.faq.cheapestStart.mistralBefore")}
+              <Crumb />
+              {t("helpPage.faq.cheapestStart.mistralAfter")}
             </p>
             <p>
-              <span className="font-medium text-fg">Cerebras</span> is the fastest option
-              out there with a free tier on Llama and Qwen models. Sign up at
-              cloud.cerebras.ai.
+              <span className="font-medium text-fg">{t("helpPage.faq.cheapestStart.cerebrasName")}</span>
+              {t("helpPage.faq.cheapestStart.cerebrasText")}
             </p>
             <p>
-              <span className="font-medium text-fg">Google AI Studio</span> also offers a
-              generous free tier for Gemini models.
+              <span className="font-medium text-fg">{t("helpPage.faq.cheapestStart.googleName")}</span>
+              {t("helpPage.faq.cheapestStart.googleText")}
             </p>
-            <p>
-              If you don't want to use any cloud service, you can run models locally via
-              the built-in llama.cpp option on desktop (Windows, macOS, or Linux). Local
-              models aren't supported on mobile.
-            </p>
+            <p>{t("helpPage.faq.cheapestStart.localText")}</p>
           </div>
         ),
       },
       {
-        question: "Is this an alternative to other AI chat apps?",
-        answer: (
-          <p>
-            Yes. If you've used an AI chat app where everything just worked but you
-            couldn't pick your model, couldn't control your data, or felt limited by a
-            subscription, LettuceAI is built for that. You bring your own API key, pick
-            the model you want, and your chats stay on your device. The trade-off is a
-            short one-time setup; the upside is total control over cost, quality, and
-            privacy.
-          </p>
-        ),
+        question: "helpPage.faq.alternative.question",
+        answer: (t) => <p>{t("helpPage.faq.alternative.answer")}</p>,
       },
       {
-        question: "How much does it cost?",
-        answer: (
-          <p>
-            LettuceAI itself is free. You pay the model provider directly, usually a
-            fraction of a cent per message. Free tiers exist on Mistral, Cerebras, and
-            Google AI Studio. Heavy use of frontier models (Claude Opus 4.7, GPT-5.1,
-            Gemini 3 Pro) can add up, so check the provider's pricing page before picking
-            a model.
-          </p>
-        ),
+        question: "helpPage.faq.cost.question",
+        answer: (t) => <p>{t("helpPage.faq.cost.answer")}</p>,
       },
     ],
   },
   {
-    title: "Privacy & safety",
+    title: "helpPage.sections.privacySafety",
     items: [
       {
-        question: "Is my API key safe?",
-        answer: (
+        question: "helpPage.faq.apiKeySafe.question",
+        answer: (t) => <p>{t("helpPage.faq.apiKeySafe.answer")}</p>,
+      },
+      {
+        question: "helpPage.faq.chatsStored.question",
+        answer: (t) => <p>{t("helpPage.faq.chatsStored.answer")}</p>,
+      },
+      {
+        question: "helpPage.faq.chatsDeleted.question",
+        answer: (t) => <p>{t("helpPage.faq.chatsDeleted.answer")}</p>,
+      },
+      {
+        question: "helpPage.faq.editRemotely.question",
+        answer: (t) => <p>{t("helpPage.faq.editRemotely.answer")}</p>,
+      },
+      {
+        question: "helpPage.faq.shutdown.question",
+        answer: (t) => (
           <p>
-            Your API key is stored locally on your device and only ever sent to the
-            provider you configured it for. LettuceAI does not have a server that sees
-            your key or your messages.
+            {t("helpPage.faq.shutdown.before")}
+            <Crumb />
+            {t("helpPage.faq.shutdown.after")}
           </p>
         ),
       },
       {
-        question: "Where are my chats stored? Can anyone read them?",
-        answer: (
-          <p>
-            Chats are stored locally in the app's database on your device. They are not
-            uploaded anywhere. When you send a message, only that conversation's text is
-            sent to your chosen provider for a reply, then their response comes back and
-            is saved locally.
-          </p>
-        ),
-      },
-      {
-        question: "Can my chats get deleted on their own?",
-        answer: (
-          <p>
-            No. Chats live in a local database on your device and only you can delete
-            them. They aren't synced to any LettuceAI server, so we can't wipe them, and
-            no automatic cleanup runs in the background. The only ways your chats go
-            away are: you delete them yourself, you uninstall the app, you reset the
-            app, or your device storage is wiped.
-          </p>
-        ),
-      },
-      {
-        question: "Can someone edit my data remotely?",
-        answer: (
-          <p>
-            No. There's no remote admin panel, no LettuceAI account, and no server with
-            a copy of your characters, chats, or settings. Nobody at LettuceAI can push
-            a change to your data, lock you out, or reach into the app to modify
-            anything. Your data only changes when you change it on your own device.
-          </p>
-        ),
-      },
-      {
-        question: "What happens to my data if LettuceAI shuts down?",
-        answer: (
-          <p>
-            Your characters and chats keep working as long as the app is on your device.
-            Cloud models would stop replying if you have no key or your provider goes
-            away, but everything you've created stays readable locally and exportable
-            via Settings <Crumb /> Backup & Restore.
-          </p>
-        ),
-      },
-      {
-        question: "Will providers train on my conversations?",
-        answer: (
-          <p>
-            That depends on the provider's policy, not on LettuceAI. Most paid API tiers
-            (OpenAI, Anthropic, Mistral) do not train on API traffic by default. Free
-            tiers sometimes do. If this matters to you, read the privacy page of whichever
-            provider you use.
-          </p>
-        ),
+        question: "helpPage.faq.training.question",
+        answer: (t) => <p>{t("helpPage.faq.training.answer")}</p>,
       },
     ],
   },
   {
-    title: "Models & providers",
+    title: "helpPage.sections.modelsProviders",
     items: [
       {
-        question: "What's a 'model'? Which should I pick?",
-        answer: (
+        question: "helpPage.faq.whatIsModel.question",
+        answer: (t) => (
           <div className="space-y-2">
+            <p>{t("helpPage.faq.whatIsModel.p1")}</p>
             <p>
-              A model is the AI that writes the replies. Different models have different
-              personalities, costs, and quality.
-            </p>
-            <p>
-              Good starting picks:{" "}
-              <span className="font-medium text-fg">Gemma 4</span> (free, lightweight),{" "}
-              <span className="font-medium text-fg">DeepSeek V4</span> (cheap and very
-              capable), or <span className="font-medium text-fg">GLM 4.7 / GLM 5</span>{" "}
-              (strong roleplay quality). Cerebras runs many of these at extreme speed on
-              its free tier. You can switch any time from a chat's settings.
+              {t("helpPage.faq.whatIsModel.p2Before")}
+              <span className="font-medium text-fg">{t("helpPage.faq.whatIsModel.gemmaName")}</span>
+              {t("helpPage.faq.whatIsModel.gemmaText")}
+              <span className="font-medium text-fg">{t("helpPage.faq.whatIsModel.deepseekName")}</span>
+              {t("helpPage.faq.whatIsModel.deepseekText")}
+              <span className="font-medium text-fg">{t("helpPage.faq.whatIsModel.glmName")}</span>
+              {t("helpPage.faq.whatIsModel.glmText")}
             </p>
           </div>
         ),
       },
       {
-        question: "Are there free providers?",
-        answer: (
+        question: "helpPage.faq.freeProviders.question",
+        answer: (t) => (
           <p>
-            Yes. <span className="font-medium text-fg">Mistral</span>,{" "}
-            <span className="font-medium text-fg">Cerebras</span>, and{" "}
-            <span className="font-medium text-fg">Google AI Studio</span> all offer free
-            tiers that are enough for casual everyday chatting. You still need to sign
-            up and create an API key, but you don't add a payment method to start. Each
-            provider has its own rate limits (how many messages per minute or per day),
-            so if you hit a wall, just switch to another free provider or upgrade.
+            {t("helpPage.faq.freeProviders.before")}
+            <span className="font-medium text-fg">{t("helpPage.faq.freeProviders.mistralName")}</span>
+            {t("helpPage.faq.freeProviders.afterMistral")}
+            <span className="font-medium text-fg">{t("helpPage.faq.freeProviders.cerebrasName")}</span>
+            {t("helpPage.faq.freeProviders.afterCerebras")}
+            <span className="font-medium text-fg">{t("helpPage.faq.freeProviders.googleName")}</span>
+            {t("helpPage.faq.freeProviders.afterGoogle")}
           </p>
         ),
       },
       {
-        question: "What's the difference between free and paid providers?",
-        answer: (
+        question: "helpPage.faq.freeVsPaid.question",
+        answer: (t) => (
           <div className="space-y-3">
             <p>
-              <span className="font-medium text-fg">Free tiers</span> usually give you
-              access to smaller or older models, slower speeds, lower rate limits, and
-              sometimes the provider may use your messages to train their next model.
-              Great for trying things out or light daily use.
+              <span className="font-medium text-fg">{t("helpPage.faq.freeVsPaid.freeName")}</span>
+              {t("helpPage.faq.freeVsPaid.freeText")}
             </p>
             <p>
-              <span className="font-medium text-fg">Paid tiers</span> unlock the latest
-              and largest models, higher rate limits, faster responses, and stronger
-              privacy guarantees (most don't train on paid API traffic). You pay per
-              message, typically a fraction of a cent, with no monthly minimum.
+              <span className="font-medium text-fg">{t("helpPage.faq.freeVsPaid.paidName")}</span>
+              {t("helpPage.faq.freeVsPaid.paidText")}
             </p>
-            <p>
-              You can mix and match: keep a free key for everyday chat and a paid key
-              for when you want the best quality.
-            </p>
+            <p>{t("helpPage.faq.freeVsPaid.mixText")}</p>
           </div>
         ),
       },
       {
-        question: "What is a token?",
-        answer: (
+        question: "helpPage.faq.whatIsToken.question",
+        answer: (t) => (
           <div className="space-y-3">
-            <p>
-              A token is roughly a small piece of a word, about 4 characters or
-              three-quarters of an English word on average. "Hello there!" is around 3
-              tokens. A full sentence might be 15–20.
-            </p>
-            <p>
-              Providers charge per token, not per message. Each request counts both the
-              tokens you send (your message plus the character's setup and chat history)
-              and the tokens the model writes back. That's why long chats with lots of
-              context cost more than short fresh ones.
-            </p>
-            <p>
-              You don't need to count tokens yourself. The app handles it. It just
-              helps to know that "1 million tokens" on a pricing page is a lot of
-              chatting.
-            </p>
+            <p>{t("helpPage.faq.whatIsToken.p1")}</p>
+            <p>{t("helpPage.faq.whatIsToken.p2")}</p>
+            <p>{t("helpPage.faq.whatIsToken.p3")}</p>
           </div>
         ),
       },
       {
-        question: "I see 'no default model configured'",
-        answer: (
+        question: "helpPage.faq.noDefaultModel.question",
+        answer: (t) => (
           <div className="space-y-3">
+            <p>{t("helpPage.faq.noDefaultModel.p1")}</p>
             <p>
-              This means either you haven't added any model to LettuceAI yet, or you
-              added models but the character you're chatting with doesn't have one
-              picked.
+              {t("helpPage.faq.noDefaultModel.p2Before")}
+              <Crumb />
+              {t("helpPage.faq.noDefaultModel.p2After")}
             </p>
-            <p>
-              Open Settings <Crumb /> Models and add a model from one of your configured
-              providers. Then either set it as your global default on the same page, or
-              open the character's settings and pick a model just for that character.
-            </p>
-            <p>
-              Each character can use its own model, or fall back to your global default
-              if none is set.
-            </p>
+            <p>{t("helpPage.faq.noDefaultModel.p3")}</p>
           </div>
         ),
       },
       {
-        question: "What's the difference between cloud and local models?",
-        answer: (
-          <p>
-            Cloud models (Mistral, Cerebras, OpenAI, Google) run on someone else's
-            hardware, need an internet connection, and cost money per message. Local
-            models run directly on your desktop computer through the built-in llama.cpp
-            option, are private and offline, but need a capable PC and take more storage.
-            Local models aren't supported on mobile.
-          </p>
-        ),
+        question: "helpPage.faq.cloudVsLocal.question",
+        answer: (t) => <p>{t("helpPage.faq.cloudVsLocal.answer")}</p>,
       },
     ],
   },
   {
-    title: "Characters & chats",
+    title: "helpPage.sections.charactersChats",
     items: [
       {
-        question: "What's a character? Can I make my own?",
-        answer: (
+        question: "helpPage.faq.whatIsCharacter.question",
+        answer: (t) => <p>{t("helpPage.faq.whatIsCharacter.answer")}</p>,
+      },
+      {
+        question: "helpPage.faq.whatIsPersona.question",
+        answer: (t) => (
           <p>
-            A character is an AI persona with a name, image, and description that shapes
-            how it talks. Tap the + button on the Chats screen to create one, or import
-            character cards from the discover tab or other communities.
+            {t("helpPage.faq.whatIsPersona.before")}
+            <span className="italic">{t("helpPage.faq.whatIsPersona.yourWord")}</span>
+            {t("helpPage.faq.whatIsPersona.afterYour")}
+            <Crumb />
+            {t("helpPage.faq.whatIsPersona.after")}
           </p>
         ),
       },
       {
-        question: "What's a persona?",
-        answer: (
-          <p>
-            A persona is <span className="italic">your</span> side of the conversation:
-            your name, pronouns, and details the character should know about you. Set one
-            up under Settings <Crumb /> Personas and it'll be used across your chats.
-          </p>
-        ),
+        question: "helpPage.faq.charactersPrivate.question",
+        answer: (t) => <p>{t("helpPage.faq.charactersPrivate.answer")}</p>,
       },
       {
-        question: "Are the characters I create private?",
-        answer: (
+        question: "helpPage.faq.backupMove.question",
+        answer: (t) => (
           <p>
-            Yes. Characters you create stay on your device. LettuceAI has no upload
-            button and no server to upload them to. They're only ever shared if you
-            explicitly export a character card file and send it somewhere yourself.
-          </p>
-        ),
-      },
-      {
-        question: "How do I back up or move to another device?",
-        answer: (
-          <p>
-            Settings <Crumb /> Backup & Restore lets you export everything to a file. To move to
-            a new phone or computer, install LettuceAI there and use the "Sync from
-            another device" option on the welcome screen, or restore from a backup file.
+            {t("helpPage.faq.backupMove.before")}
+            <Crumb />
+            {t("helpPage.faq.backupMove.after")}
           </p>
         ),
       },
     ],
   },
-];
+] satisfies FaqSection[];
 
 const DOCS_URL = "https://www.lettuceai.app/docs";
 const DISCORD_URL = DISCORD_SERVER_LINK;
@@ -374,7 +246,17 @@ function openExternal(url: string) {
   })();
 }
 
-function FaqRow({ item, isOpen, onToggle }: { item: FaqItem; isOpen: boolean; onToggle: () => void }) {
+function FaqRow({
+  item,
+  isOpen,
+  onToggle,
+  t,
+}: {
+  item: FaqItem;
+  isOpen: boolean;
+  onToggle: () => void;
+  t: Translate;
+}) {
   return (
     <div className="px-4">
       <button
@@ -389,7 +271,7 @@ function FaqRow({ item, isOpen, onToggle }: { item: FaqItem; isOpen: boolean; on
             isOpen ? "text-fg" : "text-fg/85",
           )}
         >
-          {item.question}
+          {t(item.question)}
         </span>
         <motion.span
           animate={{ rotate: isOpen ? 180 : 0 }}
@@ -413,7 +295,7 @@ function FaqRow({ item, isOpen, onToggle }: { item: FaqItem; isOpen: boolean; on
                 "pb-5 pr-9 text-[0.9rem] leading-[1.65] text-fg/65 [&_p]:m-0 [&_a]:text-accent [&_a]:underline [&_a]:underline-offset-2",
               )}
             >
-              {item.answer}
+              {item.answer(t)}
             </div>
           </motion.div>
         )}
@@ -423,6 +305,7 @@ function FaqRow({ item, isOpen, onToggle }: { item: FaqItem; isOpen: boolean; on
 }
 
 export function HelpPage() {
+  const { t } = useI18n();
   const [openKey, setOpenKey] = useState<string | null>("0-0");
   const location = useLocation();
   const navigate = useNavigate();
@@ -440,7 +323,7 @@ export function HelpPage() {
           )}
         >
           <ArrowLeft size={14} strokeWidth={2} />
-          Back to setup
+          {t("helpPage.backToSetup")}
         </button>
       )}
       <header className="flex items-start gap-3.5">
@@ -449,11 +332,10 @@ export function HelpPage() {
         </div>
         <div className="min-w-0">
           <h1 className={cn(typography.h1.size, "font-semibold tracking-tight text-fg")}>
-            Help & FAQ
+            {t("helpPage.title")}
           </h1>
           <p className={cn("mt-1.5 max-w-prose text-[0.9rem] leading-[1.55] text-fg/55")}>
-            New to LettuceAI? Start here. The basics, BYOK explained, and answers to the
-            most common questions.
+            {t("helpPage.subtitle")}
           </p>
         </div>
       </header>
@@ -465,7 +347,7 @@ export function HelpPage() {
               "px-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-fg/35",
             )}
           >
-            {section.title}
+            {t(section.title)}
           </h2>
           <div className="overflow-hidden rounded-2xl border border-fg/10 bg-fg/[0.02] divide-y divide-fg/[0.05]">
             {section.items.map((item, itemIndex) => {
@@ -476,6 +358,7 @@ export function HelpPage() {
                   item={item}
                   isOpen={openKey === key}
                   onToggle={() => setOpenKey(openKey === key ? null : key)}
+                  t={t}
                 />
               );
             })}
@@ -493,7 +376,7 @@ export function HelpPage() {
             "px-1 text-fg/40",
           )}
         >
-          Still stuck?
+          {t("helpPage.stillStuck.title")}
         </h2>
         <div className="overflow-hidden rounded-xl border border-fg/10 bg-fg/[0.025] divide-y divide-fg/[0.06]">
           <button
@@ -503,10 +386,10 @@ export function HelpPage() {
           >
             <span className="min-w-0 flex-1">
               <span className={cn("block", typography.body.size, "font-medium text-fg")}>
-                Full documentation
+                {t("helpPage.stillStuck.docsTitle")}
               </span>
               <span className={cn("mt-0.5 block", typography.caption.size, "text-fg/45")}>
-                Detailed guides for every feature.
+                {t("helpPage.stillStuck.docsDescription")}
               </span>
             </span>
             <ExternalLink className="h-4 w-4 shrink-0 text-fg/25" />
@@ -518,10 +401,10 @@ export function HelpPage() {
           >
             <span className="min-w-0 flex-1">
               <span className={cn("block", typography.body.size, "font-medium text-fg")}>
-                Join the Discord
+                {t("helpPage.stillStuck.discordTitle")}
               </span>
               <span className={cn("mt-0.5 block", typography.caption.size, "text-fg/45")}>
-                Ask the community or report a bug.
+                {t("helpPage.stillStuck.discordDescription")}
               </span>
             </span>
             <ExternalLink className="h-4 w-4 shrink-0 text-fg/25" />

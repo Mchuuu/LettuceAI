@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Pencil, Plus, RotateCcw } from "lucide-react";
 import type { WidgetNode } from "../../../../../core/storage/schemas";
+import { useI18n } from "../../../../../core/i18n/context";
 import { WidgetRenderer } from "./WidgetRenderer";
 import { WidgetEditList } from "./WidgetEditList";
 import { WidgetEmptyState } from "./WidgetEmptyState";
@@ -81,6 +82,7 @@ export function WidgetList({ nodes, side, canMove }: WidgetListProps) {
 }
 
 function EditWidgetsButton({ onClick }: { onClick: () => void }) {
+  const { t } = useI18n();
   return (
     <button
       type="button"
@@ -88,7 +90,7 @@ function EditWidgetsButton({ onClick }: { onClick: () => void }) {
       className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-fg/15 py-2 text-[11px] font-medium text-fg/50 transition hover:border-fg/30 hover:text-fg/75"
     >
       <Pencil size={12} strokeWidth={2.2} />
-      Edit widgets
+      {t("chats.widgets.list.editWidgets")}
     </button>
   );
 }
@@ -101,6 +103,7 @@ interface ToolbarProps {
 }
 
 function Toolbar({ saving, onAdd, onRevert, onDone }: ToolbarProps) {
+  const { t } = useI18n();
   return (
     <div className="sticky top-0 z-20 flex min-h-[44px] items-center justify-end gap-2 border-b border-fg/10 bg-surface/95 px-2 py-2 backdrop-blur-md">
       <motion.div
@@ -115,7 +118,7 @@ function Toolbar({ saving, onAdd, onRevert, onDone }: ToolbarProps) {
           className="flex items-center gap-1 rounded-md border border-accent/30 bg-accent/10 px-2.5 py-1.5 text-[11px] font-medium text-accent shadow-sm transition hover:bg-accent/20"
         >
           <Plus size={12} strokeWidth={2.4} />
-          Add
+          {t("common.buttons.add")}
         </button>
         <div className="flex items-center gap-1">
           <button
@@ -125,7 +128,7 @@ function Toolbar({ saving, onAdd, onRevert, onDone }: ToolbarProps) {
             className="flex items-center gap-1 rounded-md border border-fg/20 bg-surface-el px-2.5 py-1.5 text-[11px] text-fg/80 shadow-sm transition hover:bg-fg/15 disabled:opacity-50"
           >
             <RotateCcw size={11} strokeWidth={2.2} />
-            Revert
+            {t("chats.widgets.list.revert")}
           </button>
           <button
             type="button"
@@ -134,7 +137,7 @@ function Toolbar({ saving, onAdd, onRevert, onDone }: ToolbarProps) {
             className="flex items-center gap-1 rounded-md bg-accent px-2.5 py-1.5 text-[11px] font-semibold text-black shadow-sm transition hover:brightness-110 disabled:opacity-50"
           >
             <Check size={12} strokeWidth={2.4} />
-            Done
+            {t("common.buttons.done")}
           </button>
         </div>
       </motion.div>

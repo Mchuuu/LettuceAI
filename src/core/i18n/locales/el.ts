@@ -740,7 +740,6 @@ export const elMessages: DeepPartialMessageTree<LocaleMessages> = {
     "suggestedReply": "Προτεινόμενη Απάντηση",
     "selectTwoCharactersMinimum": "Επιλέξτε τουλάχιστον 2 χαρακτήρες για ομαδική συνομιλία.",
     "groupBranchCreated": "Η διακλάδωση ομάδας δημιουργήθηκε! Ανακατεύθυνση...",
-    "memories": "Αναμνήσεις",
     "tools": "Εργαλεία",
     "pinned": "Καρφιτσωμένα",
     "searchMemories": "Αναζήτηση αναμνήσεων...",

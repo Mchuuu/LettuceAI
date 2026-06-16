@@ -544,13 +544,13 @@ export function OnboardingSyncStep() {
       {missingRequirements.length > 0 && (
         <MissingModelRequirementsSheet
           isOpen
-          title="One more setup step"
-          description="Your synced setup includes local features that need on-device models before they can fully run. Download them now in one queue, or continue and install them later."
+          title={t("onboarding.syncOnboarding.missingModels.title")}
+          description={t("onboarding.syncOnboarding.missingModels.description")}
           missing={missingRequirements}
           onClose={() => void handleContinueWithoutEmbedding()}
           onDownload={handleDownloadEmbedding}
-          closeLabel="Continue for now"
-          downloadLabel="Download required models"
+          closeLabel={t("onboarding.syncOnboarding.missingModels.continueForNow")}
+          downloadLabel={t("onboarding.syncOnboarding.missingModels.downloadRequired")}
         />
       )}
 

@@ -740,7 +740,6 @@ export const ruMessages: DeepPartialMessageTree<LocaleMessages> = {
     "suggestedReply": "Предложенный ответ",
     "selectTwoCharactersMinimum": "Выберите минимум 2 персонажа для группового чата.",
     "groupBranchCreated": "Групповая ветка создана! Перенаправление...",
-    "memories": "Воспоминания",
     "tools": "Инструменты",
     "pinned": "Закреплённые",
     "searchMemories": "Поиск воспоминаний...",

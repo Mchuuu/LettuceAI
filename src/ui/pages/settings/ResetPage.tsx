@@ -5,7 +5,7 @@ import { exit } from "@tauri-apps/plugin-process";
 
 import { ResetManager } from "../../../core/storage/reset";
 import { typography, interactive, cn } from "../../design-tokens";
-import { useI18n } from "../../../core/i18n/context";
+import { useI18n, type TranslationKey } from "../../../core/i18n/context";
 import { confirmBottomMenu } from "../../components/ConfirmBottomMenu";
 
 export function ResetPage() {
@@ -34,17 +34,17 @@ export function ResetPage() {
           ? error.message
           : typeof error === "string"
             ? error
-            : "Unknown error";
-      alert(`Reset failed: ${message}`);
+            : t("reset.unknownError");
+      alert(t("reset.failed", { message }));
       setIsResetting(false);
     }
   };
 
   const removed = [
-    "Providers, models, and downloaded files",
-    "Characters, personas, and chats",
-    "Preferences, backups, and cached data",
-  ];
+    "reset.items.providers",
+    "reset.items.characters",
+    "reset.items.preferences",
+  ] satisfies TranslationKey[];
 
   return (
     <div className="flex h-full flex-col">
@@ -78,7 +78,7 @@ export function ResetPage() {
                   "text-fg/40",
                 )}
               >
-                Will be removed
+                {t("reset.willBeRemoved")}
               </h2>
               <div
                 className={cn(
@@ -87,10 +87,10 @@ export function ResetPage() {
                   "divide-y divide-fg/[0.06]",
                 )}
               >
-                {removed.map((label) => (
-                  <div key={label} className="flex items-center gap-3 px-4 py-3">
+                {removed.map((key) => (
+                  <div key={key} className="flex items-center gap-3 px-4 py-3">
                     <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-danger/60" />
-                    <span className={cn(typography.body.size, "text-fg/75")}>{label}</span>
+                    <span className={cn(typography.body.size, "text-fg/75")}>{t(key)}</span>
                   </div>
                 ))}
               </div>
@@ -138,7 +138,7 @@ export function ResetPage() {
                 {isResetting ? (
                   <>
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-danger/30 border-t-danger" />
-                    <span>Resetting…</span>
+                    <span>{t("reset.resetting")}</span>
                   </>
                 ) : (
                   <>

@@ -8,54 +8,6 @@ type FactorCard = {
   questions: string[];
 };
 
-const factors: FactorCard[] = [
-  {
-    icon: "sparkles",
-    title: "Quality & capabilities",
-    description:
-      "How smart does the model need to be? Bigger, newer models usually reason better, write nicer text, and handle messy prompts more gracefully.",
-    questions: [
-      "Do you need deep character consistency and emotional intelligence?",
-      "Do you care about immersive storytelling and believable character personalities?",
-      "Do you want the model to remember character details and stay in-character across long sessions?",
-    ],
-  },
-  {
-    icon: "zap",
-    title: "Speed & latency",
-    description:
-      "Faster models feel better for chatty and back-and-forth conversations. Some models trade a bit of quality for a lot more speed.",
-    questions: [
-      "Do you want near-instant replies to keep roleplay flowing naturally?",
-      "Are you doing rapid-fire dialogue scenes where waiting would break immersion?",
-      "Is this for casual RP where quick back-and-forth matters more than perfect responses?",
-    ],
-  },
-  {
-    icon: "dollar",
-    title: "Budget & usage",
-    description:
-      "Every provider bills per token. Even cheap models add up if you chat a lot, so pick something that matches how often and how heavily you use it.",
-    questions: [
-      "Are you okay paying more for richer character interactions, or do you want something cheap for daily RP?",
-      "Do you have free models from your provider/router you can try first?",
-      "Will you run long roleplay sessions with detailed scene descriptions?",
-      "Do you have a hard monthly budget you don't want to exceed?",
-    ],
-  },
-  {
-    icon: "brain",
-    title: "Safety, privacy & extras",
-    description:
-      "Providers differ in how they handle safety, logging, and extra features like images, tools, or long context windows.",
-    questions: [
-      "Do you need fewer content filters for mature or creative roleplay scenarios?",
-      "Do you care if your private RP conversations are logged or used for training?",
-      "Do you need long context windows for complex storylines and character histories?",
-    ],
-  },
-];
-
 const iconMap = {
   sparkles: Sparkles,
   zap: Zap,
@@ -70,6 +22,50 @@ interface ModelRecommendationsProps {
 export function ModelRecommendations({ onBack }: ModelRecommendationsProps) {
   const { t } = useI18n();
 
+  const factors: FactorCard[] = [
+    {
+      icon: "sparkles",
+      title: t("onboarding.modelGuide.factors.quality.title"),
+      description: t("onboarding.modelGuide.factors.quality.description"),
+      questions: [
+        t("onboarding.modelGuide.factors.quality.q1"),
+        t("onboarding.modelGuide.factors.quality.q2"),
+        t("onboarding.modelGuide.factors.quality.q3"),
+      ],
+    },
+    {
+      icon: "zap",
+      title: t("onboarding.modelGuide.factors.speed.title"),
+      description: t("onboarding.modelGuide.factors.speed.description"),
+      questions: [
+        t("onboarding.modelGuide.factors.speed.q1"),
+        t("onboarding.modelGuide.factors.speed.q2"),
+        t("onboarding.modelGuide.factors.speed.q3"),
+      ],
+    },
+    {
+      icon: "dollar",
+      title: t("onboarding.modelGuide.factors.budget.title"),
+      description: t("onboarding.modelGuide.factors.budget.description"),
+      questions: [
+        t("onboarding.modelGuide.factors.budget.q1"),
+        t("onboarding.modelGuide.factors.budget.q2"),
+        t("onboarding.modelGuide.factors.budget.q3"),
+        t("onboarding.modelGuide.factors.budget.q4"),
+      ],
+    },
+    {
+      icon: "brain",
+      title: t("onboarding.modelGuide.factors.safety.title"),
+      description: t("onboarding.modelGuide.factors.safety.description"),
+      questions: [
+        t("onboarding.modelGuide.factors.safety.q1"),
+        t("onboarding.modelGuide.factors.safety.q2"),
+        t("onboarding.modelGuide.factors.safety.q3"),
+      ],
+    },
+  ];
+
   return (
     <div className="flex min-h-screen flex-col bg-black text-white px-4 pb-8 pt-[calc(env(safe-area-inset-top)+12px)]">
       {/* Header */}
@@ -82,17 +78,24 @@ export function ModelRecommendations({ onBack }: ModelRecommendationsProps) {
           <ArrowLeft size={10} />
         </button>
         <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[12px] uppercase tracking-[0.15em] text-white/60">
-          Model Guide
+          {t("onboarding.modelGuide.badge")}
         </div>
         <div className="w-10" />
       </div>
 
       {/* Title & intro */}
-      <h1 className="text-[25px] font-semibold leading-tight text-white">How do I choose a model?</h1>
+      <h1 className="text-[25px] font-semibold leading-tight text-white">{t("onboarding.modelGuide.title")}</h1>
       <p className="mt-2 text-[15px] text-white/65">
-        LettuceAI doesn&apos;t force a single &quot;best&quot; model. Instead, you pick what fits
-        your <span className="font-medium text-white/80">use case, budget, and vibe</span>. Use this
-        guide to decide what to try and where to look.
+        {(() => {
+          const parts = t("onboarding.modelGuide.intro").split(/<0>|<\/0>/);
+          return (
+            <>
+              {parts[0]}
+              <span className="font-medium text-white/80">{parts[1]}</span>
+              {parts[2]}
+            </>
+          );
+        })()}
       </p>
 
       {/* Factors */}
@@ -113,7 +116,7 @@ export function ModelRecommendations({ onBack }: ModelRecommendationsProps) {
                   <p className="text-[15px] text-white/70 mb-3 leading-relaxed">{factor.description}</p>
 
                   <div>
-                    <p className="text-[13px] font-medium text-white/50 mb-1.5">Ask yourself:</p>
+                    <p className="text-[13px] font-medium text-white/50 mb-1.5">{t("onboarding.modelGuide.askYourself")}</p>
                     <ul className="space-y-1.5 text-[13px] text-white/75">
                       {factor.questions.map((q) => (
                         <li key={q} className="flex gap-1.5">
@@ -132,33 +135,37 @@ export function ModelRecommendations({ onBack }: ModelRecommendationsProps) {
 
       {/* Where to look for models */}
       <div className="mt-8 rounded-2xl border border-white/10 bg-linear-to-br from-white/5 to-transparent p-4 space-y-3">
-        <h2 className="text-[15px] font-semibold text-white">Where can I find models?</h2>
+        <h2 className="text-[15px] font-semibold text-white">{t("onboarding.modelGuide.where.title")}</h2>
         <p className="text-[13px] text-white/70">
-          Most providers and routers have a{" "}
-          <span className="font-medium text-white/85">model list or catalog</span>. Browse those
-          pages to see what they offer, pricing, limits, and special features.
+          {(() => {
+            const parts = t("onboarding.modelGuide.where.intro").split(/<0>|<\/0>/);
+            return (
+              <>
+                {parts[0]}
+                <span className="font-medium text-white/85">{parts[1]}</span>
+                {parts[2]}
+              </>
+            );
+          })()}
         </p>
 
         <div className="mt-2 grid grid-cols-1 gap-2 text-[13px] text-white/75">
           <div className="rounded-xl border border-white/10 bg-black/40 px-3 py-2">
-            <p className="font-medium text-white/85 mb-0.5">Direct providers</p>
+            <p className="font-medium text-white/85 mb-0.5">{t("onboarding.modelGuide.where.directTitle")}</p>
             <p className="text-white/60">
-              OpenAI, Anthropic, Google Gemini, xAI, Mistral, etc. Each has a console/dashboard
-              where you can see official model names, capabilities, and pricing.
+              {t("onboarding.modelGuide.where.directDesc")}
             </p>
           </div>
           <div className="rounded-xl border border-white/10 bg-black/40 px-3 py-2">
-            <p className="font-medium text-white/85 mb-0.5">Routers & hubs</p>
+            <p className="font-medium text-white/85 mb-0.5">{t("onboarding.modelGuide.where.routersTitle")}</p>
             <p className="text-white/60">
-              Services like OpenRouter or other aggregators list many models from different
-              providers in one place, often with benchmarks and pricing comparisons.
+              {t("onboarding.modelGuide.where.routersDesc")}
             </p>
           </div>
           <div className="rounded-xl border border-white/10 bg-black/40 px-3 py-2">
-            <p className="font-medium text-white/85 mb-0.5">Community recommendations</p>
+            <p className="font-medium text-white/85 mb-0.5">{t("onboarding.modelGuide.where.communityTitle")}</p>
             <p className="text-white/60">
-              Look at docs, blogs, or community posts from your provider/router. They usually
-              highlight which models are best for chat, coding, or speed.
+              {t("onboarding.modelGuide.where.communityDesc")}
             </p>
           </div>
         </div>
@@ -166,7 +173,7 @@ export function ModelRecommendations({ onBack }: ModelRecommendationsProps) {
 
       {/* Rules of thumb */}
       <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 space-y-2">
-        <h2 className="text-[15px] font-semibold text-white">Simple rules of thumb</h2>
+        <h2 className="text-[15px] font-semibold text-white">{t("onboarding.modelGuide.rules.title")}</h2>
         <ul className="space-y-1.5 text-[13px] text-white/70">
           <li>• For casual chatting → pick a fast, cheap chat model from your provider/router.</li>
           <li>
@@ -181,8 +188,7 @@ export function ModelRecommendations({ onBack }: ModelRecommendationsProps) {
       </div>
 
       <div className="mt-4 text-[12px] text-white/45">
-        Always check the provider&apos;s own documentation for the latest model list, limits, and
-        pricing. This page is about how to think, not what to buy.
+        {t("onboarding.modelGuide.disclaimer")}
       </div>
     </div>
   );

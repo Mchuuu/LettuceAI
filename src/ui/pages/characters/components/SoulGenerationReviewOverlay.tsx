@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { CompanionConfig } from "../../../../core/storage/schemas";
 import { cn, interactive, radius, spacing, typography } from "../../../design-tokens";
+import { useI18n, type TranslationKey } from "../../../../core/i18n/context";
 import { mergeCompanionSoulDraft } from "../../../../core/companion/soul";
 import { normalizeCompanionConfig } from "../utils/companionDefaults";
 
@@ -45,50 +46,55 @@ interface SoulGenerationReviewOverlayProps {
   regenerating?: boolean;
 }
 
-const TEXT_FIELDS: Array<{ key: SoulTextKey; label: string; rows: number }> = [
-  { key: "essence", label: "Essence", rows: 3 },
-  { key: "traits", label: "Traits", rows: 2 },
-  { key: "backstory", label: "Backstory", rows: 3 },
-  { key: "appearance", label: "Appearance", rows: 2 },
-  { key: "goals", label: "Goals", rows: 2 },
-  { key: "likes", label: "Likes & Favorites", rows: 2 },
-  { key: "voice", label: "Inner Voice", rows: 3 },
-  { key: "relationalStyle", label: "Relational Style", rows: 3 },
-  { key: "vulnerabilities", label: "Vulnerabilities", rows: 2 },
-  { key: "habits", label: "Habits", rows: 2 },
-  { key: "boundaries", label: "Boundaries", rows: 2 },
+const TEXT_FIELDS: Array<{
+  key: SoulTextKey;
+  label?: string;
+  labelKey?: TranslationKey;
+  rows: number;
+}> = [
+  { key: "essence", labelKey: "characters.soulFields.essence", rows: 3 },
+  { key: "traits", labelKey: "characters.soulFields.traits", rows: 2 },
+  { key: "backstory", labelKey: "characters.soulFields.backstory", rows: 3 },
+  { key: "appearance", labelKey: "characters.soulFields.appearance", rows: 2 },
+  { key: "goals", labelKey: "characters.soulFields.goals", rows: 2 },
+  { key: "likes", labelKey: "characters.soulFields.likes", rows: 2 },
+  { key: "voice", labelKey: "characters.soulFields.voice", rows: 3 },
+  { key: "relationalStyle", labelKey: "characters.soulFields.relationalStyle", rows: 3 },
+  { key: "vulnerabilities", labelKey: "characters.soulFields.vulnerabilities", rows: 2 },
+  { key: "habits", labelKey: "characters.soulFields.habits", rows: 2 },
+  { key: "boundaries", labelKey: "characters.soulFields.boundaries", rows: 2 },
 ];
 
-const AFFECT_LABELS: Record<AffectKey, [string, string, string]> = {
-  warmth: ["Warmth", "Cold", "Affectionate"],
-  trust: ["Trust", "Guarded", "Open"],
-  calm: ["Calm", "Anxious", "Steady"],
-  vulnerability: ["Vulnerability", "Walled", "Exposed"],
-  longing: ["Longing", "Content", "Yearning"],
-  hurt: ["Hurt", "Healed", "Tender"],
-  tension: ["Tension", "Relaxed", "Wound up"],
-  irritation: ["Irritation", "Patient", "Easily set off"],
-  affectionIntensity: ["Affection", "Restrained", "Effusive"],
-  reassuranceNeed: ["Reassurance Need", "Self-soothing", "Needs words"],
+const AFFECT_LABELS: Record<AffectKey, [TranslationKey, TranslationKey, TranslationKey]> = {
+  warmth: ["characters.soulSliders.warmth", "characters.soulSliders.warmthLow", "characters.soulSliders.warmthHigh"],
+  trust: ["characters.soulSliders.trust", "characters.soulSliders.trustLow", "characters.soulSliders.trustHigh"],
+  calm: ["characters.soulSliders.calm", "characters.soulSliders.calmLow", "characters.soulSliders.calmHigh"],
+  vulnerability: ["characters.soulSliders.vulnerability", "characters.soulSliders.vulnerabilityLow", "characters.soulSliders.vulnerabilityHigh"],
+  longing: ["characters.soulSliders.longing", "characters.soulSliders.longingLow", "characters.soulSliders.longingHigh"],
+  hurt: ["characters.soulSliders.hurt", "characters.soulSliders.hurtLow", "characters.soulSliders.hurtHigh"],
+  tension: ["characters.soulSliders.tension", "characters.soulSliders.tensionLow", "characters.soulSliders.tensionHigh"],
+  irritation: ["characters.soulSliders.irritation", "characters.soulSliders.irritationLow", "characters.soulSliders.irritationHigh"],
+  affectionIntensity: ["characters.soulSliders.affection", "characters.soulSliders.affectionLow", "characters.soulSliders.affectionHigh"],
+  reassuranceNeed: ["characters.soulSliders.reassuranceNeed", "characters.soulSliders.reassuranceNeedLow", "characters.soulSliders.reassuranceNeedHigh"],
 };
 
-const REGULATION_LABELS: Record<RegulationKey, [string, string, string]> = {
-  suppression: ["Suppression", "Expresses", "Hides"],
-  volatility: ["Volatility", "Even-keeled", "Reactive"],
-  recoverySpeed: ["Recovery Speed", "Slow", "Fast"],
-  conflictAvoidance: ["Conflict Avoidance", "Engages", "Withdraws"],
-  reassuranceSeeking: ["Reassurance Seeking", "Independent", "Asks often"],
-  protestBehavior: ["Protest Behavior", "Quiet", "Loud"],
-  emotionalTransparency: ["Transparency", "Opaque", "Reveals"],
-  attachmentActivation: ["Attachment Activation", "Detached", "Triggers easily"],
-  pride: ["Pride", "Bends", "Holds line"],
+const REGULATION_LABELS: Record<RegulationKey, [TranslationKey, TranslationKey, TranslationKey]> = {
+  suppression: ["characters.soulSliders.suppression", "characters.soulSliders.suppressionLow", "characters.soulSliders.suppressionHigh"],
+  volatility: ["characters.soulSliders.volatility", "characters.soulSliders.volatilityLow", "characters.soulSliders.volatilityHigh"],
+  recoverySpeed: ["characters.soulSliders.recoverySpeed", "characters.soulSliders.recoverySpeedLow", "characters.soulSliders.recoverySpeedHigh"],
+  conflictAvoidance: ["characters.soulSliders.conflictAvoidance", "characters.soulSliders.conflictAvoidanceLow", "characters.soulSliders.conflictAvoidanceHigh"],
+  reassuranceSeeking: ["characters.soulSliders.reassuranceSeeking", "characters.soulSliders.reassuranceSeekingLow", "characters.soulSliders.reassuranceSeekingHigh"],
+  protestBehavior: ["characters.soulSliders.protestBehavior", "characters.soulSliders.protestBehaviorLow", "characters.soulSliders.protestBehaviorHigh"],
+  emotionalTransparency: ["characters.soulSliders.transparency", "characters.soulSliders.transparencyLow", "characters.soulSliders.transparencyHigh"],
+  attachmentActivation: ["characters.soulSliders.attachmentActivation", "characters.soulSliders.attachmentActivationLow", "characters.soulSliders.attachmentActivationHigh"],
+  pride: ["characters.soulSliders.pride", "characters.soulSliders.prideLow", "characters.soulSliders.prideHigh"],
 };
 
-const RELATIONSHIP_LABELS: Record<RelationshipKey, [string, string, string]> = {
-  closeness: ["Starting Closeness", "Strangers", "Intimate"],
-  trust: ["Starting Trust", "Wary", "Trusting"],
-  affection: ["Starting Affection", "Neutral", "Affectionate"],
-  tension: ["Starting Tension", "Easy", "Charged"],
+const RELATIONSHIP_LABELS: Record<RelationshipKey, [TranslationKey, TranslationKey, TranslationKey]> = {
+  closeness: ["characters.soulSliders.closeness", "characters.soulSliders.closenessLow", "characters.soulSliders.closenessHigh"],
+  trust: ["characters.soulSliders.relTrust", "characters.soulSliders.relTrustLow", "characters.soulSliders.relTrustHigh"],
+  affection: ["characters.soulSliders.relAffection", "characters.soulSliders.relAffectionLow", "characters.soulSliders.relAffectionHigh"],
+  tension: ["characters.soulSliders.relTension", "characters.soulSliders.relTensionLow", "characters.soulSliders.relTensionHigh"],
 };
 
 function pct(value: number): string {
@@ -141,6 +147,7 @@ export function SoulGenerationReviewOverlay({
   onRegenerate,
   regenerating = false,
 }: SoulGenerationReviewOverlayProps) {
+  const { t } = useI18n();
   const [working, setWorking] = useState<CompanionConfig>(() =>
     draft ? mergeCompanionSoulDraft(baseline, draft) : normalizeCompanionConfig(baseline),
   );
@@ -217,7 +224,7 @@ export function SoulGenerationReviewOverlay({
 
   const renderSlider = (
     key: string,
-    label: [string, string, string],
+    label: [TranslationKey, TranslationKey, TranslationKey],
     value: number,
     onChange: (next: number) => void,
     baselineValue: number,
@@ -227,7 +234,7 @@ export function SoulGenerationReviewOverlay({
     return (
       <div key={key} className={spacing.tight}>
         <div className="flex items-center justify-between">
-          <span className="text-sm text-fg/80">{label[0]}</span>
+          <span className="text-sm text-fg/80">{t(label[0])}</span>
           <span className={cn("text-[11px]", changed ? changeColor : "text-fg/45")}>
             {changed ? (
               <>
@@ -250,8 +257,8 @@ export function SoulGenerationReviewOverlay({
           className="w-full accent-accent"
         />
         <div className="flex justify-between text-[10px] text-fg/40">
-          <span>{label[1]}</span>
-          <span>{label[2]}</span>
+          <span>{t(label[1])}</span>
+          <span>{t(label[2])}</span>
         </div>
       </div>
     );
@@ -349,11 +356,11 @@ export function SoulGenerationReviewOverlay({
               </div>
               <div className="min-w-0 flex-1">
                 <div className={cn(typography.h3.size, typography.h3.weight, "text-fg")}>
-                  Review generated soul
+                  {t("characters.soulReview.reviewTitle")}
                 </div>
                 <div className={cn(typography.bodySmall.size, "text-fg/50")}>
                   {totalChanges === 0
-                    ? "No differences from current."
+                    ? t("characters.soulReview.noDifferences")
                     : `${totalChanges} change${totalChanges === 1 ? "" : "s"} — edit anything before applying.`}
                 </div>
               </div>
@@ -365,7 +372,7 @@ export function SoulGenerationReviewOverlay({
                   radius.md,
                   interactive.transition.fast,
                 )}
-                aria-label="Close"
+                aria-label={t("characters.soulReview.close")}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -375,10 +382,10 @@ export function SoulGenerationReviewOverlay({
               <div className="mx-auto w-full max-w-2xl space-y-5">
                 <div className={spacing.field}>
                   <div className="flex items-center justify-between">
-                    <label className={sectionLabel}>Identity</label>
+                    <label className={sectionLabel}>{t("characters.soulReview.identityLabel")}</label>
                     {textChanges > 0 && (
                       <span className={cn(typography.caption.size, "text-accent/80")}>
-                        {textChanges} edited
+                        {t("characters.soulReview.nEdited", { count: textChanges })}
                       </span>
                     )}
                   </div>
@@ -390,10 +397,12 @@ export function SoulGenerationReviewOverlay({
                       return (
                         <div key={field.key} className={spacing.field}>
                           <div className="flex items-center justify-between">
-                            <label className="text-xs font-medium text-fg/70">{field.label}</label>
+                            <label className="text-xs font-medium text-fg/70">
+                              {field.labelKey ? t(field.labelKey) : field.label}
+                            </label>
                             {changed && (
                               <span className="text-[10px] font-semibold uppercase tracking-wider text-accent/80">
-                                Edited
+                                {t("characters.soulReview.edited")}
                               </span>
                             )}
                           </div>
@@ -418,12 +427,12 @@ export function SoulGenerationReviewOverlay({
                 </div>
 
                 <div className={spacing.field}>
-                  <label className={sectionLabel}>Tuning</label>
+                  <label className={sectionLabel}>{t("characters.soulReview.tuningLabel")}</label>
                   <div className={spacing.item}>
                     {renderCollapsible(
                       "affect",
                       Brain,
-                      "Baseline Affect",
+                      t("characters.soulEditor.baselineAffect"),
                       affectChanges,
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         {(Object.keys(AFFECT_LABELS) as AffectKey[]).map((k) =>
@@ -441,7 +450,7 @@ export function SoulGenerationReviewOverlay({
                     {renderCollapsible(
                       "regulation",
                       SlidersHorizontal,
-                      "Regulation Style",
+                      t("characters.soulEditor.regulationStyle"),
                       regulationChanges,
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         {(Object.keys(REGULATION_LABELS) as RegulationKey[]).map((k) =>
@@ -459,7 +468,7 @@ export function SoulGenerationReviewOverlay({
                     {renderCollapsible(
                       "relationship",
                       Shield,
-                      "Relationship Defaults",
+                      t("characters.soulEditor.relationshipDefaults"),
                       relationshipChanges,
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         {(Object.keys(RELATIONSHIP_LABELS) as RelationshipKey[]).map((k) =>
@@ -491,10 +500,10 @@ export function SoulGenerationReviewOverlay({
                   <div className="px-3 py-2">
                     <div className="mb-1 flex items-center justify-between px-0.5">
                       <label className="text-[10px] font-semibold uppercase tracking-[0.18em] text-fg/50">
-                        Direction
+                        {t("characters.soulReview.direction")}
                       </label>
                       <span className="text-[10px] font-mono text-fg/35">
-                        Edits apply on next Regenerate
+                        {t("characters.soulReview.directionApplyHint")}
                       </span>
                     </div>
                     <textarea
@@ -529,10 +538,10 @@ export function SoulGenerationReviewOverlay({
                       ? "border-fg/20 bg-fg/10 text-fg"
                       : "border-fg/10 bg-fg/5 text-fg/65 hover:bg-fg/10",
                 )}
-                title="Edit direction before regenerating"
+                title={t("characters.soulReview.directionTooltip")}
               >
                 <Compass className="h-3.5 w-3.5" />
-                <span>Direction</span>
+                <span>{t("characters.soulReview.direction")}</span>
                 {direction.trim() && <span className="h-1.5 w-1.5 rounded-full bg-info" />}
               </button>
               <button
@@ -550,7 +559,7 @@ export function SoulGenerationReviewOverlay({
                 ) : (
                   <Sparkles className="h-3.5 w-3.5" />
                 )}
-                Regenerate
+                {t("characters.soulReview.regenerate")}
               </button>
               <div className="flex-1" />
               <button
@@ -562,7 +571,7 @@ export function SoulGenerationReviewOverlay({
                   interactive.transition.fast,
                 )}
               >
-                Discard
+                {t("characters.soulReview.discard")}
               </button>
               <button
                 type="button"
@@ -574,7 +583,7 @@ export function SoulGenerationReviewOverlay({
                 )}
               >
                 <Check className="h-3.5 w-3.5" />
-                Apply
+                {t("characters.soulReview.apply")}
               </button>
             </div>
           </motion.div>

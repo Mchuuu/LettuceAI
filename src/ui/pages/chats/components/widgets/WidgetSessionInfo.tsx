@@ -1,17 +1,19 @@
 import { MessageSquare, Hash, Clapperboard } from "lucide-react";
 import type { SessionInfoNode } from "../../../../../core/storage/chatWidgetSchemas";
 import { cn } from "../../../../design-tokens";
+import { useI18n } from "../../../../../core/i18n/context";
 import { useWidgetContext } from "./WidgetContext";
 import { widgetCardClass } from "./widgetSurface";
 
 export function WidgetSessionInfo({ node }: { node: SessionInfoNode }) {
+  const { t } = useI18n();
   const { messageCount, sceneName, session, hasBackground } = useWidgetContext();
   const tokenCount = session?.memorySummaryTokenCount ?? 0;
 
   const rows: { icon: typeof Hash; label: string; value: string }[] = [
-    { icon: MessageSquare, label: "Messages", value: String(messageCount) },
-    { icon: Hash, label: "Memory tokens", value: String(tokenCount) },
-    { icon: Clapperboard, label: "Scene", value: sceneName ?? "None" },
+    { icon: MessageSquare, label: t("chats.widgets.sessionInfo.messages"), value: String(messageCount) },
+    { icon: Hash, label: t("chats.widgets.sessionInfo.memoryTokens"), value: String(tokenCount) },
+    { icon: Clapperboard, label: t("chats.widgets.sessionInfo.scene"), value: sceneName ?? t("common.labels.none") },
   ];
 
   return (

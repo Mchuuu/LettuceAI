@@ -5,6 +5,7 @@ import type { Model } from "../../core/storage/schemas";
 import { getProviderIcon } from "../../core/utils/providerIcons";
 import { cn } from "../design-tokens";
 import { BottomMenu } from "./BottomMenu";
+import { useI18n } from "../../core/i18n/context";
 
 type MenuTheme = "default" | "dark";
 type SelectionTone = "accent" | "emerald" | "info";
@@ -109,7 +110,7 @@ export function ModelSelectionBottomMenu({
   onToggleModel,
   searchQuery,
   onSearchChange,
-  searchPlaceholder = "Search models...",
+  searchPlaceholder,
   filterModels = true,
   modelMatchesQuery,
   renderModelTitle,
@@ -126,6 +127,7 @@ export function ModelSelectionBottomMenu({
   includeExitIcon = false,
   location = "bottom",
 }: ModelSelectionBottomMenuProps) {
+  const { t } = useI18n();
   const [internalQuery, setInternalQuery] = useState("");
   const query = searchQuery ?? internalQuery;
   const setQuery = onSearchChange ?? setInternalQuery;
@@ -172,7 +174,7 @@ export function ModelSelectionBottomMenu({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={searchPlaceholder}
+            placeholder={searchPlaceholder ?? t("components.extra.searchModelsPlaceholder")}
             className={themeStyles.input}
             autoFocus
           />
@@ -212,15 +214,15 @@ export function ModelSelectionBottomMenu({
             loadingContent ?? (
               <div className="flex flex-col items-center justify-center py-12">
                 <Loader2 className={cn("h-6 w-6 animate-spin", themeStyles.icon)} />
-                <p className={cn("mt-3 text-sm", themeStyles.secondaryText)}>Loading models...</p>
+                <p className={cn("mt-3 text-sm", themeStyles.secondaryText)}>{t("components.extra.loadingModelsDefault")}</p>
               </div>
             )
           ) : filteredModels.length === 0 ? (
             renderEmptyState?.(query, models.length > 0) ?? (
               <div className={cn("py-8 text-center text-sm", themeStyles.secondaryText)}>
                 {models.length === 0
-                  ? "No models available."
-                  : `No models found matching "${query}".`}
+                  ? t("components.extra.noModelsAvailable")
+                  : t("components.extra.noModelsMatching", { query })}
               </div>
             )
           ) : (

@@ -56,38 +56,38 @@ import {
 } from "../../../core/downloads/DownloadQueueContext";
 import { BottomMenu, MenuButton } from "../../components/BottomMenu";
 import { InlineDownloadCards } from "./components/DownloadQueueBar";
-import { useI18n } from "../../../core/i18n/context";
+import { useI18n, type TranslationKey } from "../../../core/i18n/context";
 import { cn, typography } from "../../design-tokens";
 
 
-const LOCALE_GROUPS: Record<string, { label: string; order: number }> = {
-  af: { label: "American · Female", order: 10 },
-  am: { label: "American · Male", order: 11 },
-  bf: { label: "British · Female", order: 20 },
-  bm: { label: "British · Male", order: 21 },
-  ef: { label: "Spanish · Female", order: 30 },
-  em: { label: "Spanish · Male", order: 31 },
-  ff: { label: "French · Female", order: 40 },
-  fm: { label: "French · Male", order: 41 },
-  hf: { label: "Hindi · Female", order: 50 },
-  hm: { label: "Hindi · Male", order: 51 },
-  if: { label: "Italian · Female", order: 60 },
-  im: { label: "Italian · Male", order: 61 },
-  jf: { label: "Japanese · Female", order: 70 },
-  jm: { label: "Japanese · Male", order: 71 },
-  pf: { label: "Portuguese · Female", order: 80 },
-  pm: { label: "Portuguese · Male", order: 81 },
-  zf: { label: "Mandarin · Female", order: 90 },
-  zm: { label: "Mandarin · Male", order: 91 },
-};
+const LOCALE_GROUPS = {
+  af: { labelKey: "kokoroStudio.locale.americanFemale", order: 10 },
+  am: { labelKey: "kokoroStudio.locale.americanMale", order: 11 },
+  bf: { labelKey: "kokoroStudio.locale.britishFemale", order: 20 },
+  bm: { labelKey: "kokoroStudio.locale.britishMale", order: 21 },
+  ef: { labelKey: "kokoroStudio.locale.spanishFemale", order: 30 },
+  em: { labelKey: "kokoroStudio.locale.spanishMale", order: 31 },
+  ff: { labelKey: "kokoroStudio.locale.frenchFemale", order: 40 },
+  fm: { labelKey: "kokoroStudio.locale.frenchMale", order: 41 },
+  hf: { labelKey: "kokoroStudio.locale.hindiFemale", order: 50 },
+  hm: { labelKey: "kokoroStudio.locale.hindiMale", order: 51 },
+  if: { labelKey: "kokoroStudio.locale.italianFemale", order: 60 },
+  im: { labelKey: "kokoroStudio.locale.italianMale", order: 61 },
+  jf: { labelKey: "kokoroStudio.locale.japaneseFemale", order: 70 },
+  jm: { labelKey: "kokoroStudio.locale.japaneseMale", order: 71 },
+  pf: { labelKey: "kokoroStudio.locale.portugueseFemale", order: 80 },
+  pm: { labelKey: "kokoroStudio.locale.portugueseMale", order: 81 },
+  zf: { labelKey: "kokoroStudio.locale.mandarinFemale", order: 90 },
+  zm: { labelKey: "kokoroStudio.locale.mandarinMale", order: 91 },
+} satisfies Record<string, { labelKey: TranslationKey; order: number }>;
 
-type VoiceGroup = { key: string; label: string; order: number };
+type VoiceGroup = { key: string; labelKey: TranslationKey; order: number };
 
 function classifyVoice(id: string): VoiceGroup {
   const prefix = id.slice(0, 2).toLowerCase();
-  const meta = LOCALE_GROUPS[prefix];
+  const meta = LOCALE_GROUPS[prefix as keyof typeof LOCALE_GROUPS];
   if (meta) return { key: prefix, ...meta };
-  return { key: "other", label: "Other", order: 999 };
+  return { key: "other", labelKey: "kokoroStudio.locale.other", order: 999 };
 }
 
 function voiceDisplayName(id: string): string {
@@ -675,7 +675,7 @@ export function KokoroStudioPage() {
     play({
       id: `sample:${voiceId}`,
       label: voiceDisplayName(voiceId),
-      sublabel: "Sample",
+      sublabel: t("kokoroStudio.sample"),
       src: url,
     });
   };
@@ -939,7 +939,7 @@ export function KokoroStudioPage() {
                   <button
                     onClick={() => void dismissItem(item.id)}
                     className="text-fg/40 transition hover:text-danger"
-                    aria-label="Dismiss"
+                    aria-label={t("kokoroStudio.dismiss")}
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -1122,7 +1122,7 @@ export function KokoroStudioPage() {
                             <CheckCircle2 className="h-3 w-3 shrink-0 text-accent/80" />
                           )}
                         </div>
-                        <p className="truncate text-[10px] text-fg/45">{meta.label}</p>
+                        <p className="truncate text-[10px] text-fg/45">{t(meta.labelKey)}</p>
                       </div>
                       {!isInstalled && (
                         <button
@@ -1597,6 +1597,7 @@ function BlendRow({
   onMore: () => void;
   onSpeedChange: (next: number) => void;
 }) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const entries = parseBlend(blend.voiceId);
   const totalWeight = entries.reduce((sum, e) => sum + e.weight, 0) || 1;
@@ -1607,7 +1608,7 @@ function BlendRow({
   }));
   const summary =
     entries.length === 0
-      ? "No voices"
+      ? t("kokoroStudio.noVoices")
       : entries
           .slice(0, 3)
           .map((e) => voiceDisplayName(e.voiceId))
@@ -1632,7 +1633,7 @@ function BlendRow({
         <button
           onClick={() => navigate(`/settings/voices/kokoro/${providerId}/blend/${blend.id}`)}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-fg/10 bg-fg/10"
-          aria-label="Edit"
+          aria-label={t("kokoroStudio.edit")}
         >
           <Volume2 className="h-3.5 w-3.5 text-fg/55" />
         </button>
@@ -1645,7 +1646,12 @@ function BlendRow({
               {blend.name}
             </button>
             <span className="shrink-0 text-[10px] text-fg/35">
-              {entries.length} voice{entries.length === 1 ? "" : "s"}
+              {t(
+                entries.length === 1
+                  ? "kokoroStudio.voiceCountInline"
+                  : "kokoroStudio.voiceCountInlinePlural",
+                { count: entries.length },
+              )}
             </span>
           </div>
           <div className="mt-0.5 truncate text-[11px] text-fg/50">{summary}</div>
@@ -1661,7 +1667,7 @@ function BlendRow({
             </div>
           )}
           <div className="mt-2 flex items-center gap-2">
-            <span className="text-[10px] text-fg/40">Speed</span>
+            <span className="text-[10px] text-fg/40">{t("voices.extra.kokoro.speed")}</span>
             <input
               type="range"
               min={0.5}
@@ -1687,7 +1693,7 @@ function BlendRow({
                 : "border-fg/10 bg-fg/5 text-fg/65 hover:border-accent/30 hover:bg-accent/10 hover:text-accent",
               isPreviewing && !isPlaying && "opacity-50",
             )}
-            title="Preview"
+            title={t("kokoroStudio.preview")}
           >
             {isPreviewing && !isPlaying ? (
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -1700,7 +1706,7 @@ function BlendRow({
           <button
             onClick={onMore}
             className="flex h-7 w-7 items-center justify-center rounded-full border border-fg/10 bg-fg/5 text-fg/55 transition hover:border-fg/25 hover:bg-fg/10"
-            title="More"
+            title={t("kokoroStudio.more")}
           >
             <MoreHorizontal className="h-3 w-3" />
           </button>
@@ -1753,6 +1759,7 @@ function VoiceGroupBlock({
   onOpenTry: (voiceId: string) => void;
   onSubmitTry: (voiceId: string) => void;
 }) {
+  const { t } = useI18n();
   const uninstalledIds = group.voices
     .filter((v) => !installedVoices.some((iv) => iv.id === v.id))
     .map((v) => v.id);
@@ -1783,7 +1790,7 @@ function VoiceGroupBlock({
               "flex-1 truncate text-fg/55",
             )}
           >
-            {group.meta.label}
+            {t(group.meta.labelKey)}
           </span>
           {installedInGroup > 0 && (
             <span className="rounded-full border border-accent/25 bg-accent/10 px-1.5 py-0.5 text-[9px] font-semibold tabular-nums text-accent/85">
@@ -1799,7 +1806,12 @@ function VoiceGroupBlock({
               onInstallGroup(uninstalledIds);
             }}
             disabled={groupQueuing}
-            title={`Install ${uninstalledIds.length} voice${uninstalledIds.length === 1 ? "" : "s"}`}
+            title={t(
+              uninstalledIds.length === 1
+                ? "kokoroStudio.installVoiceTooltip"
+                : "kokoroStudio.installVoiceTooltipPlural",
+              { count: uninstalledIds.length },
+            )}
             className="mr-2 flex shrink-0 items-center gap-1 rounded-full border border-info/25 bg-info/10 px-2 py-0.5 text-[9px] font-semibold tabular-nums text-info opacity-70 transition hover:border-info/40 hover:bg-info/15 hover:opacity-100 group-hover/row:opacity-100 disabled:opacity-50"
           >
             {groupQueuing ? (
@@ -1838,7 +1850,7 @@ function VoiceGroupBlock({
                     (installed ? (
                       <CheckCircle2
                         className="h-4 w-4 shrink-0 text-accent/70"
-                        aria-label="Already installed"
+                        aria-label={t("kokoroStudio.alreadyInstalled")}
                       />
                     ) : (
                       <button
@@ -1849,7 +1861,7 @@ function VoiceGroupBlock({
                             ? "border-accent/60 bg-accent/30 text-accent"
                             : "border-fg/20 bg-transparent",
                         )}
-                        aria-label={isSelected ? "Deselect" : "Select"}
+                        aria-label={isSelected ? t("kokoroStudio.deselect") : t("kokoroStudio.select")}
                       >
                         {isSelected && <Check className="h-2.5 w-2.5" strokeWidth={3} />}
                       </button>
@@ -1869,7 +1881,7 @@ function VoiceGroupBlock({
                   {!selectMode && hasPreview && (
                     <button
                       onClick={() => onPlaySample(voice.id)}
-                      title={isPlayingSample ? "Stop sample" : "Play sample"}
+                      title={isPlayingSample ? t("kokoroStudio.stopSample") : t("kokoroStudio.playSample")}
                       className={cn(
                         "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition",
                         isPlayingSample
@@ -1888,7 +1900,7 @@ function VoiceGroupBlock({
                   {!selectMode && installed && (
                     <button
                       onClick={() => onOpenTry(voice.id)}
-                      title="Try with custom text"
+                      title={t("kokoroStudio.tryWithCustomText")}
                       className={cn(
                         "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition",
                         isTryOpen || isPlayingTry
@@ -1912,7 +1924,7 @@ function VoiceGroupBlock({
                         disabled={queued}
                         className="shrink-0 rounded-full border border-info/25 bg-info/10 px-2 py-0.5 text-[10px] font-semibold text-info transition hover:border-info/40 hover:bg-info/15 disabled:opacity-50"
                       >
-                        {queued ? <Loader2 className="h-3 w-3 animate-spin" /> : "Install"}
+                        {queued ? <Loader2 className="h-3 w-3 animate-spin" /> : t("kokoroStudio.install")}
                       </button>
                     ))}
                 </div>
@@ -1922,7 +1934,7 @@ function VoiceGroupBlock({
                     <input
                       value={tryText}
                       onChange={(e) => onTryTextChange(e.target.value)}
-                      placeholder="Try with custom text"
+                      placeholder={t("kokoroStudio.tryWithCustomText")}
                       className="min-w-0 flex-1 rounded-md border border-fg/10 bg-surface-el/30 px-2 py-1 text-[11px] text-fg placeholder-fg/35 focus:border-fg/25 focus:outline-none"
                     />
                     <button
@@ -1935,7 +1947,7 @@ function VoiceGroupBlock({
                       ) : (
                         <Sparkles className="h-3 w-3" />
                       )}
-                      Speak
+                      {t("kokoroStudio.speak")}
                     </button>
                   </div>
                 )}
@@ -1955,6 +1967,7 @@ function VoiceRowActions({
   onReinstall: () => void;
   onUninstall: () => void;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
@@ -1962,7 +1975,7 @@ function VoiceRowActions({
         onClick={() => setOpen((v) => !v)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-fg/10 bg-fg/5 text-fg/55 transition hover:border-fg/25 hover:bg-fg/10"
-        aria-label="More"
+        aria-label={t("kokoroStudio.more")}
       >
         <MoreHorizontal className="h-3 w-3" />
       </button>
@@ -1977,7 +1990,7 @@ function VoiceRowActions({
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] text-fg/85 transition hover:bg-fg/10"
           >
             <RotateCw className="h-3 w-3" />
-            Reinstall
+            {t("kokoroStudio.reinstall")}
           </button>
           <button
             onMouseDown={(e) => {
@@ -1988,7 +2001,7 @@ function VoiceRowActions({
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] text-danger/85 transition hover:bg-danger/10"
           >
             <Trash2 className="h-3 w-3" />
-            Delete
+            {t("kokoroStudio.delete")}
           </button>
         </div>
       )}
@@ -2011,6 +2024,7 @@ function MiniPlayer({
   onToggle: () => void;
   onStop: () => void;
 }) {
+  const { t } = useI18n();
   const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 border-t border-fg/10 bg-surface-el/85 px-4 py-2 pb-[calc(env(safe-area-inset-bottom)+8px)] backdrop-blur lg:left-[var(--settings-sidebar-w,0px)]">
@@ -2018,7 +2032,7 @@ function MiniPlayer({
         <button
           onClick={onToggle}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-accent/40 bg-accent/15 text-accent transition hover:border-accent/60 hover:bg-accent/25"
-          aria-label={playing ? "Pause" : "Play"}
+          aria-label={playing ? t("kokoroStudio.pause") : t("kokoroStudio.play")}
         >
           {playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
         </button>
@@ -2047,7 +2061,7 @@ function MiniPlayer({
         <button
           onClick={onStop}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-fg/10 bg-fg/5 text-fg/65 transition hover:border-fg/25 hover:bg-fg/10"
-          aria-label="Stop"
+          aria-label={t("kokoroStudio.stop")}
         >
           <X className="h-3.5 w-3.5" />
         </button>

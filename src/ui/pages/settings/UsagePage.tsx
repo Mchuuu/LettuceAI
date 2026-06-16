@@ -1070,10 +1070,10 @@ export function UsagePage() {
                   {/* Desktop column header */}
                   <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_88px_88px_92px_16px] items-center gap-3 border-b border-fg/[0.05] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-fg/35 lg:grid">
                     <div>{t("common.labels.name")}</div>
-                    <div>Model</div>
+                    <div>{t("usageAnalytics.page.modelColumn")}</div>
                     <div className="text-right">{t("usageAnalytics.page.tokens")}</div>
                     <div className="text-right">{t("usageAnalytics.page.totalCost")}</div>
-                    <div className="text-right">Time</div>
+                    <div className="text-right">{t("usageAnalytics.page.timeColumn")}</div>
                     <div />
                   </div>
                   {filteredRecords.slice(0, 8).map((r) => (
@@ -1292,6 +1292,7 @@ function FilterGroup({
   selected: string | null;
   onToggle: (id: string) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
@@ -1304,7 +1305,7 @@ function FilterGroup({
             className="inline-flex items-center gap-1 text-[11px] text-fg/45 transition hover:text-fg/75"
           >
             <X size={11} />
-            Clear
+            {t("usageAnalytics.page.clear")}
           </button>
         )}
       </div>

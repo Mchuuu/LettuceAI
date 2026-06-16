@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { ChevronRight, Cpu, NotebookPen, TriangleAlert, User } from "lucide-react";
 import type { SelectorNode } from "../../../../../core/storage/chatWidgetSchemas";
 import { cn, interactive, radius, typography } from "../../../../design-tokens";
+import { useI18n, type TranslationKey } from "../../../../../core/i18n/context";
 import { AvatarImage } from "../../../../components/AvatarImage";
 import { ModelSelectionBottomMenu } from "../../../../components/ModelSelectionBottomMenu";
 import { useAvatar } from "../../../../hooks/useAvatar";
@@ -15,17 +16,18 @@ interface WidgetSelectorProps {
   node: SelectorNode;
 }
 
-const DEFAULT_LABEL: Record<SelectorNode["kind"], string> = {
-  persona: "Persona",
-  model: "Model",
-  fallback_model: "Fallback model",
-  author_note: "Author's note",
-};
+const DEFAULT_LABEL = {
+  persona: "chats.widgets.selector.persona",
+  model: "chats.widgets.selector.model",
+  fallback_model: "chats.widgets.selector.fallbackModel",
+  author_note: "chats.widgets.selector.authorNote",
+} satisfies Record<SelectorNode["kind"], TranslationKey>;
 
 export function WidgetSelector({ node }: WidgetSelectorProps) {
+  const { t } = useI18n();
   const ctx = useWidgetContext();
   const [open, setOpen] = useState(false);
-  const label = node.title ?? DEFAULT_LABEL[node.kind];
+  const label = node.title ?? t(DEFAULT_LABEL[node.kind]);
 
   if (node.kind === "persona") {
     return (
@@ -45,7 +47,7 @@ export function WidgetSelector({ node }: WidgetSelectorProps) {
         <ChipRow
           icon={<NotebookPen className="h-4 w-4" />}
           label={label}
-          value={note ? note : "Add a note"}
+          value={note ? note : t("chats.widgets.selector.addNote")}
           onClick={() => setOpen(true)}
           design={node.design}
         />
@@ -62,7 +64,10 @@ export function WidgetSelector({ node }: WidgetSelectorProps) {
   const isFallback = node.kind === "fallback_model";
   const currentId = isFallback ? ctx.fallbackModelId : ctx.currentModelId;
   const current = ctx.models.find((m) => m.id === currentId);
-  const value = current?.displayName ?? current?.name ?? (isFallback ? "None" : "App default");
+  const value =
+    current?.displayName ??
+    current?.name ??
+    (isFallback ? t("common.labels.none") : t("chats.widgets.selector.appDefault"));
   const onSelect = isFallback ? ctx.onSelectFallbackModel : ctx.onSelectModel;
 
   return (
@@ -80,7 +85,7 @@ export function WidgetSelector({ node }: WidgetSelectorProps) {
         title={label}
         models={ctx.models}
         selectedModelIds={currentId ? [currentId] : []}
-        searchPlaceholder="Search models..."
+        searchPlaceholder={t("chats.widgets.selector.searchModels")}
         theme="dark"
         tone="emerald"
         includeExitIcon={false}
@@ -90,7 +95,9 @@ export function WidgetSelector({ node }: WidgetSelectorProps) {
           setOpen(false);
         }}
         clearOption={{
-          label: isFallback ? "No fallback model" : "Use global default model",
+          label: isFallback
+            ? t("chats.widgets.selector.noFallbackModel")
+            : t("chats.widgets.selector.useGlobalDefault"),
           icon: Cpu,
           selected: !currentId,
           onClick: () => {
@@ -114,6 +121,7 @@ function PersonaSelectorWidget({
   setOpen: (v: boolean) => void;
   design?: WidgetDesign;
 }) {
+  const { t } = useI18n();
   const ctx = useWidgetContext();
   const session = ctx.session;
   const personas = ctx.personas;
@@ -137,15 +145,20 @@ function PersonaSelectorWidget({
   );
 
   const value = (() => {
-    if (!session) return "Open a chat session first";
-    if (session.personaDisabled || session.personaId === "") return "None";
+    if (!session) return t("chats.widgets.selector.openSessionFirst");
+    if (session.personaDisabled || session.personaId === "") return t("common.labels.none");
     if (!session.personaId) {
       const def = personas.find((p) => p.isDefault);
-      if (!def) return "None";
-      return def.nickname ? `${def.title} (${def.nickname}) (default)` : `${def.title} (default)`;
+      if (!def) return t("common.labels.none");
+      return def.nickname
+        ? t("chats.widgets.selector.personaWithNicknameDefault", {
+            title: def.title,
+            nickname: def.nickname,
+          })
+        : t("chats.widgets.selector.personaDefault", { title: def.title });
     }
     const p = personas.find((p) => p.id === session.personaId);
-    if (!p) return "Custom persona";
+    if (!p) return t("chats.widgets.selector.customPersona");
     return p.nickname ? `${p.title} (${p.nickname})` : p.title;
   })();
 
@@ -157,7 +170,7 @@ function PersonaSelectorWidget({
             <div className="h-full w-full overflow-hidden rounded-full">
               <AvatarImage
                 src={avatarUrl}
-                alt={personaForAvatar?.title ?? "Persona"}
+                alt={personaForAvatar?.title ?? t("chats.widgets.selector.persona")}
                 crop={personaForAvatar?.avatarCrop}
                 applyCrop
               />

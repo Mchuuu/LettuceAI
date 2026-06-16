@@ -227,7 +227,7 @@ export function ExtrasStep({
                 "uppercase text-fg/70",
               )}
             >
-              Multilingual Notes
+              {t("characters.extras.multilingualNotes")}
             </label>
           </div>
           <textarea
@@ -246,7 +246,7 @@ export function ExtrasStep({
             )}
           />
           <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-            JSON object with language codes as keys
+            {t("characters.extras.multilingualNotesHint")}
           </p>
         </div>
       </div>
@@ -298,7 +298,7 @@ export function ExtrasStep({
           {saving ? (
             <div className="flex items-center justify-center gap-2">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent/30 border-t-accent/80" />
-              <span>Creating Character...</span>
+              <span>{t("characters.extras.creatingCharacter")}</span>
             </div>
           ) : (
             t("characters.identity.title")

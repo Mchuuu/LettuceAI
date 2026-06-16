@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { TopNav } from "../components/App";
 import { toast } from "../components/toast";
-import { useI18n } from "../../core/i18n/context";
+import { useI18n, type TranslationKey } from "../../core/i18n/context";
 import type { Character, Lorebook, LorebookEntry, StoredMessage } from "../../core/storage/schemas";
 import {
   createBlankLorebookEntry,
@@ -143,26 +143,30 @@ function formatRelative(timestamp: number): string {
 }
 
 function roleMeta(role: StoredMessage["role"]): {
-  label: string;
+  labelKey: TranslationKey | null;
+  fallbackLabel: string;
   icon: React.ReactNode;
   labelClass: string;
 } {
   switch (role) {
     case "user":
       return {
-        label: "USER",
+        labelKey: "lorebookGen.flow.userRole",
+        fallbackLabel: role.toUpperCase(),
         icon: <UserIcon className="h-3 w-3 text-accent/80" />,
         labelClass: "text-accent/85",
       };
     case "assistant":
       return {
-        label: "AI",
+        labelKey: "lorebookGen.flow.aiRole",
+        fallbackLabel: role.toUpperCase(),
         icon: <Bot className="h-3 w-3 text-info/80" />,
         labelClass: "text-info/85",
       };
     default:
       return {
-        label: role.toUpperCase(),
+        labelKey: null,
+        fallbackLabel: role.toUpperCase(),
         icon: <FileText className="h-3 w-3 text-fg/50" />,
         labelClass: "text-fg/60",
       };
@@ -581,7 +585,9 @@ export function LorebookEntryGeneratorFlowPage() {
     );
   }
 
-  const pageTitle = lorebook ? `${lorebook.name} · Generate` : t("lorebookGen.flow.pageTitle");
+  const pageTitle = lorebook
+    ? t("lorebookGen.flow.pageTitleWithName", { name: lorebook.name })
+    : t("lorebookGen.flow.pageTitle");
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-surface pt-[calc(72px+env(safe-area-inset-top))] pb-[env(safe-area-inset-bottom)]">
@@ -606,7 +612,7 @@ export function LorebookEntryGeneratorFlowPage() {
           >
             <Hash className="h-3.5 w-3.5 text-fg/45" />
             <span className="max-w-30 truncate">
-              {selectedCharacter?.name ?? "Character"}
+              {selectedCharacter?.name ?? t("lorebookGen.flow.characterFallback")}
             </span>
             {!characterPickerLocked && (
               <ChevronDown
@@ -666,7 +672,7 @@ export function LorebookEntryGeneratorFlowPage() {
               ) : selectedSession ? (
                 <div className="flex items-baseline gap-1.5 min-w-0">
                   <span className="truncate font-semibold text-fg">
-                    {selectedSession.title || "Untitled"}
+                    {selectedSession.title || t("common.labels.untitled")}
                   </span>
                   <span className="shrink-0 font-mono text-[10px] text-fg/40">
                     {selectedSession.messageCount}m
@@ -712,7 +718,7 @@ export function LorebookEntryGeneratorFlowPage() {
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="truncate text-sm font-medium text-fg">
-                              {s.title || "Untitled"}
+                              {s.title || t("common.labels.untitled")}
                             </div>
                             <div className="mt-0.5 text-[11px] font-mono text-fg/35">
                               {formatRelative(s.updatedAt)} · {s.messageCount}m
@@ -806,7 +812,7 @@ export function LorebookEntryGeneratorFlowPage() {
           <FilterPill active={sourceMode === "mixed"} onClick={() => setSourceMode("mixed")}>
             <span className="inline-flex items-center gap-1">
               <Sparkles className="h-3 w-3" />
-              Mixed
+              {t("lorebookGen.flow.mixed")}
             </span>
           </FilterPill>
         </div>
@@ -817,7 +823,7 @@ export function LorebookEntryGeneratorFlowPage() {
           <>
             <div className="flex items-center gap-0.5 rounded-md bg-fg/4 p-0.5">
               <FilterPill active={roleFilter === "all"} onClick={() => setRoleFilter("all")}>
-                All
+                {t("lorebookGen.flow.roleAll")}
               </FilterPill>
               <FilterPill active={roleFilter === "user"} onClick={() => setRoleFilter("user")}>
                 {t("lorebookGen.flow.userRole")}
@@ -834,7 +840,7 @@ export function LorebookEntryGeneratorFlowPage() {
 
             <div className="hidden items-center gap-0.5 sm:flex">
               <span className="mr-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-fg/35">
-                Last
+                {t("lorebookGen.flow.lastLabel")}
               </span>
               {QUICK_RANGES.map((n) => (
                 <button
@@ -843,7 +849,7 @@ export function LorebookEntryGeneratorFlowPage() {
                   onClick={() => selectLastN(n)}
                   disabled={messages.length === 0}
                   className="rounded px-1.5 py-1 text-[11px] font-medium text-fg/60 transition hover:bg-fg/5 hover:text-fg disabled:cursor-not-allowed disabled:opacity-40"
-                  title={`Select last ${n} messages`}
+                  title={t("lorebookGen.flow.selectLastN", { n })}
                 >
                   {n}
                 </button>
@@ -857,7 +863,7 @@ export function LorebookEntryGeneratorFlowPage() {
                 disabled={filteredMessages.length === 0}
                 className="hidden rounded-md px-2 py-1 text-[11px] font-medium text-fg/60 transition hover:bg-fg/5 hover:text-fg disabled:cursor-not-allowed disabled:opacity-40 sm:block"
               >
-                Select all
+                {t("lorebookGen.flow.selectAll")}
               </button>
               <span className="font-mono text-[10px] text-fg/35">
                 {filteredMessages.length}/{messages.length}
@@ -872,7 +878,7 @@ export function LorebookEntryGeneratorFlowPage() {
               disabled={filteredMemories.length === 0}
               className="rounded-md px-2 py-1 text-[11px] font-medium text-fg/60 transition hover:bg-fg/5 hover:text-fg disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Select all
+              {t("lorebookGen.flow.selectAll")}
             </button>
             <span className="font-mono text-[10px] text-fg/35">
               {filteredMemories.length}/{sessionMemories.length}
@@ -884,12 +890,12 @@ export function LorebookEntryGeneratorFlowPage() {
       <div className="scrollbar-thin flex-1 min-h-0 overflow-y-auto">
         {!selectedSession ? (
           <EmptyHint icon={<History className="h-4 w-4 text-fg/40" />}>
-            Select a session to load{" "}
+            {t("lorebookGen.flow.loadSessionPrompt")}{" "}
             {sourceMode === "memory"
-              ? "memories"
+              ? t("lorebookGen.flow.memoriesText")
               : sourceMode === "mixed"
-                ? "messages and memories"
-                : "messages"}
+                ? t("lorebookGen.flow.messagesAndMemories")
+                : t("lorebookGen.flow.messagesText")}
             .
           </EmptyHint>
         ) : sourceMode === "mixed" ? (
@@ -897,10 +903,12 @@ export function LorebookEntryGeneratorFlowPage() {
             <div className="border-b border-fg/10 px-3 py-2 space-y-2 bg-surface-el/20">
               <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-fg/55">
                 <Brain className="h-3 w-3" />
-                Memory
+                {t("lorebookGen.flow.memoryHeading")}
                 {isMemoriesLoading && <Loader2 className="h-3 w-3 animate-spin text-fg/40" />}
                 <span className="ml-auto font-mono text-[10px] font-medium tracking-normal text-fg/35">
-                  {sessionMemories.length} entr{sessionMemories.length === 1 ? "y" : "ies"}
+                  {sessionMemories.length === 1
+                    ? t("lorebookGen.flow.entryCountOne", { count: sessionMemories.length })
+                    : t("lorebookGen.flow.entryCountOther", { count: sessionMemories.length })}
                 </span>
               </div>
               {sessionMemorySummary && (
@@ -918,10 +926,10 @@ export function LorebookEntryGeneratorFlowPage() {
                       }`}
                     >
                       <FileText className="h-3 w-3" />
-                      Context summary
+                      {t("lorebookGen.flow.contextSummary")}
                       {!includeMemorySummary && (
                         <span className="font-mono text-[9px] font-medium tracking-normal text-fg/40">
-                          (excluded)
+                          {t("lorebookGen.flow.excluded")}
                         </span>
                       )}
                     </div>
@@ -930,7 +938,7 @@ export function LorebookEntryGeneratorFlowPage() {
                       onClick={() => setIncludeMemorySummary((v) => !v)}
                       role="switch"
                       aria-checked={includeMemorySummary}
-                      title={includeMemorySummary ? "Exclude summary" : "Include summary"}
+                      title={includeMemorySummary ? t("lorebookGen.flow.excludeSummary") : t("lorebookGen.flow.includeSummary")}
                       className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer items-center rounded-full border border-transparent transition ${
                         includeMemorySummary ? "bg-info/70" : "bg-fg/15"
                       }`}
@@ -963,21 +971,21 @@ export function LorebookEntryGeneratorFlowPage() {
               )}
               {!sessionMemorySummary && sessionMemories.length === 0 && !isMemoriesLoading && (
                 <div className="rounded-lg border border-dashed border-fg/15 px-3 py-2 text-[11px] text-fg/45">
-                  No dynamic memory yet for this session.
+                  {t("lorebookGen.flow.noDynamicMemoryShort")}
                 </div>
               )}
             </div>
             <div className="flex items-center gap-1.5 px-3 pt-2 text-[10px] font-bold uppercase tracking-[0.14em] text-fg/55">
               <MessageSquareText className="h-3 w-3" />
-              Messages
+              {t("lorebookGen.flow.messagesHeading")}
             </div>
             {isMessagesLoading ? (
               <MessagesSkeleton />
             ) : filteredMessages.length === 0 ? (
               <EmptyHint icon={<Search className="h-4 w-4 text-fg/40" />}>
                 {messages.length === 0
-                  ? "Session has no messages."
-                  : "No messages match the filter."}
+                  ? t("lorebookGen.flow.sessionNoMessages")
+                  : t("lorebookGen.flow.noMessagesMatch")}
               </EmptyHint>
             ) : (
               <div className="px-3 py-2">
@@ -989,7 +997,7 @@ export function LorebookEntryGeneratorFlowPage() {
                     className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-fg/15 px-3 py-1.5 text-[11px] font-medium text-fg/55 transition hover:border-fg/25 hover:text-fg disabled:opacity-60"
                   >
                     {isLoadingMoreMessages ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                    Load older messages
+                    {t("lorebookGen.flow.loadOlderMessages")}
                   </button>
                 )}
                 <div className="divide-y divide-fg/5">
@@ -1010,7 +1018,7 @@ export function LorebookEntryGeneratorFlowPage() {
             <MessagesSkeleton />
           ) : filteredMessages.length === 0 ? (
             <EmptyHint icon={<Search className="h-4 w-4 text-fg/40" />}>
-              {messages.length === 0 ? "Session has no messages." : "No messages match the filter."}
+              {messages.length === 0 ? t("lorebookGen.flow.sessionNoMessages") : t("lorebookGen.flow.noMessagesMatch")}
             </EmptyHint>
           ) : (
             <div className="px-3 py-2">
@@ -1022,7 +1030,7 @@ export function LorebookEntryGeneratorFlowPage() {
                   className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-fg/15 px-3 py-1.5 text-[11px] font-medium text-fg/55 transition hover:border-fg/25 hover:text-fg disabled:opacity-60"
                 >
                   {isLoadingMoreMessages ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                  Load older messages
+                  {t("lorebookGen.flow.loadOlderMessages")}
                 </button>
               )}
 
@@ -1042,7 +1050,7 @@ export function LorebookEntryGeneratorFlowPage() {
           <MessagesSkeleton />
         ) : sessionMemories.length === 0 && !sessionMemorySummary ? (
           <EmptyHint icon={<Brain className="h-4 w-4 text-fg/40" />}>
-            Session has no dynamic memory yet.
+            {t("lorebookGen.flow.sessionNoMemory")}
           </EmptyHint>
         ) : (
           <div className="px-3 py-2 space-y-2">
@@ -1061,10 +1069,10 @@ export function LorebookEntryGeneratorFlowPage() {
                     }`}
                   >
                     <FileText className="h-3 w-3" />
-                    Context summary
+                    {t("lorebookGen.flow.contextSummary")}
                     {!includeMemorySummary && (
                       <span className="font-mono text-[9px] font-medium tracking-normal text-fg/40">
-                        (excluded)
+                        {t("lorebookGen.flow.excluded")}
                       </span>
                     )}
                   </div>
@@ -1073,7 +1081,7 @@ export function LorebookEntryGeneratorFlowPage() {
                     onClick={() => setIncludeMemorySummary((v) => !v)}
                     role="switch"
                     aria-checked={includeMemorySummary}
-                    title={includeMemorySummary ? "Exclude summary" : "Include summary"}
+                    title={includeMemorySummary ? t("lorebookGen.flow.excludeSummary") : t("lorebookGen.flow.includeSummary")}
                     className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer items-center rounded-full border border-transparent transition ${
                       includeMemorySummary ? "bg-info/70" : "bg-fg/15"
                     }`}
@@ -1094,8 +1102,8 @@ export function LorebookEntryGeneratorFlowPage() {
             {filteredMemories.length === 0 ? (
               <EmptyHint icon={<Search className="h-4 w-4 text-fg/40" />}>
                 {sessionMemories.length === 0
-                  ? "No memory entries — only the summary will be used."
-                  : "No memories match the filter."}
+                  ? t("lorebookGen.flow.noMemoryEntriesSummaryOnly")
+                  : t("lorebookGen.flow.noMemoriesMatch")}
               </EmptyHint>
             ) : (
               <div className="divide-y divide-fg/5">
@@ -1115,7 +1123,7 @@ export function LorebookEntryGeneratorFlowPage() {
 
       {noEntryReason && (
         <div className="border-t border-warning/20 bg-warning/10 px-4 py-2 text-[12px] text-warning">
-          <span className="font-semibold">No entry generated.</span> {noEntryReason}
+          <span className="font-semibold">{t("lorebookGen.flow.noEntryGenerated")}</span> {noEntryReason}
         </div>
       )}
 
@@ -1135,7 +1143,7 @@ export function LorebookEntryGeneratorFlowPage() {
                 rows={3}
                 autoFocus
                 className="w-full resize-none rounded-lg border border-fg/10 bg-surface-el/40 px-2.5 py-2 text-[12.5px] leading-relaxed text-fg outline-none transition focus:border-fg/25"
-                placeholder='Optional direction — e.g. "Focus on world lore, ignore banter."'
+                placeholder={t("lorebookGen.flow.directionPlaceholder")}
               />
             </div>
           </motion.div>
@@ -1153,38 +1161,50 @@ export function LorebookEntryGeneratorFlowPage() {
                 ? "border-fg/20 bg-fg/10 text-fg"
                 : "border-fg/10 bg-fg/5 text-fg/65 hover:bg-fg/10"
           }`}
-          title="Optional generation direction"
+          title={t("lorebookGen.flow.directionTitle")}
         >
           <Compass className="h-3.5 w-3.5" />
-          <span>Direction</span>
+          <span>{t("lorebookGen.flow.directionLabel")}</span>
           {directionPrompt.trim() && <span className="h-1.5 w-1.5 rounded-full bg-info" />}
         </button>
 
         <div className="min-w-0 flex-1 truncate text-[11px] text-fg/50">
           {sourceMode === "messages"
             ? selectedCount > 0
-              ? `${selectedCount} message${selectedCount === 1 ? "" : "s"} · ~${selectedTokenEstimate} tokens`
-              : "Select messages to generate"
+              ? t("lorebookGen.flow.statusMessages", {
+                  count: selectedCount,
+                  tokens: selectedTokenEstimate,
+                })
+              : t("lorebookGen.flow.statusSelectMessages")
             : sourceMode === "memory"
               ? selectedMemoryCount > 0
-                ? `${selectedMemoryCount} memor${selectedMemoryCount === 1 ? "y" : "ies"}${
-                    sessionMemorySummary && includeMemorySummary ? " + summary" : ""
-                  } · ~${selectedMemoryTokenEstimate} tokens`
+                ? t("lorebookGen.flow.statusMemories", {
+                    count: selectedMemoryCount,
+                    summary:
+                      sessionMemorySummary && includeMemorySummary
+                        ? t("lorebookGen.flow.statusPlusSummary")
+                        : "",
+                    tokens: selectedMemoryTokenEstimate,
+                  })
                 : sessionMemorySummary && includeMemorySummary
-                  ? "Summary only — select memories to add detail"
-                  : "Select memories to generate"
+                  ? t("lorebookGen.flow.statusSummaryOnly")
+                  : t("lorebookGen.flow.statusSelectMemories")
               : (() => {
                   const parts: string[] = [];
                   if (selectedCount > 0)
-                    parts.push(`${selectedCount} msg${selectedCount === 1 ? "" : "s"}`);
+                    parts.push(t("lorebookGen.flow.statusPartMsgs", { count: selectedCount }));
                   if (selectedMemoryCount > 0)
                     parts.push(
-                      `${selectedMemoryCount} memor${selectedMemoryCount === 1 ? "y" : "ies"}`,
+                      t("lorebookGen.flow.statusPartMemories", { count: selectedMemoryCount }),
                     );
-                  if (sessionMemorySummary && includeMemorySummary) parts.push("summary");
-                  if (parts.length === 0) return "Select messages, memories, or include summary";
+                  if (sessionMemorySummary && includeMemorySummary)
+                    parts.push(t("lorebookGen.flow.statusPartSummary"));
+                  if (parts.length === 0) return t("lorebookGen.flow.statusSelectMixed");
                   const tokens = selectedTokenEstimate + selectedMemoryTokenEstimate;
-                  return `${parts.join(" + ")} · ~${tokens} tokens`;
+                  return t("lorebookGen.flow.statusMixed", {
+                    parts: parts.join(" + "),
+                    tokens,
+                  });
                 })()}
         </div>
 
@@ -1193,10 +1213,10 @@ export function LorebookEntryGeneratorFlowPage() {
           onClick={() => setForceMode((v) => !v)}
           title={
             forceMode
-              ? "Force mode on — next Generate bypasses duplicate/weak-canon rules"
-              : "Toggle force mode"
+              ? t("lorebookGen.flow.forceModeOnTitle")
+              : t("lorebookGen.flow.toggleForceMode")
           }
-          aria-label="Toggle force mode"
+          aria-label={t("lorebookGen.flow.toggleForceMode")}
           aria-pressed={forceMode}
           className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition ${
             forceMode
@@ -1224,7 +1244,7 @@ export function LorebookEntryGeneratorFlowPage() {
           ) : (
             <Sparkles className="h-3.5 w-3.5" />
           )}
-          {forceMode ? "Force Generate" : "Generate"}
+          {forceMode ? t("lorebookGen.flow.forceGenerate") : t("lorebookGen.flow.generate")}
         </button>
       </div>
 
@@ -1347,7 +1367,9 @@ function MessageRow({
   selected: boolean;
   onToggle: () => void;
 }) {
+  const { t } = useI18n();
   const role = roleMeta(message.role);
+  const roleLabel = role.labelKey ? t(role.labelKey) : role.fallbackLabel;
   const content = message.content.trim();
   const [expanded, setExpanded] = useState(false);
   const textRef = useRef<HTMLDivElement>(null);
@@ -1372,7 +1394,7 @@ function MessageRow({
       <button
         type="button"
         onClick={onToggle}
-        aria-label={selected ? "Deselect message" : "Select message"}
+        aria-label={selected ? t("lorebookGen.flow.deselectMessage") : t("lorebookGen.flow.selectMessage")}
         className={`mt-0.5 shrink-0 rounded p-0.5 transition ${
           selected ? "text-accent" : "text-fg/30 hover:text-fg/60"
         }`}
@@ -1387,7 +1409,7 @@ function MessageRow({
         <div className="mb-0.5 flex items-center gap-2">
           {role.icon}
           <span className={`text-[10px] font-bold uppercase tracking-[0.12em] ${role.labelClass}`}>
-            {role.label}
+            {roleLabel}
           </span>
           <span className="ml-auto font-mono text-[10px] text-fg/30">
             {formatRelative(message.createdAt)}
@@ -1399,7 +1421,7 @@ function MessageRow({
             expanded ? "" : "line-clamp-3"
           }`}
         >
-          {content || <span className="italic text-fg/35">Empty message</span>}
+          {content || <span className="italic text-fg/35">{t("lorebookGen.flow.emptyMessage")}</span>}
         </div>
       </button>
       {isOverflowing && (
@@ -1410,8 +1432,8 @@ function MessageRow({
             setExpanded((v) => !v);
           }}
           className="mt-0.5 shrink-0 rounded p-1 text-fg/40 transition hover:bg-fg/5 hover:text-fg"
-          aria-label={expanded ? "Collapse message" : "Expand message"}
-          title={expanded ? "Show less" : "Show full message"}
+          aria-label={expanded ? t("lorebookGen.flow.collapseMessage") : t("lorebookGen.flow.expandMessage")}
+          title={expanded ? t("lorebookGen.flow.showLess") : t("lorebookGen.flow.showFullMessage")}
         >
           <ChevronDown
             className={`h-3.5 w-3.5 transition ${expanded ? "rotate-180" : ""}`}
@@ -1431,6 +1453,7 @@ function MemoryRow({
   selected: boolean;
   onToggle: () => void;
 }) {
+  const { t } = useI18n();
   const text = memory.text.trim();
   const [expanded, setExpanded] = useState(false);
   const textRef = useRef<HTMLDivElement>(null);
@@ -1455,7 +1478,7 @@ function MemoryRow({
       <button
         type="button"
         onClick={onToggle}
-        aria-label={selected ? "Deselect memory" : "Select memory"}
+        aria-label={selected ? t("lorebookGen.flow.deselectMemory") : t("lorebookGen.flow.selectMemory")}
         className={`mt-0.5 shrink-0 rounded p-0.5 transition ${
           selected ? "text-accent" : "text-fg/30 hover:text-fg/60"
         }`}
@@ -1466,16 +1489,16 @@ function MemoryRow({
         <div className="mb-0.5 flex items-center gap-2">
           <Brain className="h-3 w-3 text-info/70" />
           <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-info/85">
-            MEMORY
+            {t("lorebookGen.flow.memoryLabel")}
           </span>
           {memory.isPinned && (
             <span className="rounded-full border border-warning/30 bg-warning/10 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider text-warning/85">
-              pinned
+              {t("lorebookGen.flow.pinned")}
             </span>
           )}
           {memory.isCold && (
             <span className="rounded-full border border-fg/15 bg-fg/5 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider text-fg/55">
-              cold
+              {t("lorebookGen.flow.cold")}
             </span>
           )}
           <span className="ml-auto font-mono text-[10px] text-fg/30">
@@ -1488,7 +1511,7 @@ function MemoryRow({
             expanded ? "" : "line-clamp-3"
           }`}
         >
-          {text || <span className="italic text-fg/35">Empty memory</span>}
+          {text || <span className="italic text-fg/35">{t("lorebookGen.flow.emptyMemory")}</span>}
         </div>
       </button>
       {isOverflowing && (
@@ -1499,8 +1522,8 @@ function MemoryRow({
             setExpanded((v) => !v);
           }}
           className="mt-0.5 shrink-0 rounded p-1 text-fg/40 transition hover:bg-fg/5 hover:text-fg"
-          aria-label={expanded ? "Collapse memory" : "Expand memory"}
-          title={expanded ? "Show less" : "Show full memory"}
+          aria-label={expanded ? t("lorebookGen.flow.collapseMemory") : t("lorebookGen.flow.expandMemory")}
+          title={expanded ? t("lorebookGen.flow.showLess") : t("lorebookGen.flow.showFullMemory")}
         >
           <ChevronDown className={`h-3.5 w-3.5 transition ${expanded ? "rotate-180" : ""}`} />
         </button>
@@ -1532,6 +1555,7 @@ function ReviewOverlay({
   directionPrompt: string;
   onDirectionChange: (value: string) => void;
 }) {
+  const { t } = useI18n();
   const setField = <K extends keyof DraftFormState>(key: K, value: DraftFormState[K]) => {
     onChange((prev) => (prev ? { ...prev, [key]: value } : prev));
   };
@@ -1560,9 +1584,9 @@ function ReviewOverlay({
         <div className="flex items-center gap-2 border-b border-fg/10 px-4 py-3">
           <Sparkles className="h-4 w-4 text-accent" />
           <div className="min-w-0 flex-1">
-            <div className="text-[13px] font-semibold text-fg">Review draft</div>
+            <div className="text-[13px] font-semibold text-fg">{t("lorebookGen.flow.reviewDraft")}</div>
             <div className="text-[11px] text-fg/50">
-              Saving into <span className="font-medium text-fg/70">{lorebookName}</span>
+              {t("lorebookGen.flow.savingInto")} <span className="font-medium text-fg/70">{lorebookName}</span>
             </div>
           </div>
           <button
@@ -1576,20 +1600,20 @@ function ReviewOverlay({
 
         <div className="scrollbar-thin flex-1 overflow-y-auto px-4 py-3">
           <div className="mx-auto flex w-full max-w-2xl flex-col gap-3">
-            <FieldRow label="Title">
+            <FieldRow label={t("lorebookGen.flow.titleLabel")}>
               <input
                 value={form.title}
                 onChange={(e) => setField("title", e.target.value)}
                 className="w-full rounded-md border border-fg/10 bg-surface-el/30 px-2.5 py-2 text-[13px] text-fg outline-none transition focus:border-fg/25"
-                placeholder="Entry title"
+                placeholder={t("lorebookGen.flow.entryTitlePlaceholder")}
               />
             </FieldRow>
 
             <div className="flex items-center justify-between rounded-lg border border-fg/10 bg-fg/3 px-3 py-2.5">
               <div>
-                <div className="text-[12.5px] font-semibold text-fg">Always active</div>
+                <div className="text-[12.5px] font-semibold text-fg">{t("lorebookGen.flow.alwaysActive")}</div>
                 <div className="mt-0.5 text-[11px] text-fg/50">
-                  Skip keyword triggers; always inject.
+                  {t("lorebookGen.flow.alwaysActiveDesc")}
                 </div>
               </div>
               <label className="inline-flex cursor-pointer items-center">
@@ -1615,18 +1639,20 @@ function ReviewOverlay({
 
             {!form.alwaysActive && (
               <FieldRow
-                label="Keywords"
+                label={t("lorebookGen.flow.keywordsLabel")}
                 hint={
                   keywords.length > 0
-                    ? `${keywords.length} keyword${keywords.length === 1 ? "" : "s"}`
-                    : "Comma-separated triggers"
+                    ? keywords.length === 1
+                      ? t("lorebookGen.flow.keywordCountOne", { count: keywords.length })
+                      : t("lorebookGen.flow.keywordCountOther", { count: keywords.length })
+                    : t("lorebookGen.flow.commaSeparatedTriggers")
                 }
               >
                 <input
                   value={form.keywordsText}
                   onChange={(e) => setField("keywordsText", e.target.value)}
                   className="w-full rounded-md border border-fg/10 bg-surface-el/30 px-2.5 py-2 text-[13px] text-fg outline-none transition focus:border-fg/25"
-                  placeholder="comma, separated, keywords"
+                  placeholder={t("lorebookGen.flow.keywordsPlaceholder")}
                 />
                 {keywords.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
@@ -1643,13 +1669,13 @@ function ReviewOverlay({
               </FieldRow>
             )}
 
-            <FieldRow label="Content" hint={`${form.content.length} chars`}>
+            <FieldRow label={t("lorebookGen.flow.contentLabel")} hint={t("lorebookGen.flow.charsCount", { count: form.content.length })}>
               <textarea
                 value={form.content}
                 onChange={(e) => setField("content", e.target.value)}
                 rows={14}
                 className="w-full resize-none rounded-md border border-fg/10 bg-surface-el/30 px-2.5 py-2 text-[13px] leading-relaxed text-fg outline-none transition focus:border-fg/25"
-                placeholder="Lorebook entry content"
+                placeholder={t("lorebookGen.flow.entryContentPlaceholder")}
               />
             </FieldRow>
           </div>
@@ -1667,10 +1693,10 @@ function ReviewOverlay({
               <div className="px-3 py-2">
                 <div className="mb-1 flex items-center justify-between px-0.5">
                   <label className="text-[10px] font-semibold uppercase tracking-[0.18em] text-fg/50">
-                    Direction
+                    {t("lorebookGen.flow.directionLabel")}
                   </label>
                   <span className="text-[10px] font-mono text-fg/35">
-                    Edits apply on next Regenerate
+                    {t("lorebookGen.flow.editsApplyNextRegenerate")}
                   </span>
                 </div>
                 <textarea
@@ -1679,7 +1705,7 @@ function ReviewOverlay({
                   rows={3}
                   autoFocus
                   className="w-full resize-none rounded-md border border-fg/10 bg-surface-el/40 px-2.5 py-2 text-[12.5px] leading-relaxed text-fg outline-none transition focus:border-fg/25"
-                  placeholder='e.g. "Focus on world lore, ignore banter."'
+                  placeholder={t("lorebookGen.flow.directionExamplePlaceholder")}
                 />
               </div>
             </motion.div>
@@ -1697,10 +1723,10 @@ function ReviewOverlay({
                   ? "border-fg/20 bg-fg/10 text-fg"
                   : "border-fg/10 bg-fg/5 text-fg/65 hover:bg-fg/10"
             }`}
-            title="Edit direction before regenerating"
+            title={t("lorebookGen.flow.editDirectionBeforeRegenerate")}
           >
             <Compass className="h-3.5 w-3.5" />
-            <span>Direction</span>
+            <span>{t("lorebookGen.flow.directionLabel")}</span>
             {directionPrompt.trim() && <span className="h-1.5 w-1.5 rounded-full bg-info" />}
           </button>
           <button
@@ -1714,7 +1740,7 @@ function ReviewOverlay({
             ) : (
               <Sparkles className="h-3.5 w-3.5" />
             )}
-            Regenerate
+            {t("lorebookGen.flow.regenerate")}
           </button>
           <div className="flex-1" />
           <button
@@ -1722,7 +1748,7 @@ function ReviewOverlay({
             onClick={onClose}
             className="rounded-lg border border-fg/10 bg-fg/5 px-2.5 py-2 text-[12px] font-medium text-fg/70 transition hover:bg-fg/10"
           >
-            Discard
+            {t("lorebookGen.flow.discard")}
           </button>
           <button
             type="button"
@@ -1731,7 +1757,7 @@ function ReviewOverlay({
             className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/15 px-3.5 py-2 text-[12px] font-semibold text-accent transition hover:bg-accent/25 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-            Save Entry
+            {t("lorebookGen.flow.saveEntry")}
           </button>
         </div>
       </motion.div>

@@ -1,10 +1,12 @@
 import { cn } from "../../../../design-tokens";
 import type { CharacterInfoNode } from "../../../../../core/storage/chatWidgetSchemas";
+import { useI18n } from "../../../../../core/i18n/context";
 import { CharacterAvatar } from "../CharacterAvatar";
 import { useWidgetContext } from "./WidgetContext";
 import { widgetCardClass } from "./widgetSurface";
 
 export function WidgetCharacterInfo({ node }: { node: CharacterInfoNode }) {
+  const { t } = useI18n();
   const { character: contextCharacter, characters, hasBackground } = useWidgetContext();
   const character = node.characterId
     ? (characters?.find((c) => c.id === node.characterId) ?? contextCharacter)
@@ -18,7 +20,7 @@ export function WidgetCharacterInfo({ node }: { node: CharacterInfoNode }) {
           widgetCardClass(hasBackground, node.design),
         )}
       >
-        No character loaded.
+        {t("chats.widgets.characterInfo.noCharacter")}
       </section>
     );
   }

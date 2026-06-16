@@ -103,14 +103,20 @@ export function GroupChatAppearancePage() {
       updateGroup({ ...saved, chatAppearance: normalized });
       setOverride(normalized);
       setInitialOverride(normalized);
-      toast.success("Saved", "Group chat appearance updated.");
+      toast.success(
+        t("groupChats.appearance.saveSuccessTitle"),
+        t("groupChats.appearance.saveSuccessDesc"),
+      );
     } catch (err) {
       console.error("GroupChatAppearancePage: save failed", err);
-      toast.error("Save failed", err instanceof Error ? err.message : String(err));
+      toast.error(
+        t("groupChats.appearance.saveFailed"),
+        err instanceof Error ? err.message : String(err),
+      );
     } finally {
       setIsSaving(false);
     }
-  }, [group, isDirty, isSaving, globalSettings, effectiveSettings, updateGroup]);
+  }, [group, isDirty, isSaving, globalSettings, effectiveSettings, updateGroup, t]);
 
   return (
     <div className={cn("flex h-screen flex-col", colors.surface.base, colors.text.primary)}>
@@ -137,7 +143,7 @@ export function GroupChatAppearancePage() {
           <ArrowLeft size={14} />
         </button>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-fg">Chat Appearance</div>
+          <div className="text-sm font-semibold text-fg">{t("groupChats.appearance.title")}</div>
           {group && <div className="truncate text-[11px] text-fg/45">{group.name}</div>}
         </div>
         <button
@@ -149,7 +155,7 @@ export function GroupChatAppearancePage() {
           )}
         >
           <RefreshCw size={11} />
-          Reset
+          {t("common.buttons.reset")}
         </button>
       </div>
 
@@ -195,7 +201,7 @@ export function GroupChatAppearancePage() {
                 "disabled:opacity-40 disabled:pointer-events-none",
               )}
             >
-              {isSaving ? "Saving..." : t("topNav.save")}
+              {isSaving ? t("common.buttons.saving") : t("topNav.save")}
             </button>
           </div>
         </>

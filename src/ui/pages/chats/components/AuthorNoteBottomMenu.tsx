@@ -75,7 +75,7 @@ export function AuthorNoteBottomMenu({
       onClose();
     } catch (err) {
       console.error("Failed to clear author note:", err);
-      setError(typeof err === "string" ? err : "Failed to clear author note");
+      setError(typeof err === "string" ? err : t("chats.authorNote.failedClear"));
     } finally {
       setSaving(false);
     }

@@ -133,7 +133,7 @@ export function CharacterExportMenu({
       })
       .catch((error: unknown) => {
         if (!active) return;
-        setLoadError(error instanceof Error ? error.message : "Failed to load export formats");
+        setLoadError(error instanceof Error ? error.message : t("components.extra.formatsLoadFailed"));
         setFormats(FALLBACK_FORMATS);
       })
       .finally(() => {
@@ -144,7 +144,7 @@ export function CharacterExportMenu({
     return () => {
       active = false;
     };
-  }, [isOpen]);
+  }, [isOpen, t]);
 
   const exportableFormats = useMemo(
     () => formats.filter((format) => format.canExport && !format.readOnly),
@@ -171,7 +171,7 @@ export function CharacterExportMenu({
                   key={format.id}
                   icon={<Icon className="h-4 w-4" />}
                   title={format.label}
-                  description={meta ? t(meta.descKey as any) : `${format.extension} format`}
+                  description={meta ? t(meta.descKey as any) : t("components.characterExport.formatGeneric", { extension: format.extension })}
                   color={meta?.color ?? "from-blue-500 to-cyan-600"}
                   onClick={() => onSelect(format.id)}
                   disabled={exporting}
@@ -179,7 +179,7 @@ export function CharacterExportMenu({
               );
             })}
         </MenuButtonGroup>
-        {loadError && <p className="text-xs text-amber-200/80">{loadError} (showing defaults)</p>}
+        {loadError && <p className="text-xs text-amber-200/80">{loadError} {t("components.extra.formatsShowingDefaults")}</p>}
       </div>
     </BottomMenu>
   );

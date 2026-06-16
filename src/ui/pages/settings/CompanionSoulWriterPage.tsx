@@ -11,25 +11,26 @@ import { readSettings, saveAdvancedSettings } from "../../../core/storage/repo";
 import { listPromptTemplates } from "../../../core/prompts/service";
 import { APP_COMPANION_SOUL_WRITER_TEMPLATE_ID } from "../../../core/prompts/constants";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
+import { useI18n, type TranslationKey } from "../../../core/i18n/context";
 import { cn } from "../../design-tokens";
 import { ModelSelectionBottomMenu } from "../../components/ModelSelectionBottomMenu";
 
-const FALLBACK_OPTIONS: Array<{
-  value: DynamicMemoryStructuredFallbackFormat;
-  title: string;
-  description: string;
-}> = [
+const FALLBACK_OPTIONS = [
   {
     value: "json",
-    title: "JSON",
-    description: "Compact structured output when tool calling is unavailable.",
+    titleKey: "companionSoulWriter.extra.json",
+    descriptionKey: "companionSoulWriter.extra.jsonDesc",
   },
   {
     value: "xml",
-    title: "XML",
-    description: "Use when the model formats XML more reliably than JSON.",
+    titleKey: "companionSoulWriter.extra.xml",
+    descriptionKey: "companionSoulWriter.extra.xmlDesc",
   },
-];
+] satisfies Array<{
+  value: DynamicMemoryStructuredFallbackFormat;
+  titleKey: TranslationKey;
+  descriptionKey: TranslationKey;
+}>;
 
 function ensureAdvancedSettings(settings: Settings): NonNullable<Settings["advancedSettings"]> {
   const advanced = settings.advancedSettings ?? {
@@ -47,6 +48,7 @@ function ensureAdvancedSettings(settings: Settings): NonNullable<Settings["advan
 }
 
 export function CompanionSoulWriterPage() {
+  const { t } = useI18n();
   const [isLoading, setIsLoading] = useState(true);
   const [models, setModels] = useState<Model[]>([]);
   const [defaultModelId, setDefaultModelId] = useState<string | null>(null);
@@ -102,8 +104,8 @@ export function CompanionSoulWriterPage() {
   const primaryModel = findModel(primaryModelId);
   const defaultModel = findModel(defaultModelId);
   const appDefaultLabel = defaultModel
-    ? `Use App Default (${defaultModel.displayName})`
-    : "Use App Default";
+    ? t("companionSoulWriter.page.useAppDefaultWith", { name: defaultModel.displayName })
+    : t("companionSoulWriter.page.useAppDefault");
 
   const handlePrimaryModelChange = async (modelId: string | null) => {
     setPrimaryModelId(modelId);
@@ -161,9 +163,7 @@ export function CompanionSoulWriterPage() {
             <div className="flex items-start gap-2">
               <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
               <p className="text-xs leading-relaxed text-accent/80">
-                Configure the model and prompt that draft Companion Soul profiles. Tool calling is
-                attempted first; if unsupported, the writer falls back to{" "}
-                <span className="font-mono">{fallbackFormat.toUpperCase()}</span> structured output.
+                {t("companionSoulWriter.page.intro", { format: fallbackFormat.toUpperCase() })}
               </p>
             </div>
           </div>
@@ -171,7 +171,7 @@ export function CompanionSoulWriterPage() {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div className="space-y-4">
               <h3 className="px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-                Generation
+                {t("companionSoulWriter.page.generation")}
               </h3>
 
               <div className="space-y-3">
@@ -179,23 +179,27 @@ export function CompanionSoulWriterPage() {
                   <div className="rounded-lg border border-accent/30 bg-accent/10 p-1.5">
                     <Cpu className="h-4 w-4 text-accent" />
                   </div>
-                  <h3 className="text-sm font-semibold text-fg">Generation Model</h3>
+                  <h3 className="text-sm font-semibold text-fg">
+                    {t("companionSoulWriter.page.generationModel")}
+                  </h3>
                 </div>
 
                 {models.length > 0 ? (
                   renderModelButton(
-                    "Generation model",
+                    t("companionSoulWriter.page.generationModelAria"),
                     primaryModel,
                     () => setShowModelMenu(true),
                     appDefaultLabel,
                   )
                 ) : (
                   <div className="rounded-xl border border-fg/10 bg-surface-el/20 px-4 py-3">
-                    <p className="text-sm text-fg/50">No text-capable models configured.</p>
+                    <p className="text-sm text-fg/50">
+                      {t("companionSoulWriter.page.noTextModels")}
+                    </p>
                   </div>
                 )}
                 <p className="px-1 text-xs text-fg/50">
-                  Leave unset to use the app's default text model.
+                  {t("companionSoulWriter.page.useAppDefaultHint")}
                 </p>
               </div>
 
@@ -204,7 +208,9 @@ export function CompanionSoulWriterPage() {
                   <div className="rounded-lg border border-info/30 bg-info/10 p-1.5">
                     <Code2 className="h-4 w-4 text-info" />
                   </div>
-                  <h3 className="text-sm font-semibold text-fg">Structured Fallback</h3>
+                  <h3 className="text-sm font-semibold text-fg">
+                    {t("companionSoulWriter.page.structuredFallback")}
+                  </h3>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -229,7 +235,7 @@ export function CompanionSoulWriterPage() {
                               active ? "text-info" : "text-fg/80",
                             )}
                           >
-                            {option.title}
+                            {t(option.titleKey)}
                           </span>
                           {active && (
                             <div className="flex h-5 w-5 items-center justify-center rounded-full bg-info">
@@ -238,21 +244,21 @@ export function CompanionSoulWriterPage() {
                           )}
                         </div>
                         <span className="text-[11px] leading-relaxed text-fg/50">
-                          {option.description}
+                          {t(option.descriptionKey)}
                         </span>
                       </button>
                     );
                   })}
                 </div>
                 <p className="px-1 text-xs text-fg/50">
-                  Used only when the model can't call tools directly.
+                  {t("companionSoulWriter.page.structuredFallbackHint")}
                 </p>
               </div>
             </div>
 
             <div className="space-y-4">
               <h3 className="px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-                Prompt Template
+                {t("companionSoulWriter.page.promptTemplate")}
               </h3>
 
               <div className="space-y-3">
@@ -260,7 +266,9 @@ export function CompanionSoulWriterPage() {
                   <div className="rounded-lg border border-rose-400/30 bg-rose-500/10 p-1.5">
                     <Heart className="h-4 w-4 text-rose-300" />
                   </div>
-                  <h3 className="text-sm font-semibold text-fg">Soul Writer Prompt</h3>
+                  <h3 className="text-sm font-semibold text-fg">
+                    {t("companionSoulWriter.page.soulWriterPrompt")}
+                  </h3>
                 </div>
 
                 <select
@@ -268,7 +276,7 @@ export function CompanionSoulWriterPage() {
                   onChange={(e) => void handlePromptSelection(e.target.value || null)}
                   className="w-full appearance-none rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-sm text-fg transition focus:border-fg/25 focus:outline-none"
                 >
-                  <option value="">Use built-in default</option>
+                  <option value="">{t("companionSoulWriter.page.useBuiltInDefault")}</option>
                   {templates
                     .filter((template) => template.id !== APP_COMPANION_SOUL_WRITER_TEMPLATE_ID)
                     .map((template) => (
@@ -279,8 +287,7 @@ export function CompanionSoulWriterPage() {
                 </select>
 
                 <p className="px-1 text-xs leading-relaxed text-fg/50">
-                  Override the default companion soul writer prompt. Manage templates in Settings →
-                  Prompts.
+                  {t("companionSoulWriter.page.promptHint")}
                 </p>
               </div>
             </div>
@@ -290,9 +297,9 @@ export function CompanionSoulWriterPage() {
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-fg/30" />
             <div className="text-[11px] leading-relaxed text-fg/45">
               <p>
-                Open a Companion-mode character's editor and use{" "}
-                <span className="font-medium text-fg/65">Generate from character</span> in the Soul
-                tab to launch the writer with these defaults.
+                {t("companionSoulWriter.page.footnote", {
+                  action: t("companionSoulWriter.page.footnoteAction"),
+                })}
               </p>
             </div>
           </div>
@@ -302,7 +309,7 @@ export function CompanionSoulWriterPage() {
       <ModelSelectionBottomMenu
         isOpen={showModelMenu}
         onClose={() => setShowModelMenu(false)}
-        title="Generation Model"
+        title={t("companionSoulWriter.page.generationModel")}
         models={models}
         selectedModelIds={primaryModelId ? [primaryModelId] : []}
         onSelectModel={(modelId) => {
@@ -310,8 +317,10 @@ export function CompanionSoulWriterPage() {
           setShowModelMenu(false);
         }}
         clearOption={{
-          label: "Use App Default",
-          description: defaultModel ? defaultModel.displayName : "No app default model configured",
+          label: t("companionSoulWriter.page.useAppDefault"),
+          description: defaultModel
+            ? defaultModel.displayName
+            : t("companionSoulWriter.page.noAppDefaultModel"),
           icon: Cpu,
           selected: !primaryModelId,
           onClick: () => {

@@ -2,6 +2,7 @@ import { Reorder, useDragControls } from "framer-motion";
 import { ArrowLeftToLine, ArrowRightToLine, GripVertical, Pencil, Trash2 } from "lucide-react";
 import type { WidgetNode } from "../../../../../core/storage/schemas";
 import type { BoxNode } from "../../../../../core/storage/chatWidgetSchemas";
+import { useI18n } from "../../../../../core/i18n/context";
 import type { WidgetSide } from "./WidgetEditContext";
 import { WidgetRenderer } from "./WidgetRenderer";
 import { WidgetEditList } from "./WidgetEditList";
@@ -23,6 +24,7 @@ export function WidgetEditWrapper({
   onMove,
   onChildrenChange,
 }: WidgetEditWrapperProps) {
+  const { t } = useI18n();
   const controls = useDragControls();
   const isEditableBox = node.type === "box" && !!onChildrenChange;
   return (
@@ -46,7 +48,7 @@ export function WidgetEditWrapper({
           type="button"
           onPointerDown={(e) => controls.start(e)}
           className="flex h-7 w-7 cursor-grab items-center justify-center rounded-md border border-fg/20 bg-surface-el text-fg/80 shadow-sm transition hover:bg-fg/15 hover:text-fg active:cursor-grabbing"
-          aria-label="Drag to reorder"
+          aria-label={t("chats.widgets.wrapper.dragToReorder")}
         >
           <GripVertical size={14} />
         </button>
@@ -56,7 +58,7 @@ export function WidgetEditWrapper({
               type="button"
               onClick={onMove}
               className="flex h-7 w-7 items-center justify-center rounded-md border border-fg/20 bg-surface-el text-fg/80 shadow-sm transition hover:bg-fg/15 hover:text-fg"
-              aria-label={moveSide === "left" ? "Move to right side" : "Move to left side"}
+              aria-label={moveSide === "left" ? t("chats.widgets.wrapper.moveRight") : t("chats.widgets.wrapper.moveLeft")}
             >
               {moveSide === "left" ? (
                 <ArrowRightToLine size={13} strokeWidth={2.2} />
@@ -69,7 +71,7 @@ export function WidgetEditWrapper({
             type="button"
             onClick={onEdit}
             className="flex h-7 w-7 items-center justify-center rounded-md border border-fg/20 bg-surface-el text-fg/80 shadow-sm transition hover:bg-fg/15 hover:text-fg"
-            aria-label="Edit widget"
+            aria-label={t("chats.widgets.wrapper.editWidget")}
           >
             <Pencil size={13} strokeWidth={2.2} />
           </button>
@@ -77,7 +79,7 @@ export function WidgetEditWrapper({
             type="button"
             onClick={onDelete}
             className="flex h-7 w-7 items-center justify-center rounded-md border border-fg/20 bg-surface-el text-fg/80 shadow-sm transition hover:border-danger/50 hover:bg-danger/25 hover:text-danger"
-            aria-label="Delete widget"
+            aria-label={t("chats.widgets.wrapper.deleteWidget")}
           >
             <Trash2 size={13} strokeWidth={2.2} />
           </button>

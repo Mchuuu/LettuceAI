@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Check, Download, X } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { storageBridge } from "../../../core/storage/files";
-import { useI18n } from "../../../core/i18n/context";
+import { useI18n, type TranslationKey } from "../../../core/i18n/context";
 import {
   ModelDownloadProgress,
   type ModelDownloadPhase,
@@ -17,6 +17,32 @@ import {
 import { cn, interactive, radius, spacing, typography } from "../../design-tokens";
 
 const VALID_KINDS: ModelRequirementKind[] = ["embedding", "emotion", "ner", "router"];
+
+const REQUIREMENT_KEYS = {
+  embedding: {
+    titleKey: "companion.models.embeddingTitle",
+    subtitleKey: "companion.models.embeddingSubtitle",
+    sizeKey: "companion.models.embeddingSize",
+  },
+  emotion: {
+    titleKey: "companion.models.emotionTitle",
+    subtitleKey: "companion.models.emotionSubtitle",
+    sizeKey: "companion.models.emotionSize",
+  },
+  ner: {
+    titleKey: "companion.models.nerTitle",
+    subtitleKey: "companion.models.nerSubtitle",
+    sizeKey: "companion.models.nerSize",
+  },
+  router: {
+    titleKey: "companion.models.routerTitle",
+    subtitleKey: "companion.models.routerSubtitle",
+    sizeKey: "companion.models.routerSize",
+  },
+} satisfies Record<
+  ModelRequirementKind,
+  { titleKey: TranslationKey; subtitleKey: TranslationKey; sizeKey: TranslationKey }
+>;
 
 function parseQueue(raw: string | null): ModelRequirementKind[] {
   if (!raw) return [];
@@ -54,6 +80,9 @@ export function CompanionDownloadQueuePage() {
   const currentRequirement: ModelRequirement | null =
     currentIndex < queue.length ? describeRequirement(queue[currentIndex]) : null;
   currentKindRef.current = currentRequirement?.kind ?? null;
+  const currentTitle = currentRequirement
+    ? t(REQUIREMENT_KEYS[currentRequirement.kind].titleKey)
+    : null;
 
   const handleComplete = () => {
     const kind = currentKindRef.current;
@@ -127,7 +156,7 @@ export function CompanionDownloadQueuePage() {
             radius.lg,
           )}
         >
-          No models specified. Provide ?queue=embedding,emotion,ner,router.
+          {t("companion.queue.noModels")}
         </div>
       </div>
     );
@@ -141,27 +170,32 @@ export function CompanionDownloadQueuePage() {
         ? "downloading"
         : "idle";
 
-  const stepLabel = `Step ${Math.min(currentIndex + 1, queue.length)} of ${queue.length}`;
+  const stepLabel = t("companion.queue.stepLabel", {
+    current: Math.min(currentIndex + 1, queue.length),
+    total: queue.length,
+  });
   const headerTitle = allDone
-    ? "All set"
-    : currentRequirement
-      ? `Downloading ${currentRequirement.title}`
-      : "Preparing…";
+    ? t("companion.queue.allSet")
+    : currentRequirement && currentTitle
+      ? t("companion.queue.downloadingTitle", { name: currentTitle })
+      : t("companion.queue.preparing");
   const headerDescription = allDone
-    ? `Redirecting in ${countdown} seconds…`
+    ? t("companion.queue.redirecting", { count: countdown })
     : currentRequirement
-      ? currentRequirement.subtitle
-      : "Setting up the download queue.";
+      ? t(REQUIREMENT_KEYS[currentRequirement.kind].subtitleKey)
+      : t("companion.queue.currentSubtitleFallback");
 
   const statusText = allDone
-    ? "All models installed and ready"
+    ? t("companion.queue.allInstalled")
     : download.progress.status === "downloading"
-      ? `Downloading ${currentRequirement?.title.toLowerCase() ?? "model"}…`
+      ? currentTitle
+        ? t("companion.queue.statusDownloading", { name: currentTitle.toLowerCase() })
+        : t("companion.queue.statusDownloadingFallback")
       : download.progress.status === "failed"
-        ? "Download failed"
+        ? t("companion.queue.statusFailed")
         : download.progress.status === "cancelled"
-          ? "Download cancelled"
-          : "Starting…";
+          ? t("companion.queue.statusCancelled")
+          : t("companion.queue.starting");
 
   const queueList = (
     <ol className="space-y-2">
@@ -205,7 +239,7 @@ export function CompanionDownloadQueuePage() {
                     isPending ? "text-fg/70" : "text-fg",
                   )}
                 >
-                  {requirement.title}
+                  {t(REQUIREMENT_KEYS[kind].titleKey)}
                 </p>
                 <span
                   className={cn(
@@ -218,7 +252,11 @@ export function CompanionDownloadQueuePage() {
                         : "border-fg/10 bg-fg/5 text-fg/45",
                   )}
                 >
-                  {isDone ? "Done" : isCurrent ? "Now" : requirement.approxSize}
+                  {isDone
+                    ? t("companion.queue.badgeDone")
+                    : isCurrent
+                      ? t("companion.queue.badgeNow")
+                      : requirement.approxSize}
                 </span>
               </div>
               <p className="mt-0.5 text-[11px] leading-relaxed text-fg/45">
@@ -274,7 +312,9 @@ export function CompanionDownloadQueuePage() {
             )}
           >
             <Download className="h-4 w-4" />
-            Retry {currentRequirement?.title ?? "download"}
+            {currentTitle
+              ? t("companion.queue.retry", { name: currentTitle })
+              : t("companion.queue.retryFallback")}
           </button>
           <button
             onClick={() => navigate(returnTo)}
@@ -285,7 +325,7 @@ export function CompanionDownloadQueuePage() {
               "hover:bg-fg/10",
             )}
           >
-            Go back
+            {t("common.buttons.goBack")}
           </button>
         </div>
       )}

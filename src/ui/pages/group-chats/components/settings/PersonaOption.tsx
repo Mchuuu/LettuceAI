@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Check } from "lucide-react";
 
 import { radius, interactive, typography, cn } from "../../../../design-tokens";
+import { useI18n } from "../../../../../core/i18n/context";
 
 export function PersonaOption({
   title,
@@ -18,6 +19,7 @@ export function PersonaOption({
   onClick: () => void;
   onLongPress?: () => void;
 }) {
+  const { t } = useI18n();
   const [longPressTimer, setLongPressTimer] = useState<number | null>(null);
   const [isLongPressTriggered, setIsLongPressTriggered] = useState(false);
 
@@ -71,7 +73,7 @@ export function PersonaOption({
                 "shrink-0 rounded-full border border-info/30 bg-info/10 px-2 text-[10px] font-medium text-info",
               )}
             >
-              App default
+              {t("groupChats.settings.appDefault")}
             </span>
           )}
         </div>

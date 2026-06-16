@@ -740,7 +740,6 @@ export const filMessages: DeepPartialMessageTree<LocaleMessages> = {
     "suggestedReply": "Iminumungkahing Tugon",
     "selectTwoCharactersMinimum": "Pumili ng hindi bababa sa 2 karakter para sa group chat.",
     "groupBranchCreated": "Nagawa na ang group branch! Nire-redirect...",
-    "memories": "Mga Alaala",
     "tools": "Mga Tool",
     "pinned": "Naka-pin",
     "searchMemories": "Maghanap ng mga alaala...",

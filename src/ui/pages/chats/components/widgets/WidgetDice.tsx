@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Dices } from "lucide-react";
 import type { DiceNode } from "../../../../../core/storage/chatWidgetSchemas";
 import { cn, interactive } from "../../../../design-tokens";
+import { useI18n } from "../../../../../core/i18n/context";
 import { useWidgetContext } from "./WidgetContext";
 import { widgetCardClass } from "./widgetSurface";
 
@@ -32,6 +33,7 @@ function rollNotation(notation: string, id: number): RollResult | null {
 }
 
 export function WidgetDice({ node }: { node: DiceNode }) {
+  const { t } = useI18n();
   const { hasBackground, onInsertText } = useWidgetContext();
   const [result, setResult] = useState<RollResult | null>(null);
   const [history, setHistory] = useState<RollResult[]>([]);
@@ -81,7 +83,7 @@ export function WidgetDice({ node }: { node: DiceNode }) {
     >
       <header className="flex items-center gap-2">
         <Dices size={14} className="text-fg/50" />
-        <h3 className="text-sm font-semibold text-fg/75">{node.title || "Dice"}</h3>
+        <h3 className="text-sm font-semibold text-fg/75">{node.title || t("chats.widgets.dice.defaultTitle")}</h3>
         <span className="ml-auto font-mono text-[11px] text-fg/40">{defaultNotation}</span>
       </header>
 
@@ -95,7 +97,7 @@ export function WidgetDice({ node }: { node: DiceNode }) {
           interactive.active.scale,
           "hover:bg-fg/8",
         )}
-        aria-label="Roll dice"
+        aria-label={t("chats.widgets.dice.roll")}
       >
         {rolling ? (
           <span className="text-4xl font-bold tabular-nums text-fg/50">{tumble}</span>
@@ -131,7 +133,7 @@ export function WidgetDice({ node }: { node: DiceNode }) {
                 )}
               </motion.div>
             ) : (
-              <span className="text-[12px] font-medium text-fg/45">Tap to roll</span>
+              <span className="text-[12px] font-medium text-fg/45">{t("chats.widgets.dice.tapToRoll")}</span>
             )}
           </AnimatePresence>
         )}
@@ -161,7 +163,7 @@ export function WidgetDice({ node }: { node: DiceNode }) {
           onClick={() => onInsertText(`🎲 ${result.notation}: ${result.total}`)}
           className="self-start text-[11px] text-accent/80 transition hover:text-accent"
         >
-          Insert into message
+          {t("chats.widgets.dice.insertIntoMessage")}
         </button>
       )}
 
@@ -169,14 +171,14 @@ export function WidgetDice({ node }: { node: DiceNode }) {
         <div className="flex flex-col gap-1 border-t border-fg/8 pt-2">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-semibold uppercase tracking-wide text-fg/35">
-              Recent
+              {t("chats.widgets.dice.recent")}
             </span>
             <button
               type="button"
               onClick={() => setHistory([])}
               className="text-[10px] text-fg/35 transition hover:text-fg/60"
             >
-              Clear
+              {t("chats.widgets.dice.clear")}
             </button>
           </div>
           <div className="flex flex-wrap gap-1">

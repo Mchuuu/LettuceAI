@@ -7,6 +7,7 @@ import { BottomMenu, MenuSection } from "../../../../components/BottomMenu";
 import { cn, typography, interactive, spacing } from "../../../../design-tokens";
 import { useAvatar } from "../../../../hooks/useAvatar";
 import { AvatarImage } from "../../../../components/AvatarImage";
+import { useI18n } from "../../../../../core/i18n/context";
 import type { Persona } from "../../../../../core/storage/schemas";
 
 interface PersonaAvatarProps {
@@ -78,6 +79,7 @@ interface PersonaOptionItemProps {
 }
 
 function PersonaOptionItem({ persona, isSelected, onClick, onLongPress }: PersonaOptionItemProps) {
+  const { t } = useI18n();
   const [longPressTimer, setLongPressTimer] = useState<number | null>(null);
   const [isLongPressTriggered, setIsLongPressTriggered] = useState(false);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -150,8 +152,8 @@ function PersonaOptionItem({ persona, isSelected, onClick, onLongPress }: Person
     }
   };
 
-  const title = persona?.title ?? "No Persona";
-  const description = persona?.description ?? "Continue without a persona";
+  const title = persona?.title ?? t("groupChats.personaSelectorExtra.noPersonaTitle");
+  const description = persona?.description ?? t("groupChats.personaSelectorExtra.noPersonaDesc");
   const isDefault = persona?.isDefault ?? false;
 
   return (
@@ -199,7 +201,9 @@ function PersonaOptionItem({ persona, isSelected, onClick, onLongPress }: Person
           {isDefault && (
             <span className="inline-flex items-center gap-1 shrink-0 rounded-full border border-info/30 bg-info/10 px-2 py-0.5">
               <Star className="h-2.5 w-2.5 fill-info text-info" />
-              <span className="text-[10px] font-medium text-info">Default</span>
+              <span className="text-[10px] font-medium text-info">
+                {t("groupChats.personaSelectorExtra.defaultBadge")}
+              </span>
             </span>
           )}
         </div>
@@ -248,9 +252,11 @@ export function PersonaSelector({
   onSelect,
   onLongPress,
   showSearch = true,
-  title = "Select Persona",
+  title,
 }: PersonaSelectorProps) {
+  const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState("");
+  const resolvedTitle = title ?? t("groupChats.personaSelectorExtra.selectPersonaTitle");
 
   const filteredPersonas = useMemo(() => {
     if (!searchQuery.trim()) return personas;
@@ -283,7 +289,7 @@ export function PersonaSelector({
   const showSearchBar = showSearch && personas.length > 3;
 
   return (
-    <BottomMenu isOpen={isOpen} onClose={handleClose} title={title}>
+    <BottomMenu isOpen={isOpen} onClose={handleClose} title={resolvedTitle}>
       <div className={spacing.group}>
         {/* Empty State */}
         {personas.length === 0 ? (
@@ -294,10 +300,10 @@ export function PersonaSelector({
               </div>
               <div>
                 <p className={cn(typography.body.size, "font-medium text-warning")}>
-                  No personas available
+                  {t("groupChats.personaSelectorExtra.noPersonasAvailable")}
                 </p>
                 <p className={cn(typography.caption.size, "mt-1 text-warning/60")}>
-                  Create a persona in settings to personalize your conversations.
+                  {t("groupChats.personaSelectorExtra.noPersonasDesc")}
                 </p>
               </div>
             </div>
@@ -312,7 +318,7 @@ export function PersonaSelector({
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search personas..."
+                  placeholder={t("groupChats.personaSelectorExtra.searchPersonas")}
                   className={cn(
                     "w-full rounded-xl border border-fg/10 bg-surface-el/30",
                     "px-4 py-2.5 pl-10 text-sm text-fg placeholder-fg/40",
@@ -355,10 +361,10 @@ export function PersonaSelector({
                 <div className="py-8 text-center">
                   <User className="mx-auto h-8 w-8 text-fg/20" />
                   <p className={cn(typography.body.size, "mt-3 text-fg/50")}>
-                    No personas found
+                    {t("groupChats.personaSelectorExtra.noPersonasFound")}
                   </p>
                   <p className={cn(typography.caption.size, "mt-1 text-fg/30")}>
-                    Try a different search term
+                    {t("groupChats.personaSelectorExtra.tryDifferentSearch")}
                   </p>
                 </div>
               )}

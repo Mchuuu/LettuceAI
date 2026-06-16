@@ -36,6 +36,7 @@ import { BottomMenu } from "../../components/BottomMenu";
 import { NumberInput } from "../../components/NumberInput";
 import { GuidedTour, useGuidedTour } from "../../components/GuidedTour";
 import { getPlatform } from "../../../core/utils/platform";
+import { useI18n } from "../../../core/i18n/context";
 import { toast } from "../../components/toast";
 import { useDownloadQueueOptional } from "../../../core/downloads/DownloadQueueContext";
 import {
@@ -78,27 +79,27 @@ type LibraryTab = "vocabulary" | "corrections" | "voiceExamples";
 
 const LIBRARY_TABS: {
   key: LibraryTab;
-  label: string;
+  labelKey: string;
   icon: React.ComponentType<{ className?: string }>;
-  hint: string;
+  hintKey: string;
 }[] = [
     {
       key: "vocabulary",
-      label: "Vocabulary",
+      labelKey: "voices.speechRecognition.tabs.vocabulary",
       icon: BookOpen,
-      hint: "Names, jargon, and product terms biased into Whisper's prompt.",
+      hintKey: "voices.speechRecognition.tabs.vocabularyHint",
     },
     {
       key: "corrections",
-      label: "Corrections",
+      labelKey: "voices.speechRecognition.tabs.corrections",
       icon: Wand2,
-      hint: "Replace consistent mistakes after Whisper finishes.",
+      hintKey: "voices.speechRecognition.tabs.correctionsHint",
     },
     {
       key: "voiceExamples",
-      label: "Voice examples",
+      labelKey: "voices.speechRecognition.tabs.voiceExamples",
       icon: AudioLines,
-      hint: "Pair recordings with the text they should produce.",
+      hintKey: "voices.speechRecognition.tabs.voiceExamplesHint",
     },
   ];
 
@@ -171,13 +172,13 @@ function formatDuration(ms: number) {
   return `${(ms / 1000).toFixed(ms >= 10_000 ? 0 : 1)}s`;
 }
 
-function micErrorMessage(error: unknown) {
+function micErrorMessage(t: TranslateFn, error: unknown) {
   if (error instanceof DOMException) {
     if (error.name === "NotAllowedError") {
-      return "Microphone permission denied. Allow microphone access for Lettuce and try again.";
+      return t("voices.speechRecognition.mic.permissionDenied");
     }
     if (error.name === "NotFoundError") {
-      return "No microphone was found on this device.";
+      return t("voices.speechRecognition.mic.noMicrophoneFound");
     }
   }
   return String(error);
@@ -356,77 +357,86 @@ const WHISPER_LANGUAGES: { code: string; name: string }[] = [
   { code: "zh", name: "Chinese" },
 ];
 
-const FRIENDLY_MODEL_COPY: Record<string, { title: string; summary: string }> = {
+const FRIENDLY_MODEL_COPY: Record<string, { titleKey: string; summaryKey: string }> = {
   "tiny.en": {
-    title: "Fastest English",
-    summary: "Lowest memory use. Best for quick voice notes on weaker devices.",
+    titleKey: "voices.speechRecognition.models.fastestEnglishTitle",
+    summaryKey: "voices.speechRecognition.models.fastestEnglishSummary",
   },
   tiny: {
-    title: "Fastest Multilingual",
-    summary: "Very light model with broad language support and the lowest quality ceiling.",
+    titleKey: "voices.speechRecognition.models.fastestMultilingualTitle",
+    summaryKey: "voices.speechRecognition.models.fastestMultilingualSummary",
   },
   "base.en-q5_1": {
-    title: "Fast English",
-    summary: "Quick and compact. Good default for mobile if you only need English.",
+    titleKey: "voices.speechRecognition.models.fastEnglishTitle",
+    summaryKey: "voices.speechRecognition.models.fastEnglishSummary",
   },
   "base-q5_1": {
-    title: "Fast Multilingual",
-    summary: "Compact multilingual option for phones and lower-power laptops.",
+    titleKey: "voices.speechRecognition.models.fastMultilingualTitle",
+    summaryKey: "voices.speechRecognition.models.fastMultilingualSummary",
   },
   "base.en": {
-    title: "Balanced English",
-    summary: "Better accuracy than the fast presets without a large jump in size.",
+    titleKey: "voices.speechRecognition.models.balancedEnglishTitle",
+    summaryKey: "voices.speechRecognition.models.balancedEnglishSummary",
   },
   base: {
-    title: "Balanced Multilingual",
-    summary: "Solid middle ground for multilingual use on modest hardware.",
+    titleKey: "voices.speechRecognition.models.balancedMultilingualTitle",
+    summaryKey: "voices.speechRecognition.models.balancedMultilingualSummary",
   },
   "small.en-q5_1": {
-    title: "Better English",
-    summary: "A step up in quality for English while staying fairly lightweight.",
+    titleKey: "voices.speechRecognition.models.betterEnglishTitle",
+    summaryKey: "voices.speechRecognition.models.betterEnglishSummary",
   },
   "small-q5_1": {
-    title: "Better Multilingual",
-    summary: "Higher quality multilingual transcription for capable mobile devices.",
+    titleKey: "voices.speechRecognition.models.betterMultilingualTitle",
+    summaryKey: "voices.speechRecognition.models.betterMultilingualSummary",
   },
   "small.en": {
-    title: "Desktop Balanced English",
-    summary: "Good desktop default when you want speed and quality to stay balanced.",
+    titleKey: "voices.speechRecognition.models.desktopBalancedEnglishTitle",
+    summaryKey: "voices.speechRecognition.models.desktopBalancedEnglishSummary",
   },
   small: {
-    title: "Desktop Balanced Multilingual",
-    summary: "General-purpose multilingual desktop option.",
+    titleKey: "voices.speechRecognition.models.desktopBalancedMultilingualTitle",
+    summaryKey: "voices.speechRecognition.models.desktopBalancedMultilingualSummary",
   },
   "medium.en-q5_0": {
-    title: "High Accuracy English",
-    summary: "Slower, but noticeably stronger for English dictation and cleanup.",
+    titleKey: "voices.speechRecognition.models.highAccuracyEnglishTitle",
+    summaryKey: "voices.speechRecognition.models.highAccuracyEnglishSummary",
   },
   "medium-q5_0": {
-    title: "High Accuracy Multilingual",
-    summary: "Strong multilingual quality for desktops without going to the largest models.",
+    titleKey: "voices.speechRecognition.models.highAccuracyMultilingualTitle",
+    summaryKey: "voices.speechRecognition.models.highAccuracyMultilingualSummary",
   },
   "medium.en": {
-    title: "Best English",
-    summary: "Highest English quality in this curated set, with heavier memory use.",
+    titleKey: "voices.speechRecognition.models.bestEnglishTitle",
+    summaryKey: "voices.speechRecognition.models.bestEnglishSummary",
   },
   medium: {
-    title: "Best Multilingual",
-    summary: "Highest general multilingual quality before the turbo-large tier.",
+    titleKey: "voices.speechRecognition.models.bestMultilingualTitle",
+    summaryKey: "voices.speechRecognition.models.bestMultilingualSummary",
   },
   "large-v3-turbo-q5_0": {
-    title: "Studio Multilingual",
-    summary: "Fast high-end desktop option with strong overall quality.",
+    titleKey: "voices.speechRecognition.models.studioMultilingualTitle",
+    summaryKey: "voices.speechRecognition.models.studioMultilingualSummary",
   },
   "large-v3-turbo": {
-    title: "Studio Multilingual Max",
-    summary: "Largest curated option for the best results on powerful desktops.",
+    titleKey: "voices.speechRecognition.models.studioMultilingualMaxTitle",
+    summaryKey: "voices.speechRecognition.models.studioMultilingualMaxSummary",
   },
 };
 
-function getFriendlyModelCopy(modelId: string, fallbackLabel: string) {
-  return FRIENDLY_MODEL_COPY[modelId] ?? {
-    title: fallbackLabel,
-    summary: "Official whisper.cpp model build.",
+type TranslateFn = ReturnType<typeof useI18n>["t"];
+
+function getFriendlyModelCopy(t: TranslateFn, modelId: string, fallbackLabel: string) {
+  const entry = FRIENDLY_MODEL_COPY[modelId];
+  if (!entry) {
+    return {
+      title: fallbackLabel,
+      summary: t("voices.speechRecognition.models.defaultSummary"),
+    };
+  }
+  return {
+    title: t(entry.titleKey as Parameters<TranslateFn>[0]),
+    summary: t(entry.summaryKey as Parameters<TranslateFn>[0]),
   };
 }
 
@@ -438,6 +448,7 @@ function filterPayload(filter: FilterState) {
 }
 
 export function SpeechRecognitionPage() {
+  const { t } = useI18n();
   const downloadQueue = useDownloadQueueOptional();
   const { shouldShow: showTour, dismiss: dismissTour } = useGuidedTour("speechRecognition");
   const [tab, setTab] = useState<LibraryTab>("vocabulary");
@@ -491,11 +502,11 @@ export function SpeechRecognitionPage() {
       setPreviewPrompt(prompt);
     } catch (error) {
       console.error("Failed to load ASR library:", error);
-      toast.error("Failed to load speech recognition data", String(error));
+      toast.error(t("voices.speechRecognition.toasts.loadFailed"), String(error));
     } finally {
       setLoading(false);
     }
-  }, [filter, showApprovedOnly]);
+  }, [filter, showApprovedOnly, t]);
 
   useEffect(() => {
     void reload();
@@ -512,11 +523,11 @@ export function SpeechRecognitionPage() {
       setInstalledModels(installed);
     } catch (error) {
       console.error("Failed to load installed Whisper models:", error);
-      toast.error("Failed to load installed Whisper models", String(error));
+      toast.error(t("voices.speechRecognition.toasts.loadInstalledFailed"), String(error));
     } finally {
       setLoadingInstalledModels(false);
     }
-  }, []);
+  }, [t]);
 
   const reloadWhisperCatalog = useCallback(async () => {
     setLoadingWhisperModels(true);
@@ -524,11 +535,11 @@ export function SpeechRecognitionPage() {
       setAvailableModels(await asrWhisperListAvailableModels());
     } catch (error) {
       console.error("Failed to load Whisper models:", error);
-      toast.error("Failed to load official Whisper model list", String(error));
+      toast.error(t("voices.speechRecognition.toasts.loadCatalogFailed"), String(error));
     } finally {
       setLoadingWhisperModels(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void reloadInstalledModels();
@@ -563,9 +574,9 @@ export function SpeechRecognitionPage() {
     if (installed) {
       setSelectedTestModelPath(installed.path);
       setPendingModelId(null);
-      toast.success("Model ready", installed.label);
+      toast.success(t("voices.speechRecognition.toasts.modelReady"), installed.label);
     }
-  }, [pendingModelId, installedModels]);
+  }, [pendingModelId, installedModels, t]);
 
   useEffect(() => {
     if (!selectedTestModelPath && installedModels.length > 0) {
@@ -621,26 +632,32 @@ export function SpeechRecognitionPage() {
     try {
       const bundle = await asrExportLibrary(filterPayload(filter));
       const target = await saveDialog({
-        title: "Export speech library",
-        defaultPath: `asr-library-${new Date().toISOString().slice(0, 10)}.json`,
+        title: t("voices.speechRecognition.toasts.exportTitle"),
+        defaultPath: t("voices.speechRecognition.toasts.exportDefaultName", {
+          date: new Date().toISOString().slice(0, 10),
+        }),
         filters: [{ name: "JSON", extensions: ["json"] }],
       });
       if (!target) return;
       await writeTextFile(target, JSON.stringify(bundle, null, 2));
       toast.success(
-        "Exported",
-        `${bundle.vocabulary.length} terms, ${bundle.corrections.length} corrections, ${bundle.voiceExamples.length} examples`,
+        t("voices.speechRecognition.toasts.exported"),
+        t("voices.speechRecognition.toasts.exportedSummary", {
+          terms: bundle.vocabulary.length,
+          corrections: bundle.corrections.length,
+          examples: bundle.voiceExamples.length,
+        }),
       );
     } catch (error) {
       console.error("Failed to export ASR library:", error);
-      toast.error("Export failed", String(error));
+      toast.error(t("voices.speechRecognition.toasts.exportFailed"), String(error));
     }
-  }, [filter]);
+  }, [filter, t]);
 
   const handleImport = useCallback(async () => {
     try {
       const path = await openDialog({
-        title: "Import speech library",
+        title: t("voices.speechRecognition.toasts.importTitle"),
         multiple: false,
         filters: [{ name: "JSON", extensions: ["json"] }],
       });
@@ -649,69 +666,84 @@ export function SpeechRecognitionPage() {
       const bundle = JSON.parse(text) as AsrExportBundle;
       const counts = await asrImportLibrary(bundle);
       toast.success(
-        "Imported",
-        `${counts.vocabulary ?? 0} terms, ${counts.corrections ?? 0} corrections, ${counts.voiceExamples ?? 0} examples`,
+        t("voices.speechRecognition.toasts.imported"),
+        t("voices.speechRecognition.toasts.exportedSummary", {
+          terms: counts.vocabulary ?? 0,
+          corrections: counts.corrections ?? 0,
+          examples: counts.voiceExamples ?? 0,
+        }),
       );
       void reload();
     } catch (error) {
       console.error("Failed to import ASR library:", error);
-      toast.error("Import failed", String(error));
+      toast.error(t("voices.speechRecognition.toasts.importFailed"), String(error));
     }
-  }, [reload]);
+  }, [reload, t]);
 
   const handleClearCache = useCallback(async () => {
     try {
       const cleared = await asrWhisperRuntimeClearCache();
-      toast.success("Whisper cache cleared", `${cleared} context${cleared === 1 ? "" : "s"}`);
+      toast.success(
+        t("voices.speechRecognition.toasts.cacheCleared"),
+        cleared === 1
+          ? t("voices.speechRecognition.toasts.cacheClearedCount", { count: cleared })
+          : t("voices.speechRecognition.toasts.cacheClearedCountPlural", { count: cleared }),
+      );
     } catch (error) {
       console.error("Failed to clear whisper cache:", error);
-      toast.error("Failed to clear cache", String(error));
+      toast.error(t("voices.speechRecognition.toasts.cacheClearFailed"), String(error));
     }
-  }, []);
+  }, [t]);
 
-  const handleCopy = useCallback(async (value: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      toast.success("Copied", label);
-    } catch (error) {
-      toast.error("Copy failed", String(error));
-    }
-  }, []);
+  const handleCopy = useCallback(
+    async (value: string, label: string) => {
+      try {
+        await navigator.clipboard.writeText(value);
+        toast.success(t("voices.speechRecognition.toasts.copied"), label);
+      } catch (error) {
+        toast.error(t("voices.speechRecognition.toasts.copyFailed"), String(error));
+      }
+    },
+    [t],
+  );
 
-  const handleQueueModel = useCallback(async (modelId: string) => {
-    setQueueingModelId(modelId);
-    try {
-      await asrWhisperQueueModelDownload(modelId);
-      toast.success("Download queued", modelId);
-    } catch (error) {
-      console.error("Failed to queue Whisper model:", error);
-      toast.error("Failed to queue download", String(error));
-    } finally {
-      setQueueingModelId(null);
-    }
-  }, []);
+  const handleQueueModel = useCallback(
+    async (modelId: string) => {
+      setQueueingModelId(modelId);
+      try {
+        await asrWhisperQueueModelDownload(modelId);
+        toast.success(t("voices.speechRecognition.toasts.downloadQueued"), modelId);
+      } catch (error) {
+        console.error("Failed to queue Whisper model:", error);
+        toast.error(t("voices.speechRecognition.toasts.queueFailed"), String(error));
+      } finally {
+        setQueueingModelId(null);
+      }
+    },
+    [t],
+  );
 
   const handleDeleteInstalledModel = useCallback(
     async (model: AsrInstalledWhisperModel) => {
       setDeletingModelPath(model.path);
       try {
         await asrWhisperDeleteInstalledModel(model.path);
-        toast.success("Model deleted", model.filename);
+        toast.success(t("voices.speechRecognition.toasts.modelDeleted"), model.filename);
         await reloadInstalledModels();
       } catch (error) {
         console.error("Failed to delete Whisper model:", error);
-        toast.error("Failed to delete model", String(error));
+        toast.error(t("voices.speechRecognition.toasts.deleteModelFailed"), String(error));
       } finally {
         setDeletingModelPath(null);
       }
     },
-    [reloadInstalledModels],
+    [reloadInstalledModels, t],
   );
 
   const runTestTranscription = useCallback(
     async (pcm: Float32Array, sampleRateHz: number) => {
       if (!selectedTestModelPath) {
-        toast.warning("Choose a Whisper model first");
+        toast.warning(t("voices.speechRecognition.toasts.chooseModelFirst"));
         return;
       }
 
@@ -732,10 +764,15 @@ export function SpeechRecognitionPage() {
           keepModelLoaded: testKeepModelLoaded,
         });
         setTestResult(result);
-        toast.success("Transcription complete", result.correctedText || result.rawText || "No text");
+        toast.success(
+          t("voices.speechRecognition.toasts.transcriptionComplete"),
+          result.correctedText ||
+            result.rawText ||
+            t("voices.speechRecognition.result.noText"),
+        );
       } catch (error) {
         console.error("Failed to transcribe test audio:", error);
-        toast.error("Transcription failed", String(error));
+        toast.error(t("voices.speechRecognition.toasts.transcriptionFailed"), String(error));
       } finally {
         setIsTranscribingTest(false);
       }
@@ -748,12 +785,13 @@ export function SpeechRecognitionPage() {
       testLanguage,
       testPrompt,
       testUseGpu,
+      t,
     ],
   );
 
   const handlePreloadSelectedModel = useCallback(async () => {
     if (!selectedTestModelPath) {
-      toast.warning("Choose a Whisper model first");
+      toast.warning(t("voices.speechRecognition.toasts.chooseModelFirst"));
       return;
     }
 
@@ -764,14 +802,17 @@ export function SpeechRecognitionPage() {
         useGpu: testUseGpu,
         forceCpu: !testUseGpu,
       });
-      toast.success("Model preloaded", "Whisper context is warm and ready.");
+      toast.success(
+        t("voices.speechRecognition.toasts.modelPreloaded"),
+        t("voices.speechRecognition.toasts.modelPreloadedDescription"),
+      );
     } catch (error) {
       console.error("Failed to preload Whisper model:", error);
-      toast.error("Failed to preload model", String(error));
+      toast.error(t("voices.speechRecognition.toasts.preloadFailed"), String(error));
     } finally {
       setIsPreloadingModel(false);
     }
-  }, [selectedTestModelPath, testUseGpu]);
+  }, [selectedTestModelPath, testUseGpu, t]);
 
   const stopRecording = useCallback(async () => {
     const session = recorderRef.current;
@@ -788,14 +829,14 @@ export function SpeechRecognitionPage() {
 
     const merged = mergeFloat32Chunks(session.chunks);
     if (merged.length === 0) {
-      toast.warning("No audio captured");
+      toast.warning(t("voices.speechRecognition.toasts.noAudioCaptured"));
       return;
     }
 
     lastRecordingRef.current = { pcm: merged, sampleRate: session.sampleRate };
     setHasLastRecording(true);
     await runTestTranscription(merged, session.sampleRate);
-  }, [runTestTranscription]);
+  }, [runTestTranscription, t]);
 
   const rerunLastRecording = useCallback(() => {
     const last = lastRecordingRef.current;
@@ -816,7 +857,7 @@ export function SpeechRecognitionPage() {
   const playLastRecording = useCallback(async () => {
     const last = lastRecordingRef.current;
     if (!last) {
-      toast.warning("Record a sample first");
+      toast.warning(t("voices.speechRecognition.toasts.recordSampleFirst"));
       return;
     }
     if (isPlayingLastRecording) {
@@ -844,15 +885,15 @@ export function SpeechRecognitionPage() {
       source.start();
     } catch (error) {
       console.error("Failed to play last recording:", error);
-      toast.error("Playback failed", String(error));
+      toast.error(t("voices.speechRecognition.toasts.playbackFailed"), String(error));
       stopPlayback();
     }
-  }, [isPlayingLastRecording, stopPlayback]);
+  }, [isPlayingLastRecording, stopPlayback, t]);
 
   const startRecording = useCallback(async () => {
     if (isRecording) return;
     if (!selectedTestModelPath) {
-      toast.warning("Install or choose a Whisper model first");
+      toast.warning(t("voices.speechRecognition.toasts.installOrChooseModelFirst"));
       return;
     }
 
@@ -890,16 +931,16 @@ export function SpeechRecognitionPage() {
       setRecordingElapsedMs(0);
       setIsRecording(true);
     } catch (error) {
-      const message = micErrorMessage(error);
+      const message = micErrorMessage(t, error);
       if (error instanceof DOMException && error.name === "NotAllowedError") {
         console.warn("Microphone access denied:", error);
-        toast.warning("Microphone access denied", message);
+        toast.warning(t("voices.speechRecognition.toasts.micAccessDenied"), message);
       } else {
         console.error("Failed to start microphone capture:", error);
-        toast.error("Microphone access failed", message);
+        toast.error(t("voices.speechRecognition.toasts.micAccessFailed"), message);
       }
     }
-  }, [isRecording, selectedTestModelPath, stopPlayback]);
+  }, [isRecording, selectedTestModelPath, stopPlayback, t]);
 
   const whisperQueue = useMemo(
     () => (downloadQueue?.queue ?? []).filter((item) => item.queueKind === "whisper"),
@@ -987,10 +1028,9 @@ export function SpeechRecognitionPage() {
           <section data-tour-id="asr-library" className="space-y-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
               <div className="min-w-0">
-                <h2 className={SECTION_TITLE}>Library</h2>
+                <h2 className={SECTION_TITLE}>{t("voices.speechRecognition.library.title")}</h2>
                 <p className={cn("mt-0.5", SECTION_SUB)}>
-                  Three layers shape Whisper output: the prompt prefix, post-processing
-                  corrections, and labelled audio examples.
+                  {t("voices.speechRecognition.library.description")}
                 </p>
               </div>
               <button
@@ -1002,7 +1042,7 @@ export function SpeechRecognitionPage() {
                 )}
               >
                 <ListFilter className="h-3.5 w-3.5" />
-                Filter
+                {t("voices.speechRecognition.filter.title")}
                 {filterActive && (
                   <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-accent" />
                 )}
@@ -1058,7 +1098,7 @@ export function SpeechRecognitionPage() {
                       )}
                       <span className="relative flex items-center gap-1.5">
                         <Icon className="h-3.5 w-3.5" />
-                        <span>{entry.label}</span>
+                        <span>{t(entry.labelKey as Parameters<typeof t>[0])}</span>
                         <motion.span
                           layout
                           transition={{ type: "spring", stiffness: 420, damping: 36, mass: 0.7 }}
@@ -1085,7 +1125,7 @@ export function SpeechRecognitionPage() {
                 transition={{ duration: 0.15 }}
                 className="px-1 text-[11px] text-fg/40"
               >
-                {activeTab.hint}
+                {t(activeTab.hintKey as Parameters<typeof t>[0])}
               </motion.p>
             </AnimatePresence>
 
@@ -1115,10 +1155,10 @@ export function SpeechRecognitionPage() {
                   if (term.id == null) return;
                   try {
                     await asrVocabularyDelete(term.id);
-                    toast.success("Deleted vocabulary term");
+                    toast.success(t("voices.speechRecognition.toasts.deletedVocabulary"));
                     void reload();
                   } catch (error) {
-                    toast.error("Failed to delete", String(error));
+                    toast.error(t("voices.speechRecognition.toasts.deleteFailed"), String(error));
                   }
                 }}
               />
@@ -1149,10 +1189,10 @@ export function SpeechRecognitionPage() {
                   if (item.id == null) return;
                   try {
                     await asrCorrectionDelete(item.id);
-                    toast.success("Deleted correction");
+                    toast.success(t("voices.speechRecognition.toasts.deletedCorrection"));
                     void reload();
                   } catch (error) {
-                    toast.error("Failed to delete", String(error));
+                    toast.error(t("voices.speechRecognition.toasts.deleteFailed"), String(error));
                   }
                 }}
               />
@@ -1180,10 +1220,10 @@ export function SpeechRecognitionPage() {
                   if (item.id == null) return;
                   try {
                     await asrVoiceExampleDelete(item.id);
-                    toast.success("Deleted voice example");
+                    toast.success(t("voices.speechRecognition.toasts.deletedVoiceExample"));
                     void reload();
                   } catch (error) {
-                    toast.error("Failed to delete", String(error));
+                    toast.error(t("voices.speechRecognition.toasts.deleteFailed"), String(error));
                   }
                 }}
               />
@@ -1324,23 +1364,30 @@ function FilterPanel({
   setFilter: React.Dispatch<React.SetStateAction<FilterState>>;
   onReset: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className={panelClass("mt-1 space-y-3")}>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <FieldShell label="Language" hint="BCP-47 code, e.g. en, en-US, tr.">
+        <FieldShell
+          label={t("voices.speechRecognition.filter.language")}
+          hint={t("voices.speechRecognition.filter.languageHint")}
+        >
           <input
             type="text"
             className={inputClass()}
-            placeholder="any"
+            placeholder={t("voices.speechRecognition.filter.languagePlaceholder")}
             value={filter.language}
             onChange={(e) => setFilter((prev) => ({ ...prev, language: e.target.value }))}
           />
         </FieldShell>
-        <FieldShell label="Scope" hint="Limit to a workspace or context.">
+        <FieldShell
+          label={t("voices.speechRecognition.filter.scope")}
+          hint={t("voices.speechRecognition.filter.scopeHint")}
+        >
           <input
             type="text"
             className={inputClass()}
-            placeholder="global"
+            placeholder={t("voices.speechRecognition.filter.scopePlaceholder")}
             value={filter.scope}
             onChange={(e) => setFilter((prev) => ({ ...prev, scope: e.target.value }))}
           />
@@ -1349,7 +1396,7 @@ function FilterPanel({
       <div className="flex justify-end">
         <button type="button" className={ghostButton()} onClick={onReset}>
           <X className="h-3.5 w-3.5" />
-          Reset
+          {t("common.nav.reset")}
         </button>
       </div>
     </div>
@@ -1358,6 +1405,7 @@ function FilterPanel({
 
 
 function PromptPreviewCard({ prompt }: { prompt: string }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const empty = !prompt;
   return (
@@ -1368,14 +1416,18 @@ function PromptPreviewCard({ prompt }: { prompt: string }) {
             <Sparkles className="h-4 w-4" />
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-fg">Initial prompt preview</div>
+            <div className="text-sm font-semibold text-fg">
+              {t("voices.speechRecognition.promptPreview.title")}
+            </div>
             <div className="mt-0.5 text-[11px] text-fg/50">
-              Built from your vocabulary. Length is bounded, so high-priority terms appear first.
+              {t("voices.speechRecognition.promptPreview.description")}
             </div>
           </div>
         </div>
         <button type="button" className={ghostButton()} onClick={() => setOpen((v) => !v)}>
-          {open ? "Hide" : "Show"}
+          {open
+            ? t("voices.speechRecognition.promptPreview.hide")
+            : t("voices.speechRecognition.promptPreview.show")}
         </button>
       </div>
       <AnimatePresence initial={false}>
@@ -1393,9 +1445,7 @@ function PromptPreviewCard({ prompt }: { prompt: string }) {
                 empty ? "italic text-fg/35" : "text-fg/85",
               )}
             >
-              {empty
-                ? "No vocabulary terms yet. Add some below to influence Whisper."
-                : prompt}
+              {empty ? t("voices.speechRecognition.promptPreview.empty") : prompt}
             </div>
           </motion.div>
         )}
@@ -1430,6 +1480,7 @@ function ActiveModelCard({
   onOpen,
   onClearPending,
 }: ActiveModelCardProps) {
+  const { t } = useI18n();
   const installed = useMemo(
     () => installedModels.find((m) => m.path === selectedTestModelPath) ?? null,
     [installedModels, selectedTestModelPath],
@@ -1489,8 +1540,8 @@ function ActiveModelCard({
               interactive.transition.fast,
               "hover:bg-fg/10 hover:text-danger/70 active:scale-90",
             )}
-            title="Cancel"
-            aria-label="Cancel download"
+            title={t("common.buttons.cancel")}
+            aria-label={t("voices.speechRecognition.activeModel.cancelDownload")}
           >
             <X size={13} />
           </button>
@@ -1518,7 +1569,9 @@ function ActiveModelCard({
             </span>
           </div>
         ) : (
-          <p className="mt-1.5 text-[10px] text-fg/30">Waiting in queue...</p>
+          <p className="mt-1.5 text-[10px] text-fg/30">
+            {t("voices.speechRecognition.activeModel.waitingInQueue")}
+          </p>
         )}
       </div>
     );
@@ -1552,7 +1605,7 @@ function ActiveModelCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-fg/40">
-              Active model
+              {t("voices.speechRecognition.activeModel.overline")}
             </span>
             {hasModel && (
               <span className="relative flex h-1.5 w-1.5">
@@ -1562,7 +1615,7 @@ function ActiveModelCard({
             )}
           </div>
           <div className="mt-0.5 truncate text-sm font-semibold text-fg sm:text-[15px]">
-            {installed?.label ?? "No model selected"}
+            {installed?.label ?? t("voices.speechRecognition.activeModel.noModelSelected")}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             {hasModel ? (
@@ -1574,16 +1627,18 @@ function ActiveModelCard({
                 )}
                 {installed.quantized && (
                   <span className="inline-flex items-center rounded-md border border-info/25 bg-info/10 px-1.5 py-0.5 text-[10px] font-semibold text-info">
-                    quantized
+                    {t("voices.speechRecognition.activeModel.quantized")}
                   </span>
                 )}
                 <span className="inline-flex items-center rounded-md border border-fg/10 bg-fg/8 px-1.5 py-0.5 text-[10px] font-medium text-fg/55">
-                  {installed.englishOnly ? "EN only" : "multilingual"}
+                  {installed.englishOnly
+                    ? t("voices.speechRecognition.activeModel.englishOnly")
+                    : t("voices.speechRecognition.activeModel.multilingual")}
                 </span>
               </>
             ) : (
               <span className="text-[11px] text-fg/50">
-                Pick a Whisper model to enable speech recognition.
+                {t("voices.speechRecognition.activeModel.pickToEnable")}
               </span>
             )}
           </div>
@@ -1597,7 +1652,9 @@ function ActiveModelCard({
               : "border-accent/40 bg-accent/15 text-accent",
           )}
         >
-          {hasModel ? "Change" : "Choose"}
+          {hasModel
+            ? t("voices.speechRecognition.activeModel.change")
+            : t("voices.speechRecognition.activeModel.choose")}
           <ChevronRight className="h-3.5 w-3.5" />
         </div>
       </div>
@@ -1638,6 +1695,7 @@ function ModelPickerSheet({
   onSelectAndQueue,
   onDelete,
 }: ModelPickerSheetProps) {
+  const { t } = useI18n();
   const [downloadedOnly, setDownloadedOnly] = useState(false);
   const [showAllPresets, setShowAllPresets] = useState(false);
   const [search, setSearch] = useState("");
@@ -1672,35 +1730,42 @@ function ModelPickerSheet({
   }, [availableModels, installedById, downloadedOnly, search, showAllPresets, isMobile]);
 
   return (
-    <BottomMenu isOpen={isOpen} onClose={onClose} title="Choose a Whisper model">
+    <BottomMenu isOpen={isOpen} onClose={onClose} title={t("voices.speechRecognition.picker.title")}>
       <div className="space-y-3 pb-2">
         {installedModels.length === 0 && !loadingInstalled && (
           <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/8 px-3 py-2.5">
             <Download className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
             <div className="text-[12px] leading-relaxed text-warning/90">
-              You need to download a Whisper model before you can use speech recognition. Pick one
-              from the list below. We recommend the {isMobile ? "mobile" : "desktop"} options.
+              {isMobile
+                ? t("voices.speechRecognition.picker.needDownloadMobile")
+                : t("voices.speechRecognition.picker.needDownloadDesktop")}
             </div>
           </div>
         )}
         <p className="text-[12px] leading-relaxed text-fg/55">
-          Showing models recommended for {isMobile ? "mobile" : "desktop"}. Tap one to use it; if
-          it isn't downloaded yet, it'll queue and activate automatically when ready.
+          {isMobile
+            ? t("voices.speechRecognition.picker.showingMobile")
+            : t("voices.speechRecognition.picker.showingDesktop")}
         </p>
 
         <div className="space-y-2">
           <input
             type="text"
             className={inputClass()}
-            placeholder="Search models"
+            placeholder={t("voices.speechRecognition.picker.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-[11px] text-fg/55">
-              {rows.length} {rows.length === 1 ? "model" : "models"}
-              {downloadedOnly ? ", downloaded only" : ""}
-              {!showAllPresets && ` · for ${isMobile ? "mobile" : "desktop"}`}
+              {rows.length === 1
+                ? t("voices.speechRecognition.picker.modelCount", { count: rows.length })
+                : t("voices.speechRecognition.picker.modelCountPlural", { count: rows.length })}
+              {downloadedOnly ? t("voices.speechRecognition.picker.downloadedOnlySuffix") : ""}
+              {!showAllPresets &&
+                (isMobile
+                  ? t("voices.speechRecognition.picker.forMobileSuffix")
+                  : t("voices.speechRecognition.picker.forDesktopSuffix"))}
             </span>
             <div className="flex items-center gap-3">
               <label className="flex cursor-pointer items-center gap-2 text-[11px] text-fg/65">
@@ -1709,7 +1774,7 @@ function ModelPickerSheet({
                   checked={downloadedOnly}
                   onChange={setDownloadedOnly}
                 />
-                <span>Downloaded only</span>
+                <span>{t("voices.speechRecognition.picker.downloadedOnly")}</span>
               </label>
               <label className="flex cursor-pointer items-center gap-2 text-[11px] text-fg/65">
                 <Switch
@@ -1717,7 +1782,7 @@ function ModelPickerSheet({
                   checked={showAllPresets}
                   onChange={setShowAllPresets}
                 />
-                <span>Show all</span>
+                <span>{t("voices.speechRecognition.picker.showAll")}</span>
               </label>
             </div>
           </div>
@@ -1729,8 +1794,8 @@ function ModelPickerSheet({
           ) : rows.length === 0 ? (
             <EmptyState
               icon={Sparkles}
-              title="No models match"
-              description="Try clearing the search or toggling Downloaded only off."
+              title={t("voices.speechRecognition.picker.noModelsTitle")}
+              description={t("voices.speechRecognition.picker.noModelsDescription")}
             />
           ) : (
             rows.map(({ model, installed }) => {
@@ -1785,7 +1850,8 @@ function PickerRow({
   onSelect: () => void;
   onDelete: () => void;
 }) {
-  const friendly = getFriendlyModelCopy(model.id, model.label);
+  const { t } = useI18n();
+  const friendly = getFriendlyModelCopy(t, model.id, model.label);
   return (
     <div
       className={cn(
@@ -1829,17 +1895,17 @@ function PickerRow({
               <span className="truncate text-sm font-semibold text-fg">{friendly.title}</span>
               {isActive && (
                 <span className="rounded-md border border-accent/30 bg-accent/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent">
-                  active
+                  {t("voices.speechRecognition.picker.active")}
                 </span>
               )}
               {!isActive && installed && (
                 <span className="rounded-md border border-fg/15 bg-fg/8 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-fg/55">
-                  installed
+                  {t("voices.speechRecognition.picker.installed")}
                 </span>
               )}
               {isPending && (
                 <span className="rounded-md border border-info/30 bg-info/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-info">
-                  downloading
+                  {t("voices.speechRecognition.picker.downloading")}
                 </span>
               )}
             </div>
@@ -1863,12 +1929,14 @@ function PickerRow({
               ) : (
                 <Download className="h-3 w-3" />
               )}
-              {isPending ? "Queued" : "Get"}
+              {isPending
+                ? t("voices.speechRecognition.picker.queued")
+                : t("voices.speechRecognition.picker.get")}
             </button>
           )}
           {installed && !isActive && (
             <button type="button" onClick={onSelect} className={ghostButton("h-8 px-3")}>
-              Use
+              {t("voices.speechRecognition.picker.use")}
             </button>
           )}
           {installed && (
@@ -1884,8 +1952,8 @@ function PickerRow({
                 interactive.active.scale,
                 deleting && "cursor-not-allowed opacity-60",
               )}
-              aria-label="Delete model"
-              title="Delete model"
+              aria-label={t("voices.speechRecognition.picker.deleteModel")}
+              title={t("voices.speechRecognition.picker.deleteModel")}
             >
               {deleting ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1921,15 +1989,20 @@ function ModelMeta({
 }: {
   model: AsrWhisperModelPreset | AsrInstalledWhisperModel;
 }) {
+  const { t } = useI18n();
   return (
     <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-fg/50">
       <span className="tabular-nums">{formatBytes(model.sizeBytes)}</span>
       <span className="opacity-40">·</span>
-      <span>{model.englishOnly ? "English only" : "Multilingual"}</span>
+      <span>
+        {model.englishOnly
+          ? t("voices.speechRecognition.modelMeta.englishOnly")
+          : t("voices.speechRecognition.modelMeta.multilingual")}
+      </span>
       {model.quantized && (
         <>
           <span className="opacity-40">·</span>
-          <span>Quantized</span>
+          <span>{t("voices.speechRecognition.modelMeta.quantized")}</span>
         </>
       )}
     </div>
@@ -1978,6 +2051,7 @@ function MicTestSection({
   onRerun,
   onPlay,
 }: MicTestSectionProps) {
+  const { t } = useI18n();
   const noModels = installedModels.length === 0;
   const activeModel = useMemo(
     () => installedModels.find((m) => m.path === selectedTestModelPath) ?? null,
@@ -1987,7 +2061,7 @@ function MicTestSection({
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-        <h2 className={SECTION_TITLE}>Mic test</h2>
+        <h2 className={SECTION_TITLE}>{t("voices.speechRecognition.micTest.title")}</h2>
         {(activeModel || pendingModelId) && (
           <span
             className={cn(
@@ -2003,20 +2077,22 @@ function MicTestSection({
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
             )}
             <span className="truncate">
-              {pendingModelId ? "waiting for download" : activeModel?.label}
+              {pendingModelId
+                ? t("voices.speechRecognition.micTest.waitingForDownload")
+                : activeModel?.label}
             </span>
           </span>
         )}
       </div>
 
       <div className={panelClass("space-y-3")}>
-        <FieldShell label="Language">
+        <FieldShell label={t("voices.speechRecognition.micTest.language")}>
           <select
             className={inputClass()}
             value={testLanguage}
             onChange={(event) => setTestLanguage(event.target.value)}
           >
-            <option value="">Auto-detect</option>
+            <option value="">{t("voices.speechRecognition.micTest.autoDetect")}</option>
             {WHISPER_LANGUAGES.map((lang) => (
               <option key={lang.code} value={lang.code}>
                 {lang.name} ({lang.code})
@@ -2024,11 +2100,14 @@ function MicTestSection({
             ))}
           </select>
         </FieldShell>
-        <FieldShell label="Extra prompt" hint="Appended to the vocabulary prompt for this test only.">
+        <FieldShell
+          label={t("voices.speechRecognition.micTest.extraPrompt")}
+          hint={t("voices.speechRecognition.micTest.extraPromptHint")}
+        >
           <input
             type="text"
             className={inputClass()}
-            placeholder="Names, products, acronyms..."
+            placeholder={t("voices.speechRecognition.micTest.extraPromptPlaceholder")}
             value={testPrompt}
             onChange={(event) => setTestPrompt(event.target.value)}
           />
@@ -2056,17 +2135,19 @@ function MicTestSection({
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-danger" />
                 </span>
                 <span className="tabular-nums">
-                  Recording {formatDuration(recordingElapsedMs)}
+                  {t("voices.speechRecognition.micTest.recording", {
+                    duration: formatDuration(recordingElapsedMs),
+                  })}
                 </span>
               </div>
             ) : isTranscribingTest ? (
               <div className="flex items-center justify-center gap-1.5 text-sm font-medium text-info">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Transcribing...
+                {t("voices.speechRecognition.micTest.transcribing")}
               </div>
             ) : pendingModelId ? (
               <div className="text-xs text-warning/85">
-                Waiting for selected model to finish downloading.
+                {t("voices.speechRecognition.micTest.waitingForModel")}
               </div>
             ) : noModels ? (
               <button
@@ -2075,15 +2156,15 @@ function MicTestSection({
                 className={cn(accentButton(), "text-xs")}
               >
                 <Download className="h-3.5 w-3.5" />
-                Choose a model
+                {t("voices.speechRecognition.micTest.chooseModel")}
               </button>
             ) : !activeModel ? (
               <button type="button" onClick={onOpenPicker} className={ghostButton("text-xs")}>
-                Pick a model to enable recording
+                {t("voices.speechRecognition.micTest.pickModelToRecord")}
               </button>
             ) : (
               <div className="text-xs text-fg/55">
-                Tap to record. Streams PCM directly to Whisper on stop.
+                {t("voices.speechRecognition.micTest.tapToRecord")}
               </div>
             )}
           </div>
@@ -2096,18 +2177,18 @@ function MicTestSection({
                 disabled={isTranscribingTest}
               >
                 <RefreshCw className="h-3.5 w-3.5" />
-                Run again
+                {t("voices.speechRecognition.micTest.runAgain")}
               </button>
               <button type="button" className={ghostButton()} onClick={onPlay}>
                 {isPlayingLastRecording ? (
                   <>
                     <Pause className="h-3.5 w-3.5" />
-                    Stop playback
+                    {t("voices.speechRecognition.micTest.stopPlayback")}
                   </>
                 ) : (
                   <>
                     <Play className="h-3.5 w-3.5" />
-                    Play recording
+                    {t("voices.speechRecognition.micTest.playRecording")}
                   </>
                 )}
               </button>
@@ -2132,6 +2213,7 @@ function RecordButton({
   onStart: () => void;
   onStop: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <button
       type="button"
@@ -2146,7 +2228,11 @@ function RecordButton({
           ? "border-2 border-danger/60 bg-danger/15 text-danger shadow-[0_0_24px_-4px_rgba(248,113,113,0.4)]"
           : "border-2 border-accent/40 bg-accent/15 text-accent hover:border-accent/60 hover:bg-accent/20",
       )}
-      aria-label={isRecording ? "Stop recording" : "Start recording"}
+      aria-label={
+        isRecording
+          ? t("voices.speechRecognition.micTest.stopRecording")
+          : t("voices.speechRecognition.micTest.startRecording")
+      }
     >
       {isRecording && (
         <span className="absolute inset-0 animate-ping rounded-full border-2 border-danger/40" />
@@ -2161,6 +2247,7 @@ function RecordButton({
 }
 
 function TranscriptionResultCard({ result }: { result: AsrWhisperTranscriptionResponse }) {
+  const { t } = useI18n();
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -2170,34 +2257,48 @@ function TranscriptionResultCard({ result }: { result: AsrWhisperTranscriptionRe
     >
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <div className="rounded-xl border border-fg/10 bg-bg-1/40 px-3 py-3">
-          <div className={OVERLINE}>Raw</div>
+          <div className={OVERLINE}>{t("voices.speechRecognition.result.raw")}</div>
           <div className="mt-1.5 text-sm text-fg/85">
-            {result.rawText || <span className="italic text-fg/35">No text</span>}
+            {result.rawText || (
+              <span className="italic text-fg/35">
+                {t("voices.speechRecognition.result.noText")}
+              </span>
+            )}
           </div>
         </div>
         <div className="rounded-xl border border-accent/25 bg-accent/8 px-3 py-3">
-          <div className={cn(OVERLINE, "text-accent/80")}>Corrected</div>
+          <div className={cn(OVERLINE, "text-accent/80")}>
+            {t("voices.speechRecognition.result.corrected")}
+          </div>
           <div className="mt-1.5 text-sm font-medium text-fg">
-            {result.correctedText || <span className="italic text-fg/35">No text</span>}
+            {result.correctedText || (
+              <span className="italic text-fg/35">
+                {t("voices.speechRecognition.result.noText")}
+              </span>
+            )}
           </div>
         </div>
       </div>
       <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-        <Stat label="Language">
+        <Stat label={t("voices.speechRecognition.result.language")}>
           <span className="inline-flex items-center gap-1">
             <Languages className="h-3 w-3 text-fg/40" />
-            {result.detectedLanguage || "auto"}
+            {result.detectedLanguage || t("voices.speechRecognition.result.languageAuto")}
           </span>
         </Stat>
-        <Stat label="Corrections">
+        <Stat label={t("voices.speechRecognition.result.corrections")}>
           {result.appliedCorrections.length}
         </Stat>
-        <Stat label="Segments">{result.segments.length}</Stat>
+        <Stat label={t("voices.speechRecognition.result.segments")}>
+          {result.segments.length}
+        </Stat>
       </div>
 
       {result.appliedCorrections.length > 0 && (
         <div className="rounded-xl border border-fg/10 bg-fg/5 px-3 py-3">
-          <div className={OVERLINE}>Applied corrections</div>
+          <div className={OVERLINE}>
+            {t("voices.speechRecognition.result.appliedCorrections")}
+          </div>
           <div className="mt-2 space-y-1">
             {result.appliedCorrections.map((item, index) => (
               <div
@@ -2216,9 +2317,17 @@ function TranscriptionResultCard({ result }: { result: AsrWhisperTranscriptionRe
       {result.segments.length > 0 && (
         <details className="rounded-xl border border-fg/10 bg-fg/5 px-3 py-2.5 group">
           <summary className="flex cursor-pointer items-center justify-between text-xs font-semibold text-fg/70">
-            <span>Segments ({result.segments.length})</span>
-            <span className="text-[11px] text-fg/40 group-open:hidden">Show</span>
-            <span className="hidden text-[11px] text-fg/40 group-open:inline">Hide</span>
+            <span>
+              {t("voices.speechRecognition.result.segmentsCount", {
+                count: result.segments.length,
+              })}
+            </span>
+            <span className="text-[11px] text-fg/40 group-open:hidden">
+              {t("voices.speechRecognition.result.show")}
+            </span>
+            <span className="hidden text-[11px] text-fg/40 group-open:inline">
+              {t("voices.speechRecognition.result.hide")}
+            </span>
           </summary>
           <div className="mt-2 space-y-1.5">
             {result.segments.map((segment) => (
@@ -2236,9 +2345,13 @@ function TranscriptionResultCard({ result }: { result: AsrWhisperTranscriptionRe
       {result.prompt && (
         <details className="rounded-xl border border-fg/10 bg-fg/5 px-3 py-2.5 group">
           <summary className="flex cursor-pointer items-center justify-between text-xs font-semibold text-fg/70">
-            <span>Prompt used</span>
-            <span className="text-[11px] text-fg/40 group-open:hidden">Show</span>
-            <span className="hidden text-[11px] text-fg/40 group-open:inline">Hide</span>
+            <span>{t("voices.speechRecognition.result.promptUsed")}</span>
+            <span className="text-[11px] text-fg/40 group-open:hidden">
+              {t("voices.speechRecognition.result.show")}
+            </span>
+            <span className="hidden text-[11px] text-fg/40 group-open:inline">
+              {t("voices.speechRecognition.result.hide")}
+            </span>
           </summary>
           <p className="mt-2 whitespace-pre-wrap text-[11px] leading-relaxed text-fg/65">
             {result.prompt}
@@ -2276,13 +2389,14 @@ function RuntimeSection({
   onLibraryImport: () => void;
   onLibraryExport: () => void;
 }) {
+  const { t } = useI18n();
   const isMobile = useMemo(() => getPlatform().type === "mobile", []);
   return (
     <section className="space-y-3">
       <div>
-        <h2 className={SECTION_TITLE}>Runtime</h2>
+        <h2 className={SECTION_TITLE}>{t("voices.speechRecognition.runtime.title")}</h2>
         <p className={cn("mt-0.5", SECTION_SUB)}>
-          Control how Whisper loads the active model and where library data lives on disk.
+          {t("voices.speechRecognition.runtime.description")}
         </p>
       </div>
 
@@ -2290,25 +2404,25 @@ function RuntimeSection({
         {!isMobile && (
           <RuntimeRow
             icon={<Sparkles className="h-4 w-4" />}
-            title="Use GPU"
-            description="Use CUDA, Vulkan, ROCm, or Metal acceleration when this build supports it. Off forces CPU."
+            title={t("voices.speechRecognition.runtime.useGpu")}
+            description={t("voices.speechRecognition.runtime.useGpuDescription")}
             right={<Switch checked={testUseGpu} onChange={setTestUseGpu} />}
           />
         )}
         <RuntimeRow
           icon={<Waves className="h-4 w-4" />}
-          title="Keep model loaded"
-          description="Reuse the loaded Whisper context between transcriptions for lower latency."
+          title={t("voices.speechRecognition.runtime.keepModelLoaded")}
+          description={t("voices.speechRecognition.runtime.keepModelLoadedDescription")}
           right={<Switch checked={testKeepModelLoaded} onChange={setTestKeepModelLoaded} />}
         />
         <MicInputRow />
         <RuntimeRow
           icon={<Settings2 className="h-4 w-4" />}
-          title="Whisper context cache"
+          title={t("voices.speechRecognition.runtime.contextCache")}
           description={
             selectedTestModelPath
-              ? "Preload the active model now, or clear the cache to force a cold reload later."
-              : "Pick a model above to preload it into the Whisper runtime cache."
+              ? t("voices.speechRecognition.runtime.contextCacheReady")
+              : t("voices.speechRecognition.runtime.contextCacheEmpty")
           }
           right={
             <div className="flex flex-wrap justify-end gap-2">
@@ -2323,42 +2437,42 @@ function RuntimeSection({
                 ) : (
                   <Waves className="h-3.5 w-3.5" />
                 )}
-                Preload
+                {t("voices.speechRecognition.runtime.preload")}
               </button>
               <button type="button" className={ghostButton()} onClick={onClearCache}>
                 <Trash2 className="h-3.5 w-3.5" />
-                Clear
+                {t("voices.speechRecognition.runtime.clear")}
               </button>
             </div>
           }
         />
         <RuntimeRow
           icon={<Folder className="h-4 w-4" />}
-          title="Models folder"
-          description={modelsDir || "Loading..."}
+          title={t("voices.speechRecognition.runtime.modelsFolder")}
+          description={modelsDir || t("common.labels.loading")}
           descriptionMono
           right={
             modelsDir ? (
               <button type="button" className={ghostButton()} onClick={onCopyDir}>
                 <Copy className="h-3.5 w-3.5" />
-                Copy
+                {t("common.buttons.copy")}
               </button>
             ) : null
           }
         />
         <RuntimeRow
           icon={<Upload className="h-4 w-4" />}
-          title="Library data"
-          description="Back up vocabulary, corrections, and voice examples as JSON, or restore from a previous export."
+          title={t("voices.speechRecognition.runtime.libraryData")}
+          description={t("voices.speechRecognition.runtime.libraryDataDescription")}
           right={
             <div className="flex flex-wrap justify-end gap-2">
               <button type="button" className={ghostButton()} onClick={onLibraryImport}>
                 <Upload className="h-3.5 w-3.5" />
-                Import
+                {t("common.buttons.import")}
               </button>
               <button type="button" className={ghostButton()} onClick={onLibraryExport}>
                 <Download className="h-3.5 w-3.5" />
-                Export
+                {t("common.buttons.export")}
               </button>
             </div>
           }
@@ -2407,6 +2521,7 @@ function RuntimeRow({
 }
 
 function MicInputRow() {
+  const { t } = useI18n();
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedId, setSelectedId] = useState<string>(getStoredMicDeviceId() ?? "");
   const [needsPermission, setNeedsPermission] = useState(false);
@@ -2453,7 +2568,10 @@ function MicInputRow() {
       await refresh();
     } catch (error) {
       console.error("Failed to request microphone permission:", error);
-      toast.error("Microphone permission denied", micErrorMessage(error));
+      toast.error(
+        t("voices.speechRecognition.toasts.micPermissionDenied"),
+        micErrorMessage(t, error),
+      );
     }
   };
 
@@ -2469,9 +2587,11 @@ function MicInputRow() {
           <Mic className="h-4 w-4" />
         </div>
         <div className="min-w-0">
-          <div className="text-sm font-semibold text-fg">Microphone</div>
+          <div className="text-sm font-semibold text-fg">
+            {t("voices.speechRecognition.micInput.title")}
+          </div>
           <div className="text-[11px] leading-snug text-fg/55">
-            Used by the chat footer and Mic test.
+            {t("voices.speechRecognition.micInput.description")}
           </div>
         </div>
       </div>
@@ -2482,10 +2602,13 @@ function MicInputRow() {
           onChange={(event) => handleChange(event.target.value)}
           disabled={devices.length === 0}
         >
-          <option value="">System default</option>
+          <option value="">{t("voices.speechRecognition.micInput.systemDefault")}</option>
           {devices.map((device) => (
             <option key={device.deviceId} value={device.deviceId}>
-              {device.label || `Microphone (${device.deviceId.slice(0, 6)}...)`}
+              {device.label ||
+                t("voices.speechRecognition.micInput.fallbackLabel", {
+                  id: device.deviceId.slice(0, 6),
+                })}
             </option>
           ))}
         </select>
@@ -2493,8 +2616,8 @@ function MicInputRow() {
           type="button"
           onClick={() => void refresh()}
           className={ghostButton("h-9 w-9 px-0 justify-center")}
-          title="Refresh device list"
-          aria-label="Refresh device list"
+          title={t("voices.speechRecognition.micInput.refreshDevices")}
+          aria-label={t("voices.speechRecognition.micInput.refreshDevices")}
           disabled={refreshing}
         >
           {refreshing ? (
@@ -2511,7 +2634,7 @@ function MicInputRow() {
           className={cn(accentButton("h-8 px-3"), "text-xs")}
         >
           <Mic className="h-3.5 w-3.5" />
-          Grant access to see device names
+          {t("voices.speechRecognition.micInput.grantAccess")}
         </button>
       )}
     </div>
@@ -2563,20 +2686,26 @@ function VocabularySection({
   onEdit,
   onDelete,
 }: SectionProps<AsrVocabularyTerm>) {
+  const { t } = useI18n();
   return (
     <div className="space-y-2">
-      <LibraryHeader title="Custom vocabulary" count={count} onAdd={onAdd} addLabel="Add term" />
+      <LibraryHeader
+        title={t("voices.speechRecognition.vocabularySection.title")}
+        count={count}
+        onAdd={onAdd}
+        addLabel={t("voices.speechRecognition.vocabularySection.addTerm")}
+      />
       {loading && items.length === 0 ? (
         <SkeletonList />
       ) : items.length === 0 ? (
         <EmptyState
           icon={BookOpen}
-          title="No custom vocabulary"
-          description="Add names, jargon, or product terms so Whisper has a chance to recognise them."
+          title={t("voices.speechRecognition.vocabularySection.emptyTitle")}
+          description={t("voices.speechRecognition.vocabularySection.emptyDescription")}
           action={
             <button type="button" className={accentButton()} onClick={onAdd}>
               <Plus className="h-3.5 w-3.5" />
-              Add first term
+              {t("voices.speechRecognition.vocabularySection.addFirstTerm")}
             </button>
           }
         />
@@ -2597,11 +2726,20 @@ function VocabularySection({
                   </div>
                   <ChipRow
                     chips={[
-                      item.category && { label: "category", value: item.category },
-                      item.language && { label: "lang", value: item.language },
-                      { label: "scope", value: item.scope ?? "global" },
+                      item.category && {
+                        label: t("voices.speechRecognition.chips.category"),
+                        value: item.category,
+                      },
+                      item.language && {
+                        label: t("voices.speechRecognition.chips.lang"),
+                        value: item.language,
+                      },
+                      {
+                        label: t("voices.speechRecognition.chips.scope"),
+                        value: item.scope ?? "global",
+                      },
                       typeof item.useCount === "number" && item.useCount > 0
-                        ? { label: "uses", value: String(item.useCount) }
+                        ? { label: t("voices.speechRecognition.chips.uses"), value: String(item.useCount) }
                         : null,
                     ]}
                   />
@@ -2652,6 +2790,7 @@ function CorrectionsSection({
   onEdit,
   onDelete,
 }: CorrectionsSectionProps) {
+  const { t } = useI18n();
   const [page, setPage] = useState(0);
   const totalPages = Math.max(1, Math.ceil(items.length / CORRECTIONS_PAGE_SIZE));
 
@@ -2671,16 +2810,18 @@ function CorrectionsSection({
   return (
     <div className="space-y-2">
       <LibraryHeader
-        title="Learned corrections"
+        title={t("voices.speechRecognition.correctionsSection.title")}
         count={count}
         onAdd={onAdd}
-        addLabel="Add correction"
+        addLabel={t("voices.speechRecognition.correctionsSection.addCorrection")}
       />
       <div className={subCardClass("flex items-center justify-between")}>
         <div className="min-w-0">
-          <div className="text-sm font-semibold text-fg">Approved only</div>
+          <div className="text-sm font-semibold text-fg">
+            {t("voices.speechRecognition.correctionsSection.approvedOnly")}
+          </div>
           <div className="mt-0.5 text-[11px] text-fg/50">
-            Hide auto-suggested entries that have not been reviewed.
+            {t("voices.speechRecognition.correctionsSection.approvedOnlyDescription")}
           </div>
         </div>
         <Switch id="asr-approved-only" checked={approvedOnly} onChange={onToggleApprovedOnly} />
@@ -2690,12 +2831,12 @@ function CorrectionsSection({
       ) : items.length === 0 ? (
         <EmptyState
           icon={Wand2}
-          title="No corrections yet"
-          description="A correction rewrites Whisper output. Add a wrong → right pair to clean up consistent mistakes."
+          title={t("voices.speechRecognition.correctionsSection.emptyTitle")}
+          description={t("voices.speechRecognition.correctionsSection.emptyDescription")}
           action={
             <button type="button" className={accentButton()} onClick={onAdd}>
               <Plus className="h-3.5 w-3.5" />
-              Add first correction
+              {t("voices.speechRecognition.correctionsSection.addFirstCorrection")}
             </button>
           }
         />
@@ -2718,28 +2859,38 @@ function CorrectionsSection({
                   <ChipRow
                     chips={[
                       {
-                        label: item.userApproved ? "approved" : "suggested",
+                        label: item.userApproved
+                          ? t("voices.speechRecognition.chips.approved")
+                          : t("voices.speechRecognition.chips.suggested"),
                         value: "",
                         tone: item.userApproved ? "info" : "muted",
                       },
                       typeof item.confidence === "number"
-                        ? { label: "conf", value: item.confidence.toFixed(2) }
+                        ? { label: t("voices.speechRecognition.chips.conf"), value: item.confidence.toFixed(2) }
                         : null,
-                      item.language && { label: "lang", value: item.language },
-                      { label: "scope", value: item.scope ?? "global" },
+                      item.language && {
+                        label: t("voices.speechRecognition.chips.lang"),
+                        value: item.language,
+                      },
+                      {
+                        label: t("voices.speechRecognition.chips.scope"),
+                        value: item.scope ?? "global",
+                      },
                       typeof item.useCount === "number" && item.useCount > 0
-                        ? { label: "uses", value: String(item.useCount) }
+                        ? { label: t("voices.speechRecognition.chips.uses"), value: String(item.useCount) }
                         : null,
                       typeof item.acceptedCount === "number" && item.acceptedCount > 0
-                        ? { label: "accepted", value: String(item.acceptedCount), tone: "info" }
+                        ? { label: t("voices.speechRecognition.chips.accepted"), value: String(item.acceptedCount), tone: "info" }
                         : null,
                       typeof item.rejectedCount === "number" && item.rejectedCount > 0
-                        ? { label: "ignored", value: String(item.rejectedCount), tone: "muted" }
+                        ? { label: t("voices.speechRecognition.chips.ignored"), value: String(item.rejectedCount), tone: "muted" }
                         : null,
                       typeof item.seenCount === "number" && item.seenCount > 0
-                        ? { label: "seen", value: String(item.seenCount) }
+                        ? { label: t("voices.speechRecognition.chips.seen"), value: String(item.seenCount) }
                         : null,
-                      item.lastSeenAt ? { label: "last", value: item.lastSeenAt } : null,
+                      item.lastSeenAt
+                        ? { label: t("voices.speechRecognition.chips.last"), value: item.lastSeenAt }
+                        : null,
                     ]}
                   />
                 </div>
@@ -2781,15 +2932,17 @@ function Pagination({
   onPrev: () => void;
   onNext: () => void;
 }) {
+  const { t } = useI18n();
   const atStart = page === 0;
   const atEnd = page >= totalPages - 1;
   return (
     <div className="flex items-center justify-between gap-2 rounded-xl border border-fg/10 bg-fg/5 px-3 py-2">
       <span className="text-[11px] tabular-nums text-fg/55">
-        <span className="font-semibold text-fg/75">
-          {showingFrom}–{showingTo}
-        </span>{" "}
-        of {total}
+        {t("voices.speechRecognition.pagination.rangeOfTotal", {
+          from: showingFrom,
+          to: showingTo,
+          total,
+        })}
       </span>
       <div className="flex items-center gap-1.5">
         <button
@@ -2803,12 +2956,15 @@ function Pagination({
             "hover:border-fg/25 hover:bg-fg/10 hover:text-fg",
             "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-fg/10 disabled:hover:bg-fg/5 disabled:hover:text-fg/70",
           )}
-          aria-label="Previous page"
+          aria-label={t("voices.speechRecognition.pagination.previousPage")}
         >
           <ChevronRight className="h-3.5 w-3.5 rotate-180" />
         </button>
         <span className="min-w-14 text-center text-[11px] font-semibold tabular-nums text-fg/70">
-          {page + 1} / {totalPages}
+          {t("voices.speechRecognition.pagination.pageOf", {
+            page: page + 1,
+            total: totalPages,
+          })}
         </span>
         <button
           type="button"
@@ -2821,7 +2977,7 @@ function Pagination({
             "hover:border-fg/25 hover:bg-fg/10 hover:text-fg",
             "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-fg/10 disabled:hover:bg-fg/5 disabled:hover:text-fg/70",
           )}
-          aria-label="Next page"
+          aria-label={t("voices.speechRecognition.pagination.nextPage")}
         >
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
@@ -2838,20 +2994,26 @@ function VoiceExamplesSection({
   onEdit,
   onDelete,
 }: SectionProps<AsrVoiceExample>) {
+  const { t } = useI18n();
   return (
     <div className="space-y-2">
-      <LibraryHeader title="Voice examples" count={count} onAdd={onAdd} addLabel="Add example" />
+      <LibraryHeader
+        title={t("voices.speechRecognition.voiceExamplesSection.title")}
+        count={count}
+        onAdd={onAdd}
+        addLabel={t("voices.speechRecognition.voiceExamplesSection.addExample")}
+      />
       {loading && items.length === 0 ? (
         <SkeletonList />
       ) : items.length === 0 ? (
         <EmptyState
           icon={AudioLines}
-          title="No voice examples"
-          description="Pair an audio clip with the text it should produce. Useful for tuning corrections from real recordings."
+          title={t("voices.speechRecognition.voiceExamplesSection.emptyTitle")}
+          description={t("voices.speechRecognition.voiceExamplesSection.emptyDescription")}
           action={
             <button type="button" className={accentButton()} onClick={onAdd}>
               <Plus className="h-3.5 w-3.5" />
-              Add first example
+              {t("voices.speechRecognition.voiceExamplesSection.addFirstExample")}
             </button>
           }
         />
@@ -2867,18 +3029,28 @@ function VoiceExamplesSection({
                   </div>
                   {item.whisperOutput && (
                     <div className="mt-1.5 rounded-md border border-fg/10 bg-bg-1/40 px-2 py-1 text-[11px] leading-relaxed text-fg/70">
-                      <span className="text-fg/40">heard: </span>
+                      <span className="text-fg/40">
+                        {t("voices.speechRecognition.voiceExamplesSection.heard")}
+                      </span>
                       <span>{item.whisperOutput}</span>
                     </div>
                   )}
                   <ChipRow
                     chips={[
-                      item.language && { label: "lang", value: item.language },
-                      { label: "scope", value: item.scope ?? "global" },
+                      item.language && {
+                        label: t("voices.speechRecognition.chips.lang"),
+                        value: item.language,
+                      },
+                      {
+                        label: t("voices.speechRecognition.chips.scope"),
+                        value: item.scope ?? "global",
+                      },
                       item.correctionId != null
-                        ? { label: "correction", value: `#${item.correctionId}` }
+                        ? { label: t("voices.speechRecognition.chips.correction"), value: `#${item.correctionId}` }
                         : null,
-                      item.termId != null ? { label: "term", value: `#${item.termId}` } : null,
+                      item.termId != null
+                        ? { label: t("voices.speechRecognition.chips.term"), value: `#${item.termId}` }
+                        : null,
                     ]}
                   />
                 </div>
@@ -2926,6 +3098,7 @@ function ChipRow({ chips }: { chips: Chip[] }) {
 }
 
 function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="flex shrink-0 gap-1">
       <button
@@ -2937,7 +3110,7 @@ function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
           interactive.transition.fast,
           interactive.active.scale,
         )}
-        aria-label="Edit"
+        aria-label={t("common.buttons.edit")}
       >
         <Pencil className="h-3.5 w-3.5" />
       </button>
@@ -2950,7 +3123,7 @@ function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
           interactive.transition.fast,
           interactive.active.scale,
         )}
-        aria-label="Delete"
+        aria-label={t("common.buttons.delete")}
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>
@@ -3020,10 +3193,12 @@ function EditorSheet({
   subtitle,
   onClose,
   onSubmit,
-  submitLabel = "Save",
+  submitLabel,
   busy,
   children,
 }: EditorShellProps) {
+  const { t } = useI18n();
+  const resolvedSubmitLabel = submitLabel ?? t("common.buttons.save");
   return (
     <BottomMenu isOpen onClose={onClose} title={title}>
       <div className="space-y-4 pb-2">
@@ -3036,7 +3211,7 @@ function EditorSheet({
             disabled={busy}
             className="flex-1 rounded-lg border border-fg/10 bg-fg/5 px-4 py-2 text-sm font-medium text-fg/70 transition hover:border-fg/20 hover:bg-fg/10 hover:text-fg disabled:opacity-50"
           >
-            Cancel
+            {t("common.buttons.cancel")}
           </button>
           <button
             type="button"
@@ -3045,7 +3220,7 @@ function EditorSheet({
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-accent/40 bg-accent/20 px-4 py-2 text-sm font-semibold text-accent/90 transition hover:border-accent/60 hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            {submitLabel}
+            {resolvedSubmitLabel}
           </button>
         </div>
       </div>
@@ -3080,13 +3255,14 @@ function VocabularyEditor({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState<AsrVocabularyTerm>(initial);
   const [busy, setBusy] = useState(false);
   const isEdit = initial.id != null;
 
   const submit = async () => {
     if (!draft.term.trim()) {
-      toast.warning("Term required");
+      toast.warning(t("voices.speechRecognition.vocabularyEditor.termRequired"));
       return;
     }
     setBusy(true);
@@ -3098,10 +3274,14 @@ function VocabularyEditor({
         language: draft.language?.trim() || null,
         scope: draft.scope?.trim() || null,
       });
-      toast.success(isEdit ? "Updated" : "Added");
+      toast.success(
+        isEdit
+          ? t("voices.speechRecognition.toasts.updated")
+          : t("voices.speechRecognition.toasts.added"),
+      );
       onSaved();
     } catch (error) {
-      toast.error("Failed to save", String(error));
+      toast.error(t("voices.speechRecognition.toasts.saveFailed"), String(error));
     } finally {
       setBusy(false);
     }
@@ -3109,13 +3289,17 @@ function VocabularyEditor({
 
   return (
     <EditorSheet
-      title={isEdit ? "Edit vocabulary term" : "Add vocabulary term"}
-      subtitle="Bias Whisper toward names, jargon, and product terms."
+      title={
+        isEdit
+          ? t("voices.speechRecognition.vocabularyEditor.editTitle")
+          : t("voices.speechRecognition.vocabularyEditor.addTitle")
+      }
+      subtitle={t("voices.speechRecognition.vocabularyEditor.subtitle")}
       onClose={onClose}
       onSubmit={submit}
       busy={busy}
     >
-      <FieldShell label="Term">
+      <FieldShell label={t("voices.speechRecognition.vocabularyEditor.term")}>
         <input
           autoFocus
           type="text"
@@ -3124,7 +3308,10 @@ function VocabularyEditor({
           onChange={(e) => setDraft((p) => ({ ...p, term: e.target.value }))}
         />
       </FieldShell>
-      <FieldShell label="Category" hint="Optional grouping label, e.g. names, places, jargon.">
+      <FieldShell
+        label={t("voices.speechRecognition.vocabularyEditor.category")}
+        hint={t("voices.speechRecognition.vocabularyEditor.categoryHint")}
+      >
         <input
           type="text"
           className={inputClass()}
@@ -3133,26 +3320,29 @@ function VocabularyEditor({
         />
       </FieldShell>
       <div className="grid grid-cols-2 gap-3">
-        <FieldShell label="Language">
+        <FieldShell label={t("voices.speechRecognition.vocabularyEditor.language")}>
           <input
             type="text"
-            placeholder="any"
+            placeholder={t("voices.speechRecognition.vocabularyEditor.languagePlaceholder")}
             className={inputClass()}
             value={draft.language ?? ""}
             onChange={(e) => setDraft((p) => ({ ...p, language: e.target.value }))}
           />
         </FieldShell>
-        <FieldShell label="Scope">
+        <FieldShell label={t("voices.speechRecognition.vocabularyEditor.scope")}>
           <input
             type="text"
-            placeholder="global"
+            placeholder={t("voices.speechRecognition.vocabularyEditor.scopePlaceholder")}
             className={inputClass()}
             value={draft.scope ?? ""}
             onChange={(e) => setDraft((p) => ({ ...p, scope: e.target.value }))}
           />
         </FieldShell>
       </div>
-      <FieldShell label="Priority" hint="Higher values appear earlier in the prompt (default 50).">
+      <FieldShell
+        label={t("voices.speechRecognition.vocabularyEditor.priority")}
+        hint={t("voices.speechRecognition.vocabularyEditor.priorityHint")}
+      >
         <NumberInput
           min={0}
           max={100}
@@ -3176,13 +3366,14 @@ function CorrectionEditor({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState<AsrCorrection>(initial);
   const [busy, setBusy] = useState(false);
   const isEdit = initial.id != null;
 
   const submit = async () => {
     if (!draft.wrong.trim() || !draft.correct.trim()) {
-      toast.warning("Both wrong and correct text are required");
+      toast.warning(t("voices.speechRecognition.correctionEditor.bothRequired"));
       return;
     }
     setBusy(true);
@@ -3194,10 +3385,14 @@ function CorrectionEditor({
         language: draft.language?.trim() || null,
         scope: draft.scope?.trim() || null,
       });
-      toast.success(isEdit ? "Updated" : "Added");
+      toast.success(
+        isEdit
+          ? t("voices.speechRecognition.toasts.updated")
+          : t("voices.speechRecognition.toasts.added"),
+      );
       onSaved();
     } catch (error) {
-      toast.error("Failed to save", String(error));
+      toast.error(t("voices.speechRecognition.toasts.saveFailed"), String(error));
     } finally {
       setBusy(false);
     }
@@ -3205,13 +3400,17 @@ function CorrectionEditor({
 
   return (
     <EditorSheet
-      title={isEdit ? "Edit correction" : "Add correction"}
-      subtitle="Replace consistent Whisper mistakes."
+      title={
+        isEdit
+          ? t("voices.speechRecognition.correctionEditor.editTitle")
+          : t("voices.speechRecognition.correctionEditor.addTitle")
+      }
+      subtitle={t("voices.speechRecognition.correctionEditor.subtitle")}
       onClose={onClose}
       onSubmit={submit}
       busy={busy}
     >
-      <FieldShell label="Wrong (heard)">
+      <FieldShell label={t("voices.speechRecognition.correctionEditor.wrong")}>
         <input
           autoFocus
           type="text"
@@ -3220,7 +3419,7 @@ function CorrectionEditor({
           onChange={(e) => setDraft((p) => ({ ...p, wrong: e.target.value }))}
         />
       </FieldShell>
-      <FieldShell label="Correct (replacement)">
+      <FieldShell label={t("voices.speechRecognition.correctionEditor.correct")}>
         <input
           type="text"
           className={inputClass()}
@@ -3229,26 +3428,26 @@ function CorrectionEditor({
         />
       </FieldShell>
       <div className="grid grid-cols-2 gap-3">
-        <FieldShell label="Language">
+        <FieldShell label={t("voices.speechRecognition.correctionEditor.language")}>
           <input
             type="text"
-            placeholder="any"
+            placeholder={t("voices.speechRecognition.correctionEditor.languagePlaceholder")}
             className={inputClass()}
             value={draft.language ?? ""}
             onChange={(e) => setDraft((p) => ({ ...p, language: e.target.value }))}
           />
         </FieldShell>
-        <FieldShell label="Scope">
+        <FieldShell label={t("voices.speechRecognition.correctionEditor.scope")}>
           <input
             type="text"
-            placeholder="global"
+            placeholder={t("voices.speechRecognition.correctionEditor.scopePlaceholder")}
             className={inputClass()}
             value={draft.scope ?? ""}
             onChange={(e) => setDraft((p) => ({ ...p, scope: e.target.value }))}
           />
         </FieldShell>
       </div>
-      <FieldShell label="Confidence (0-1)">
+      <FieldShell label={t("voices.speechRecognition.correctionEditor.confidence")}>
         <NumberInput
           min={0}
           max={1}
@@ -3263,8 +3462,12 @@ function CorrectionEditor({
       </FieldShell>
       <div className="flex items-center justify-between rounded-xl border border-fg/10 bg-fg/5 px-3 py-2.5">
         <div>
-          <div className="text-sm font-semibold text-fg">User approved</div>
-          <div className="text-[11px] text-fg/50">Approved corrections take precedence.</div>
+          <div className="text-sm font-semibold text-fg">
+            {t("voices.speechRecognition.correctionEditor.userApproved")}
+          </div>
+          <div className="text-[11px] text-fg/50">
+            {t("voices.speechRecognition.correctionEditor.userApprovedDescription")}
+          </div>
         </div>
         <Switch
           id="asr-correction-approved"
@@ -3287,6 +3490,7 @@ function VoiceExampleEditor({
   onSaved: () => void;
   activeModelPath: string;
 }) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState<AsrVoiceExample>(initial);
   const [busy, setBusy] = useState(false);
   const [suggestion, setSuggestion] = useState<AsrLearnedSuggestion | null>(null);
@@ -3354,7 +3558,7 @@ function VoiceExampleEditor({
       setIsRecording(true);
     } catch (error) {
       console.error("Failed to start voice example recording:", error);
-      toast.error("Microphone access failed", String(error));
+      toast.error(t("voices.speechRecognition.toasts.micAccessFailed"), String(error));
     }
   };
 
@@ -3373,7 +3577,7 @@ function VoiceExampleEditor({
     }
     const merged = mergeFloat32Chunks(session.chunks);
     if (merged.length === 0) {
-      toast.warning("No audio captured");
+      toast.warning(t("voices.speechRecognition.toasts.noAudioCaptured"));
       return;
     }
     setSavingRecording(true);
@@ -3386,10 +3590,10 @@ function VoiceExampleEditor({
       const absolutePath = await joinPath(dirAbs, filename);
       await writeFile(absolutePath, wav);
       setDraft((p) => ({ ...p, audioPath: absolutePath }));
-      toast.success("Recording saved", absolutePath);
+      toast.success(t("voices.speechRecognition.toasts.recordingSaved"), absolutePath);
     } catch (error) {
       console.error("Failed to save voice example recording:", error);
-      toast.error("Failed to save recording", String(error));
+      toast.error(t("voices.speechRecognition.toasts.saveRecordingFailed"), String(error));
     } finally {
       setSavingRecording(false);
     }
@@ -3413,11 +3617,14 @@ function VoiceExampleEditor({
 
   const transcribeAudio = async () => {
     if (!draft.audioPath.trim()) {
-      toast.warning("Pick an audio file first");
+      toast.warning(t("voices.speechRecognition.voiceExampleEditor.pickAudioFileFirst"));
       return;
     }
     if (!activeModelPath) {
-      toast.warning("No active Whisper model", "Choose a model from the active model card first.");
+      toast.warning(
+        t("voices.speechRecognition.voiceExampleEditor.noActiveModel"),
+        t("voices.speechRecognition.voiceExampleEditor.noActiveModelDescription"),
+      );
       return;
     }
     setTranscribing(true);
@@ -3430,10 +3637,13 @@ function VoiceExampleEditor({
       });
       const text = result.rawText || result.correctedText || "";
       setDraft((p) => ({ ...p, whisperOutput: text }));
-      toast.success("Transcribed", text || "Whisper returned no text");
+      toast.success(
+        t("voices.speechRecognition.toasts.transcribed"),
+        text || t("voices.speechRecognition.toasts.whisperNoText"),
+      );
     } catch (error) {
       console.error("Failed to transcribe audio:", error);
-      toast.error("Transcription failed", String(error));
+      toast.error(t("voices.speechRecognition.toasts.transcriptionFailed"), String(error));
     } finally {
       setTranscribing(false);
     }
@@ -3447,7 +3657,7 @@ function VoiceExampleEditor({
   const pickAudio = async () => {
     try {
       const path = await openDialog({
-        title: "Select audio file",
+        title: t("voices.speechRecognition.voiceExampleEditor.selectAudioFile"),
         multiple: false,
         filters: [{ name: "Audio", extensions: ["wav", "mp3", "flac", "m4a", "ogg"] }],
       });
@@ -3455,7 +3665,7 @@ function VoiceExampleEditor({
         setDraft((p) => ({ ...p, audioPath: path }));
       }
     } catch (error) {
-      toast.error("Failed to pick file", String(error));
+      toast.error(t("voices.speechRecognition.toasts.pickFileFailed"), String(error));
     }
   };
 
@@ -3471,10 +3681,13 @@ function VoiceExampleEditor({
       });
       setSuggestion(result);
       if (!result) {
-        toast.info("No suggested correction", "Whisper output is close enough to expected text.");
+        toast.info(
+          t("voices.speechRecognition.toasts.noSuggestedCorrection"),
+          t("voices.speechRecognition.toasts.noSuggestedCorrectionDescription"),
+        );
       }
     } catch (error) {
-      toast.error("Suggestion failed", String(error));
+      toast.error(t("voices.speechRecognition.toasts.suggestionFailed"), String(error));
     } finally {
       setSuggesting(false);
     }
@@ -3493,10 +3706,10 @@ function VoiceExampleEditor({
         userApproved: true,
       });
       setDraft((p) => ({ ...p, correctionId: correction.id ?? null }));
-      toast.success("Saved as approved correction");
+      toast.success(t("voices.speechRecognition.toasts.savedAsApproved"));
       setSuggestion(null);
     } catch (error) {
-      toast.error("Failed to save correction", String(error));
+      toast.error(t("voices.speechRecognition.toasts.saveCorrectionFailed"), String(error));
     } finally {
       setBusy(false);
     }
@@ -3504,7 +3717,7 @@ function VoiceExampleEditor({
 
   const submit = async () => {
     if (!draft.audioPath.trim() || !draft.expectedText.trim()) {
-      toast.warning("Audio path and expected text are required");
+      toast.warning(t("voices.speechRecognition.voiceExampleEditor.audioPathAndTextRequired"));
       return;
     }
     setBusy(true);
@@ -3517,10 +3730,14 @@ function VoiceExampleEditor({
         language: draft.language?.trim() || null,
         scope: draft.scope?.trim() || null,
       });
-      toast.success(isEdit ? "Updated" : "Added");
+      toast.success(
+        isEdit
+          ? t("voices.speechRecognition.toasts.updated")
+          : t("voices.speechRecognition.toasts.added"),
+      );
       onSaved();
     } catch (error) {
-      toast.error("Failed to save", String(error));
+      toast.error(t("voices.speechRecognition.toasts.saveFailed"), String(error));
     } finally {
       setBusy(false);
     }
@@ -3528,15 +3745,19 @@ function VoiceExampleEditor({
 
   return (
     <EditorSheet
-      title={isEdit ? "Edit voice example" : "Add voice example"}
-      subtitle="Pair an audio clip with the text it should produce."
+      title={
+        isEdit
+          ? t("voices.speechRecognition.voiceExampleEditor.editTitle")
+          : t("voices.speechRecognition.voiceExampleEditor.addTitle")
+      }
+      subtitle={t("voices.speechRecognition.voiceExampleEditor.subtitle")}
       onClose={onClose}
       onSubmit={submit}
       busy={busy}
     >
       <FieldShell
-        label="Audio path"
-        hint="Pick an existing audio file, or record a new clip and we'll save a WAV under the app's data directory."
+        label={t("voices.speechRecognition.voiceExampleEditor.audioPath")}
+        hint={t("voices.speechRecognition.voiceExampleEditor.audioPathHint")}
       >
         <div className="space-y-2">
           {isRecording ? (
@@ -3547,13 +3768,15 @@ function VoiceExampleEditor({
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-danger" />
                 </span>
                 <span className="text-sm font-semibold text-danger">
-                  Recording {formatDuration(recordingElapsedMs)}
+                  {t("voices.speechRecognition.voiceExampleEditor.recording", {
+                    duration: formatDuration(recordingElapsedMs),
+                  })}
                 </span>
               </div>
               <div className="flex gap-2">
                 <button type="button" className={ghostButton()} onClick={cancelRecording}>
                   <X className="h-3.5 w-3.5" />
-                  Discard
+                  {t("voices.speechRecognition.voiceExampleEditor.discard")}
                 </button>
                 <button
                   type="button"
@@ -3561,7 +3784,7 @@ function VoiceExampleEditor({
                   onClick={() => void stopRecording()}
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  Stop & save
+                  {t("voices.speechRecognition.voiceExampleEditor.stopAndSave")}
                 </button>
               </div>
             </div>
@@ -3571,7 +3794,7 @@ function VoiceExampleEditor({
                 type="text"
                 className={inputClass("flex-1")}
                 value={draft.audioPath}
-                placeholder="/path/to/clip.wav"
+                placeholder={t("voices.speechRecognition.voiceExampleEditor.audioPathPlaceholder")}
                 onChange={(e) => setDraft((p) => ({ ...p, audioPath: e.target.value }))}
                 disabled={savingRecording}
               />
@@ -3582,7 +3805,7 @@ function VoiceExampleEditor({
                 disabled={savingRecording}
               >
                 <Folder className="h-3.5 w-3.5" />
-                Browse
+                {t("voices.speechRecognition.voiceExampleEditor.browse")}
               </button>
               <button
                 type="button"
@@ -3595,13 +3818,18 @@ function VoiceExampleEditor({
                 ) : (
                   <Mic className="h-3.5 w-3.5" />
                 )}
-                {savingRecording ? "Saving..." : "Record"}
+                {savingRecording
+                  ? t("voices.speechRecognition.voiceExampleEditor.saving")
+                  : t("voices.speechRecognition.voiceExampleEditor.record")}
               </button>
             </div>
           )}
         </div>
       </FieldShell>
-      <FieldShell label="Expected text" hint="What the recording should transcribe to.">
+      <FieldShell
+        label={t("voices.speechRecognition.voiceExampleEditor.expectedText")}
+        hint={t("voices.speechRecognition.voiceExampleEditor.expectedTextHint")}
+      >
         <textarea
           rows={2}
           className={inputClass("resize-none")}
@@ -3610,8 +3838,8 @@ function VoiceExampleEditor({
         />
       </FieldShell>
       <FieldShell
-        label="Whisper output"
-        hint="Optional. Paste the raw transcription, or run Whisper on the file above."
+        label={t("voices.speechRecognition.voiceExampleEditor.whisperOutput")}
+        hint={t("voices.speechRecognition.voiceExampleEditor.whisperOutputHint")}
       >
         <div className="space-y-2">
           <textarea
@@ -3632,9 +3860,9 @@ function VoiceExampleEditor({
               )}
               title={
                 !activeModelPath
-                  ? "Pick an active Whisper model first"
+                  ? t("voices.speechRecognition.voiceExampleEditor.pickActiveModelFirst")
                   : !draft.audioPath.trim()
-                    ? "Pick an audio file first"
+                    ? t("voices.speechRecognition.voiceExampleEditor.pickAudioFirst")
                     : undefined
               }
             >
@@ -3643,25 +3871,27 @@ function VoiceExampleEditor({
               ) : (
                 <Wand2 className="h-3.5 w-3.5" />
               )}
-              {transcribing ? "Transcribing..." : "Transcribe with active model"}
+              {transcribing
+                ? t("voices.speechRecognition.voiceExampleEditor.transcribing")
+                : t("voices.speechRecognition.voiceExampleEditor.transcribeWithActiveModel")}
             </button>
           </div>
         </div>
       </FieldShell>
       <div className="grid grid-cols-2 gap-3">
-        <FieldShell label="Language">
+        <FieldShell label={t("voices.speechRecognition.voiceExampleEditor.language")}>
           <input
             type="text"
-            placeholder="any"
+            placeholder={t("voices.speechRecognition.voiceExampleEditor.languagePlaceholder")}
             className={inputClass()}
             value={draft.language ?? ""}
             onChange={(e) => setDraft((p) => ({ ...p, language: e.target.value }))}
           />
         </FieldShell>
-        <FieldShell label="Scope">
+        <FieldShell label={t("voices.speechRecognition.voiceExampleEditor.scope")}>
           <input
             type="text"
-            placeholder="global"
+            placeholder={t("voices.speechRecognition.voiceExampleEditor.scopePlaceholder")}
             className={inputClass()}
             value={draft.scope ?? ""}
             onChange={(e) => setDraft((p) => ({ ...p, scope: e.target.value }))}
@@ -3672,9 +3902,11 @@ function VoiceExampleEditor({
       <div className="rounded-xl border border-fg/10 bg-fg/5 px-3 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-fg">Suggest correction</div>
+            <div className="text-sm font-semibold text-fg">
+              {t("voices.speechRecognition.voiceExampleEditor.suggestCorrection")}
+            </div>
             <div className="mt-0.5 text-[11px] text-fg/50">
-              Diffs Whisper output against expected text and proposes a correction pair.
+              {t("voices.speechRecognition.voiceExampleEditor.suggestCorrectionDescription")}
             </div>
           </div>
           <button
@@ -3691,7 +3923,7 @@ function VoiceExampleEditor({
             ) : (
               <Sparkles className="h-3.5 w-3.5" />
             )}
-            Preview
+            {t("voices.speechRecognition.voiceExampleEditor.preview")}
           </button>
         </div>
         {suggestion && (
@@ -3707,7 +3939,9 @@ function VoiceExampleEditor({
               <span className="text-fg/40">→</span>
               <span className="font-semibold text-fg">{suggestion.correct}</span>
               <span className="ml-auto text-[10px] font-bold tabular-nums text-fg/45">
-                conf {suggestion.confidence.toFixed(2)}
+                {t("voices.speechRecognition.voiceExampleEditor.confShort", {
+                  value: suggestion.confidence.toFixed(2),
+                })}
               </span>
             </div>
             <div className="mt-2 flex justify-end">
@@ -3718,7 +3952,7 @@ function VoiceExampleEditor({
                 disabled={busy}
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                Save as approved
+                {t("voices.speechRecognition.voiceExampleEditor.saveAsApproved")}
               </button>
             </div>
           </motion.div>

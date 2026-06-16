@@ -740,7 +740,6 @@ export const plMessages: DeepPartialMessageTree<LocaleMessages> = {
     "suggestedReply": "Sugerowana odpowiedź",
     "selectTwoCharactersMinimum": "Wybierz co najmniej 2 postacie do czatu grupowego.",
     "groupBranchCreated": "Utworzono gałąź grupową! Przekierowywanie...",
-    "memories": "Wspomnienia",
     "tools": "Narzędzia",
     "pinned": "Przypięte",
     "searchMemories": "Szukaj wspomnień...",

@@ -45,6 +45,7 @@ type ModelLoadToastOptions = {
   subtitle: string;
   modelName: string;
   progress: number;
+  progressLabel?: string;
   duration?: number | typeof Infinity;
 };
 
@@ -134,7 +135,7 @@ function showModelLoadToast(options: ModelLoadToastOptions) {
           <span className="min-w-0 truncate">{options.modelName}</span>
         </div>
         <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-fg/60">
-          <span>Startup progress</span>
+          <span>{options.progressLabel ?? "Startup progress"}</span>
           <span className="shrink-0 font-medium tabular-nums text-fg/72">{percent}%</span>
         </div>
         <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-fg/10">

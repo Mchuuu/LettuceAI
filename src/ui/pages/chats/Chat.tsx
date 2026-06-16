@@ -597,7 +597,7 @@ export function ChatConversationPage() {
       session: chatController.session,
       hasBackground: !!backgroundImageData,
       messageCount: messages.filter((m) => !m.id.startsWith("placeholder")).length,
-      sceneName: selectedScene?.direction?.trim() || (selectedScene ? "Scene" : null),
+      sceneName: selectedScene?.direction?.trim() || (selectedScene ? t("chats.message.sceneLabel") : null),
       memories: chatController.session?.memories ?? [],
       personas: widgetPersonas,
       models: widgetModels,
@@ -972,11 +972,11 @@ export function ChatConversationPage() {
     try {
       const sourceSession = await getSession(session.id);
       if (!sourceSession) {
-        throw new Error("Failed to load source session.");
+        throw new Error(t("chats.errors.loadSourceSessionFailed"));
       }
 
       if (!sourceSession.messages.some((msg) => msg.id === messageToBranch.id)) {
-        throw new Error("Selected message was not found in the session.");
+        throw new Error(t("chats.errors.messageNotInSession"));
       }
 
       const selectedSceneId = sourceSession.selectedSceneId ?? character.defaultSceneId;
@@ -1279,11 +1279,11 @@ export function ChatConversationPage() {
           voice = voices.find((v) => v.id === character.voiceConfig?.userVoiceId);
         }
         if (!voice) {
-          throw new Error("Assigned voice not found.");
+          throw new Error(t("chats.errors.assignedVoiceNotFound"));
         }
         const provider = providers.find((p) => p.id === voice.providerId);
         if (!provider) {
-          throw new Error("Assigned provider not found.");
+          throw new Error(t("chats.errors.assignedProviderNotFound"));
         }
 
         const cacheKey = buildAudioCacheKey({
@@ -1349,11 +1349,11 @@ export function ChatConversationPage() {
         const providerId = character.voiceConfig.providerId;
         const voiceId = character.voiceConfig.voiceId;
         if (!providerId || !voiceId) {
-          throw new Error("Voice assignment is missing provider details.");
+          throw new Error(t("chats.errors.voiceMissingProviderDetails"));
         }
         const provider = providers.find((p) => p.id === providerId);
         if (!provider) {
-          throw new Error("Assigned provider not found.");
+          throw new Error(t("chats.errors.assignedProviderNotFound"));
         }
 
         let modelId = character.voiceConfig.modelId;
@@ -1366,7 +1366,7 @@ export function ChatConversationPage() {
           }
         }
         if (!modelId) {
-          throw new Error("No audio models available for this provider.");
+          throw new Error(t("chats.errors.noAudioModelsForProvider"));
         }
 
         const cacheKey = buildAudioCacheKey({
@@ -1659,7 +1659,7 @@ export function ChatConversationPage() {
                 payload.data?.message ||
                 payload.data?.error ||
                 payload.message ||
-                "Help Me Reply failed.";
+                t("chats.errors.helpMeReplyFailed");
               setHelpMeReplyError(String(message));
               setGeneratingReply(false);
               setHelpMeReplyReasoning(false);
@@ -1682,7 +1682,7 @@ export function ChatConversationPage() {
           if (result?.trim()) {
             setGeneratedReply(result);
           } else {
-            setHelpMeReplyError("Help Me Reply failed to generate a reply.");
+            setHelpMeReplyError(t("chats.errors.helpMeReplyNoReply"));
           }
         }
 
@@ -2007,7 +2007,7 @@ export function ChatConversationPage() {
         stopFooterRecordingVisuals();
         setFooterAsrMode("idle");
         setFooterAsrBusy(false);
-        setError("No audio captured.");
+        setError(t("chats.asr.noAudioCaptured"));
         return;
       }
 
@@ -2016,7 +2016,7 @@ export function ChatConversationPage() {
         stopFooterRecordingVisuals();
         setFooterAsrMode("idle");
         setFooterAsrBusy(false);
-        setError("No installed Whisper model found. Install one in Speech Recognition settings.");
+        setError(t("chats.asr.noModelInstalled"));
         return;
       }
 
@@ -2250,7 +2250,7 @@ export function ChatConversationPage() {
             className="flex flex-wrap items-center justify-between gap-2"
           >
             <div className="min-w-0 text-xs text-fg/65">
-              Learn correction:{" "}
+              {t("chats.asr.learnCorrection")}{" "}
               <span className="text-danger/80 line-through decoration-danger/40">
                 {suggestion.wrong}
               </span>
@@ -2267,7 +2267,7 @@ export function ChatConversationPage() {
                   "hover:border-accent/50 hover:bg-accent/20 disabled:opacity-50",
                 )}
               >
-                {footerAsrLearning ? "Learning..." : "Learn"}
+                {footerAsrLearning ? t("chats.asr.learning") : t("chats.asr.learn")}
               </button>
               <button
                 type="button"
@@ -2278,7 +2278,7 @@ export function ChatConversationPage() {
                   "hover:border-fg/25 hover:bg-fg/12 disabled:opacity-50",
                 )}
               >
-                Ignore
+                {t("chats.asr.ignore")}
               </button>
             </div>
           </div>
@@ -2605,7 +2605,7 @@ export function ChatConversationPage() {
                 radius.full,
               )}
             >
-              <span className="text-sm">Swap places is active</span>
+              <span className="text-sm">{t("chats.swap.bannerActive")}</span>
               <button
                 type="button"
                 onClick={handleDisableSwapPlaces}
@@ -2613,7 +2613,7 @@ export function ChatConversationPage() {
                   "rounded-full border border-emerald-200/40 px-3 py-1 text-xs font-medium text-emerald-50 hover:bg-emerald-100/10",
                 )}
               >
-                End swap
+                {t("chats.swap.endSwap")}
               </button>
             </div>
           </motion.div>
@@ -2649,7 +2649,7 @@ export function ChatConversationPage() {
                   radius.full,
                 )}
               >
-                Load earlier messages
+                {t("chats.loadEarlierMessages")}
               </button>
             </div>
           )}
@@ -2940,7 +2940,7 @@ export function ChatConversationPage() {
       >
         <div className="space-y-2 max-h-[60vh] overflow-y-auto">
           <p className="text-sm text-white/50 mb-4">
-            Choose a character to continue this conversation with:
+            {t("chats.branch.chooseCharacterPrompt")}
           </p>
           {availableCharacters
             .filter((c) => c.id !== characterId)
@@ -2964,7 +2964,7 @@ export function ChatConversationPage() {
             ))}
           {availableCharacters.filter((c) => c.id !== characterId).length === 0 && (
             <p className="text-center text-white/40 py-8">
-              No other characters available. Create more characters first.
+              {t("chats.branch.noOtherCharacters")}
             </p>
           )}
         </div>
@@ -2983,7 +2983,7 @@ export function ChatConversationPage() {
       >
         <div className="space-y-3">
           <p className="text-sm text-white/50">
-            Branch owner is locked. Choose additional characters, then create.
+            {t("chats.branch.groupOwnerLocked")}
           </p>
 
           {groupBranchError && (
@@ -3021,7 +3021,7 @@ export function ChatConversationPage() {
               "disabled:cursor-not-allowed disabled:opacity-55",
             )}
           >
-            {groupBranchCreating ? "Creating..." : "Create Group Branch"}
+            {groupBranchCreating ? t("common.buttons.creating") : t("chats.branch.createGroupBranch")}
           </button>
         </div>
       </BottomMenu>
@@ -3036,32 +3036,32 @@ export function ChatConversationPage() {
           <MenuButton
             icon={User}
             title={t("chats.settings.persona")}
-            description={persona?.title ?? "No persona"}
+            description={persona?.title ?? t("chats.settings.noPersona")}
             onClick={() => {
               void handleOpenPersonaSelector();
             }}
           />
           <MenuButton
             icon={NotebookPen}
-            title="Author Note"
+            title={t("chats.authorNote.title")}
             description={
               (sessionForHeader?.authorNote ?? chatController.session?.authorNote)?.trim()
-                ? "Active for this chat"
-                : "Private direction for replies"
+                ? t("chats.plusMenu.authorNoteActive")
+                : t("chats.plusMenu.authorNoteInactive")
             }
             onClick={handleOpenAuthorNoteMenu}
           />
           <MenuButton
             icon={Image}
-            title="Chat Background"
+            title={t("chats.chatBackground")}
               description={
               hasSessionBackgroundOverride
-                ? "Session override active"
+                ? t("chats.settings.sessionOverrideActive")
                 : hasSceneBackgroundDefault
-                  ? "Using scene background"
+                  ? t("chats.background.usingScene")
                 : hasCharacterBackgroundDefault
-                  ? "Using character default background"
-                  : "No background selected"
+                  ? t("chats.background.usingCharacterDefault")
+                  : t("chats.background.noneSelected")
             }
             onClick={() => {
               setShowPlusMenu(false);
@@ -3073,8 +3073,8 @@ export function ChatConversationPage() {
             title={swapPlaces ? t("chats.swapPlacesOn") : t("chats.swapPlaces")}
             description={
               swapPlaces
-                ? "You are chatting as the character. Tap top banner to end."
-                : "Temporarily chat as the character and let AI reply as your persona."
+                ? t("chats.swap.activeDesc")
+                : t("chats.swap.inactiveDesc")
             }
             onClick={
               swapPlaces
@@ -3096,7 +3096,7 @@ export function ChatConversationPage() {
             <MenuButton
               icon={Sparkles}
               title={t("chats.helpMeReply")}
-              description="Let AI suggest what to say"
+              description={t("chats.helpMeReplyDesc")}
               onClick={handlePlusMenuHelpMeReply}
             />
           )}
@@ -3121,7 +3121,7 @@ export function ChatConversationPage() {
       <BottomMenu
         isOpen={showBackgroundMenu}
         onClose={() => !savingSessionBackground && setShowBackgroundMenu(false)}
-        title="Chat Background"
+        title={t("chats.chatBackground")}
       >
         <div className="space-y-4">
           <input
@@ -3143,15 +3143,15 @@ export function ChatConversationPage() {
                 <div className="overflow-hidden rounded-2xl border border-fg/10 bg-fg/4">
                   <img
                     src={backgroundImageData}
-                    alt="Current chat background"
+                    alt={t("chats.background.currentAlt")}
                     className="h-32 w-full object-cover"
                   />
                   <div className="border-t border-fg/10 px-4 py-3 text-sm text-fg/70">
                     {hasSessionBackgroundOverride
-                      ? "Current session background"
+                      ? t("chats.background.currentSession")
                       : hasSceneBackgroundDefault
-                        ? "Current scene background"
-                        : "Current character default background"}
+                        ? t("chats.background.currentScene")
+                        : t("chats.background.currentCharacterDefault")}
                   </div>
                 </div>
               )}
@@ -3162,11 +3162,11 @@ export function ChatConversationPage() {
                   <div className="overflow-hidden rounded-2xl border border-fg/10 bg-fg/4">
                     <img
                       src={sceneBackgroundPreview}
-                      alt="Scene background"
+                      alt={t("chats.background.sceneAlt")}
                       className="h-24 w-full object-cover"
                     />
                     <div className="border-t border-fg/10 px-4 py-3 text-sm text-fg/55">
-                      Scene background
+                      {t("chats.background.sceneAlt")}
                     </div>
                   </div>
                 )}
@@ -3178,11 +3178,11 @@ export function ChatConversationPage() {
                   <div className="overflow-hidden rounded-2xl border border-fg/10 bg-fg/4">
                     <img
                       src={characterBackgroundPreview}
-                      alt="Character default background"
+                      alt={t("chats.background.characterDefaultAlt")}
                       className="h-24 w-full object-cover"
                     />
                     <div className="border-t border-fg/10 px-4 py-3 text-sm text-fg/55">
-                      Character default background
+                      {t("chats.background.characterDefaultAlt")}
                     </div>
                   </div>
                 )}
@@ -3192,15 +3192,15 @@ export function ChatConversationPage() {
           <div className="space-y-2">
             <MenuButton
               icon={Image}
-              title={hasSessionBackgroundOverride ? "Replace Session Background" : "Upload Session Background"}
-              description="Only changes this chat session"
+              title={hasSessionBackgroundOverride ? t("chats.background.replaceSession") : t("chats.background.uploadSession")}
+              description={t("chats.background.onlyThisSession")}
               loading={savingSessionBackground}
               onClick={() => sessionBackgroundInputRef.current?.click()}
             />
             <MenuButton
               icon={Image}
-              title="Choose from Library"
-              description="Pick an existing image library item for this chat session"
+              title={t("chats.background.chooseFromLibrary")}
+              description={t("chats.background.chooseFromLibraryDesc")}
               loading={savingSessionBackground}
               onClick={() => setShowBackgroundLibraryMenu(true)}
             />
@@ -3211,17 +3211,17 @@ export function ChatConversationPage() {
                 icon={X}
                 title={
                   hasSceneBackgroundDefault
-                    ? "Use Scene Default"
+                    ? t("chats.background.useSceneDefault")
                     : hasCharacterBackgroundDefault
-                      ? "Use Character Default"
-                      : "Remove Background"
+                      ? t("chats.background.useCharacterDefault")
+                      : t("chats.background.removeBackground")
                 }
                 description={
                   hasSceneBackgroundDefault
-                    ? "Clear the session override and return to the current scene background"
+                    ? t("chats.background.clearToSceneDesc")
                     : hasCharacterBackgroundDefault
-                      ? "Clear the session override and return to the character background"
-                    : "Remove the session background override"
+                      ? t("chats.background.clearToCharacterDesc")
+                    : t("chats.background.removeOverrideDesc")
                 }
                 loading={savingSessionBackground}
                 onClick={() => {
@@ -3236,7 +3236,7 @@ export function ChatConversationPage() {
       <BottomMenu
         isOpen={showBackgroundLibraryMenu}
         onClose={() => !savingSessionBackground && setShowBackgroundLibraryMenu(false)}
-        title="Choose Background"
+        title={t("chats.background.chooseBackground")}
       >
         <div ref={backgroundLibraryScrollRef} className="max-h-[60vh] overflow-y-auto">
           <ImageLibraryPanel
@@ -3259,18 +3259,18 @@ export function ChatConversationPage() {
       >
         <div className="space-y-2">
           <p className="text-sm text-white/60 mb-4">
-            You have a draft message. How would you like to proceed?
+            {t("chats.helpMeReplyDraftPrompt")}
           </p>
           <MenuButton
             icon={PenLine}
             title={t("chats.useMyTextAsBase")}
-            description="Expand and improve your draft"
+            description={t("chats.useMyTextAsBaseDesc")}
             onClick={() => handleHelpMeReply("enrich")}
           />
           <MenuButton
             icon={Sparkles}
             title={t("chats.writeNewReply")}
-            description="Generate a fresh reply"
+            description={t("chats.writeNewReplyDesc")}
             onClick={() => handleHelpMeReply("new")}
           />
         </div>
@@ -3292,8 +3292,8 @@ export function ChatConversationPage() {
               <LoadingSpinner />
               <p className="text-center text-sm text-white/60">
                 {helpMeReplyReasoning
-                  ? "Reasoning before writing your reply..."
-                  : "Writing your reply..."}
+                  ? t("chats.helpMeReplyReasoning")
+                  : t("chats.helpMeReplyWriting")}
               </p>
             </div>
           ) : generatedReply ? (
@@ -3321,7 +3321,7 @@ export function ChatConversationPage() {
               )}
             >
               <RefreshCw size={18} />
-              <span>Regenerate</span>
+              <span>{t("chats.sceneImage.regeneratePrompt")}</span>
             </button>
             <button
               onClick={handleUseReply}
@@ -3334,7 +3334,7 @@ export function ChatConversationPage() {
               )}
             >
               <Check size={18} />
-              <span>Use This</span>
+              <span>{t("chats.useThisReply")}</span>
             </button>
           </div>
         </div>
@@ -3451,14 +3451,18 @@ export function ChatConversationPage() {
                   {t("chats.sceneImage.suggestedPrompt")}
                 </div>
                 <div className="text-[11px] text-white/35">
-                  {generatedScenePrompt.length.toLocaleString()} chars
+                  {t("chats.sceneImage.charCount", {
+                    count: generatedScenePrompt.length.toLocaleString(),
+                  })}
                 </div>
               </div>
               <p className="line-clamp-6 whitespace-pre-wrap text-sm leading-relaxed text-white/82">
                 {generatedScenePrompt}
               </p>
               <p className="mt-3 text-xs text-white/45">
-                Use {t("chats.sceneImage.editPrompt").toLowerCase()} to review or change the full prompt.
+                {t("chats.sceneImage.editPromptHint", {
+                  action: t("chats.sceneImage.editPrompt").toLowerCase(),
+                })}
               </p>
             </div>
           ) : null}
@@ -3600,7 +3604,7 @@ export function ChatConversationPage() {
                   <div className="rounded-[18px] border border-white/10 bg-black/35 px-4 py-3 lg:flex lg:h-full lg:flex-col lg:rounded-3xl lg:border-white/8 lg:bg-black/30 lg:px-5 lg:py-5">
                     <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45 lg:mb-4 lg:text-[10px] lg:tracking-[0.28em]">
                       <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-300/80" />
-                      Image Prompt
+                      {t("chats.imagePrompt")}
                     </div>
                     <p className="max-h-[52vh] overflow-y-auto pr-1 text-sm leading-relaxed text-white/82 lg:max-h-[72vh] lg:pr-2 lg:text-[15px] lg:leading-7">
                       {selectedImagePrompt}
@@ -3634,7 +3638,7 @@ export function ChatConversationPage() {
                   >
                     <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
                       <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-300/80" />
-                      Image Prompt
+                      {t("chats.imagePrompt")}
                     </div>
                     <ChevronDown
                       size={18}
@@ -3724,6 +3728,7 @@ function CharacterOption({
   selected?: boolean;
   locked?: boolean;
 }) {
+  const { t } = useI18n();
   const avatarUrl = useAvatar("character", character.id, character.avatarPath, "round");
 
   return (
@@ -3750,7 +3755,7 @@ function CharacterOption({
       <div className="flex-1 min-w-0">
         <h3 className="text-sm font-medium text-white truncate">{character.name}</h3>
         <p className="text-xs text-white/50 truncate">
-          {character.description || character.definition || "No description"}
+          {character.description || character.definition || t("common.labels.noDescriptionYet")}
         </p>
       </div>
       {selected && (

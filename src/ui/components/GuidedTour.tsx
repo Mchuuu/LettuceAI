@@ -10,12 +10,15 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronsRight, SendHorizonal, Square } from "lucide-react";
 
 import { hasSeenTooltip, setTooltipSeen } from "../../core/storage/appState";
+import { useI18n, type TranslationKey } from "../../core/i18n/context";
 
 type TourStep = {
   id: string;
   targetAttr: string;
-  title: string;
-  body: string;
+  titleKey?: TranslationKey;
+  bodyKey?: TranslationKey;
+  title?: string;
+  body?: string;
   extra?: ReactNode;
 };
 
@@ -37,44 +40,44 @@ const TOURS: Record<TourId, TourConfig> = {
       {
         id: "chats",
         targetAttr: "nav-chats",
-        title: "This is where your chats live",
-        body: "All your one-on-one conversations with characters hang out here. Jump back in anytime and we'll keep your place.",
+        titleKey: "tour.appShell.chats.title",
+        bodyKey: "tour.appShell.chats.body",
       },
       {
         id: "groups",
         targetAttr: "nav-groups",
-        title: "Hang out in group chats",
-        body: "Bring multiple characters into the same room and watch them talk to each other, or jump in yourself whenever you feel like it.",
+        titleKey: "tour.appShell.groups.title",
+        bodyKey: "tour.appShell.groups.body",
       },
       {
         id: "discover",
         targetAttr: "nav-discover",
-        title: "Find new characters to meet",
-        body: "Browse what the community has shared and pull in any character that catches your eye. New favorites are one tap away.",
+        titleKey: "tour.appShell.discover.title",
+        bodyKey: "tour.appShell.discover.body",
       },
       {
         id: "library",
         targetAttr: "nav-library",
-        title: "Your personal library",
-        body: "Everything you've made or saved lives here: characters, personas, prompts, the works. Think of it as your stash.",
+        titleKey: "tour.appShell.library.title",
+        bodyKey: "tour.appShell.library.body",
       },
       {
         id: "settings",
         targetAttr: "top-settings",
-        title: "Make it yours",
-        body: "Swap providers, pick different models, tweak how the app looks. Pretty much everything is adjustable from settings.",
+        titleKey: "tour.appShell.settings.title",
+        bodyKey: "tour.appShell.settings.body",
       },
       {
         id: "search",
         targetAttr: "top-search",
-        title: "Find anything, fast",
-        body: "Looking for a specific chat or character? Search across everything from right here. No digging required.",
+        titleKey: "tour.appShell.search.title",
+        bodyKey: "tour.appShell.search.body",
       },
       {
         id: "create",
         targetAttr: "nav-create",
-        title: "And finally, create!",
-        body: "Tap the plus whenever inspiration strikes. Spin up a new character, persona, or start something from scratch.",
+        titleKey: "tour.appShell.create.title",
+        bodyKey: "tour.appShell.create.body",
       },
     ],
   },
@@ -85,44 +88,44 @@ const TOURS: Record<TourId, TourConfig> = {
       {
         id: "chat-title",
         targetAttr: "chat-title",
-        title: "Per-chat settings",
-        body: "Tap the character's name up here to open settings for just this chat. Different personas, layouts, and model picks per conversation.",
+        titleKey: "tour.chatDetail.chatTitle.title",
+        bodyKey: "tour.chatDetail.chatTitle.body",
       },
       {
         id: "chat-memory",
         targetAttr: "chat-memory",
-        title: "What they remember",
-        body: "The brain icon shows what your character remembers about your conversations. Tap to review, edit, or clear memories.",
+        titleKey: "tour.chatDetail.chatMemory.title",
+        bodyKey: "tour.chatDetail.chatMemory.body",
       },
       {
         id: "chat-search",
         targetAttr: "chat-search",
-        title: "Find that one line",
-        body: "Search just this conversation. Great for digging up that detail from 200 messages ago without scrolling forever.",
+        titleKey: "tour.chatDetail.chatSearch.title",
+        bodyKey: "tour.chatDetail.chatSearch.body",
       },
       {
         id: "chat-lorebook",
         targetAttr: "chat-lorebook",
-        title: "Lorebook entries",
-        body: "Extra facts, world-building, and context that get injected into the prompt when specific keywords come up. Your character's cheat sheet.",
+        titleKey: "tour.chatDetail.chatLorebook.title",
+        bodyKey: "tour.chatDetail.chatLorebook.body",
       },
       {
         id: "chat-plus",
         targetAttr: "chat-plus",
-        title: "Attach things",
-        body: "Drop in images or open the extras menu. Whatever you attach gets sent along with your next message.",
+        titleKey: "tour.chatDetail.chatPlus.title",
+        bodyKey: "tour.chatDetail.chatPlus.body",
       },
       {
         id: "chat-composer",
         targetAttr: "chat-composer",
-        title: "Your message, your move",
-        body: "Type here. Enter sends, Shift+Enter adds a new line. Tip: long-press any message in the chat to edit, branch, or delete it.",
+        titleKey: "tour.chatDetail.chatComposer.title",
+        bodyKey: "tour.chatDetail.chatComposer.body",
       },
       {
         id: "chat-send",
         targetAttr: "chat-send",
-        title: "One button, four jobs",
-        body: "The send button changes its job based on what's happening:",
+        titleKey: "tour.chatDetail.chatSend.title",
+        bodyKey: "tour.chatDetail.chatSend.body",
         extra: <SendButtonStates />,
       },
     ],
@@ -134,26 +137,26 @@ const TOURS: Record<TourId, TourConfig> = {
       {
         id: "asr-active-model",
         targetAttr: "asr-active-model",
-        title: "Pick a Whisper model",
-        body: "Tap here to open the model picker. Models that aren't downloaded yet queue automatically and become active when ready.",
+        titleKey: "tour.speechRecognition.activeModel.title",
+        bodyKey: "tour.speechRecognition.activeModel.body",
       },
       {
         id: "asr-library",
         targetAttr: "asr-library",
-        title: "Shape what Whisper hears",
-        body: "Three layers tune transcription: vocabulary biases the prompt, corrections rewrite output, and voice examples train from real recordings.",
+        titleKey: "tour.speechRecognition.library.title",
+        bodyKey: "tour.speechRecognition.library.body",
       },
       {
         id: "asr-mic-test",
         targetAttr: "asr-mic-test",
-        title: "Try it before you commit",
-        body: "Record a short clip and run it through the active model with your vocabulary and corrections applied. Great for sanity-checking changes.",
+        titleKey: "tour.speechRecognition.micTest.title",
+        bodyKey: "tour.speechRecognition.micTest.body",
       },
       {
         id: "asr-runtime",
         targetAttr: "asr-runtime",
-        title: "Runtime and library tools",
-        body: "Toggle GPU acceleration, keep the model warm between runs, and import or export your full library as JSON.",
+        titleKey: "tour.speechRecognition.runtime.title",
+        bodyKey: "tour.speechRecognition.runtime.body",
       },
     ],
   },
@@ -164,20 +167,20 @@ const TOURS: Record<TourId, TourConfig> = {
       {
         id: "chat-regenerate",
         targetAttr: "chat-regenerate",
-        title: "Not happy? Regenerate",
-        body: "Tap the refresh icon to get a completely new reply from the character. Each regeneration is saved as a variant you can revisit.",
+        titleKey: "tour.postFirstMessage.chatRegenerate.title",
+        bodyKey: "tour.postFirstMessage.chatRegenerate.body",
       },
       {
         id: "chat-variants",
         targetAttr: "chat-variants",
-        title: "Swipe between variants",
-        body: "After regenerating, you'll see a variant counter below the message. Swipe left or right on the message bubble to flip through all the different replies.",
+        titleKey: "tour.postFirstMessage.chatVariants.title",
+        bodyKey: "tour.postFirstMessage.chatVariants.body",
       },
       {
         id: "chat-long-press",
         targetAttr: "chat-message-bubble",
-        title: "There's more hiding here",
-        body: "Long-press any message to edit, copy, branch, pin, delete, or rewind the conversation. Right-click works too on desktop.",
+        titleKey: "tour.postFirstMessage.chatLongPress.title",
+        bodyKey: "tour.postFirstMessage.chatLongPress.body",
       },
     ],
   },
@@ -203,6 +206,7 @@ export function GuidedTour({
   tour: TourId;
   onDismiss: () => void;
 }) {
+  const { t } = useI18n();
   const config = TOURS[tour];
   const steps = config.steps;
   const totalSteps = steps.length;
@@ -444,7 +448,7 @@ export function GuidedTour({
             <div className="px-5 pt-4 pb-5">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-fg/40">
-                  Step {stepIdx + 1} of {totalSteps}
+                  {t("tour.stepCounter", { current: stepIdx + 1, total: totalSteps })}
                 </span>
                 <StepDots total={totalSteps} current={stepIdx} />
               </div>
@@ -457,10 +461,10 @@ export function GuidedTour({
                 className="mt-3"
               >
                 <h3 className="text-[15px] font-semibold leading-snug tracking-tight text-fg">
-                  {step.title}
+                  {step.titleKey ? t(step.titleKey) : step.title}
                 </h3>
                 <p className="mt-1.5 text-[13px] leading-relaxed text-fg/60">
-                  {step.body}
+                  {step.bodyKey ? t(step.bodyKey) : step.body}
                 </p>
                 {step.extra}
               </motion.div>
@@ -471,14 +475,14 @@ export function GuidedTour({
                   onClick={finish}
                   className="text-[11px] font-medium text-fg/40 transition-all duration-150 hover:text-fg/75"
                 >
-                  Skip tour
+                  {t("tour.skipTour")}
                 </button>
                 <button
                   type="button"
                   onClick={next}
                   className="rounded-full border border-accent/40 bg-accent/15 px-4 py-1.5 text-[12px] font-semibold text-accent transition-all duration-150 hover:bg-accent/25 active:scale-[0.98]"
                 >
-                  {isLastStep ? "Got it" : "Next"}
+                  {isLastStep ? t("tour.gotIt") : t("tour.next")}
                 </button>
               </div>
             </div>
@@ -505,6 +509,7 @@ function StepDots({ total, current }: { total: number; current: number }) {
 }
 
 function SendButtonStates() {
+  const { t } = useI18n();
   const states: Array<{
     label: string;
     desc: string;
@@ -512,28 +517,28 @@ function SendButtonStates() {
     swatch: string;
   }> = [
     {
-      label: "Continue",
-      desc: "Input empty. Taps here will nudge the character to keep talking.",
+      label: t("tour.sendButton.continue.label"),
+      desc: t("tour.sendButton.continue.desc"),
       icon: <ChevronsRight size={15} />,
       swatch: "border-fg/15 bg-fg/10 text-fg/70",
     },
     {
-      label: "Send",
-      desc: "You've typed or attached something. Tap to send it.",
+      label: t("tour.sendButton.send.label"),
+      desc: t("tour.sendButton.send.desc"),
       icon: <SendHorizonal size={15} />,
       swatch: "border-emerald-400/40 bg-emerald-400/20 text-emerald-100",
     },
     {
-      label: "Sending",
-      desc: "Reply is on its way. Button is locked.",
+      label: t("tour.sendButton.sending.label"),
+      desc: t("tour.sendButton.sending.desc"),
       icon: (
         <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
       ),
       swatch: "border-fg/15 bg-fg/10 text-fg/50",
     },
     {
-      label: "Stop",
-      desc: "Tap to cancel mid-reply if you change your mind.",
+      label: t("tour.sendButton.stop.label"),
+      desc: t("tour.sendButton.stop.desc"),
       icon: <Square size={12} fill="currentColor" />,
       swatch: "border-red-400/40 bg-red-400/20 text-red-100",
     },

@@ -192,8 +192,8 @@ export function AvatarSourceMenu({
                   <FolderOpen size={18} />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-white">Choose from library</p>
-                  <p className="text-[11px] text-white/40">Use an image already saved in the app</p>
+                  <p className="text-sm font-medium text-white">{t("components.extra.chooseFromLibrary")}</p>
+                  <p className="text-[11px] text-white/40">{t("components.extra.chooseFromLibraryDesc")}</p>
                 </div>
               </button>
 

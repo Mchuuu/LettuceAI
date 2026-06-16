@@ -8,6 +8,7 @@ import { convertToImageUrl } from "../../core/storage/images";
 import { isRenderableImageUrl } from "../../core/utils/image";
 import { useImageData } from "../hooks/useImageData";
 import { BottomMenu } from "./BottomMenu";
+import { useI18n } from "../../core/i18n/context";
 
 function ReferenceThumb({
   value,
@@ -18,6 +19,7 @@ function ReferenceThumb({
   index: number;
   onRemove: (index: number) => void;
 }) {
+  const { t } = useI18n();
   const imageUrl = useImageData(value);
 
   return (
@@ -25,17 +27,17 @@ function ReferenceThumb({
       {imageUrl ? (
         <img
           src={imageUrl}
-          alt={`Design reference ${index + 1}`}
+          alt={t("designReference.imageAlt", { index: index + 1 })}
           className="h-28 w-full object-cover"
         />
       ) : (
-        <div className="flex h-28 items-center justify-center text-xs text-fg/40">Loading...</div>
+        <div className="flex h-28 items-center justify-center text-xs text-fg/40">{t("designReference.loading")}</div>
       )}
       <button
         type="button"
         onClick={() => onRemove(index)}
         className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-md border border-fg/10 bg-surface/90 text-fg/70 opacity-0 transition hover:border-danger/40 hover:bg-danger/20 hover:text-danger group-hover:opacity-100"
-        aria-label="Remove design reference"
+        aria-label={t("designReference.removeAria")}
       >
         <X size={14} />
       </button>
@@ -82,6 +84,7 @@ export function DesignReferenceEditor({
   description?: string;
   descriptionPlaceholder?: string;
 }) {
+  const { t } = useI18n();
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [writerModelLabel, setWriterModelLabel] = useState<string | null>(null);
   const [writerAvailable, setWriterAvailable] = useState(false);
@@ -94,9 +97,9 @@ export function DesignReferenceEditor({
   const helperText = useMemo(
     () =>
       referenceImages.length > 0
-        ? `${referenceImages.length} reference image${referenceImages.length === 1 ? "" : "s"} attached`
-        : "No reference images attached yet",
-    [referenceImages.length],
+        ? t("designReference.imageCount", { count: referenceImages.length })
+        : t("designReference.noImages"),
+    [referenceImages.length, t],
   );
 
   const loadWriterModelState = useCallback(async () => {
@@ -180,22 +183,22 @@ export function DesignReferenceEditor({
 
     const response = await fetch(resolvedUrl);
     if (!response.ok) {
-      throw new Error(`Failed to read image asset (${response.status})`);
+      throw new Error(t("components.extra.draftReadFailed", { status: response.status }));
     }
 
     const blob = await response.blob();
     return await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(new Error("Failed to convert image asset to data URL"));
+      reader.onerror = () => reject(new Error(t("components.extra.draftConvertFailed")));
       reader.readAsDataURL(blob);
     });
-  }, []);
+  }, [t]);
 
   const handleGenerateDescription = useCallback(async () => {
     if (isGeneratingDescription) return;
     if (!writerAvailable) {
-      setDraftError("Add a compatible scene writer model in Image Generation settings first.");
+      setDraftError(t("designReference.noWriterModel"));
       setShowDraftMenu(true);
       return;
     }
@@ -204,7 +207,7 @@ export function DesignReferenceEditor({
     const hasReferences = referenceImages.some((value) => value.trim().length > 0);
 
     if (!hasAvatar && !hasReferences) {
-      setDraftError("Add an avatar or at least one reference image before generating.");
+      setDraftError(t("designReference.noImagesForGeneration"));
       setShowDraftMenu(true);
       return;
     }
@@ -226,7 +229,7 @@ export function DesignReferenceEditor({
       );
 
       if (!resolvedAvatarImage && usableReferenceImages.length === 0) {
-        throw new Error("No usable reference images were found.");
+        throw new Error(t("components.extra.noUsableReferences"));
       }
 
       const requestId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
@@ -262,7 +265,7 @@ export function DesignReferenceEditor({
               payload.data?.message ||
               payload.data?.error ||
               payload.message ||
-              "Draft generation failed.";
+              t("components.extra.draftGenerationFailed");
             setDraftError(String(message));
             setIsGeneratingDescription(false);
             if (loadingTimeoutRef.current !== null) {
@@ -300,7 +303,7 @@ export function DesignReferenceEditor({
     } catch (error) {
       console.error("Failed to generate design description:", error);
       setDraftError(
-        error instanceof Error ? error.message : "Failed to generate design description.",
+        error instanceof Error ? error.message : t("components.extra.draftFailed"),
       );
     } finally {
       if (requestIdRef.current) {
@@ -318,6 +321,7 @@ export function DesignReferenceEditor({
     subjectDescription,
     subjectName,
     writerAvailable,
+    t,
   ]);
 
   const handleCloseDraftMenu = useCallback(() => {
@@ -350,14 +354,14 @@ export function DesignReferenceEditor({
               className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-fg/15 bg-fg/[0.04] px-3 py-2 text-sm font-medium text-fg/80 transition hover:border-fg/25 hover:bg-fg/[0.07]"
             >
               <ImagePlus size={14} />
-              Add references
+              {t("designReference.addReferences")}
             </button>
           </div>
         ) : null}
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">
-            <label className="text-sm font-medium text-fg/75">Visual description</label>
+            <label className="text-sm font-medium text-fg/75">{t("designReference.visualDescription")}</label>
             <button
               type="button"
               onClick={() => void handleGenerateDescription()}
@@ -369,7 +373,7 @@ export function DesignReferenceEditor({
               ) : (
                 <Sparkles size={14} />
               )}
-              Draft with AI
+              {t("designReference.draftWithAi")}
             </button>
           </div>
           <textarea
@@ -381,15 +385,17 @@ export function DesignReferenceEditor({
           />
           <p className="text-xs text-fg/40">
             {writerAvailable
-              ? `Uses ${writerModelLabel ?? "the compatible scene writer model"} to draft from your avatar and reference images.`
-              : "Add a compatible scene writer model in Image Generation settings to draft this automatically."}
+              ? t("designReference.writerModelHelp", {
+                  model: writerModelLabel ?? t("components.extra.writerHelpFallback"),
+                })
+              : t("designReference.noWriterModelHelp")}
           </p>
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-3 border-b border-fg/10 pb-2">
             <div>
-              <div className="text-sm font-medium text-fg/75">Reference images</div>
+              <div className="text-sm font-medium text-fg/75">{t("designReference.referenceImages")}</div>
               <div className="text-xs text-fg/40">{helperText}</div>
             </div>
             <div className="flex items-center gap-3">
@@ -400,7 +406,7 @@ export function DesignReferenceEditor({
                   className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-fg/15 bg-fg/[0.04] px-3 py-2 text-sm font-medium text-fg/80 transition hover:border-fg/25 hover:bg-fg/[0.07]"
                 >
                   <ImagePlus size={14} />
-                  Add references
+                  {t("designReference.addReferences")}
                 </button>
               ) : null}
             </div>
@@ -419,18 +425,20 @@ export function DesignReferenceEditor({
             </div>
           ) : (
             <div className="flex h-20 items-center justify-center rounded-lg border border-dashed border-fg/10 bg-fg/[0.02] px-4 text-sm text-fg/35">
-              Add a few clear reference shots to lock face, proportions, outfit, and style.
+              {t("designReference.emptyReferences")}
             </div>
           )}
         </div>
       </section>
 
-      <BottomMenu isOpen={showDraftMenu} onClose={handleCloseDraftMenu} title="AI Design Draft">
+      <BottomMenu isOpen={showDraftMenu} onClose={handleCloseDraftMenu} title={t("designReference.draftMenuTitle")}>
         <div className="space-y-4">
           <p className="text-sm text-white/60">
             {writerAvailable
-              ? `Drafted by ${writerModelLabel ?? "your scene writer model"} from the current avatar and reference images.`
-              : "Add a compatible scene writer model before using this helper."}
+              ? t("designReference.draftMenuDesc", {
+                  model: writerModelLabel ?? t("components.extra.draftedByFallback"),
+                })
+              : t("designReference.draftMenuNoWriter")}
           </p>
 
           {draftError ? (
@@ -455,7 +463,7 @@ export function DesignReferenceEditor({
               className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-white/10 px-4 py-3 text-white/80 transition hover:bg-white/15 disabled:opacity-50"
             >
               <Sparkles size={18} />
-              <span>Regenerate</span>
+              <span>{t("designReference.regenerate")}</span>
             </button>
             <button
               type="button"
@@ -463,7 +471,7 @@ export function DesignReferenceEditor({
               disabled={isGeneratingDescription || !draftText?.trim()}
               className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 text-white transition hover:bg-emerald-500 disabled:opacity-50"
             >
-              <span>Use This</span>
+              <span>{t("designReference.useThis")}</span>
             </button>
           </div>
         </div>

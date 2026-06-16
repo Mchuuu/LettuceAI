@@ -740,7 +740,6 @@ export const idMessages: DeepPartialMessageTree<LocaleMessages> = {
     "suggestedReply": "Balasan yang Disarankan",
     "selectTwoCharactersMinimum": "Pilih minimal 2 karakter untuk obrolan grup.",
     "groupBranchCreated": "Cabang grup dibuat! Mengalihkan...",
-    "memories": "Memori",
     "tools": "Alat",
     "pinned": "Disematkan",
     "searchMemories": "Cari memori...",

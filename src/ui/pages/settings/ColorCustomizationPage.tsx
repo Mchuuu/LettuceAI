@@ -22,7 +22,7 @@ import {
 import type { CustomColorPreset, CustomColors } from "../../../core/storage/schemas";
 import { cn, interactive, radius } from "../../design-tokens";
 import { toast } from "../../components/toast";
-import { useI18n } from "../../../core/i18n/context";
+import { useI18n, type TranslationKey } from "../../../core/i18n/context";
 
 const SETTINGS_CARD_OPACITY_DEFAULT = 5;
 
@@ -579,7 +579,7 @@ function slugify(value: string): string {
     .toLowerCase();
 }
 
-const TOKEN_LABEL_KEYS: Record<ColorKey, { label: string; desc: string }> = {
+const TOKEN_LABEL_KEYS = {
   surface: {
     label: "colorCustomization.tokens.surface",
     desc: "colorCustomization.tokens.surfaceDesc",
@@ -622,15 +622,15 @@ const TOKEN_LABEL_KEYS: Record<ColorKey, { label: string; desc: string }> = {
     label: "colorCustomization.tokens.secondary",
     desc: "colorCustomization.tokens.secondaryDesc",
   },
-};
+} satisfies Record<ColorKey, { label: TranslationKey; desc: TranslationKey }>;
 
-const GROUP_LABEL_KEYS: Record<string, string> = {
+const GROUP_LABEL_KEYS = {
   backgrounds: "colorCustomization.groups.backgrounds",
   content: "colorCustomization.groups.content",
   semantic: "colorCustomization.groups.semantic",
-};
+} satisfies Record<string, TranslationKey>;
 
-const PRESET_NAME_KEYS: Record<string, string> = {
+const PRESET_NAME_KEYS: Record<string, TranslationKey> = {
   "Default Dark": "colorCustomization.presets.defaultDark",
   "Midnight Blue": "colorCustomization.presets.midnightBlue",
   "Warm Earth": "colorCustomization.presets.warmEarth",
@@ -697,7 +697,10 @@ export function ColorCustomizationPage() {
         applySettingsCardOpacityToDocument(normalizedSettingsCardOpacity);
       } catch (error) {
         console.error("Failed to load color customization settings:", error);
-        toast.error("Load failed", "Could not load saved color settings.");
+        toast.error(
+          t("colorCustomization.toasts.loadFailedTitle"),
+          t("colorCustomization.toasts.loadFailedMessage"),
+        );
       } finally {
         setIsLoading(false);
       }
@@ -895,10 +898,16 @@ export function ColorCustomizationPage() {
       setInitialColors(normalizedColors);
       setInitialSettingsCardOpacity(normalizedSettingsCardOpacity);
       setInitialImportedPresets(normalizedPresets);
-      toast.success("Saved", "Color customization updated.");
+      toast.success(
+        t("colorCustomization.toasts.savedTitle"),
+        t("colorCustomization.toasts.savedMessage"),
+      );
     } catch (error) {
       console.error("Failed to save color customization:", error);
-      toast.error("Save failed", error instanceof Error ? error.message : String(error));
+      toast.error(
+        t("colorCustomization.toasts.saveFailedTitle"),
+        error instanceof Error ? error.message : String(error),
+      );
     } finally {
       setIsSaving(false);
     }
@@ -910,6 +919,7 @@ export function ColorCustomizationPage() {
     importedPresets,
     setThemeCustomColors,
     setThemeSettingsCardOpacity,
+    t,
   ]);
 
   const handleDiscard = useCallback(() => {
@@ -922,49 +932,63 @@ export function ColorCustomizationPage() {
     setDerivedPresetId(null);
   }, [isDirty, initialColors, initialImportedPresets, initialSettingsCardOpacity]);
 
-  const handleImportJson = useCallback((rawJson: string) => {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(rawJson);
-    } catch {
-      toast.error("Import failed", "Invalid JSON file.");
-      return;
-    }
+  const handleImportJson = useCallback(
+    (rawJson: string) => {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(rawJson);
+      } catch {
+        toast.error(
+          t("colorCustomization.toasts.importFailedTitle"),
+          t("colorCustomization.toasts.importInvalidJson"),
+        );
+        return;
+      }
 
-    const imported = parseImportedPreset(parsed);
-    if (!imported) {
-      toast.error(
-        "Import failed",
-        "Expected `{ name, colors }` or `{ preset: { name, colors } }`.",
+      const imported = parseImportedPreset(parsed);
+      if (!imported) {
+        toast.error(
+          t("colorCustomization.toasts.importFailedTitle"),
+          t("colorCustomization.toasts.importExpectedShape"),
+        );
+        return;
+      }
+
+      if (Object.keys(imported.colors).length === 0) {
+        toast.error(
+          t("colorCustomization.toasts.importFailedTitle"),
+          t("colorCustomization.toasts.importNoValidHex"),
+        );
+        return;
+      }
+
+      const createdAt = Date.now();
+      const preset: CustomColorPreset = {
+        id: crypto.randomUUID(),
+        name: imported.name,
+        colors: imported.colors,
+        settingsCardOpacity: imported.settingsCardOpacity,
+        createdAt,
+      };
+
+      setImportedPresets((prev) => [...prev, preset]);
+      toast.success(
+        t("colorCustomization.toasts.importedTitle"),
+        t("colorCustomization.toasts.importedMessage", { name: preset.name }),
       );
-      return;
-    }
-
-    if (Object.keys(imported.colors).length === 0) {
-      toast.error("Import failed", "No valid hex colors found in file.");
-      return;
-    }
-
-    const createdAt = Date.now();
-    const preset: CustomColorPreset = {
-      id: crypto.randomUUID(),
-      name: imported.name,
-      colors: imported.colors,
-      settingsCardOpacity: imported.settingsCardOpacity,
-      createdAt,
-    };
-
-    setImportedPresets((prev) => [...prev, preset]);
-    toast.success("Imported", `Added preset \"${preset.name}\".`);
-  }, []);
+    },
+    [t],
+  );
 
   const handleImportClick = useCallback(() => {
     importInputRef.current?.click();
   }, []);
 
   const handleExport = useCallback(() => {
-    const defaultName = `Custom Preset ${new Date().toISOString().slice(0, 10)}`;
-    const name = window.prompt("Export preset name", defaultName)?.trim();
+    const defaultName = t("colorCustomization.prompts.exportDefaultName", {
+      date: new Date().toISOString().slice(0, 10),
+    });
+    const name = window.prompt(t("colorCustomization.prompts.exportName"), defaultName)?.trim();
     if (!name) return;
 
     const payload: PresetExportPayload = {
@@ -987,20 +1011,25 @@ export function ColorCustomizationPage() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [settingsCardOpacity, workingColors]);
+  }, [settingsCardOpacity, workingColors, t]);
 
-  const handleRenameImportedPreset = useCallback((preset: CustomColorPreset) => {
-    const nextName = window.prompt("Rename preset", preset.name)?.trim();
-    if (!nextName || nextName === preset.name) return;
+  const handleRenameImportedPreset = useCallback(
+    (preset: CustomColorPreset) => {
+      const nextName = window.prompt(t("colorCustomization.prompts.renameName"), preset.name)?.trim();
+      if (!nextName || nextName === preset.name) return;
 
-    setImportedPresets((prev) =>
-      prev.map((item) => (item.id === preset.id ? { ...item, name: nextName } : item)),
-    );
-  }, []);
+      setImportedPresets((prev) =>
+        prev.map((item) => (item.id === preset.id ? { ...item, name: nextName } : item)),
+      );
+    },
+    [t],
+  );
 
   const handleDeleteImportedPreset = useCallback(
     (preset: CustomColorPreset) => {
-      const confirmed = window.confirm(`Delete imported preset \"${preset.name}\"?`);
+      const confirmed = window.confirm(
+        t("colorCustomization.prompts.deleteConfirm", { name: preset.name }),
+      );
       if (!confirmed) return;
 
       setImportedPresets((prev) => prev.filter((item) => item.id !== preset.id));
@@ -1009,7 +1038,7 @@ export function ColorCustomizationPage() {
         setAppliedPresetName(null);
       }
     },
-    [derivedPresetId],
+    [derivedPresetId, t],
   );
 
   useEffect(() => {
@@ -1070,7 +1099,10 @@ export function ColorCustomizationPage() {
               handleImportJson(raw);
             } catch (error) {
               console.error("Failed to import color preset:", error);
-              toast.error("Import failed", "Could not read selected file.");
+              toast.error(
+                t("colorCustomization.toasts.importFailedTitle"),
+                t("colorCustomization.toasts.importReadFailed"),
+              );
             } finally {
               event.currentTarget.value = "";
             }
@@ -1176,7 +1208,7 @@ export function ColorCustomizationPage() {
                     style={active ? undefined : appTextMutedStyle}
                   >
                     {PRESET_NAME_KEYS[preset.name]
-                      ? t(PRESET_NAME_KEYS[preset.name] as any)
+                      ? t(PRESET_NAME_KEYS[preset.name])
                       : preset.name}
                   </span>
                 </button>
@@ -1239,7 +1271,7 @@ export function ColorCustomizationPage() {
                       onClick={() => handleRenameImportedPreset(preset)}
                       className="p-1 hover:text-fg/70"
                       style={appTextSubtleStyle}
-                      title="Rename preset"
+                      title={t("colorCustomization.actions.renamePreset")}
                     >
                       <Edit3 className="h-4 w-4" />
                     </button>
@@ -1248,7 +1280,7 @@ export function ColorCustomizationPage() {
                       onClick={() => handleDeleteImportedPreset(preset)}
                       className="ml-1.5 p-1 hover:text-danger"
                       style={appTextSubtleStyle}
-                      title="Delete preset"
+                      title={t("colorCustomization.actions.deletePreset")}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -1306,7 +1338,7 @@ export function ColorCustomizationPage() {
                 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em]"
                 style={appTextSubtleStyle}
               >
-                {t(GROUP_LABEL_KEYS[group.id] as any)}
+                {t(GROUP_LABEL_KEYS[group.id])}
               </h2>
               <div className="space-y-2.5">
                 {tokens.map((token) => {
@@ -1344,10 +1376,10 @@ export function ColorCustomizationPage() {
                           </button>
                           <div>
                             <div className="text-sm font-medium" style={appTextStyle}>
-                              {t(TOKEN_LABEL_KEYS[token.key].label as any)}
+                              {t(TOKEN_LABEL_KEYS[token.key].label)}
                             </div>
                             <div className="text-[11px]" style={appTextMutedStyle}>
-                              {t(TOKEN_LABEL_KEYS[token.key].desc as any)}
+                              {t(TOKEN_LABEL_KEYS[token.key].desc)}
                             </div>
                           </div>
                         </div>
@@ -1374,7 +1406,7 @@ export function ColorCustomizationPage() {
                               onClick={() => handleReset(token.key)}
                               className="hover:text-fg/60"
                               style={appTextSubtleStyle}
-                              title="Reset to default"
+                              title={t("colorCustomization.actions.resetToDefault")}
                             >
                               <RotateCcw className="h-3.5 w-3.5" />
                             </button>
@@ -1402,28 +1434,28 @@ export function ColorCustomizationPage() {
           <div className="rounded-xl border border-fg/10 bg-surface p-4 space-y-3">
             <div className="space-y-1">
               <p className="text-sm font-medium" style={{ color: "var(--color-app-text)" }}>
-                Primary text
+                {t("colorCustomization.preview.primaryText")}
               </p>
               <p className="text-xs" style={{ color: "var(--color-app-text-muted)" }}>
-                Muted text color
+                {t("colorCustomization.preview.mutedText")}
               </p>
               <p className="text-[11px]" style={{ color: "var(--color-app-text-subtle)" }}>
-                Subtle text color
+                {t("colorCustomization.preview.subtleText")}
               </p>
             </div>
 
             <div className="flex flex-wrap gap-2">
               <span className="rounded-full border border-accent/40 bg-accent/15 px-3 py-1 text-[11px] font-medium text-accent">
-                Accent
+                {t("colorCustomization.preview.accent")}
               </span>
               <span className="rounded-full border border-info/40 bg-info/15 px-3 py-1 text-[11px] font-medium text-info">
-                Info
+                {t("colorCustomization.preview.info")}
               </span>
               <span className="rounded-full border border-warning/40 bg-warning/15 px-3 py-1 text-[11px] font-medium text-warning">
-                Warning
+                {t("colorCustomization.preview.warning")}
               </span>
               <span className="rounded-full border border-danger/40 bg-danger/15 px-3 py-1 text-[11px] font-medium text-danger">
-                Danger
+                {t("colorCustomization.preview.danger")}
               </span>
             </div>
 
@@ -1433,7 +1465,9 @@ export function ColorCustomizationPage() {
                 className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-accent"
               />
               <Cpu className="h-4.5 w-4.5 text-accent" />
-              <span className="text-sm font-semibold tracking-[-0.005em]">Models</span>
+              <span className="text-sm font-semibold tracking-[-0.005em]">
+                {t("colorCustomization.preview.modelsLabel")}
+              </span>
               <span className="ml-auto rounded-full bg-fg/10 px-1.5 py-px text-[10px] font-semibold tabular-nums text-fg/80">
                 12
               </span>
@@ -1443,8 +1477,12 @@ export function ColorCustomizationPage() {
               <div className="flex items-center gap-3">
                 <EthernetPort className="h-5 w-5 text-fg/60" />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium text-fg">Sample provider</div>
-                  <div className="mt-0.5 truncate text-[11px] text-fg/50">api.provider.com</div>
+                  <div className="truncate text-sm font-medium text-fg">
+                    {t("colorCustomization.preview.sampleProvider")}
+                  </div>
+                  <div className="mt-0.5 truncate text-[11px] text-fg/50">
+                    {t("colorCustomization.preview.sampleProviderHost")}
+                  </div>
                 </div>
                 <ChevronRight className="h-4 w-4 text-fg/30" />
               </div>
@@ -1452,8 +1490,8 @@ export function ColorCustomizationPage() {
 
             <ToggleRow
               id="color-preview-toggle"
-              title="Enable feature"
-              description="Stream responses while a model generates"
+              title={t("colorCustomization.preview.toggleTitle")}
+              description={t("colorCustomization.preview.toggleDescription")}
               checked={true}
               onChange={() => {}}
             />
@@ -1463,13 +1501,13 @@ export function ColorCustomizationPage() {
                 type="button"
                 className="flex-1 rounded-lg border border-fg/10 bg-fg/5 px-4 py-2 text-sm font-medium text-fg/70"
               >
-                Cancel
+                {t("colorCustomization.preview.cancel")}
               </button>
               <button
                 type="button"
                 className="flex-1 rounded-lg border border-accent/40 bg-accent/20 px-4 py-2 text-sm font-semibold text-accent/90"
               >
-                Save
+                {t("colorCustomization.preview.save")}
               </button>
             </div>
           </div>

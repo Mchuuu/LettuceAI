@@ -305,7 +305,9 @@ export function UsageRequestDetailSheet({
                     {formatCurrency(totalCost)}
                   </div>
                   <div className="text-[10.5px] tabular-nums text-fg/45">
-                    {(request.totalTokens ?? 0).toLocaleString()} tokens
+                    {t("usageAnalytics.shared.tokensSuffix", {
+                      count: (request.totalTokens ?? 0).toLocaleString(),
+                    })}
                   </div>
                 </div>
               </div>
@@ -326,7 +328,9 @@ export function UsageRequestDetailSheet({
                     {t("usageAnalytics.shared.tokenUsage")}
                   </h3>
                   <span className="text-[11.5px] tabular-nums text-fg/55">
-                    {(request.totalTokens ?? 0).toLocaleString()} total
+                    {t("usageAnalytics.shared.totalSuffix", {
+                      count: (request.totalTokens ?? 0).toLocaleString(),
+                    })}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">

@@ -13,9 +13,8 @@ import {
 } from "../../../../core/downloads/DownloadQueueContext";
 import { useI18n, type TranslationKey } from "../../../../core/i18n/context";
 
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
+function formatBytes(bytes: number, units: string[]): string {
+  if (bytes === 0) return `0 ${units[0]}`;
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   const value = bytes / Math.pow(1024, i);
   return `${value.toFixed(i > 1 ? 1 : 0)} ${units[i]}`;
@@ -35,10 +34,16 @@ function isActive(item: QueuedDownload): boolean {
   return item.status === "downloading" || item.status === "queued";
 }
 
-function roleLabel(item: QueuedDownload, isModelRow: boolean): string | null {
+function roleLabel(
+  item: QueuedDownload,
+  isModelRow: boolean,
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string,
+): string | null {
   if (isModelRow) return null;
-  if (item.downloadRole === "mmproj" || isMmprojDownloadFilename(item.filename)) return "Vision";
-  if (item.downloadRole === "mtp" || isMtpDownloadFilename(item.filename)) return "MTP";
+  if (item.downloadRole === "mmproj" || isMmprojDownloadFilename(item.filename))
+    return t("installedModels.downloads.roleVision");
+  if (item.downloadRole === "mtp" || isMtpDownloadFilename(item.filename))
+    return t("installedModels.downloads.roleMtp");
   return null;
 }
 
@@ -53,6 +58,13 @@ export function DownloadGroupCard({
 }) {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const sizeUnits = [
+    t("common.units.bytes"),
+    t("common.units.kb"),
+    t("common.units.mb"),
+    t("common.units.gb"),
+    t("common.units.tb"),
+  ];
   const { cancelItem, dismissItem } = useDownloadQueue();
 
   const model = group.model;
@@ -143,7 +155,9 @@ export function DownloadGroupCard({
         />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[12px] font-semibold text-fg/85">{title}</p>
-          <p className="truncate text-[10px] text-fg/40">{group.items.length} files</p>
+          <p className="truncate text-[10px] text-fg/40">
+            {t("installedModels.downloads.fileCount", { count: group.items.length })}
+          </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {canCreate && (
@@ -160,7 +174,7 @@ export function DownloadGroupCard({
               )}
             >
               <Cpu size={compact ? 10 : 11} />
-              Create
+              {t("installedModels.downloads.create")}
             </button>
           )}
           <button
@@ -175,7 +189,11 @@ export function DownloadGroupCard({
                 ? "hover:bg-fg/10 hover:text-danger/70 active:scale-90"
                 : "hover:bg-fg/10 hover:text-fg/50 active:scale-90",
             )}
-            title={anyActive ? t("models.downloadQueue.cancel" as TranslationKey) : "Dismiss"}
+            title={
+              anyActive
+                ? t("installedModels.downloads.cancelDownload")
+                : t("installedModels.downloads.dismiss")
+            }
           >
             <X size={13} />
           </button>
@@ -185,7 +203,7 @@ export function DownloadGroupCard({
       <div className={cn("mt-2.5 space-y-2 border-t border-fg/5", compact ? "pt-2" : "pt-2.5")}>
         {ordered.map((item) => {
           const isModelRow = model?.id === item.id;
-          const label = roleLabel(item, isModelRow);
+          const label = roleLabel(item, isModelRow, t);
           return (
             <div key={item.id}>
               <div className="flex items-center gap-2.5">
@@ -208,7 +226,7 @@ export function DownloadGroupCard({
                 )}
                 {item.status === "complete" && (
                   <span className="shrink-0 text-[10px] tabular-nums text-emerald-400/60">
-                    {formatBytes(item.total)}
+                    {formatBytes(item.total, sizeUnits)}
                   </span>
                 )}
                 {isActive(item) && (
@@ -222,7 +240,7 @@ export function DownloadGroupCard({
                       interactive.transition.fast,
                       "hover:bg-fg/10 hover:text-danger/70 active:scale-90",
                     )}
-                    title={t("models.downloadQueue.cancel" as TranslationKey)}
+                    title={t("installedModels.downloads.cancelDownload")}
                   >
                     <X size={11} />
                   </button>
@@ -240,12 +258,13 @@ export function DownloadGroupCard({
                     {pct(item)}%
                     {item.total > 0 && (
                       <span className="ml-1 text-fg/25">
-                        {formatBytes(item.downloaded)}/{formatBytes(item.total)}
+                        {formatBytes(item.downloaded, sizeUnits)}/
+                        {formatBytes(item.total, sizeUnits)}
                       </span>
                     )}
                     {item.speedBytesPerSec > 0 && (
                       <span className="ml-1 text-fg/25">
-                        · {formatBytes(item.speedBytesPerSec)}/s
+                        · {formatBytes(item.speedBytesPerSec, sizeUnits)}/s
                       </span>
                     )}
                   </span>
@@ -253,12 +272,14 @@ export function DownloadGroupCard({
               )}
               {item.status === "queued" && (
                 <p className="mt-1 pl-[22px] text-[10px] text-fg/30">
-                  {t("models.downloadQueue.waiting" as TranslationKey)}
+                  {t("installedModels.downloads.waiting")}
                 </p>
               )}
               {(item.status === "error" || item.status === "cancelled") && (
                 <p className="mt-1 truncate pl-[22px] text-[10px] text-danger/50">
-                  {item.status === "cancelled" ? "Cancelled" : item.error || "Download failed"}
+                  {item.status === "cancelled"
+                    ? t("installedModels.downloads.cancelled")
+                    : item.error || t("installedModels.downloads.failed")}
                 </p>
               )}
             </div>

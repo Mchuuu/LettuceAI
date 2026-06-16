@@ -127,12 +127,12 @@ export function UsageActivityPage() {
           <span className="tabular-nums text-fg/75">
             {filtered.length.toLocaleString()}
           </span>
-          <span className="text-fg/40">records</span>
+          <span className="text-fg/40">{t("usageAnalytics.activity.records")}</span>
           <span className="px-0.5 text-fg/25">·</span>
           <span className="font-medium tabular-nums text-fg/75">
             {formatCompactNumber(totals.tokens)}
           </span>
-          <span className="text-fg/40">tokens</span>
+          <span className="text-fg/40">{t("usageAnalytics.activity.tokens")}</span>
           <span className="px-0.5 text-fg/25">·</span>
           <span className="font-medium tabular-nums text-accent">
             {formatCurrency(totals.cost)}
@@ -150,14 +150,14 @@ export function UsageActivityPage() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search character, model, provider, op..."
+            placeholder={t("usageAnalytics.activity.searchPlaceholder")}
             className="h-9 w-full rounded-lg border border-fg/10 bg-fg/[0.02] pl-9 pr-9 text-[13px] text-fg outline-none transition placeholder:text-fg/35 focus:border-accent/40 focus:bg-fg/[0.05] focus:ring-1 focus:ring-accent/20"
           />
           {query && (
             <button
               onClick={() => setQuery("")}
               className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-fg/40 transition hover:bg-fg/10 hover:text-fg/70"
-              aria-label="Clear search"
+              aria-label={t("usageAnalytics.activity.clearSearch")}
             >
               <X size={12} />
             </button>
@@ -177,7 +177,7 @@ export function UsageActivityPage() {
       {opCounts.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
           <OpChip
-            label="All"
+            label={t("usageAnalytics.activity.all")}
             count={records.length}
             active={opFilter === "all"}
             onClick={() => setOpFilter("all")}
@@ -217,7 +217,7 @@ export function UsageActivityPage() {
           </div>
           <p className="mx-auto mt-1 max-w-md text-[12.5px] text-fg/55">
             {query || opFilter !== "all"
-              ? "No records match the current filter."
+              ? t("usageAnalytics.activity.noMatch")
               : t("usageAnalytics.page.startChatting")}
           </p>
         </div>
@@ -245,11 +245,11 @@ export function UsageActivityPage() {
           {/* Column header (desktop) */}
           <div className="hidden grid-cols-[minmax(0,1.5fr)_92px_minmax(0,1fr)_88px_92px_92px_16px] items-center gap-3 border-b border-fg/[0.05] bg-fg/[0.015] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-fg/35 lg:grid">
             <div>{t("common.labels.name")}</div>
-            <div>Op</div>
-            <div>Model</div>
+            <div>{t("usageAnalytics.activity.opColumn")}</div>
+            <div>{t("usageAnalytics.activity.modelColumn")}</div>
             <div className="text-right">{t("usageAnalytics.page.tokens")}</div>
-            <div className="text-right">Cost</div>
-            <div className="text-right">Time</div>
+            <div className="text-right">{t("usageAnalytics.activity.costColumn")}</div>
+            <div className="text-right">{t("usageAnalytics.activity.timeColumn")}</div>
             <div />
           </div>
 

@@ -1,5 +1,6 @@
 import { describeRequirement } from "../../../modelRequirements";
 import { MissingModelRequirementsSheet } from "../../../components/MissingModelRequirementsSheet";
+import { useI18n } from "../../../../core/i18n/context";
 
 export interface DynamicMemoryEmbeddingPromptProps {
   onDownload: () => void;
@@ -10,16 +11,17 @@ export function DynamicMemoryEmbeddingPrompt({
   onDownload,
   onContinueWithout,
 }: DynamicMemoryEmbeddingPromptProps) {
+  const { t } = useI18n();
   return (
     <MissingModelRequirementsSheet
       isOpen
-      title="Dynamic Memory needs setup"
-      description="This data uses Dynamic Memory, which needs a local embedding model before those memory features can run."
+      title={t("onboarding.memory.embeddingPrompt.title")}
+      description={t("onboarding.memory.embeddingPrompt.description")}
       missing={[describeRequirement("embedding")]}
       onClose={onContinueWithout}
       onDownload={onDownload}
-      closeLabel="Continue without Dynamic Memory"
-      downloadLabel="Download model"
+      closeLabel={t("onboarding.memory.embeddingPrompt.continueWithout")}
+      downloadLabel={t("onboarding.memory.embeddingPrompt.downloadModel")}
     />
   );
 }

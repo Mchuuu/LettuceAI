@@ -68,8 +68,8 @@ export function BackupRestorePage() {
           <div className="flex items-center gap-3 rounded-xl border border-accent/20 bg-accent/10 p-3">
             <CheckCircle className="h-5 w-5 shrink-0 text-accent" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-accent/80">Backup created!</p>
-              <p className="text-xs text-accent/80/60">Saved to Downloads</p>
+              <p className="text-sm font-medium text-accent/80">{t("backup.extra.successMessage")}</p>
+              <p className="text-xs text-accent/80/60">{t("backup.extra.savedLocation")}</p>
             </div>
             <button
               onClick={actions.clearExportSuccess}
@@ -165,11 +165,7 @@ export function BackupRestorePage() {
           )}
         </div>
 
-        <p className="px-1 text-[11px] text-fg/30">
-          Backups are saved as encrypted <code className="text-fg/40">.lettuce</code> files in
-          your Downloads folder. If a backup isn't showing, tap "Browse Files" to select it
-          manually.
-        </p>
+        <p className="px-1 text-[11px] text-fg/30">{t("backup.footer.note")}</p>
       </section>
 
       {/* Export Modal */}
@@ -179,9 +175,7 @@ export function BackupRestorePage() {
         title={t("backup.create.createButton")}
       >
         <div className="space-y-4">
-          <p className="text-sm text-fg/50">
-            Choose a password to encrypt your backup. You'll need this to restore.
-          </p>
+          <p className="text-sm text-fg/50">{t("backup.export.passwordPrompt")}</p>
 
           {state.error && (
             <div className="flex items-center gap-2 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger/80">
@@ -192,13 +186,13 @@ export function BackupRestorePage() {
 
           <div className="space-y-3">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-fg/50">Password</label>
+              <label className="mb-1.5 block text-xs font-medium text-fg/50">{t("backup.export.passwordLabel")}</label>
               <div className="relative">
                 <input
                   type={state.showExportPassword ? "text" : "password"}
                   value={state.exportPassword}
                   onChange={(e) => actions.setExportPassword(e.target.value)}
-                  placeholder="Min 6 characters"
+                  placeholder={t("backup.export.passwordPlaceholder")}
                   className={cn(
                     "w-full border border-fg/10 bg-fg/5 px-4 py-3 pr-12 text-fg placeholder-fg/30",
                     radius.lg,
@@ -221,13 +215,13 @@ export function BackupRestorePage() {
 
             <div>
               <label className="mb-1.5 block text-xs font-medium text-fg/50">
-                Confirm Password
+                {t("backup.export.confirmPasswordLabel")}
               </label>
               <input
                 type={state.showExportPassword ? "text" : "password"}
                 value={state.confirmPassword}
                 onChange={(e) => actions.setConfirmPassword(e.target.value)}
-                placeholder="Confirm password"
+                placeholder={t("backup.export.confirmPasswordPlaceholder")}
                 className={cn(
                   "w-full border border-fg/10 bg-fg/5 px-4 py-3 text-fg placeholder-fg/30",
                   radius.lg,
@@ -304,7 +298,7 @@ export function BackupRestorePage() {
 
               <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning/80">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                <span>This will replace all current data. Cannot be undone.</span>
+                <span>{t("backup.import.replaceWarning")}</span>
               </div>
 
               {state.error && (
@@ -317,14 +311,14 @@ export function BackupRestorePage() {
               {state.selectedBackup.encrypted && (
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-fg/50">
-                    Backup Password
+                    {t("backup.import.passwordLabel")}
                   </label>
                   <div className="relative">
                     <input
                       type={state.showImportPassword ? "text" : "password"}
                       value={state.importPassword}
                       onChange={(e) => actions.setImportPassword(e.target.value)}
-                      placeholder="Enter password"
+                      placeholder={t("backup.import.passwordPlaceholder")}
                       className={cn(
                         "w-full border border-fg/10 bg-fg/5 px-4 py-3 pr-12 text-fg placeholder-fg/30",
                         radius.lg,
@@ -397,7 +391,7 @@ export function BackupRestorePage() {
         <div className="space-y-4">
           {state.selectedBackup && (
             <>
-              <p className="text-sm text-fg/50">Delete this backup permanently?</p>
+              <p className="text-sm text-fg/50">{t("backup.delete.confirmPrompt")}</p>
 
               <div className={cn("border border-fg/10 bg-fg/5 p-3", radius.lg)}>
                 <p className="truncate text-sm font-medium text-fg">
@@ -440,23 +434,21 @@ export function BackupRestorePage() {
       <BottomMenu
         isOpen={showEmbeddingPrompt}
         onClose={() => setShowEmbeddingPrompt(false)}
-        title="Embedding Model Required"
+        title={t("backup.embedding.modalTitle")}
       >
         <div className="space-y-4">
           <div className="flex items-start gap-3 rounded-xl border border-warning/20 bg-warning/10 p-3">
             <HardDrive className="h-5 w-5 shrink-0 text-warning mt-0.5" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-warning/80">Dynamic Memory Detected</p>
+              <p className="text-sm font-medium text-warning/80">{t("backup.embedding.detectedTitle")}</p>
               <p className="mt-1 text-xs text-warning/70">
-                This backup contains characters with dynamic memory enabled, which requires the
-                embedding model (~260MB).
+                {t("backup.embedding.detectedDescription")}
               </p>
             </div>
           </div>
 
           <p className="text-sm text-fg/60">
-            You can download the model now to enable dynamic memory, or continue without it (dynamic
-            memory will be disabled for affected characters).
+            {t("backup.embedding.choiceDescription")}
           </p>
 
           <div className="flex flex-col gap-2 pt-2">
@@ -469,7 +461,7 @@ export function BackupRestorePage() {
               )}
             >
               <Download className="h-4 w-4" />
-              Download Model
+              {t("backup.embedding.downloadButton")}
             </button>
             <button
               onClick={handleDisableAndContinue}
@@ -479,13 +471,12 @@ export function BackupRestorePage() {
                 "hover:bg-fg/10",
               )}
             >
-              Continue Without Dynamic Memory
+              {t("backup.embedding.continueButton")}
             </button>
           </div>
 
           <p className="text-xs text-fg/40 text-center">
-            You can re-enable dynamic memory later in character settings after downloading the
-            model.
+            {t("backup.embedding.reenableNote")}
           </p>
         </div>
       </BottomMenu>
@@ -503,6 +494,7 @@ function BackupItem({
   onRestore: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <button
       onClick={onRestore}
@@ -524,7 +516,7 @@ function BackupItem({
           </div>
           <p className="mt-0.5 text-[11px] text-fg/40">
             {formatDate(backup.createdAt)} · v{backup.appVersion}
-            {backup.totalFiles > 0 && ` · ${backup.totalFiles} files`}
+            {backup.totalFiles > 0 && ` · ${t("backup.item.filesCount", { count: backup.totalFiles })}`}
           </p>
         </div>
         <button

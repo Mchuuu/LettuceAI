@@ -595,7 +595,7 @@ export function CustomizationPage() {
 
         <div>
           <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-            Easter Eggs
+            {t("accessibility.sectionTitles.easterEggs")}
           </h2>
           <div className="rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
             <div className="flex items-start gap-3">
@@ -606,7 +606,7 @@ export function CustomizationPage() {
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-fg">Beetroot Rain</span>
+                      <span className="text-sm font-medium text-fg">{t("accessibility.easterEggs.beetrootRain")}</span>
                       <span
                         className={`rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-none uppercase tracking-[0.25em] ${
                           isBeetrootEnabled
@@ -614,11 +614,11 @@ export function CustomizationPage() {
                             : "border-fg/10 bg-fg/10 text-fg/60"
                         }`}
                       >
-                        {isBeetrootEnabled ? "On" : "Off"}
+                        {isBeetrootEnabled ? t("common.labels.on") : t("common.labels.off")}
                       </span>
                     </div>
                     <div className="mt-0.5 text-[11px] text-fg/50">
-                      Beetroots fall when chats mention them
+                      {t("accessibility.easterEggs.beetrootDesc")}
                     </div>
                   </div>
                   <Switch

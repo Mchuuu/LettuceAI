@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { ButtonNode } from "../../../../../core/storage/chatWidgetSchemas";
 import { cn, interactive } from "../../../../design-tokens";
+import { useI18n, type TranslationKey } from "../../../../../core/i18n/context";
 import { useWidgetContext } from "./WidgetContext";
 import { widgetCardClass } from "./widgetSurface";
 
@@ -19,17 +20,17 @@ interface WidgetButtonProps {
   node: ButtonNode;
 }
 
-const DEFAULT_LABEL: Record<ButtonNode["action"], string> = {
-  regenerate: "Regenerate last reply",
-  swap_places: "Swap places",
-  new_session: "New session",
-  continue: "Continue",
-  abort: "Stop generating",
-  view_history: "View chat history",
-  open_memories: "Memories",
-  open_search: "Search chat",
-  toggle_voice_autoplay: "Voice autoplay",
-};
+const DEFAULT_LABEL = {
+  regenerate: "chats.widgets.button.regenerateLastReply",
+  swap_places: "chats.widgets.button.swapPlaces",
+  new_session: "chats.widgets.button.newSession",
+  continue: "chats.widgets.button.continue",
+  abort: "chats.widgets.button.stopGenerating",
+  view_history: "chats.widgets.button.viewChatHistory",
+  open_memories: "chats.widgets.button.memories",
+  open_search: "chats.widgets.button.searchChat",
+  toggle_voice_autoplay: "chats.widgets.button.voiceAutoplay",
+} satisfies Record<ButtonNode["action"], TranslationKey>;
 
 function ActionIcon({ action }: { action: ButtonNode["action"] }) {
   switch (action) {
@@ -55,6 +56,7 @@ function ActionIcon({ action }: { action: ButtonNode["action"] }) {
 }
 
 export function WidgetButton({ node }: WidgetButtonProps) {
+  const { t } = useI18n();
   const ctx = useWidgetContext();
   const hasBackground = ctx.hasBackground;
   const { handler, disabled, isToggle, toggled } = useMemo(() => {
@@ -125,7 +127,7 @@ export function WidgetButton({ node }: WidgetButtonProps) {
     }
   }, [ctx, node.action]);
 
-  const label = node.title ?? DEFAULT_LABEL[node.action];
+  const label = node.title ?? t(DEFAULT_LABEL[node.action]);
   return (
     <section className="flex flex-col gap-1.5">
       <button

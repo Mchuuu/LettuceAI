@@ -3,18 +3,20 @@ import { Clock } from "lucide-react";
 import type { TimeNode } from "../../../../../core/storage/chatWidgetSchemas";
 import { cn, interactive } from "../../../../design-tokens";
 import { DateTimePicker } from "../../../../components/DateTimePicker";
+import { useI18n, type TranslationKey } from "../../../../../core/i18n/context";
 import { useWidgetContext } from "./WidgetContext";
 import { useWidgetEdit } from "./WidgetEditContext";
 import { widgetCardClass } from "./widgetSurface";
 import { useCompanionTimeOverrideEditor } from "../../utils/companionTimeOverride";
 
 const MODE_OPTIONS = [
-  { mode: "off", label: "Live" },
-  { mode: "frozen", label: "Frozen" },
-  { mode: "ticking", label: "Ticking" },
-] as const;
+  { mode: "off", label: "chats.widgets.time.live" },
+  { mode: "frozen", label: "chats.widgets.time.frozen" },
+  { mode: "ticking", label: "chats.widgets.time.ticking" },
+] satisfies { mode: "off" | "frozen" | "ticking"; label: TranslationKey }[];
 
 export function WidgetTime({ node }: { node: TimeNode }) {
+  const { t } = useI18n();
   const { hasBackground, character, session, onUpdateCompanionTimeOverride } =
     useWidgetContext();
   const { editing: areaEditing } = useWidgetEdit();
@@ -69,14 +71,18 @@ export function WidgetTime({ node }: { node: TimeNode }) {
     >
       <header className="flex items-center gap-2">
         <Clock size={14} className="text-fg/50" />
-        <h3 className="text-sm font-semibold text-fg/75">{node.title || "Time"}</h3>
+        <h3 className="text-sm font-semibold text-fg/75">{node.title || t("chats.widgets.time.defaultTitle")}</h3>
         <span
           className={cn(
             "ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
             isOverridden ? "bg-accent/15 text-accent/80" : "text-fg/35",
           )}
         >
-          {isOverridden ? (activeMode === "frozen" ? "Frozen" : "Custom") : "Live"}
+          {isOverridden
+            ? activeMode === "frozen"
+              ? t("chats.widgets.time.frozen")
+              : t("chats.widgets.time.custom")
+            : t("chats.widgets.time.live")}
         </span>
       </header>
 
@@ -89,7 +95,7 @@ export function WidgetTime({ node }: { node: TimeNode }) {
         )}
         {isOverridden && (
           <span className="mt-1 text-[10px] text-fg/35">
-            Real time {timeFormatter.format(nowMs)}
+            {t("chats.widgets.time.realTime", { time: timeFormatter.format(nowMs) })}
           </span>
         )}
       </div>
@@ -111,7 +117,7 @@ export function WidgetTime({ node }: { node: TimeNode }) {
                   : "border-fg/12 bg-fg/5 text-fg/60 hover:border-fg/25 hover:bg-fg/10 hover:text-fg/80",
               )}
             >
-              {opt.label}
+              {t(opt.label)}
             </button>
           ))}
         </div>
@@ -126,7 +132,7 @@ export function WidgetTime({ node }: { node: TimeNode }) {
             interactive.transition.fast,
           )}
         >
-          Change time
+          {t("chats.widgets.time.changeTime")}
         </button>
       )}
 
@@ -142,7 +148,7 @@ export function WidgetTime({ node }: { node: TimeNode }) {
                 interactive.transition.fast,
               )}
             >
-              Now
+              {t("chats.widgets.time.now")}
             </button>
             <button
               type="button"
@@ -152,7 +158,7 @@ export function WidgetTime({ node }: { node: TimeNode }) {
                 interactive.transition.fast,
               )}
             >
-              Cancel
+              {t("common.buttons.cancel")}
             </button>
             <button
               type="button"
@@ -164,7 +170,7 @@ export function WidgetTime({ node }: { node: TimeNode }) {
                 "hover:brightness-110",
               )}
             >
-              {selectedMode === "frozen" ? "Freeze" : "Set"}
+              {selectedMode === "frozen" ? t("chats.widgets.time.freeze") : t("chats.widgets.time.set")}
             </button>
           </div>
         </div>
@@ -172,7 +178,7 @@ export function WidgetTime({ node }: { node: TimeNode }) {
 
       {canEdit && isCompanion && awarenessOff && (
         <p className="text-[10px] italic leading-snug text-fg/35">
-          Turn on time awareness in chat settings for this to reach the companion.
+          {t("chats.widgets.time.awarenessHint")}
         </p>
       )}
     </section>

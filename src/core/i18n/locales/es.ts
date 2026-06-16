@@ -740,7 +740,6 @@ export const esMessages: DeepPartialMessageTree<LocaleMessages> = {
     "suggestedReply": "Respuesta sugerida",
     "selectTwoCharactersMinimum": "Selecciona al menos 2 personajes para un chat grupal.",
     "groupBranchCreated": "¡Rama grupal creada! Redirigiendo...",
-    "memories": "Memorias",
     "tools": "Herramientas",
     "pinned": "Fijados",
     "searchMemories": "Buscar memorias...",

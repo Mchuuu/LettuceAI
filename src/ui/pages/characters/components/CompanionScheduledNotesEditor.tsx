@@ -5,6 +5,7 @@ import { BottomMenu, MenuSection } from "../../../components/BottomMenu";
 import { Switch } from "../../../components/Switch";
 import { toast } from "../../../components/toast";
 import { cn, radius, spacing, typography, interactive } from "../../../design-tokens";
+import { useI18n, type TranslationKey } from "../../../../core/i18n/context";
 import {
   deleteCompanionScheduledNote,
   listCompanionScheduledNotes,
@@ -28,20 +29,20 @@ type DraftState = {
   createdAt: number;
 };
 
-const RECURRENCE_OPTIONS: Array<{ value: CompanionScheduledNoteRecurrence; label: string }> = [
-  { value: "none", label: "Once" },
-  { value: "daily", label: "Daily" },
-  { value: "weekly", label: "Weekly" },
-  { value: "monthly", label: "Monthly" },
-  { value: "yearly", label: "Yearly" },
-];
+const RECURRENCE_OPTIONS = [
+  { value: "none", labelKey: "characters.scheduledNotes.recurrenceOnce" },
+  { value: "daily", labelKey: "characters.scheduledNotes.recurrenceDaily" },
+  { value: "weekly", labelKey: "characters.scheduledNotes.recurrenceWeekly" },
+  { value: "monthly", labelKey: "characters.scheduledNotes.recurrenceMonthly" },
+  { value: "yearly", labelKey: "characters.scheduledNotes.recurrenceYearly" },
+] satisfies Array<{ value: CompanionScheduledNoteRecurrence; labelKey: TranslationKey }>;
 
-const RECURRENCE_UNIT: Record<Exclude<CompanionScheduledNoteRecurrence, "none">, string> = {
-  daily: "day",
-  weekly: "week",
-  monthly: "month",
-  yearly: "year",
-};
+const RECURRENCE_UNIT_KEY = {
+  daily: "characters.scheduledNotes.unitDay",
+  weekly: "characters.scheduledNotes.unitWeek",
+  monthly: "characters.scheduledNotes.unitMonth",
+  yearly: "characters.scheduledNotes.unitYear",
+} satisfies Record<Exclude<CompanionScheduledNoteRecurrence, "none">, TranslationKey>;
 
 function pad(value: number): string {
   return String(value).padStart(2, "0");
@@ -82,7 +83,9 @@ function combineDateTime(date: string, time: string): string {
   return `${safeDate}T${safeTime}`;
 }
 
-function describeSchedule(draft: DraftState): string {
+type TFn = (key: TranslationKey, params?: Record<string, string | number>) => string;
+
+function describeSchedule(draft: DraftState, t: TFn): string {
   const startsMs = dateTimeLocalToMs(draft.availableAt);
   const endsMs = draft.expiresAt ? dateTimeLocalToMs(draft.expiresAt) : null;
   const hours = Number(draft.recurrenceWindowHours);
@@ -91,33 +94,55 @@ function describeSchedule(draft: DraftState): string {
   if (draft.recurrence === "none") {
     const start = formatPreviewDate(startsMs);
     if (endsMs && endsMs > startsMs) {
-      return `Visible from ${start} until ${formatPreviewDate(endsMs)}.`;
+      return t("characters.scheduledNotes.describeOnceUntil", {
+        start,
+        end: formatPreviewDate(endsMs),
+      });
     }
-    return `Visible from ${start} onward.`;
+    return t("characters.scheduledNotes.describeOnceOnward", { start });
   }
 
-  const unit = RECURRENCE_UNIT[draft.recurrence];
   const timeOfDay = formatTime(startsMs);
-  const window = validHours ? `for ${hours}h each time` : `until the next ${unit}`;
+  const window = validHours
+    ? t("characters.scheduledNotes.windowHours", { hours })
+    : t("characters.scheduledNotes.windowUntilNext", { unit: t(RECURRENCE_UNIT_KEY[draft.recurrence]) });
   const startDate = formatPreviewDate(startsMs, false);
-  const cap = endsMs && endsMs > startsMs ? ` Stops after ${formatPreviewDate(endsMs, false)}.` : "";
+  const cap =
+    endsMs && endsMs > startsMs
+      ? t("characters.scheduledNotes.describeStopsAfter", { date: formatPreviewDate(endsMs, false) })
+      : "";
 
   if (draft.recurrence === "daily") {
-    return `Every day at ${timeOfDay}, visible ${window}. Starts ${startDate}.${cap}`;
+    return t("characters.scheduledNotes.describeDaily", { time: timeOfDay, window, start: startDate, cap });
   }
   if (draft.recurrence === "weekly") {
     const weekday = new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(
       new Date(startsMs),
     );
-    return `Every ${weekday} at ${timeOfDay}, visible ${window}. Starts ${startDate}.${cap}`;
+    return t("characters.scheduledNotes.describeWeekly", {
+      weekday,
+      time: timeOfDay,
+      window,
+      start: startDate,
+      cap,
+    });
   }
   // monthly / yearly
-  return `Repeats ${draft.recurrence} on ${formatPreviewDate(startsMs)}, visible ${window}.${cap}`;
+  const recurrenceLabel = t(
+    RECURRENCE_OPTIONS.find((o) => o.value === draft.recurrence)?.labelKey ??
+      "characters.scheduledNotes.recurrenceMonthly",
+  ).toLowerCase();
+  return t("characters.scheduledNotes.describeMonthlyYearly", {
+    recurrence: recurrenceLabel,
+    date: formatPreviewDate(startsMs),
+    window,
+    cap,
+  });
 }
 
-function notePreview(content: string): string {
+function notePreview(content: string, t: TFn): string {
   const trimmed = content.trim();
-  if (!trimmed) return "(empty)";
+  if (!trimmed) return t("characters.scheduledNotes.emptyContent");
   return trimmed.length > 140 ? `${trimmed.slice(0, 140)}...` : trimmed;
 }
 
@@ -182,6 +207,13 @@ function statusFor(note: CompanionScheduledNote, isActive: boolean, previewMs: n
   return isActive ? "active" : "inactive";
 }
 
+const STATUS_LABEL_KEY = {
+  active: "characters.scheduledNotes.statusActive",
+  scheduled: "characters.scheduledNotes.statusScheduled",
+  expired: "characters.scheduledNotes.statusExpired",
+  inactive: "characters.scheduledNotes.statusInactive",
+} satisfies Record<Status, TranslationKey>;
+
 const STATUS_PILL: Record<Status, string> = {
   active: "border-accent/40 bg-accent/15 text-accent",
   scheduled: "border-info/40 bg-info/15 text-info",
@@ -227,6 +259,7 @@ interface Props {
 }
 
 export function CompanionScheduledNotesEditor({ characterId }: Props) {
+  const { t } = useI18n();
   const [notes, setNotes] = useState<CompanionScheduledNote[]>([]);
   const [activeIds, setActiveIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -263,7 +296,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
       setActiveIds(new Set(active.map((note) => note.id)));
     } catch (error) {
       console.error("Failed to load companion scheduled notes:", error);
-      toast.error("Failed to load scheduled notes");
+      toast.error(t("characters.scheduledNotes.loadError"));
     } finally {
       setLoading(false);
     }
@@ -293,10 +326,12 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
       });
       await refreshActive(previewMs);
       setDraft(null);
-      toast.success("Scheduled note saved");
+      toast.success(t("characters.scheduledNotes.saveSuccess"));
     } catch (error) {
       console.error("Failed to save companion scheduled note:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to save scheduled note");
+      toast.error(
+        error instanceof Error ? error.message : t("characters.scheduledNotes.saveError"),
+      );
     } finally {
       setSaving(false);
     }
@@ -310,7 +345,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
         await refreshActive(previewMs);
       } catch (error) {
         console.error("Failed to toggle scheduled note:", error);
-        toast.error("Failed to update scheduled note");
+        toast.error(t("characters.scheduledNotes.updateError"));
       }
     },
     [previewMs, refreshActive],
@@ -325,10 +360,10 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
         next.delete(id);
         return next;
       });
-      toast.success("Scheduled note deleted");
+      toast.success(t("characters.scheduledNotes.deleteSuccess"));
     } catch (error) {
       console.error("Failed to delete companion scheduled note:", error);
-      toast.error("Failed to delete scheduled note");
+      toast.error(t("characters.scheduledNotes.deleteError"));
     }
   }, []);
 
@@ -340,38 +375,44 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
       onClose={() => {
         if (!saving) setDraft(null);
       }}
-      title={draftIsNew ? "New scheduled note" : "Edit scheduled note"}
+      title={
+        draftIsNew
+          ? t("characters.scheduledNotes.newNoteTitle")
+          : t("characters.scheduledNotes.editNoteTitle")
+      }
     >
       <MenuSection>
         {draft ? (
           <div className={spacing.group}>
             <div className={spacing.field}>
-              <label className={labelClass}>Label (optional)</label>
+              <label className={labelClass}>
+                {t("characters.scheduledNotes.labelOptional")}
+              </label>
               <input
                 type="text"
                 value={draft.label}
                 onChange={(e) => setDraft((d) => (d ? { ...d, label: e.target.value } : d))}
-                placeholder="Birthday"
+                placeholder={t("characters.scheduledNotes.labelPlaceholder")}
                 className={inputClass}
               />
             </div>
 
             <div className={spacing.field}>
-              <label className={labelClass}>Content</label>
+              <label className={labelClass}>{t("characters.scheduledNotes.contentLabel")}</label>
               <textarea
                 value={draft.content}
                 onChange={(e) => setDraft((d) => (d ? { ...d, content: e.target.value } : d))}
                 rows={4}
-                placeholder="Today is your birthday. You feel a little sentimental about it."
+                placeholder={t("characters.scheduledNotes.contentPlaceholder")}
                 className={cn(inputClass, "resize-none leading-relaxed")}
               />
               <p className={cn(typography.caption.size, "text-fg/45")}>
-                This is the exact text the companion will read once the date arrives.
+                {t("characters.scheduledNotes.contentHelp")}
               </p>
             </div>
 
             <div className={spacing.field}>
-              <label className={labelClass}>Repeats</label>
+              <label className={labelClass}>{t("characters.scheduledNotes.repeatsLabel")}</label>
               <select
                 value={draft.recurrence}
                 onChange={(e) =>
@@ -385,7 +426,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
               >
                 {RECURRENCE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {t(option.labelKey)}
                   </option>
                 ))}
               </select>
@@ -421,7 +462,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
                 return (
                   <div className="grid items-end gap-3 sm:grid-cols-2">
                     <div className={spacing.field}>
-                      <label className={labelClass}>Show on</label>
+                      <label className={labelClass}>{t("characters.scheduledNotes.showOn")}</label>
                       <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-2">
                         <input
                           type="date"
@@ -438,7 +479,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
                       </div>
                     </div>
                     <div className={spacing.field}>
-                      <label className={labelClass}>Hide on (optional)</label>
+                      <label className={labelClass}>{t("characters.scheduledNotes.hideOn")}</label>
                       <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-2">
                         <input
                           type="date"
@@ -466,7 +507,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
                 return (
                   <div className="grid items-end gap-3 sm:grid-cols-4">
                     <div className={spacing.field}>
-                      <label className={labelClass}>Time of day</label>
+                      <label className={labelClass}>{t("characters.scheduledNotes.timeOfDay")}</label>
                       <input
                         type="time"
                         value={start.time}
@@ -475,7 +516,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
                       />
                     </div>
                     <div className={spacing.field}>
-                      <label className={labelClass}>Starts on</label>
+                      <label className={labelClass}>{t("characters.scheduledNotes.startsOn")}</label>
                       <input
                         type="date"
                         value={start.date}
@@ -484,7 +525,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
                       />
                     </div>
                     <div className={spacing.field}>
-                      <label className={labelClass}>Stops on (optional)</label>
+                      <label className={labelClass}>{t("characters.scheduledNotes.stopsOn")}</label>
                       <input
                         type="date"
                         value={end.date}
@@ -493,7 +534,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
                       />
                     </div>
                     <div className={spacing.field}>
-                      <label className={labelClass}>Visible for (hours)</label>
+                      <label className={labelClass}>{t("characters.scheduledNotes.visibleForHours")}</label>
                       <input
                         type="number"
                         min="1"
@@ -516,7 +557,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
               return (
                 <div className="grid items-end gap-3 sm:grid-cols-3">
                   <div className={spacing.field}>
-                    <label className={labelClass}>First occurrence</label>
+                    <label className={labelClass}>{t("characters.scheduledNotes.firstOccurrence")}</label>
                     <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-2">
                       <input
                         type="date"
@@ -533,7 +574,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
                     </div>
                   </div>
                   <div className={spacing.field}>
-                    <label className={labelClass}>Stops after (optional)</label>
+                    <label className={labelClass}>{t("characters.scheduledNotes.stopsAfter")}</label>
                     <input
                       type="date"
                       value={end.date}
@@ -542,7 +583,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
                     />
                   </div>
                   <div className={spacing.field}>
-                    <label className={labelClass}>Visible for (hours)</label>
+                    <label className={labelClass}>{t("characters.scheduledNotes.visibleForHours")}</label>
                     <input
                       type="number"
                       min="1"
@@ -568,7 +609,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
               )}
             >
               <p className={cn(typography.caption.size, "text-fg/65 leading-relaxed")}>
-                {describeSchedule(draft)}
+                {describeSchedule(draft, t)}
               </p>
             </div>
 
@@ -580,10 +621,10 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
             >
               <span className="min-w-0">
                 <span className={cn(typography.bodySmall.size, "block font-semibold text-fg")}>
-                  Enabled
+                  {t("characters.scheduledNotes.enabled")}
                 </span>
                 <span className={cn(typography.caption.size, "mt-1 block text-fg/50")}>
-                  Turn off to keep the note saved without injecting it into prompts.
+                  {t("characters.scheduledNotes.enabledHelp")}
                 </span>
               </span>
               <Switch
@@ -599,7 +640,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
                 disabled={saving}
                 className={ghostButton}
               >
-                Cancel
+                {t("common.buttons.cancel")}
               </button>
               <button
                 type="button"
@@ -607,7 +648,11 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
                 disabled={saving || !draft.content.trim()}
                 className={accentButton}
               >
-                {saving ? "Saving..." : draftIsNew ? "Add note" : "Save"}
+                {saving
+                  ? t("common.buttons.saving")
+                  : draftIsNew
+                    ? t("characters.scheduledNotes.addNote")
+                    : t("common.buttons.save")}
               </button>
             </div>
           </div>
@@ -636,11 +681,10 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
           </div>
           <div className="max-w-sm">
             <p className={cn(typography.body.size, "font-semibold text-fg")}>
-              No scheduled notes yet
+              {t("characters.scheduledNotes.emptyTitle")}
             </p>
             <p className={cn(typography.bodySmall.size, "mt-1 text-fg/55")}>
-              Schedule a birthday, anniversary, or seasonal beat. The companion only sees the note
-              once its date arrives.
+              {t("characters.scheduledNotes.emptyDescription")}
             </p>
           </div>
           <button
@@ -649,7 +693,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
             className={cn(accentButton, "mt-1")}
           >
             <Plus className="h-3.5 w-3.5" />
-            Add a note
+            {t("characters.scheduledNotes.addANote")}
           </button>
         </div>
         {formSheet}
@@ -673,10 +717,16 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
             "hover:border-fg/20 hover:text-fg",
             showPreviewControl && "border-fg/25 text-fg",
           )}
-          title={isPreviewingNow ? "Showing what the companion sees now" : "Previewing a future date"}
+          title={
+            isPreviewingNow
+              ? t("characters.scheduledNotes.previewingNowTooltip")
+              : t("characters.scheduledNotes.previewingFutureTooltip")
+          }
         >
           {showPreviewControl ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-          {isPreviewingNow ? "Active now" : `As of ${formatPreviewDate(previewMs, false)}`}
+          {isPreviewingNow
+            ? t("characters.scheduledNotes.activeNow")
+            : t("characters.scheduledNotes.asOf", { date: formatPreviewDate(previewMs, false) })}
         </button>
         <button
           type="button"
@@ -684,7 +734,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
           className={accentButton}
         >
           <Plus className="h-3.5 w-3.5" />
-          Add note
+          {t("characters.scheduledNotes.addNote")}
         </button>
       </div>
 
@@ -713,13 +763,13 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
                   onClick={() => setPreviewAsOf(formatDateTimeLocal(Date.now()))}
                   className={ghostButton}
                 >
-                  Now
+                  {t("characters.scheduledNotes.now")}
                 </button>
               </div>
             );
           })()}
           <p className={cn(typography.caption.size, "mt-2 text-fg/50")}>
-            Pick a date to see which notes would be active. Does not affect the actual prompt.
+            {t("characters.scheduledNotes.previewHelp")}
           </p>
         </div>
       ) : null}
@@ -733,7 +783,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
               radius.md,
             )}
           >
-            Loading scheduled notes...
+            {t("characters.scheduledNotes.loading")}
           </div>
         ) : (
           notes.map((note) => {
@@ -755,7 +805,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
                           "min-w-0 truncate font-semibold text-fg",
                         )}
                       >
-                        {note.label.trim() || "Untitled note"}
+                        {note.label.trim() || t("characters.scheduledNotes.untitledNote")}
                       </p>
                       <span
                         className={cn(
@@ -766,11 +816,13 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
                           !note.enabled && "opacity-50",
                         )}
                       >
-                        {!note.enabled ? "off" : status}
+                        {!note.enabled
+                          ? t("characters.scheduledNotes.statusOff")
+                          : t(STATUS_LABEL_KEY[status])}
                       </span>
                     </div>
                     <p className={cn(typography.bodySmall.size, "mt-2 text-fg/75")}>
-                      {notePreview(note.content)}
+                      {notePreview(note.content, t)}
                     </p>
                     <div
                       className={cn(
@@ -780,18 +832,31 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
                     >
                       <span className="inline-flex items-center gap-1">
                         <CalendarClock className="h-3 w-3" />
-                        Starts {formatPreviewDate(note.availableAt)}
+                        {t("characters.scheduledNotes.cardStarts", {
+                          date: formatPreviewDate(note.availableAt),
+                        })}
                       </span>
                       <span>
-                        {RECURRENCE_OPTIONS.find((o) => o.value === note.recurrence)?.label}
+                        {(() => {
+                          const labelKey = RECURRENCE_OPTIONS.find(
+                            (o) => o.value === note.recurrence,
+                          )?.labelKey;
+                          return labelKey ? t(labelKey) : null;
+                        })()}
                       </span>
                       {note.recurrence !== "none" && note.recurrenceWindowMs ? (
                         <span>
-                          Window {Math.round(note.recurrenceWindowMs / (60 * 60 * 1000))}h
+                          {t("characters.scheduledNotes.cardWindow", {
+                            hours: Math.round(note.recurrenceWindowMs / (60 * 60 * 1000)),
+                          })}
                         </span>
                       ) : null}
                       {note.expiresAt ? (
-                        <span>Ends {formatPreviewDate(note.expiresAt)}</span>
+                        <span>
+                          {t("characters.scheduledNotes.cardEnds", {
+                            date: formatPreviewDate(note.expiresAt),
+                          })}
+                        </span>
                       ) : null}
                     </div>
                   </div>
@@ -809,7 +874,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
                         interactive.transition.fast,
                         "hover:border-fg/25 hover:bg-fg/5 hover:text-fg",
                       )}
-                      aria-label="Edit scheduled note"
+                      aria-label={t("characters.scheduledNotes.editNoteAria")}
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
@@ -822,7 +887,7 @@ export function CompanionScheduledNotesEditor({ characterId }: Props) {
                         interactive.transition.fast,
                         "hover:bg-danger/10",
                       )}
-                      aria-label="Delete scheduled note"
+                      aria-label={t("characters.scheduledNotes.deleteNoteAria")}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>

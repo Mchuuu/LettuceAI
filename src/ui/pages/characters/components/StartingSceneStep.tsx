@@ -304,7 +304,7 @@ export function StartingSceneStep({
             <BookOpen className="h-4 w-4 text-info" />
           </div>
           <h2 className={cn(typography.h1.size, typography.h1.weight, "text-fg")}>
-            {isCompanion ? "Opening Context" : t("characters.scenes.title")}
+            {isCompanion ? t("characters.startingScene.openingContextTitle") : t("characters.scenes.title")}
           </h2>
           {scenes.length > 0 && (
             <span className="ml-auto rounded-full border border-fg/10 bg-fg/5 px-2 py-0.5 text-xs text-fg/70">
@@ -314,7 +314,7 @@ export function StartingSceneStep({
         </div>
         <p className={cn(typography.body.size, "mt-2 text-fg/50")}>
           {isCompanion
-            ? "Optional first-chat context for this companion. Companion sessions can start without a scene."
+            ? t("characters.startingScene.openingContextSubtitle")
             : t("characters.scenes.subtitle")}
         </p>
       </div>
@@ -418,7 +418,7 @@ export function StartingSceneStep({
                           {scene.direction && (
                             <div className="pt-2 border-t border-fg/5">
                               <p className="text-[10px] font-medium text-fg/40 mb-1">
-                                Scene Direction
+                                {t("characters.startingScene.sceneDirectionLabel")}
                               </p>
                               <p className="text-xs leading-relaxed text-fg/50 italic">
                                 {scene.direction}
@@ -429,7 +429,7 @@ export function StartingSceneStep({
                           {scene.backgroundImagePath && (
                             <SceneBackgroundPreview
                               path={scene.backgroundImagePath}
-                              label="Scene background"
+                              label={t("characters.startingScene.sceneBackgroundAlt")}
                               compact
                             />
                           )}
@@ -444,7 +444,7 @@ export function StartingSceneStep({
                                 }}
                                 className="rounded-lg border border-fg/10 bg-fg/5 px-2.5 py-1.5 text-xs font-medium text-fg/60 transition active:scale-95 active:bg-fg/10"
                               >
-                                Set as Default
+                                {t("characters.startingScene.setAsDefault")}
                               </button>
                             )}
                             <button
@@ -479,12 +479,14 @@ export function StartingSceneStep({
             <div className="rounded-xl border border-dashed border-fg/10 bg-fg/2 px-4 py-8 text-center">
               <BookOpen className="mx-auto h-8 w-8 text-fg/20 mb-2" />
               <p className="text-sm text-fg/40">
-                {isCompanion ? "No opening context yet" : "No scenes yet"}
+                {isCompanion
+                  ? t("characters.startingScene.noOpeningContext")
+                  : t("characters.startingScene.noScenesYet")}
               </p>
               <p className="text-xs text-fg/30 mt-1">
                 {isCompanion
-                  ? "You can skip this for companion mode."
-                  : "Create your first scene to get started"}
+                  ? t("characters.startingScene.skipForCompanion")
+                  : t("characters.startingScene.createFirstScene")}
               </p>
             </div>
           )}
@@ -498,8 +500,8 @@ export function StartingSceneStep({
             rows={6}
             placeholder={
               isCompanion
-                ? "Optional opening context, like where the companion is or what they were doing before the first message..."
-                : "Create a starting scene or scenario for roleplay (e.g., 'You find yourself in a mystical forest at twilight...')"
+                ? t("characters.startingScene.openingPlaceholder")
+                : t("characters.startingScene.scenePlaceholder")
             }
             className="w-full resize-none rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-sm leading-relaxed text-fg placeholder-fg/40 transition focus:border-fg/25 focus:outline-none"
           />
@@ -510,12 +512,12 @@ export function StartingSceneStep({
                 onClick={() => setShowNewDirectionInput(true)}
                 className="flex items-center gap-1.5 text-[11px] text-fg/40 hover:text-fg/60 transition"
               >
-                <EyeOff className="h-3 w-3" />+ Add Direction
+                <EyeOff className="h-3 w-3" />{t("characters.startingScene.addDirection")}
               </button>
             ) : (
-              <span className="text-[11px] text-fg/40">Direction added</span>
+              <span className="text-[11px] text-fg/40">{t("characters.startingScene.directionAdded")}</span>
             )}
-            <span className="text-[11px] text-fg/40">{wordCount(newSceneContent)} words</span>
+            <span className="text-[11px] text-fg/40">{t("characters.startingScene.wordsCount", { count: wordCount(newSceneContent) })}</span>
           </div>
           <div className="mt-2 text-[11px] text-fg/50">
             Use <code className="text-accent/80">{"{{char}}"}</code> for the character and{" "}
@@ -536,8 +538,8 @@ export function StartingSceneStep({
           <div className="mt-3">
             <div className="flex items-center gap-2 mb-2">
               <ImageIcon className="h-3.5 w-3.5 text-fg/50" />
-              <span className="text-xs font-medium text-fg/70">Scene Background</span>
-              <span className="text-[10px] text-fg/35">Optional</span>
+              <span className="text-xs font-medium text-fg/70">{t("characters.startingScene.sceneBackgroundLabel")}</span>
+              <span className="text-[10px] text-fg/35">{t("characters.startingScene.optionalLabel")}</span>
             </div>
             {newSceneBackgroundImagePath ? (
               <SceneBackgroundDropzone
@@ -545,12 +547,18 @@ export function StartingSceneStep({
                 onLibrary={() => handleChooseSceneBackgroundFromLibrary("new")}
                 onUpload={() => newSceneBackgroundInputRef.current?.click()}
                 onRemove={() => setNewSceneBackgroundImagePath("")}
+                libraryLabel={t("characters.startingScene.library")}
+                uploadLabel={t("characters.startingScene.upload")}
+                removeLabel={t("characters.startingScene.removeBackground")}
+                altText={t("characters.startingScene.sceneBackgroundAlt")}
               />
             ) : (
               <SceneBackgroundEmptyZone
                 onLibrary={() => handleChooseSceneBackgroundFromLibrary("new")}
                 onUpload={() => newSceneBackgroundInputRef.current?.click()}
-                hint="Overrides the character background for chats using this scene."
+                hint={t("characters.startingScene.sceneBgOverrideHint")}
+                libraryLabel={t("characters.startingScene.library")}
+                uploadLabel={t("characters.startingScene.upload")}
               />
             )}
           </div>
@@ -567,7 +575,7 @@ export function StartingSceneStep({
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5 text-xs font-medium text-fg/50">
                     <EyeOff className="h-3 w-3" />
-                    Scene Direction
+                    {t("characters.startingScene.sceneDirectionLabel")}
                   </span>
                   {!newSceneDirection && (
                     <button
@@ -575,7 +583,7 @@ export function StartingSceneStep({
                       onClick={() => setShowNewDirectionInput(false)}
                       className="text-[11px] text-fg/40 hover:text-fg/60"
                     >
-                      Cancel
+                      {t("characters.startingScene.cancel")}
                     </button>
                   )}
                 </div>
@@ -583,11 +591,11 @@ export function StartingSceneStep({
                   value={newSceneDirection}
                   onChange={(e) => setNewSceneDirection(e.target.value)}
                   rows={2}
-                  placeholder="e.g., 'The hostage will be rescued' or 'Maintain tense atmosphere'"
+                  placeholder={t("characters.startingScene.directionPlaceholderNew")}
                   className="w-full resize-none rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-sm leading-relaxed text-fg placeholder-fg/30 transition focus:border-fg/20 focus:outline-none"
                 />
                 <p className="text-[10px] text-fg/30">
-                  Hidden guidance for the AI on how this scene should unfold
+                  {t("characters.startingScene.directionAiHint")}
                 </p>
               </div>
             </div>
@@ -604,7 +612,7 @@ export function StartingSceneStep({
             )}
           >
             <Plus className="h-4 w-4" />
-            Add Scene
+            {t("characters.startingScene.addScene")}
           </button>
         </div>
       </div>
@@ -613,8 +621,8 @@ export function StartingSceneStep({
       <div className="pt-4 mt-auto space-y-3">
         <p className="text-xs text-fg/50 text-center">
           {isCompanion
-            ? "Opening context is optional for companions; long-term continuity comes from companion memory."
-            : "Create multiple starting scenarios. One will be selected when starting a new chat."}
+            ? t("characters.startingScene.companionContextHint")
+            : t("characters.startingScene.multipleScenesHint")}
         </p>
         <button
           disabled={!canContinue}
@@ -632,12 +640,12 @@ export function StartingSceneStep({
               : "cursor-not-allowed border border-fg/5 bg-fg/5 text-fg/30",
           )}
         >
-          {isCompanion && scenes.length === 0 ? "Skip Context" : t("common.buttons.continue")}
+          {isCompanion && scenes.length === 0 ? t("characters.startingScene.skipContext") : t("common.buttons.continue")}
         </button>
       </div>
 
       {/* Edit Scene Bottom Menu */}
-      <BottomMenu isOpen={editingSceneId !== null} onClose={cancelEditingScene} title="Edit Scene">
+      <BottomMenu isOpen={editingSceneId !== null} onClose={cancelEditingScene} title={t("characters.startingScene.editSceneTitle")}>
         <div className="space-y-4">
           <input
             ref={editSceneBackgroundInputRef}
@@ -656,10 +664,10 @@ export function StartingSceneStep({
               onChange={(e) => setEditingSceneContent(e.target.value)}
               rows={10}
               className="w-full resize-none rounded-xl border border-fg/10 bg-surface-el/30 px-4 py-3 text-sm leading-relaxed text-fg placeholder-fg/40 transition focus:border-fg/20 focus:outline-none"
-              placeholder="Enter scene content..."
+              placeholder={t("characters.startingScene.sceneContentPlaceholder")}
             />
             <div className="mt-1 flex justify-end text-[11px] text-fg/40">
-              {wordCount(editingSceneContent)} words
+              {t("characters.startingScene.wordsCount", { count: wordCount(editingSceneContent) })}
             </div>
           </div>
 
@@ -673,16 +681,16 @@ export function StartingSceneStep({
               >
                 <span className="flex items-center gap-1.5 text-xs font-medium text-fg/50">
                   <EyeOff className="h-3 w-3" />
-                  Scene Direction
+                  {t("characters.startingScene.sceneDirectionLabel")}
                 </span>
-                <span className="text-[11px] text-fg/40">+ Add</span>
+                <span className="text-[11px] text-fg/40">{t("characters.startingScene.addLabel")}</span>
               </button>
             ) : (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5 text-xs font-medium text-fg/50">
                     <EyeOff className="h-3 w-3" />
-                    Scene Direction
+                    {t("characters.startingScene.sceneDirectionLabel")}
                   </span>
                   {!editingSceneDirection && (
                     <button
@@ -690,7 +698,7 @@ export function StartingSceneStep({
                       onClick={() => setEditDirectionExpanded(false)}
                       className="text-[11px] text-fg/40 hover:text-fg/60"
                     >
-                      Cancel
+                      {t("characters.startingScene.cancel")}
                     </button>
                   )}
                 </div>
@@ -699,10 +707,10 @@ export function StartingSceneStep({
                   onChange={(e) => setEditingSceneDirection(e.target.value)}
                   rows={2}
                   className="w-full resize-none rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-sm leading-relaxed text-fg placeholder-fg/30 transition focus:border-fg/20 focus:outline-none"
-                  placeholder="e.g., 'The hostage will be rescued' or 'Build tension gradually'"
+                  placeholder={t("characters.startingScene.directionPlaceholderEdit")}
                 />
                 <p className="text-[10px] text-fg/30">
-                  Hidden guidance for the AI on how this scene should unfold
+                  {t("characters.startingScene.directionAiHint")}
                 </p>
               </div>
             )}
@@ -711,8 +719,8 @@ export function StartingSceneStep({
           <div className="border-t border-fg/10 pt-3">
             <div className="flex items-center gap-2 mb-2">
               <ImageIcon className="h-3.5 w-3.5 text-fg/50" />
-              <span className="text-xs font-medium text-fg/70">Scene Background</span>
-              <span className="text-[10px] text-fg/35">Optional</span>
+              <span className="text-xs font-medium text-fg/70">{t("characters.startingScene.sceneBackgroundLabel")}</span>
+              <span className="text-[10px] text-fg/35">{t("characters.startingScene.optionalLabel")}</span>
             </div>
             {editingSceneBackgroundImagePath ? (
               <SceneBackgroundDropzone
@@ -720,12 +728,18 @@ export function StartingSceneStep({
                 onLibrary={() => handleChooseSceneBackgroundFromLibrary("edit")}
                 onUpload={() => editSceneBackgroundInputRef.current?.click()}
                 onRemove={() => setEditingSceneBackgroundImagePath("")}
+                libraryLabel={t("characters.startingScene.library")}
+                uploadLabel={t("characters.startingScene.upload")}
+                removeLabel={t("characters.startingScene.removeBackground")}
+                altText={t("characters.startingScene.sceneBackgroundAlt")}
               />
             ) : (
               <SceneBackgroundEmptyZone
                 onLibrary={() => handleChooseSceneBackgroundFromLibrary("edit")}
                 onUpload={() => editSceneBackgroundInputRef.current?.click()}
-                hint="Used as the chat background for this scene unless the session overrides it."
+                hint={t("characters.startingScene.sceneBgUsedHint")}
+                libraryLabel={t("characters.startingScene.library")}
+                uploadLabel={t("characters.startingScene.upload")}
               />
             )}
           </div>
@@ -741,7 +755,7 @@ export function StartingSceneStep({
                 radius.lg,
               )}
             >
-              Cancel
+              {t("characters.startingScene.cancel")}
             </button>
             <button
               onClick={saveEditedScene}
@@ -755,7 +769,7 @@ export function StartingSceneStep({
                 radius.lg,
               )}
             >
-              Save
+              {t("characters.startingScene.save")}
             </button>
           </div>
         </div>
@@ -800,10 +814,14 @@ function SceneBackgroundEmptyZone({
   onLibrary,
   onUpload,
   hint,
+  libraryLabel,
+  uploadLabel,
 }: {
   onLibrary: () => void;
   onUpload: () => void;
   hint: string;
+  libraryLabel: string;
+  uploadLabel: string;
 }) {
   return (
     <div className="rounded-xl border border-dashed border-fg/15 bg-fg/2 p-4">
@@ -819,7 +837,7 @@ function SceneBackgroundEmptyZone({
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-xs font-medium text-fg/70 transition active:scale-95 active:bg-fg/10"
           >
             <FolderOpen className="h-3.5 w-3.5" />
-            Library
+            {libraryLabel}
           </button>
           <button
             type="button"
@@ -827,7 +845,7 @@ function SceneBackgroundEmptyZone({
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-xs font-medium text-accent/90 transition active:scale-95 active:bg-accent/20"
           >
             <Upload className="h-3.5 w-3.5" />
-            Upload
+            {uploadLabel}
           </button>
         </div>
       </div>
@@ -840,24 +858,32 @@ function SceneBackgroundDropzone({
   onLibrary,
   onUpload,
   onRemove,
+  libraryLabel,
+  uploadLabel,
+  removeLabel,
+  altText,
 }: {
   path: string;
   onLibrary: () => void;
   onUpload: () => void;
   onRemove: () => void;
+  libraryLabel: string;
+  uploadLabel: string;
+  removeLabel: string;
+  altText: string;
 }) {
   const imageData = useImageData(path) ?? path;
 
   return (
     <div className="group relative overflow-hidden rounded-xl border border-fg/15 bg-fg/4">
-      <img src={imageData} alt="Scene background" className="w-full h-40 object-cover" />
+      <img src={imageData} alt={altText} className="w-full h-40 object-cover" />
       <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
       <div className="absolute top-2 right-2">
         <button
           type="button"
           onClick={onRemove}
           className="flex items-center justify-center rounded-lg border border-white/20 bg-black/50 backdrop-blur-sm p-1.5 text-white/90 transition active:scale-95 hover:bg-black/70"
-          title="Remove background"
+          title={removeLabel}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -869,7 +895,7 @@ function SceneBackgroundDropzone({
           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/15 bg-black/50 backdrop-blur-sm px-3 py-1.5 text-[11px] font-medium text-white/90 transition active:scale-95 hover:bg-black/70"
         >
           <FolderOpen className="h-3 w-3" />
-          Library
+          {libraryLabel}
         </button>
         <button
           type="button"
@@ -877,7 +903,7 @@ function SceneBackgroundDropzone({
           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/15 bg-black/50 backdrop-blur-sm px-3 py-1.5 text-[11px] font-medium text-white/90 transition active:scale-95 hover:bg-black/70"
         >
           <Upload className="h-3 w-3" />
-          Upload
+          {uploadLabel}
         </button>
       </div>
     </div>

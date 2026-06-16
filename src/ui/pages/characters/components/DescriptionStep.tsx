@@ -278,14 +278,14 @@ export function DescriptionStep({
                   "uppercase text-fg/70",
                 )}
               >
-                Description
+                {t("characters.description.descriptionLabel")}
               </label>
             </div>
             <textarea
               value={description}
               onChange={(e) => onDescriptionChange(e.target.value)}
               rows={3}
-              placeholder="Short summary shown on cards and lists..."
+              placeholder={t("characters.description.descriptionPlaceholder")}
               className={cn(
                 "w-full resize-none border bg-surface-el/20 px-4 py-3 text-base leading-relaxed text-fg placeholder-fg/40 backdrop-blur-xl",
                 radius.md,
@@ -297,7 +297,7 @@ export function DescriptionStep({
               )}
             />
             <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-              Optional short description for the UI; the full definition is used in prompts.
+              {t("characters.description.descriptionHint")}
             </p>
           </div>
 
@@ -307,7 +307,7 @@ export function DescriptionStep({
                 <div className="rounded-lg border border-fg/10 bg-fg/5 p-1.5">
                   <Image className="h-4 w-4 text-fg/60" />
                 </div>
-                <h3 className="text-sm font-semibold text-fg">Design references</h3>
+                <h3 className="text-sm font-semibold text-fg">{t("characters.description.designReferencesLabel")}</h3>
               </div>
               <DesignReferenceEditor
                 designDescription={designDescription}
@@ -318,7 +318,7 @@ export function DescriptionStep({
                 subjectDescription={definition || description}
                 avatarImage={avatarPath}
                 showHeader={false}
-                description="Attach a few stable image references and one concise visual note so scene generation keeps the same face, proportions, outfit cues, and style."
+                description={t("characters.description.designReferencesEditorHint")}
               />
             </div>
           </div>
@@ -334,7 +334,9 @@ export function DescriptionStep({
                 "uppercase text-fg/70",
               )}
             >
-              {mode === "companion" ? "Companion Prompt (Optional)" : "System Prompt (Optional)"}
+              {mode === "companion"
+                ? t("characters.description.companionPromptLabel")
+                : t("characters.description.systemPromptLabel")}
             </label>
             {loadingTemplates ? (
               <div
@@ -344,7 +346,7 @@ export function DescriptionStep({
                 )}
               >
                 <Loader2 className="h-4 w-4 animate-spin text-fg/60" />
-                <span className={cn(typography.body.size, "text-fg/60")}>Loading templates...</span>
+                <span className={cn(typography.body.size, "text-fg/60")}>{t("characters.description.loadingTemplates")}</span>
               </div>
             ) : (
               <div className="relative">
@@ -373,7 +375,9 @@ export function DescriptionStep({
                   )}
                 >
                   <option value="" className="bg-surface-el text-fg">
-                    {mode === "companion" ? "Use app companion default" : "Use app default"}
+                    {mode === "companion"
+                      ? t("characters.description.useAppCompanionDefault")
+                      : t("characters.description.useAppDefault")}
                   </option>
                   {(mode === "companion" ? companionPromptTemplates : directPromptTemplates).map((template) => (
                     <option key={template.id} value={template.id} className="bg-surface-el text-fg">
@@ -389,8 +393,8 @@ export function DescriptionStep({
             )}
             <p className={cn(typography.bodySmall.size, "text-fg/40")}>
               {mode === "companion"
-                ? "Stored separately as the companion prompt. The normal roleplay system prompt is not changed."
-                : "Choose a custom system prompt or use the default."}
+                ? t("characters.description.companionPromptHint")
+                : t("characters.description.systemPromptHint")}
             </p>
           </div>
 
@@ -403,7 +407,7 @@ export function DescriptionStep({
                 "uppercase text-fg/70",
               )}
             >
-              Group Chat Prompt (Conversation)
+              {t("characters.description.groupChatConvLabel")}
             </label>
             {loadingTemplates ? (
               <div
@@ -413,7 +417,7 @@ export function DescriptionStep({
                 )}
               >
                 <Loader2 className="h-4 w-4 animate-spin text-fg/60" />
-                <span className={cn(typography.body.size, "text-fg/60")}>Loading templates...</span>
+                <span className={cn(typography.body.size, "text-fg/60")}>{t("characters.description.loadingTemplates")}</span>
               </div>
             ) : (
               <div className="relative">
@@ -429,7 +433,7 @@ export function DescriptionStep({
                   )}
                 >
                   <option value="" className="bg-surface-el text-fg">
-                    Use app default
+                    {t("characters.description.useAppDefault")}
                   </option>
                   {groupChatTemplates.map((template) => (
                     <option key={template.id} value={template.id} className="bg-surface-el text-fg">
@@ -443,7 +447,7 @@ export function DescriptionStep({
               </div>
             )}
             <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-              Override this character&apos;s conversation prompt in group chats
+              {t("characters.description.groupChatConvHint")}
             </p>
           </div>
 
@@ -456,7 +460,7 @@ export function DescriptionStep({
                 "uppercase text-fg/70",
               )}
             >
-              Group Chat Prompt (Roleplay)
+              {t("characters.description.groupChatRpLabel")}
             </label>
             {loadingTemplates ? (
               <div
@@ -466,7 +470,7 @@ export function DescriptionStep({
                 )}
               >
                 <Loader2 className="h-4 w-4 animate-spin text-fg/60" />
-                <span className={cn(typography.body.size, "text-fg/60")}>Loading templates...</span>
+                <span className={cn(typography.body.size, "text-fg/60")}>{t("characters.description.loadingTemplates")}</span>
               </div>
             ) : (
               <div className="relative">
@@ -482,7 +486,7 @@ export function DescriptionStep({
                   )}
                 >
                   <option value="" className="bg-surface-el text-fg">
-                    Use app default
+                    {t("characters.description.useAppDefault")}
                   </option>
                   {groupChatRoleplayTemplates.map((template) => (
                     <option key={template.id} value={template.id} className="bg-surface-el text-fg">
@@ -496,7 +500,7 @@ export function DescriptionStep({
               </div>
             )}
             <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-              Override this character&apos;s roleplay prompt in group chats
+              {t("characters.description.groupChatRpHint")}
             </p>
           </div>
 
@@ -510,7 +514,7 @@ export function DescriptionStep({
                 "uppercase text-fg/70",
               )}
             >
-              Voice (Optional)
+              {t("characters.description.voiceLabel")}
             </label>
             {loadingVoices ? (
               <div
@@ -520,7 +524,7 @@ export function DescriptionStep({
                 )}
               >
                 <Loader2 className="h-4 w-4 animate-spin text-fg/60" />
-                <span className={cn(typography.body.size, "text-fg/60")}>Loading voices...</span>
+                <span className={cn(typography.body.size, "text-fg/60")}>{t("characters.description.loadingVoices")}</span>
               </div>
             ) : (
               <button
@@ -543,17 +547,17 @@ export function DescriptionStep({
                       ? (() => {
                           if (voiceConfig?.source === "user") {
                             const v = userVoices.find((uv) => uv.id === voiceConfig.userVoiceId);
-                            return v?.name || "Custom Voice";
+                            return v?.name || t("characters.description.customVoiceFallback");
                           }
                           if (voiceConfig?.source === "provider") {
                             const pv = providerVoices[voiceConfig.providerId || ""]?.find(
                               (pv) => pv.voiceId === voiceConfig.voiceId,
                             );
-                            return pv?.name || "Provider Voice";
+                            return pv?.name || t("characters.description.providerVoiceFallback");
                           }
-                          return "Selected Voice";
+                          return t("characters.description.selectedVoiceFallback");
                         })()
-                      : "No voice assigned"}
+                      : t("characters.description.noVoiceAssigned")}
                   </span>
                 </div>
                 <ChevronDown className="h-4 w-4 text-fg/40" />
@@ -564,11 +568,11 @@ export function DescriptionStep({
             )}
             {!loadingVoices && audioProviders.length === 0 && userVoices.length === 0 && (
               <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-                Add voices in Settings → Voices
+                {t("characters.description.addVoicesHint")}
               </p>
             )}
             <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-              Assign a voice for future text-to-speech playback
+              {t("characters.description.voiceAssignHint")}
             </p>
 
             {/* Voice Autoplay Toggle */}
@@ -580,9 +584,11 @@ export function DescriptionStep({
               )}
             >
               <div>
-                <p className={cn(typography.body.size, "font-medium text-fg")}>Autoplay voice</p>
+                <p className={cn(typography.body.size, "font-medium text-fg")}>{t("characters.description.autoplayLabel")}</p>
                 <p className={cn(typography.bodySmall.size, "mt-1 text-fg/50")}>
-                  {voiceConfig ? "Play this character's replies automatically" : "Select a voice first"}
+                  {voiceConfig
+                    ? t("characters.description.autoplayOn")
+                    : t("characters.description.autoplayOff")}
                 </p>
               </div>
               <Switch
@@ -608,7 +614,7 @@ export function DescriptionStep({
                 "uppercase text-fg/70",
               )}
             >
-              AI Model *
+              {t("characters.description.aiModelLabel")}
             </label>
             {loadingModels ? (
               <div
@@ -618,7 +624,7 @@ export function DescriptionStep({
                 )}
               >
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-fg/10 border-t-white/60" />
-                <span className={cn(typography.body.size, "text-fg/60")}>Loading models...</span>
+                <span className={cn(typography.body.size, "text-fg/60")}>{t("characters.description.loadingModels")}</span>
               </div>
             ) : models.length ? (
               <button
@@ -640,8 +646,9 @@ export function DescriptionStep({
                   )}
                   <span className={cn("text-sm", selectedModelId ? "text-fg" : "text-fg/50")}>
                     {selectedModelId
-                      ? models.find((m) => m.id === selectedModelId)?.displayName || "Selected Model"
-                      : "Select a model"}
+                      ? models.find((m) => m.id === selectedModelId)?.displayName ||
+                        t("characters.description.selectedModelFallback")
+                      : t("characters.description.selectModelPlaceholder")}
                   </span>
                 </div>
                 <ChevronDown className="h-4 w-4 text-fg/40" />
@@ -657,17 +664,17 @@ export function DescriptionStep({
                   <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
                   <div>
                     <p className={cn(typography.body.size, typography.h3.weight, "text-warning/90")}>
-                      No models configured
+                      {t("characters.description.noModelsConfigured")}
                     </p>
                     <p className={cn(typography.bodySmall.size, "mt-1 text-warning/70")}>
-                      Add a provider in settings first to continue
+                      {t("characters.description.noModelsHint")}
                     </p>
                   </div>
                 </div>
               </div>
             )}
             <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-              This model will power the character's responses
+              {t("characters.description.aiModelHint")}
             </p>
           </div>
 
@@ -681,7 +688,7 @@ export function DescriptionStep({
                 "uppercase text-fg/70",
               )}
             >
-              Fallback Model (Optional)
+              {t("characters.description.fallbackModelLabel")}
             </label>
             {loadingModels ? (
               <div
@@ -691,7 +698,7 @@ export function DescriptionStep({
                 )}
               >
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-fg/10 border-t-white/60" />
-                <span className={cn(typography.body.size, "text-fg/60")}>Loading models...</span>
+                <span className={cn(typography.body.size, "text-fg/60")}>{t("characters.description.loadingModels")}</span>
               </div>
             ) : (
               <button
@@ -721,15 +728,15 @@ export function DescriptionStep({
                   >
                     {selectedFallbackModelId
                       ? models.find((m) => m.id === selectedFallbackModelId)?.displayName ||
-                        "Selected Fallback Model"
-                      : "Off (no fallback)"}
+                        t("characters.description.selectedFallbackFallback")
+                      : t("characters.description.fallbackOff")}
                   </span>
                 </div>
                 <ChevronDown className="h-4 w-4 text-fg/40" />
               </button>
             )}
             <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-              Retries with this model only if the primary model fails
+              {t("characters.description.fallbackHint")}
             </p>
           </div>
 
@@ -744,10 +751,10 @@ export function DescriptionStep({
                   "uppercase text-fg/70",
                 )}
               >
-                Memory Mode
+                {t("characters.description.memoryModeLabel")}
               </label>
               {!dynamicMemoryEnabled && (
-                <span className="text-[11px] text-fg/45">Enable in Settings to switch</span>
+                <span className="text-[11px] text-fg/45">{t("characters.description.enableInSettingsHint")}</span>
               )}
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -763,13 +770,13 @@ export function DescriptionStep({
               >
                 <div className="flex items-center gap-2">
                   <Layers className="h-4 w-4" />
-                  <span className="text-sm font-semibold">Manual</span>
+                  <span className="text-sm font-semibold">{t("characters.description.memoryManual")}</span>
                 </div>
                 <p className="text-xs text-fg/60 hidden lg:block">
-                  Add and manage memory notes yourself.
+                  {t("characters.description.memoryManualDescDesktop")}
                 </p>
                 <p className="text-xs text-fg/60 lg:hidden">
-                  Current system: add and manage memory notes yourself.
+                  {t("characters.description.memoryManualDescMobile")}
                 </p>
               </button>
               <button
@@ -786,19 +793,18 @@ export function DescriptionStep({
               >
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4" />
-                  <span className="text-sm font-semibold">Dynamic</span>
+                  <span className="text-sm font-semibold">{t("characters.description.memoryDynamic")}</span>
                 </div>
                 <p className="text-xs text-fg/60 hidden lg:block">
-                  Automatic summaries and context updates.
+                  {t("characters.description.memoryDynamicDescDesktop")}
                 </p>
                 <p className="text-xs text-fg/60 lg:hidden">
-                  Automatic summaries and context updates for this character.
+                  {t("characters.description.memoryDynamicDescMobile")}
                 </p>
               </button>
             </div>
             <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-              Dynamic memory requires it to be enabled in Advanced settings. Otherwise, manual memory is
-              used.
+              {t("characters.description.memoryHint")}
             </p>
           </div>
         </div>
@@ -846,7 +852,7 @@ export function DescriptionStep({
           {saving ? (
             <div className="flex items-center justify-center gap-2">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent/30 border-t-accent/80" />
-              <span>Creating Character...</span>
+              <span>{t("characters.extras.creatingCharacter")}</span>
             </div>
           ) : (
             resolvedSubmitLabel
@@ -857,10 +863,10 @@ export function DescriptionStep({
       <ModelSelectionBottomMenu
         isOpen={showModelMenu}
         onClose={() => setShowModelMenu(false)}
-        title="Select Model"
+        title={t("characters.description.selectModelTitle")}
         models={models}
         selectedModelIds={selectedModelId ? [selectedModelId] : []}
-        searchPlaceholder="Search models..."
+        searchPlaceholder={t("characters.description.searchModelsPlaceholder")}
         onSelectModel={(modelId) => {
           onSelectModel(modelId);
           setShowModelMenu(false);
@@ -870,16 +876,16 @@ export function DescriptionStep({
       <ModelSelectionBottomMenu
         isOpen={showFallbackModelMenu}
         onClose={() => setShowFallbackModelMenu(false)}
-        title="Select Fallback Model"
+        title={t("characters.description.selectFallbackModelTitle")}
         models={models.filter((m) => m.id !== selectedModelId)}
         selectedModelIds={selectedFallbackModelId ? [selectedFallbackModelId] : []}
-        searchPlaceholder="Search models..."
+        searchPlaceholder={t("characters.description.searchModelsPlaceholder")}
         onSelectModel={(modelId) => {
           onSelectFallbackModel(modelId);
           setShowFallbackModelMenu(false);
         }}
         clearOption={{
-          label: "Off (no fallback)",
+          label: t("characters.description.fallbackOff"),
           icon: Cpu,
           selected: !selectedFallbackModelId,
           onClick: () => {
@@ -896,7 +902,7 @@ export function DescriptionStep({
           setShowVoiceMenu(false);
           setVoiceSearchQuery("");
         }}
-        title="Select Voice"
+        title={t("characters.description.selectVoiceTitle")}
       >
         <div className="space-y-4">
           <div className="relative">
@@ -904,7 +910,7 @@ export function DescriptionStep({
               type="text"
               value={voiceSearchQuery}
               onChange={(e) => setVoiceSearchQuery(e.target.value)}
-              placeholder="Search voices..."
+              placeholder={t("characters.description.searchVoicesPlaceholder")}
               className="w-full rounded-xl border border-fg/10 bg-surface-el/30 px-4 py-2.5 pl-10 text-sm text-fg placeholder-fg/40 focus:border-fg/20 focus:outline-none"
             />
             <svg
@@ -936,13 +942,13 @@ export function DescriptionStep({
               )}
             >
               <Volume2 className="h-5 w-5 text-fg/40" />
-              <span className="text-sm text-fg">No voice assigned</span>
+              <span className="text-sm text-fg">{t("characters.description.noVoiceAssigned")}</span>
               {!voiceSelectionValue && <Check className="ml-auto h-4 w-4 text-accent" />}
             </button>
 
             {/* User Voices */}
             {userVoices.length > 0 && (
-              <MenuSection label="My Voices">
+              <MenuSection label={t("characters.description.myVoices")}>
                 {userVoices
                   .filter((v) => {
                     if (!voiceSearchQuery) return true;
@@ -952,7 +958,8 @@ export function DescriptionStep({
                     const value = buildUserVoiceValue(voice.id);
                     const isSelected = voiceSelectionValue === value;
                     const providerLabel =
-                      audioProviders.find((p) => p.id === voice.providerId)?.label ?? "Provider";
+                      audioProviders.find((p) => p.id === voice.providerId)?.label ??
+                      t("characters.description.providerFallback");
                     return (
                       <button
                         key={voice.id}
@@ -996,7 +1003,7 @@ export function DescriptionStep({
               });
               if (voices.length === 0) return null;
               return (
-                <MenuSection key={provider.id} label={`${provider.label} Voices`}>
+                <MenuSection key={provider.id} label={t("characters.description.providerVoicesLabel", { provider: provider.label })}>
                   {voices.map((voice) => {
                     const value = buildProviderVoiceValue(provider.id, voice.voiceId);
                     const isSelected = voiceSelectionValue === value;

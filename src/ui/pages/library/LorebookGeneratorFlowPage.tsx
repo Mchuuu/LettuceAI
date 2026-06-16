@@ -50,6 +50,7 @@ import {
 } from "../../../core/lorebook/generator";
 import { listCharacters, listLorebooks, listPersonas } from "../../../core/storage/repo";
 import type { Character, Lorebook, Persona } from "../../../core/storage/schemas";
+import { useI18n, type TranslationKey } from "../../../core/i18n/context";
 
 const MIN_TARGET = 5;
 const MAX_TARGET = 50;
@@ -78,6 +79,7 @@ interface PendingTextSource {
 }
 
 export function LorebookGeneratorFlowPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialName = searchParams.get("name") ?? "";
@@ -194,18 +196,21 @@ export function LorebookGeneratorFlowPage() {
       if (!f) continue;
       const kind = detectFileKind(f.name);
       if (!kind) {
-        setError(`Unsupported file type: ${f.name}. Use .txt, .md, or .pdf.`);
+        setError(t("lorebookGen.flow.errorUnsupportedFile", { name: f.name }));
         continue;
       }
       if (f.size > FILE_LIMIT_BYTES) {
-        setError(`File "${f.name}" exceeds 50 MB limit.`);
+        setError(t("lorebookGen.flow.errorFileTooLarge", { name: f.name }));
         continue;
       }
       try {
         const b64 = await readFileAsBase64(f);
         next.push({ name: f.name, kind, size: f.size, dataBase64: b64 });
       } catch (err) {
-        setError(`Failed to read ${f.name}: ${err instanceof Error ? err.message : String(err)}`);
+        setError(t("lorebookGen.flow.errorReadFile", {
+          name: f.name,
+          error: err instanceof Error ? err.message : String(err),
+        }));
       }
     }
     setFiles(next);
@@ -301,7 +306,7 @@ export function LorebookGeneratorFlowPage() {
         ...job.outline,
         {
           idx: job.outline.length,
-          title: "New entry",
+          title: t("lorebookGen.flow.newEntry"),
           category: "other",
           proposedKeys: [],
           rationale: "",
@@ -534,7 +539,7 @@ export function LorebookGeneratorFlowPage() {
                 <div className="absolute inset-0 rounded-full bg-accent/20 blur-xl" />
                 <Loader2 className="relative h-10 w-10 animate-spin text-accent" />
               </div>
-              <p className="text-sm">Planning entries…</p>
+              <p className="text-sm">{t("lorebookGen.flow.planningEntries")}</p>
             </motion.div>
           )}
 
@@ -608,7 +613,7 @@ export function LorebookGeneratorFlowPage() {
               lorebooks={existingLorebooks}
               commitTarget={commitTarget}
               setCommitTarget={setCommitTarget}
-              newLorebookName={lorebookName.trim() || initialName.trim() || "Untitled"}
+              newLorebookName={lorebookName.trim() || initialName.trim() || t("common.labels.untitled")}
               draftCount={job.drafts.length}
               onCommit={() => void handleCommit()}
               onBack={() => setPageStage("drafting")}
@@ -627,7 +632,7 @@ export function LorebookGeneratorFlowPage() {
                 <div className="absolute inset-0 rounded-full bg-emerald-500/20 blur-xl" />
                 <CheckCircle2 className="relative h-12 w-12 text-emerald-400" />
               </div>
-              <p className="text-sm">Lorebook saved.</p>
+              <p className="text-sm">{t("lorebookGen.flow.lorebookSaved")}</p>
             </motion.div>
           )}
           </AnimatePresence>
@@ -639,7 +644,7 @@ export function LorebookGeneratorFlowPage() {
         draftTitle={
           job && refineFor !== null
             ? job.drafts.find((d) => d.planIdx === refineFor)?.title ??
-              `Entry ${refineFor + 1}`
+              t("lorebookGen.flow.entryFallback", { index: refineFor + 1 })
             : ""
         }
         feedback={refineText}
@@ -666,11 +671,11 @@ export function LorebookGeneratorFlowPage() {
   );
 }
 
-const STEPS: Array<{ key: PageStage; label: string; matches: PageStage[] }> = [
-  { key: "brief", label: "Brief", matches: ["brief", "planning"] },
-  { key: "outline", label: "Outline", matches: ["outline"] },
-  { key: "drafting", label: "Drafts", matches: ["drafting", "coherence"] },
-  { key: "commit", label: "Save", matches: ["commit", "done"] },
+const STEPS: Array<{ key: PageStage; labelKey: TranslationKey; matches: PageStage[] }> = [
+  { key: "brief", labelKey: "lorebookGen.flow.stepBrief", matches: ["brief", "planning"] },
+  { key: "outline", labelKey: "lorebookGen.flow.stepOutline", matches: ["outline"] },
+  { key: "drafting", labelKey: "lorebookGen.flow.stepDrafts", matches: ["drafting", "coherence"] },
+  { key: "commit", labelKey: "lorebookGen.flow.stepSave", matches: ["commit", "done"] },
 ];
 
 function activeStepIndex(s: PageStage): number {
@@ -679,6 +684,7 @@ function activeStepIndex(s: PageStage): number {
 }
 
 function StageStepper({ pageStage }: { pageStage: PageStage }) {
+  const { t } = useI18n();
   const activeIdx = activeStepIndex(pageStage);
   return (
     <div className="sticky top-0 z-10 border-b border-fg/10 bg-bg/85 px-4 py-3 backdrop-blur-md">
@@ -718,7 +724,7 @@ function StageStepper({ pageStage }: { pageStage: PageStage }) {
                     isActive ? "text-fg" : isComplete ? "text-fg/70" : "text-fg/40",
                   )}
                 >
-                  {step.label}
+                  {t(step.labelKey)}
                 </span>
               </div>
               {i < STEPS.length - 1 && (
@@ -791,22 +797,23 @@ function BriefForm({
   onStart: () => void;
   busy: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-7">
-      <Field label="Lorebook name">
+      <Field label={t("lorebookGen.flow.lorebookNameLabel")}>
         <input
           value={lorebookName}
           onChange={(e) => setLorebookName(e.target.value)}
-          placeholder="My Worldbook"
+          placeholder={t("lorebookGen.flow.lorebookNamePlaceholder")}
           className={inputClass}
         />
       </Field>
 
-      <Field label="Brief">
+      <Field label={t("lorebookGen.flow.briefLabel")}>
         <textarea
           value={brief}
           onChange={(e) => setBrief(e.target.value)}
-          placeholder="Describe the world, setting, or topic."
+          placeholder={t("lorebookGen.flow.briefPlaceholder")}
           rows={5}
           className={cn(inputClass, "resize-y")}
         />
@@ -826,47 +833,47 @@ function BriefForm({
       </div>
 
       <Field
-        label="Pasted text"
-        hint={textSources.length > 0 ? `${textSources.length}` : "optional"}
+        label={t("lorebookGen.flow.pastedTextLabel")}
+        hint={textSources.length > 0 ? `${textSources.length}` : t("lorebookGen.flow.optional")}
         action={
           <button type="button" onClick={addTextSource} className={pillButtonClass}>
-            <Plus className="h-3 w-3" /> Add
+            <Plus className="h-3 w-3" /> {t("common.buttons.add")}
           </button>
         }
       >
         {textSources.length === 0 ? (
           <p className="text-xs text-fg/40">
-            Reference material to ground entries in.
+            {t("lorebookGen.flow.referenceMaterialHint")}
           </p>
         ) : (
           <div className="space-y-2">
             <AnimatePresence initial={false}>
-              {textSources.map((t) => (
+              {textSources.map((src) => (
                 <motion.div
-                  key={t.id}
+                  key={src.id}
                   layout
                   {...animations.fadeInFast}
                   className="space-y-2"
                 >
                   <div className="flex items-center gap-2">
                     <input
-                      value={t.label}
-                      onChange={(e) => updateTextSource(t.id, { label: e.target.value })}
+                      value={src.label}
+                      onChange={(e) => updateTextSource(src.id, { label: e.target.value })}
                       className={cn(inputClass, "px-3 py-1.5 text-xs")}
                     />
                     <button
                       type="button"
-                      onClick={() => removeTextSource(t.id)}
+                      onClick={() => removeTextSource(src.id)}
                       className="rounded-lg p-1.5 text-fg/40 transition hover:bg-fg/5 hover:text-red-300"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                   <textarea
-                    value={t.body}
-                    onChange={(e) => updateTextSource(t.id, { body: e.target.value })}
+                    value={src.body}
+                    onChange={(e) => updateTextSource(src.id, { body: e.target.value })}
                     rows={4}
-                    placeholder="Paste source text…"
+                    placeholder={t("lorebookGen.flow.pasteSourcePlaceholder")}
                     className={cn(inputClass, "px-3 py-2 text-xs")}
                   />
                 </motion.div>
@@ -877,7 +884,7 @@ function BriefForm({
       </Field>
 
       <Field
-        label="Files"
+        label={t("lorebookGen.flow.filesLabel")}
         hint={files.length > 0 ? `${files.length}` : ".txt, .md, .pdf"}
         action={
           <>
@@ -886,7 +893,7 @@ function BriefForm({
               onClick={() => fileInputRef.current?.click()}
               className={pillButtonClass}
             >
-              <Upload className="h-3 w-3" /> Upload
+              <Upload className="h-3 w-3" /> {t("lorebookGen.flow.upload")}
             </button>
             <input
               ref={fileInputRef}
@@ -903,7 +910,7 @@ function BriefForm({
       >
         {files.length === 0 ? (
           <p className="text-xs text-fg/40">
-            Up to 50 MB per file, 200 MB total.
+            {t("lorebookGen.flow.fileSizeHint")}
           </p>
         ) : (
           <div className="divide-y divide-fg/5">
@@ -935,13 +942,13 @@ function BriefForm({
               ))}
             </AnimatePresence>
             <p className="pt-2 text-[11px] text-fg/40">
-              Total {(totalSize / 1024).toFixed(0)} KB
+              {t("lorebookGen.flow.totalKb", { size: (totalSize / 1024).toFixed(0) })}
             </p>
           </div>
         )}
       </Field>
 
-      <Field label="Target entry count">
+      <Field label={t("lorebookGen.flow.targetEntryCount")}>
         <div className="flex items-center gap-3">
           <input
             type="range"
@@ -964,7 +971,7 @@ function BriefForm({
           />
         </div>
         <p className="text-[11px] text-fg/40">
-          Range {MIN_TARGET}–{MAX_TARGET}.
+          {t("lorebookGen.flow.rangeHint", { min: MIN_TARGET, max: MAX_TARGET })}
         </p>
       </Field>
 
@@ -980,7 +987,7 @@ function BriefForm({
         )}
       >
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-        Plan entries
+        {t("lorebookGen.flow.planEntries")}
       </motion.button>
     </div>
   );
@@ -1033,10 +1040,11 @@ function OutlineReview({
   onBack: () => void;
   busy: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-4">
       <p className="text-sm text-fg/60">
-        Review and edit the planned entries. Approve to draft each one (in batches of 3).
+        {t("lorebookGen.flow.outlineIntro")}
       </p>
       {job.outline.map((p, i) => (
         <div key={i} className="space-y-2 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
@@ -1084,14 +1092,14 @@ function OutlineReview({
                   .filter((s) => s.length > 0),
               })
             }
-            placeholder="comma-separated keys"
+            placeholder={t("lorebookGen.flow.commaSeparatedKeys")}
             className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-2 py-1 text-xs"
           />
           <textarea
             value={p.rationale}
             onChange={(e) => onUpdate(i, { rationale: e.target.value })}
             rows={2}
-            placeholder="rationale"
+            placeholder={t("lorebookGen.flow.rationalePlaceholder")}
             className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-2 py-1 text-xs"
           />
         </div>
@@ -1101,7 +1109,7 @@ function OutlineReview({
         onClick={onAdd}
         className="flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-fg/15 px-3 py-2 text-xs text-fg/60 hover:bg-fg/5"
       >
-        <Plus className="h-3.5 w-3.5" /> Add entry
+        <Plus className="h-3.5 w-3.5" /> {t("lorebookGen.flow.addEntry")}
       </button>
 
       <div className="flex gap-3 pt-2">
@@ -1110,7 +1118,7 @@ function OutlineReview({
           onClick={onBack}
           className="flex-1 rounded-xl border border-fg/10 py-3 text-sm hover:bg-fg/5"
         >
-          Back
+          {t("common.buttons.back")}
         </button>
         <button
           type="button"
@@ -1119,7 +1127,7 @@ function OutlineReview({
           className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-accent/40 bg-accent/15 py-3 text-sm font-medium text-accent hover:bg-accent/25 disabled:opacity-50"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-          Approve & draft
+          {t("lorebookGen.flow.approveAndDraft")}
         </button>
       </div>
     </div>
@@ -1151,6 +1159,7 @@ function DraftReview({
   busy: boolean;
   coherenceBanner?: React.ReactNode;
 }) {
+  const { t } = useI18n();
   const allDone = job.drafts.every(
     (d) => d.status === "drafted" || d.status === "approved",
   );
@@ -1162,7 +1171,7 @@ function DraftReview({
   return (
     <div className="space-y-4">
       <p className="text-sm text-fg/60">
-        Drafts are produced 3 at a time. Approve or ask for changes per entry.
+        {t("lorebookGen.flow.draftsIntro")}
       </p>
       {coherenceBanner}
       <div className="divide-y divide-fg/10">
@@ -1206,19 +1215,19 @@ function DraftReview({
               <span className="h-4 w-4 shrink-0" />
             )}
             <span className="truncate text-sm font-semibold">
-              {d.title || `Entry ${d.planIdx + 1}`}
+              {d.title || t("lorebookGen.flow.entryFallback", { index: d.planIdx + 1 })}
             </span>
             <span className="ml-auto whitespace-nowrap text-[11px] text-fg/40">
-              {d.alwaysActive ? "always active · " : ""}
-              {d.keywords.length} keys
+              {d.alwaysActive ? t("lorebookGen.flow.alwaysActivePrefix") : ""}
+              {t("lorebookGen.flow.keysCount", { count: d.keywords.length })}
             </span>
             {inFlight && (
               <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-accent" />
             )}
-            {statusBadge(d.status)}
+            {statusBadge(d.status, t)}
           </button>
           {d.status === "failed" && (
-            <p className="pl-6 text-xs text-red-300">Drafting failed. Retry to try again.</p>
+            <p className="pl-6 text-xs text-red-300">{t("lorebookGen.flow.draftingFailedRetry")}</p>
           )}
           <AnimatePresence initial={false}>
           {expanded && (
@@ -1260,10 +1269,10 @@ function DraftReview({
                 >
                   {d.status === "approved" ? (
                     <span className="flex items-center gap-1.5">
-                      <Check className="h-3 w-3" /> Approved
+                      <Check className="h-3 w-3" /> {t("lorebookGen.flow.approved")}
                     </span>
                   ) : (
-                    "Approve"
+                    t("lorebookGen.flow.approve")
                   )}
                 </motion.button>
                 <button
@@ -1271,14 +1280,14 @@ function DraftReview({
                   onClick={() => onOpenRefine(d.planIdx)}
                   className="rounded-lg border border-fg/10 px-3 py-1.5 text-xs transition hover:border-fg/20 hover:bg-fg/5"
                 >
-                  Ask for changes
+                  {t("lorebookGen.flow.askForChanges")}
                 </button>
                 <button
                   type="button"
                   onClick={() => onOpenEdit(d.planIdx)}
                   className="rounded-lg border border-fg/10 px-3 py-1.5 text-xs transition hover:border-fg/20 hover:bg-fg/5"
                 >
-                  Edit manually
+                  {t("lorebookGen.flow.editManually")}
                 </button>
               </div>
               </div>
@@ -1300,7 +1309,7 @@ function DraftReview({
             whileTap={{ scale: 0.98 }}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-fg/10 py-3 text-sm transition hover:border-fg/20 hover:bg-fg/5 disabled:opacity-50"
           >
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Continue drafting
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />} {t("lorebookGen.flow.continueDrafting")}
           </motion.button>
         )}
         {anyFailed && !anyPending && (
@@ -1310,7 +1319,7 @@ function DraftReview({
             disabled={busy}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-fg/10 py-3 text-sm hover:bg-fg/5 disabled:opacity-50"
           >
-            <RefreshCw className="h-4 w-4" /> Retry failed
+            <RefreshCw className="h-4 w-4" /> {t("lorebookGen.flow.retryFailed")}
           </button>
         )}
         {allDone && (
@@ -1322,7 +1331,7 @@ function DraftReview({
               className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-fg/10 py-3 text-sm hover:bg-fg/5 disabled:opacity-50"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}{" "}
-              Run coherence check
+              {t("lorebookGen.flow.runCoherenceCheck")}
             </button>
             <button
               type="button"
@@ -1330,7 +1339,7 @@ function DraftReview({
               disabled={busy}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-accent/40 bg-accent/15 py-3 text-sm font-medium text-accent hover:bg-accent/25 disabled:opacity-50"
             >
-              <ArrowRight className="h-4 w-4" /> Save lorebook
+              <ArrowRight className="h-4 w-4" /> {t("lorebookGen.flow.saveLorebook")}
             </button>
           </>
         )}
@@ -1407,6 +1416,7 @@ function CharacterTrigger({
   selectedId: string;
   onChange: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const selected = characters.find((c) => c.id === selectedId) ?? null;
   const avatarUrl = useAvatar(
@@ -1418,12 +1428,12 @@ function CharacterTrigger({
   return (
     <>
       <EntityTriggerButton
-        label="Character"
+        label={t("lorebookGen.flow.characterLabel")}
         iconUrl={avatarUrl}
         fallbackIcon={<User className="h-5 w-5" />}
         primary={selected?.name ?? null}
         secondary={selected?.description ?? selected?.definition ?? null}
-        placeholder="None"
+        placeholder={t("lorebookGen.flow.none")}
         onClick={() => setOpen(true)}
       />
       <CharacterSelectorSingle
@@ -1446,6 +1456,7 @@ function PersonaTrigger({
   selectedId: string;
   onChange: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const selected = personas.find((p) => p.id === selectedId) ?? null;
   const avatarUrl = useAvatar(
@@ -1457,12 +1468,12 @@ function PersonaTrigger({
   return (
     <>
       <EntityTriggerButton
-        label="Persona"
+        label={t("lorebookGen.flow.personaLabel")}
         iconUrl={avatarUrl}
         fallbackIcon={<UserCircle className="h-5 w-5" />}
         primary={selected?.title ?? null}
         secondary={selected?.description ?? null}
-        placeholder="None"
+        placeholder={t("lorebookGen.flow.none")}
         onClick={() => setOpen(true)}
       />
       <PersonaSelector
@@ -1476,15 +1487,18 @@ function PersonaTrigger({
   );
 }
 
-function statusBadge(status: string) {
-  const map: Record<string, { label: string; className: string }> = {
-    pending: { label: "pending", className: "bg-fg/10 text-fg/60" },
-    drafting: { label: "drafting", className: "bg-accent/15 text-accent" },
-    drafted: { label: "drafted", className: "bg-emerald-500/10 text-emerald-300" },
-    approved: { label: "approved", className: "bg-emerald-500/20 text-emerald-200" },
-    failed: { label: "failed", className: "bg-red-500/15 text-red-300" },
+function statusBadge(status: string, t: (key: TranslationKey) => string) {
+  const map: Record<string, { labelKey: TranslationKey; className: string }> = {
+    pending: { labelKey: "lorebookGen.flow.draftStatus.pending", className: "bg-fg/10 text-fg/60" },
+    drafting: { labelKey: "lorebookGen.flow.draftStatus.drafting", className: "bg-accent/15 text-accent" },
+    drafted: { labelKey: "lorebookGen.flow.draftStatus.drafted", className: "bg-emerald-500/10 text-emerald-300" },
+    approved: { labelKey: "lorebookGen.flow.draftStatus.approved", className: "bg-emerald-500/20 text-emerald-200" },
+    failed: { labelKey: "lorebookGen.flow.draftStatus.failed", className: "bg-red-500/15 text-red-300" },
   };
-  const tag = map[status] ?? { label: status, className: "bg-fg/10 text-fg/60" };
+  const entry = map[status];
+  const tag = entry
+    ? { label: t(entry.labelKey), className: entry.className }
+    : { label: status, className: "bg-fg/10 text-fg/60" };
   if (status === "drafting") {
     return (
       <motion.span
@@ -1518,6 +1532,7 @@ function CoherenceBanner({
   onSkip: () => void;
   busy: boolean;
 }) {
+  const { t } = useI18n();
   const toggle = (id: string) => {
     setAccepted((prev) => {
       const next = new Set(prev);
@@ -1534,13 +1549,13 @@ function CoherenceBanner({
         className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] px-4 py-3"
       >
         <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
-        <p className="flex-1 text-sm text-fg/80">No coherence issues found.</p>
+        <p className="flex-1 text-sm text-fg/80">{t("lorebookGen.flow.noCoherenceIssues")}</p>
         <button
           type="button"
           onClick={onSkip}
           className="rounded-lg border border-fg/10 px-3 py-1.5 text-xs transition hover:border-fg/20 hover:bg-fg/5"
         >
-          Continue
+          {t("common.buttons.continue")}
         </button>
       </motion.div>
     );
@@ -1552,26 +1567,45 @@ function CoherenceBanner({
       className="space-y-3 rounded-xl border border-info/30 bg-info/[0.06] p-4"
     >
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-info">
-        Coherence proposals · {job.coherenceProposals.length}
+        {t("lorebookGen.flow.coherenceProposals", { count: job.coherenceProposals.length })}
       </p>
       <p className="text-xs text-fg/60">
-        Toggle each change to accept or reject before applying.
+        {t("lorebookGen.flow.coherenceToggleHint")}
       </p>
       {job.coherenceProposals.map((c) => {
         const checked = accepted.has(c.id);
         let summary = "";
         switch (c.kind) {
           case "mergeKeys":
-            summary = `Remove keys [${c.removeKeys.join(", ")}] from entry ${c.entryIdx + 1}. ${c.reason}`;
+            summary = t("lorebookGen.flow.coherenceMergeKeys", {
+              keys: c.removeKeys.join(", "),
+              entry: c.entryIdx + 1,
+              reason: c.reason,
+            });
             break;
           case "renameTerm":
-            summary = `Rename "${c.oldTerm}" → "${c.newTerm}" across entries ${c.affectedEntryIdxs.length === 0 ? "(all)" : c.affectedEntryIdxs.map((n) => n + 1).join(", ")}. ${c.reason}`;
+            summary = t("lorebookGen.flow.coherenceRenameTerm", {
+              oldTerm: c.oldTerm,
+              newTerm: c.newTerm,
+              entries:
+                c.affectedEntryIdxs.length === 0
+                  ? t("lorebookGen.flow.coherenceAll")
+                  : c.affectedEntryIdxs.map((n) => n + 1).join(", "),
+              reason: c.reason,
+            });
             break;
           case "flagContradiction":
-            summary = `Contradiction in entries ${c.entryIdxs.map((n) => n + 1).join(", ")}: ${c.description}`;
+            summary = t("lorebookGen.flow.coherenceContradiction", {
+              entries: c.entryIdxs.map((n) => n + 1).join(", "),
+              description: c.description,
+            });
             break;
           case "toggleAlwaysActive":
-            summary = `Set entry ${c.entryIdx + 1} alwaysActive to ${c.newValue}. ${c.reason}`;
+            summary = t("lorebookGen.flow.coherenceToggleAlwaysActive", {
+              entry: c.entryIdx + 1,
+              value: String(c.newValue),
+              reason: c.reason,
+            });
             break;
         }
         return (
@@ -1600,7 +1634,7 @@ function CoherenceBanner({
           onClick={onSkip}
           className="flex-1 rounded-lg border border-fg/10 py-2 text-xs transition hover:border-fg/20 hover:bg-fg/5"
         >
-          Skip
+          {t("lorebookGen.flow.skip")}
         </button>
         <motion.button
           type="button"
@@ -1609,7 +1643,7 @@ function CoherenceBanner({
           whileTap={{ scale: 0.98 }}
           className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-accent/40 bg-accent/10 py-2 text-xs font-semibold text-accent transition hover:bg-accent/20 disabled:opacity-50"
         >
-          {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Apply selected
+          {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />} {t("lorebookGen.flow.applySelected")}
         </motion.button>
       </div>
     </motion.div>
@@ -1635,21 +1669,22 @@ function CommitForm({
   onBack: () => void;
   busy: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-5">
       <p className="text-sm text-fg/60">
-        Save {draftCount} entries into a lorebook.
+        {t("lorebookGen.flow.commitIntro", { count: draftCount })}
       </p>
-      <Field label="Destination">
+      <Field label={t("lorebookGen.flow.destination")}>
         <select
           value={commitTarget}
           onChange={(e) => setCommitTarget(e.target.value)}
           className={inputClass}
         >
-          <option value="">Create new lorebook · "{newLorebookName}"</option>
+          <option value="">{t("lorebookGen.flow.createNewLorebook", { name: newLorebookName })}</option>
           {lorebooks.map((lb) => (
             <option key={lb.id} value={lb.id}>
-              Append to: {lb.name}
+              {t("lorebookGen.flow.appendTo", { name: lb.name })}
             </option>
           ))}
         </select>
@@ -1660,7 +1695,7 @@ function CommitForm({
           onClick={onBack}
           className="flex-1 rounded-xl border border-fg/10 py-3 text-sm transition hover:border-fg/20 hover:bg-fg/5"
         >
-          Back
+          {t("common.buttons.back")}
         </button>
         <motion.button
           type="button"
@@ -1670,7 +1705,7 @@ function CommitForm({
           className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-accent/40 bg-accent/10 py-3 text-sm font-semibold text-accent transition hover:bg-accent/20 disabled:opacity-50"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-          Save
+          {t("common.buttons.save")}
         </motion.button>
       </div>
     </div>
@@ -1694,15 +1729,16 @@ function RefineSheet({
   onSubmit: () => void;
   busy: boolean;
 }) {
+  const { t } = useI18n();
   return (
-    <BottomMenu isOpen={isOpen} onClose={onClose} title={`Ask for changes: ${draftTitle}`}>
+    <BottomMenu isOpen={isOpen} onClose={onClose} title={t("lorebookGen.flow.askForChangesTitle", { title: draftTitle })}>
       <div className="space-y-3">
         <textarea
           autoFocus
           value={feedback}
           onChange={(e) => setFeedback(e.target.value)}
           rows={5}
-          placeholder="Describe what to change…"
+          placeholder={t("lorebookGen.flow.describeChangesPlaceholder")}
           className="w-full rounded-xl border border-fg/10 bg-fg/[0.02] px-3.5 py-3 text-sm transition focus:border-fg/30 focus:outline-none"
         />
         <div className="flex gap-3">
@@ -1711,7 +1747,7 @@ function RefineSheet({
             onClick={onClose}
             className="flex-1 rounded-xl border border-fg/10 py-2.5 text-sm transition hover:border-fg/20 hover:bg-fg/5"
           >
-            Cancel
+            {t("common.buttons.cancel")}
           </button>
           <motion.button
             type="button"
@@ -1720,7 +1756,7 @@ function RefineSheet({
             whileTap={{ scale: 0.98 }}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-accent/40 bg-accent/10 py-2.5 text-sm font-semibold text-accent transition hover:bg-accent/20 disabled:opacity-50"
           >
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Apply
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />} {t("lorebookGen.flow.apply")}
           </motion.button>
         </div>
       </div>
@@ -1744,6 +1780,7 @@ function EditDraftModal({
   ) => void;
   busy: boolean;
 }) {
+  const { t } = useI18n();
   const [title, setTitle] = useState(initial.title);
   const [keywordsText, setKeywordsText] = useState(initial.keywords.join(", "));
   const [content, setContent] = useState(initial.content);
@@ -1752,17 +1789,17 @@ function EditDraftModal({
   return (
     <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/60 px-4">
       <div className="w-full max-w-xl space-y-3 rounded-2xl border border-fg/10 bg-surface p-5">
-        <h3 className="text-sm font-semibold">Edit entry</h3>
+        <h3 className="text-sm font-semibold">{t("lorebookGen.flow.editEntry")}</h3>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Title"
+          placeholder={t("lorebookGen.flow.titleLabel")}
           className="w-full rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-2 text-sm"
         />
         <input
           value={keywordsText}
           onChange={(e) => setKeywordsText(e.target.value)}
-          placeholder="Comma-separated keywords"
+          placeholder={t("lorebookGen.flow.commaSeparatedKeywords")}
           className="w-full rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-2 text-sm"
         />
         <textarea
@@ -1778,7 +1815,7 @@ function EditDraftModal({
             onChange={(e) => setAlwaysActive(e.target.checked)}
             className="accent-accent"
           />
-          Always active (no keyword required)
+          {t("lorebookGen.flow.alwaysActiveNoKeyword")}
         </label>
         <div className="flex gap-3">
           <button
@@ -1786,7 +1823,7 @@ function EditDraftModal({
             onClick={onCancel}
             className="flex-1 rounded-xl border border-fg/10 py-2.5 text-sm hover:bg-fg/5"
           >
-            Cancel
+            {t("common.buttons.cancel")}
           </button>
           <button
             type="button"
@@ -1804,7 +1841,7 @@ function EditDraftModal({
             disabled={busy}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-accent/40 bg-accent/15 py-2.5 text-sm font-medium text-accent hover:bg-accent/25 disabled:opacity-50"
           >
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Save
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />} {t("common.buttons.save")}
           </button>
         </div>
       </div>

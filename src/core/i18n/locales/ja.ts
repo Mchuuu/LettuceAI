@@ -740,7 +740,6 @@ export const jaMessages: DeepPartialMessageTree<LocaleMessages> = {
     "suggestedReply": "提案された返信",
     "selectTwoCharactersMinimum": "グループチャットには最低2つのキャラクターを選択してください。",
     "groupBranchCreated": "グループ分岐を作成しました！リダイレクト中...",
-    "memories": "メモリ",
     "tools": "ツール",
     "pinned": "ピン留め",
     "searchMemories": "メモリを検索...",

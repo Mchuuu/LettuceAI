@@ -260,7 +260,7 @@ export function ChatFooter({
               >
                 <img
                   src={attachment.data}
-                  alt={attachment.filename || "Attachment"}
+                  alt={attachment.filename || t("chats.footer.attachmentAlt")}
                   className={cn("h-20 w-20 object-cover", radius.md)}
                 />
                 {onRemoveAttachment && (
@@ -352,8 +352,8 @@ export function ChatFooter({
                   "hover:bg-fg/10 hover:text-fg",
                   "disabled:cursor-not-allowed disabled:opacity-40",
                 )}
-                title="Cancel recording"
-                aria-label="Cancel recording"
+                title={t("chats.footer.cancelRecording")}
+                aria-label={t("chats.footer.cancelRecording")}
               >
                 <X size={18} />
               </button>
@@ -365,8 +365,8 @@ export function ChatFooter({
                   radius.full,
                   "bg-accent text-black",
                 )}
-                aria-label="Transcribing"
-                title="Transcribing"
+                aria-label={t("chats.footer.transcribing")}
+                title={t("chats.footer.transcribing")}
               >
                 <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
               </div>
@@ -384,8 +384,8 @@ export function ChatFooter({
                     "hover:brightness-110",
                     "disabled:cursor-not-allowed disabled:opacity-40",
                   )}
-                  title="Stop and transcribe"
-                  aria-label="Stop and transcribe"
+                  title={t("chats.footer.stopAndTranscribe")}
+                  aria-label={t("chats.footer.stopAndTranscribe")}
                 >
                   <Check size={18} strokeWidth={2.75} />
                 </button>
@@ -487,12 +487,11 @@ export function ChatFooter({
       <BottomMenu
         isOpen={showSystemSendMenu}
         onClose={handleCloseSystemSendMenu}
-        title="Send as system message?"
+        title={t("chats.footer.systemSend.title")}
       >
         <div className="space-y-4">
           <p className="text-sm leading-relaxed text-fg/55">
-            Sends the composer content as a visible system message. It does not trigger
-            generation.
+            {t("chats.footer.systemSend.description")}
           </p>
 
           <div className="grid grid-cols-2 gap-2">
@@ -507,7 +506,7 @@ export function ChatFooter({
                 "disabled:cursor-not-allowed disabled:opacity-45",
               )}
             >
-              Cancel
+              {t("common.buttons.cancel")}
             </button>
             <button
               type="button"
@@ -520,7 +519,9 @@ export function ChatFooter({
                 "disabled:cursor-not-allowed disabled:opacity-45",
               )}
             >
-              {sendingSystemMessage ? "Sending…" : "Send"}
+              {sendingSystemMessage
+                ? t("chats.footer.systemSend.sending")
+                : t("chats.footer.systemSend.send")}
             </button>
           </div>
         </div>

@@ -3,6 +3,7 @@ import { BookOpen, Check, ChevronRight, Loader2 } from "lucide-react";
 import { listLorebooks } from "../../../../core/storage/repo";
 import type { Lorebook } from "../../../../core/storage/schemas";
 import { BottomMenu } from "../../../components/BottomMenu";
+import { useI18n } from "../../../../core/i18n/context";
 import { cn, interactive, radius, typography } from "../../../design-tokens";
 
 type ActiveLorebooksSelectorProps = {
@@ -18,6 +19,7 @@ export function ActiveLorebooksSelector({
   disabled = false,
   subjectLabel = "character",
 }: ActiveLorebooksSelectorProps) {
+  const { t } = useI18n();
   const [lorebooks, setLorebooks] = React.useState<Lorebook[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -34,7 +36,7 @@ export function ActiveLorebooksSelector({
       })
       .catch((err) => {
         console.error("Failed to load lorebooks:", err);
-        if (!cancelled) setError("Failed to load lorebooks");
+        if (!cancelled) setError(t("characters.activeLorebooks.loadFailed"));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -53,9 +55,11 @@ export function ActiveLorebooksSelector({
   const selectedCount = selectedIds.length;
   const selectedLabel =
     selectedLorebooks.length > 0
-      ? selectedLorebooks.map((lorebook) => lorebook.name || "Untitled lorebook").join(", ")
+      ? selectedLorebooks
+          .map((lorebook) => lorebook.name || t("characters.activeLorebooks.untitledLorebook"))
+          .join(", ")
       : selectedCount > 0
-        ? `${selectedCount} active`
+        ? t("characters.activeLorebooks.selectedSummary", { count: selectedCount })
         : `Using no ${subjectLabel} lorebooks`;
 
   const toggleLorebook = React.useCallback(
@@ -79,9 +83,11 @@ export function ActiveLorebooksSelector({
           <div className="rounded-lg border border-info/30 bg-info/10 p-1.5">
             <BookOpen className="h-4 w-4 text-info" />
           </div>
-          <h3 className={cn(typography.body.weight, "text-sm text-fg")}>Active Lorebooks</h3>
+          <h3 className={cn(typography.body.weight, "text-sm text-fg")}>
+            {t("characters.activeLorebooks.sectionTitle")}
+          </h3>
           <span className="ml-auto rounded-full border border-fg/10 bg-fg/5 px-2.5 py-1 text-xs text-fg/50">
-            {selectedCount} active
+            {t("characters.activeLorebooks.selectedSummary", { count: selectedCount })}
           </span>
         </div>
 
@@ -99,7 +105,7 @@ export function ActiveLorebooksSelector({
         >
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm text-fg/80">
-              {loading ? "Loading lorebooks..." : error ? error : selectedLabel}
+              {loading ? t("characters.activeLorebooks.loading") : error ? error : selectedLabel}
             </p>
             <p className="mt-1 text-xs text-fg/45">
               Sessions inherit these unless a session override is set.
@@ -116,7 +122,7 @@ export function ActiveLorebooksSelector({
       <BottomMenu
         isOpen={open}
         onClose={() => setOpen(false)}
-        title="Active Lorebooks"
+        title={t("characters.activeLorebooks.sectionTitle")}
         rightAction={
           selectedCount > 0 ? (
             <button
@@ -124,7 +130,7 @@ export function ActiveLorebooksSelector({
               onClick={() => onChange([])}
               className="rounded-full border border-fg/10 bg-fg/5 px-3 py-1.5 text-xs font-medium text-fg/70 transition hover:border-fg/20 hover:bg-fg/10 hover:text-fg"
             >
-              Clear
+              {t("characters.activeLorebooks.clear")}
             </button>
           ) : null
         }
@@ -138,7 +144,7 @@ export function ActiveLorebooksSelector({
           {loading ? (
             <div className="flex items-center gap-2 rounded-xl border border-fg/10 bg-fg/[0.04] px-4 py-3 text-sm text-fg/55">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading lorebooks...
+              {t("characters.activeLorebooks.loading")}
             </div>
           ) : error ? (
             <div className="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
@@ -146,7 +152,7 @@ export function ActiveLorebooksSelector({
             </div>
           ) : lorebooks.length === 0 ? (
             <div className="rounded-xl border border-dashed border-fg/10 bg-fg/[0.03] px-4 py-5 text-sm text-fg/45">
-              No lorebooks yet. Create lorebooks from the lorebook manager first.
+              {t("characters.activeLorebooks.emptyState")}
             </div>
           ) : (
             <div className="space-y-2">
@@ -166,7 +172,7 @@ export function ActiveLorebooksSelector({
                     )}
                   >
                     <span className="min-w-0 truncate text-sm font-medium">
-                      {lorebook.name || "Untitled lorebook"}
+                      {lorebook.name || t("characters.activeLorebooks.untitledLorebook")}
                     </span>
                     <span
                       className={cn(

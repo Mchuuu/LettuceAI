@@ -15,24 +15,26 @@ import {
 } from "../../../core/prompts/constants";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
 import { cn } from "../../design-tokens";
+import { useI18n } from "../../../core/i18n/context";
+import type { TranslationKey } from "../../../core/i18n/context";
 import { ModelSelectionBottomMenu } from "../../components/ModelSelectionBottomMenu";
 
-const FALLBACK_OPTIONS: Array<{
-  value: DynamicMemoryStructuredFallbackFormat;
-  title: string;
-  description: string;
-}> = [
+const FALLBACK_OPTIONS = [
   {
     value: "json",
-    title: "JSON",
-    description: "Compact structured output when tool calling is unavailable.",
+    titleKey: "lorebookGen.entry.fallbackJsonTitle",
+    descriptionKey: "lorebookGen.entry.fallbackJsonDescription",
   },
   {
     value: "xml",
-    title: "XML",
-    description: "Use when the model formats XML more reliably than JSON.",
+    titleKey: "lorebookGen.entry.fallbackXmlTitle",
+    descriptionKey: "lorebookGen.entry.fallbackXmlDescription",
   },
-];
+] satisfies Array<{
+  value: DynamicMemoryStructuredFallbackFormat;
+  titleKey: TranslationKey;
+  descriptionKey: TranslationKey;
+}>;
 
 function ensureAdvancedSettings(settings: Settings): NonNullable<Settings["advancedSettings"]> {
   const advanced = settings.advancedSettings ?? {
@@ -50,6 +52,7 @@ function ensureAdvancedSettings(settings: Settings): NonNullable<Settings["advan
 }
 
 export function LorebookEntryGeneratorPage() {
+  const { t } = useI18n();
   const [isLoading, setIsLoading] = useState(true);
   const [models, setModels] = useState<Model[]>([]);
   const [defaultModelId, setDefaultModelId] = useState<string | null>(null);
@@ -110,10 +113,10 @@ export function LorebookEntryGeneratorPage() {
   const defaultModel = defaultModelId
     ? models.find((model) => model.id === defaultModelId) ?? null
     : null;
-  const selectedModelLabel = selectedModel?.displayName ?? "Generation Model";
+  const selectedModelLabel = selectedModel?.displayName ?? t("lorebookGen.entry.generationModelFallback");
   const appDefaultLabel = defaultModel
-    ? `Use App Default (${defaultModel.displayName})`
-    : "Use App Default";
+    ? t("lorebookGen.entry.useAppDefaultWith", { name: defaultModel.displayName })
+    : t("lorebookGen.entry.useAppDefault");
 
   const handleModelChange = async (modelId: string | null) => {
     setSelectedModelId(modelId);
@@ -154,11 +157,7 @@ export function LorebookEntryGeneratorPage() {
             <div className="flex items-start gap-2">
               <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
               <p className="text-xs leading-relaxed text-accent/80">
-                Configure the model and prompt that draft lorebook entries from selected chat
-                messages and generate lorebook keywords from entry content. Tool calling is
-                attempted first; if unsupported, both flows fall back to{" "}
-                <span className="font-mono">{fallbackFormat.toUpperCase()}</span> structured
-                output.
+                {t("lorebookGen.entry.infoText", { format: fallbackFormat.toUpperCase() })}
               </p>
             </div>
           </div>
@@ -168,7 +167,7 @@ export function LorebookEntryGeneratorPage() {
             {/* Left — Generation */}
             <div className="space-y-4">
               <h3 className="px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-                Generation
+                {t("lorebookGen.entry.generationHeading")}
               </h3>
 
               {/* Model */}
@@ -177,7 +176,7 @@ export function LorebookEntryGeneratorPage() {
                   <div className="rounded-lg border border-accent/30 bg-accent/10 p-1.5">
                     <Cpu className="h-4 w-4 text-accent" />
                   </div>
-                  <h3 className="text-sm font-semibold text-fg">Generation Model</h3>
+                  <h3 className="text-sm font-semibold text-fg">{t("lorebookGen.entry.generationModel")}</h3>
                 </div>
 
                 {models.length > 0 ? (
@@ -202,11 +201,11 @@ export function LorebookEntryGeneratorPage() {
                   </button>
                 ) : (
                   <div className="rounded-xl border border-fg/10 bg-surface-el/20 px-4 py-3">
-                    <p className="text-sm text-fg/50">No text-capable models configured.</p>
+                    <p className="text-sm text-fg/50">{t("lorebookGen.entry.noTextModels")}</p>
                   </div>
                 )}
                 <p className="px-1 text-xs text-fg/50">
-                  Leave unset to use the app's default text model.
+                  {t("lorebookGen.entry.modelHint")}
                 </p>
               </div>
 
@@ -216,7 +215,7 @@ export function LorebookEntryGeneratorPage() {
                   <div className="rounded-lg border border-info/30 bg-info/10 p-1.5">
                     <Code2 className="h-4 w-4 text-info" />
                   </div>
-                  <h3 className="text-sm font-semibold text-fg">Structured Fallback</h3>
+                  <h3 className="text-sm font-semibold text-fg">{t("lorebookGen.entry.structuredFallback")}</h3>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -241,7 +240,7 @@ export function LorebookEntryGeneratorPage() {
                               active ? "text-info" : "text-fg/80",
                             )}
                           >
-                            {option.title}
+                            {t(option.titleKey)}
                           </span>
                           {active && (
                             <div className="flex h-5 w-5 items-center justify-center rounded-full bg-info">
@@ -250,14 +249,14 @@ export function LorebookEntryGeneratorPage() {
                           )}
                         </div>
                         <span className="text-[11px] leading-relaxed text-fg/50">
-                          {option.description}
+                          {t(option.descriptionKey)}
                         </span>
                       </button>
                     );
                   })}
                 </div>
                 <p className="px-1 text-xs text-fg/50">
-                  Used only when the model can't call tools directly.
+                  {t("lorebookGen.entry.fallbackHint")}
                 </p>
               </div>
             </div>
@@ -265,7 +264,7 @@ export function LorebookEntryGeneratorPage() {
             {/* Right — Prompt Template */}
             <div className="space-y-4">
               <h3 className="px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">
-                Prompt Template
+                {t("lorebookGen.entry.promptTemplateHeading")}
               </h3>
 
               <div className="space-y-3">
@@ -273,7 +272,7 @@ export function LorebookEntryGeneratorPage() {
                   <div className="rounded-lg border border-warning/30 bg-warning/10 p-1.5">
                     <BookOpen className="h-4 w-4 text-warning" />
                   </div>
-                  <h3 className="text-sm font-semibold text-fg">Entry Writer Prompt</h3>
+                  <h3 className="text-sm font-semibold text-fg">{t("lorebookGen.entry.entryWriterPrompt")}</h3>
                 </div>
 
                 <select
@@ -281,7 +280,7 @@ export function LorebookEntryGeneratorPage() {
                   onChange={(e) => void handlePromptSelection(e.target.value || null)}
                   className="w-full appearance-none rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-sm text-fg transition focus:border-fg/25 focus:outline-none"
                 >
-                  <option value="">Use built-in default</option>
+                  <option value="">{t("lorebookGen.entry.useBuiltInDefault")}</option>
                   {templates
                     .filter((template) => template.promptType === "lorebookEntryWriter")
                     .filter((template) => template.id !== APP_LOREBOOK_ENTRY_WRITER_TEMPLATE_ID)
@@ -293,8 +292,7 @@ export function LorebookEntryGeneratorPage() {
                 </select>
 
                 <p className="px-1 text-xs leading-relaxed text-fg/50">
-                  Override the default lorebook entry writer prompt. Manage templates in Settings →
-                  Prompts.
+                  {t("lorebookGen.entry.entryWriterHint")}
                 </p>
               </div>
 
@@ -303,7 +301,7 @@ export function LorebookEntryGeneratorPage() {
                   <div className="rounded-lg border border-warning/30 bg-warning/10 p-1.5">
                     <BookOpen className="h-4 w-4 text-warning" />
                   </div>
-                  <h3 className="text-sm font-semibold text-fg">Keyword Generator Prompt</h3>
+                  <h3 className="text-sm font-semibold text-fg">{t("lorebookGen.entry.keywordGeneratorPrompt")}</h3>
                 </div>
 
                 <select
@@ -311,7 +309,7 @@ export function LorebookEntryGeneratorPage() {
                   onChange={(e) => void handleKeywordPromptSelection(e.target.value || null)}
                   className="w-full appearance-none rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-sm text-fg transition focus:border-fg/25 focus:outline-none"
                 >
-                  <option value="">Use built-in default</option>
+                  <option value="">{t("lorebookGen.entry.useBuiltInDefault")}</option>
                   {templates
                     .filter((template) => template.promptType === "lorebookKeywordGenerator")
                     .filter((template) => template.id !== APP_LOREBOOK_KEYWORD_GENERATOR_TEMPLATE_ID)
@@ -323,8 +321,7 @@ export function LorebookEntryGeneratorPage() {
                 </select>
 
                 <p className="px-1 text-xs leading-relaxed text-fg/50">
-                  Uses the same model and structured fallback as the entry generator. Manage
-                  templates in Settings → Prompts.
+                  {t("lorebookGen.entry.keywordGeneratorHint")}
                 </p>
               </div>
             </div>
@@ -334,10 +331,7 @@ export function LorebookEntryGeneratorPage() {
           <div className="flex items-start gap-3 rounded-xl border border-fg/10 bg-fg/[0.03] px-4 py-3.5">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-fg/30" />
             <div className="text-[11px] leading-relaxed text-fg/45">
-              <p>
-                Open a character's lorebook or the library lorebook editor, then pick "Generate
-                entry" or "Generate Keywords" to use these defaults.
-              </p>
+              <p>{t("lorebookGen.entry.footerHint")}</p>
             </div>
           </div>
         </div>
@@ -346,7 +340,7 @@ export function LorebookEntryGeneratorPage() {
       <ModelSelectionBottomMenu
         isOpen={showModelMenu}
         onClose={() => setShowModelMenu(false)}
-        title="Generation Model"
+        title={t("lorebookGen.entry.generationModel")}
         models={models}
         selectedModelIds={selectedModelId ? [selectedModelId] : []}
         onSelectModel={(modelId) => {
@@ -354,8 +348,8 @@ export function LorebookEntryGeneratorPage() {
           setShowModelMenu(false);
         }}
         clearOption={{
-          label: "Use App Default",
-          description: defaultModel ? defaultModel.displayName : "No app default model configured",
+          label: t("lorebookGen.entry.useAppDefault"),
+          description: defaultModel ? defaultModel.displayName : t("lorebookGen.entry.noAppDefaultModel"),
           icon: Cpu,
           selected: !selectedModelId,
           onClick: () => {

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, RotateCcw, Save, Info, Loader } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { cn } from "../../../design-tokens";
+import { useI18n } from "../../../../core/i18n/context";
 import type { AdvancedModelSettings } from "../../../../core/storage/schemas";
 import { LlamaSamplerOrderEditor } from "../../../components/LlamaSamplerOrderEditor";
 import { Switch } from "../../../components/Switch";
@@ -108,6 +109,7 @@ export function SessionAdvancedSettings({
   providerId = "openai",
   modelPath,
 }: SessionAdvancedSettingsProps) {
+  const { t } = useI18n();
   const isLlama = providerId === "llamacpp";
 
   // Context info for llama models
@@ -202,13 +204,13 @@ export function SessionAdvancedSettings({
                 type="button"
                 onClick={onClose}
                 className="rounded-full border border-fg/10 p-2 text-fg/60 transition hover:bg-fg/10 hover:text-fg"
-                aria-label="Go back"
+                aria-label={t("sessionAdvanced.goBack")}
               >
                 <ArrowLeft size={16} />
               </button>
               <div>
-                <h2 className="text-base font-semibold text-fg">Session Parameters</h2>
-                <p className="text-xs text-fg/45">Override model defaults for this conversation</p>
+                <h2 className="text-base font-semibold text-fg">{t("sessionAdvanced.title")}</h2>
+                <p className="text-xs text-fg/45">{t("sessionAdvanced.subtitle")}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -218,7 +220,7 @@ export function SessionAdvancedSettings({
                 className="rounded-full border border-fg/10 px-3 py-1.5 text-xs font-medium text-fg/60 transition hover:bg-fg/10 hover:text-fg"
               >
                 <Info size={14} className="inline mr-1" />
-                Support
+                {t("sessionAdvanced.support")}
               </button>
               <button
                 type="button"
@@ -226,7 +228,7 @@ export function SessionAdvancedSettings({
                 className="rounded-full border border-fg/10 px-3 py-1.5 text-xs font-medium text-fg/60 transition hover:bg-fg/10 hover:text-fg"
               >
                 <RotateCcw size={14} className="inline mr-1" />
-                Reset
+                {t("sessionAdvanced.reset")}
               </button>
               <button
                 type="button"
@@ -238,7 +240,7 @@ export function SessionAdvancedSettings({
                 )}
               >
                 <Save size={14} className="inline mr-1" />
-                Save
+                {t("sessionAdvanced.save")}
               </button>
             </div>
           </div>
@@ -248,7 +250,7 @@ export function SessionAdvancedSettings({
             <div className="mx-auto max-w-3xl space-y-6">
               {!hasSession && (
                 <div className="rounded-xl border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning/80">
-                  Open a chat session to configure per-session settings.
+                  {t("sessionAdvanced.noSessionWarning")}
                 </div>
               )}
 
@@ -257,9 +259,11 @@ export function SessionAdvancedSettings({
                   {/* Override toggle */}
                   <div className="flex items-center justify-between rounded-xl border border-fg/10 bg-fg/[0.03] px-4 py-3">
                     <div>
-                      <p className="text-sm font-medium text-fg/90">Override defaults</p>
+                      <p className="text-sm font-medium text-fg/90">
+                        {t("sessionAdvanced.overrideDefaults")}
+                      </p>
                       <p className="mt-0.5 text-xs text-fg/45">
-                        Customize parameters just for this conversation
+                        {t("sessionAdvanced.overrideDefaultsDesc")}
                       </p>
                     </div>
                     <Switch checked={overrideEnabled} onChange={onOverrideEnabledChange} />
@@ -271,36 +275,42 @@ export function SessionAdvancedSettings({
                         {/* Sampling */}
                         <div className="space-y-5 rounded-xl border border-fg/8 bg-fg/[0.02] p-4">
                           <h3 className="text-[11px] font-bold uppercase tracking-wider text-fg/40">
-                            Sampling
+                            {t("sessionAdvanced.sampling.title")}
                           </h3>
 
                           <ParameterField
-                            label="Temperature"
-                            description="Controls randomness. Lower = more deterministic, higher = more creative."
+                            label={t("sessionAdvanced.sampling.temperature")}
+                            description={t("sessionAdvanced.sampling.temperatureDesc")}
                             value={draft.temperature}
                             placeholder="0.70"
                             min={ADVANCED_TEMPERATURE_RANGE.min}
                             max={ADVANCED_TEMPERATURE_RANGE.max}
                             step={0.01}
                             onChange={(v) => update({ temperature: v })}
-                            rangeLabels={["Precise", "Creative"]}
+                            rangeLabels={[
+                              t("sessionAdvanced.sampling.temperaturePrecise"),
+                              t("sessionAdvanced.sampling.temperatureCreative"),
+                            ]}
                           />
 
                           <ParameterField
-                            label="Top P"
-                            description="Nucleus sampling. Limits tokens to a cumulative probability."
+                            label={t("sessionAdvanced.sampling.topP")}
+                            description={t("sessionAdvanced.sampling.topPDesc")}
                             value={draft.topP}
                             placeholder="1.00"
                             min={ADVANCED_TOP_P_RANGE.min}
                             max={ADVANCED_TOP_P_RANGE.max}
                             step={0.01}
                             onChange={(v) => update({ topP: v })}
-                            rangeLabels={["Focused", "Diverse"]}
+                            rangeLabels={[
+                              t("sessionAdvanced.sampling.topPFocused"),
+                              t("sessionAdvanced.sampling.topPDiverse"),
+                            ]}
                           />
 
                           <ParameterField
-                            label="Top K"
-                            description="Limits sampling to the top K most likely tokens."
+                            label={t("sessionAdvanced.sampling.topK")}
+                            description={t("sessionAdvanced.sampling.topKDesc")}
                             value={draft.topK}
                             placeholder="40"
                             min={ADVANCED_TOP_K_RANGE.min}
@@ -314,17 +324,17 @@ export function SessionAdvancedSettings({
                         {/* Output & Penalties */}
                         <div className="space-y-5 rounded-xl border border-fg/8 bg-fg/[0.02] p-4">
                           <h3 className="text-[11px] font-bold uppercase tracking-wider text-fg/40">
-                            Output & Penalties
+                            {t("sessionAdvanced.outputPenalties.title")}
                           </h3>
 
                           <div className="space-y-2">
                             <div className="flex items-baseline justify-between gap-2">
                               <label className="text-[13px] font-medium text-fg/80">
-                                Max Output Tokens
+                                {t("sessionAdvanced.outputPenalties.maxOutputTokens")}
                               </label>
                             </div>
                             <p className="text-[11px] text-fg/40 leading-relaxed">
-                              Maximum response length. Auto lets the model decide.
+                              {t("sessionAdvanced.outputPenalties.maxOutputTokensDesc")}
                             </p>
                             <div className="flex gap-2">
                               <button
@@ -337,7 +347,7 @@ export function SessionAdvancedSettings({
                                     : "border border-fg/10 text-fg/50 hover:bg-fg/5",
                                 )}
                               >
-                                Auto
+                                {t("sessionAdvanced.outputPenalties.auto")}
                               </button>
                               <button
                                 type="button"
@@ -349,7 +359,7 @@ export function SessionAdvancedSettings({
                                     : "border border-fg/10 text-fg/50 hover:bg-fg/5",
                                 )}
                               >
-                                Custom
+                                {t("sessionAdvanced.outputPenalties.custom")}
                               </button>
                             </div>
                             {draft.maxOutputTokens != null && (
@@ -365,27 +375,33 @@ export function SessionAdvancedSettings({
                           </div>
 
                           <ParameterField
-                            label="Frequency Penalty"
-                            description="Reduces repetition of token sequences."
+                            label={t("sessionAdvanced.outputPenalties.frequencyPenalty")}
+                            description={t("sessionAdvanced.outputPenalties.frequencyPenaltyDesc")}
                             value={draft.frequencyPenalty}
                             placeholder="0.00"
                             min={ADVANCED_FREQUENCY_PENALTY_RANGE.min}
                             max={ADVANCED_FREQUENCY_PENALTY_RANGE.max}
                             step={0.01}
                             onChange={(v) => update({ frequencyPenalty: v })}
-                            rangeLabels={["Repeat", "Vary"]}
+                            rangeLabels={[
+                              t("sessionAdvanced.outputPenalties.frequencyPenaltyRepeat"),
+                              t("sessionAdvanced.outputPenalties.frequencyPenaltyVary"),
+                            ]}
                           />
 
                           <ParameterField
-                            label="Presence Penalty"
-                            description="Encourages exploring new topics."
+                            label={t("sessionAdvanced.outputPenalties.presencePenalty")}
+                            description={t("sessionAdvanced.outputPenalties.presencePenaltyDesc")}
                             value={draft.presencePenalty}
                             placeholder="0.00"
                             min={ADVANCED_PRESENCE_PENALTY_RANGE.min}
                             max={ADVANCED_PRESENCE_PENALTY_RANGE.max}
                             step={0.01}
                             onChange={(v) => update({ presencePenalty: v })}
-                            rangeLabels={["Repeat", "Explore"]}
+                            rangeLabels={[
+                              t("sessionAdvanced.outputPenalties.presencePenaltyRepeat"),
+                              t("sessionAdvanced.outputPenalties.presencePenaltyExplore"),
+                            ]}
                           />
                         </div>
                       </div>
@@ -396,18 +412,18 @@ export function SessionAdvancedSettings({
                           {/* Performance */}
                           <div className="rounded-xl border border-fg/8 bg-fg/[0.02] p-4">
                             <h3 className="mb-5 text-[11px] font-bold uppercase tracking-wider text-fg/40">
-                              Performance
+                              {t("sessionAdvanced.performance.title")}
                             </h3>
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                               <ParameterField
-                                label="GPU Layers"
+                                label={t("sessionAdvanced.performance.gpuLayers")}
                                 description={
                                   isCpuOnlyLlamaBackend
-                                    ? "Disabled on CPU-only backends."
-                                    : "Layers offloaded to GPU. 0 = CPU only."
+                                    ? t("sessionAdvanced.performance.cpuOnlyDisabled")
+                                    : t("sessionAdvanced.performance.gpuLayersDesc")
                                 }
                                 value={draft.llamaGpuLayers}
-                                placeholder="Auto"
+                                placeholder={t("sessionAdvanced.performance.autoPlaceholder")}
                                 min={0}
                                 max={512}
                                 step={1}
@@ -417,10 +433,10 @@ export function SessionAdvancedSettings({
                               />
 
                               <ParameterField
-                                label="Threads"
-                                description="CPU threads for inference."
+                                label={t("sessionAdvanced.performance.threads")}
+                                description={t("sessionAdvanced.performance.threadsDesc")}
                                 value={draft.llamaThreads}
-                                placeholder="Auto"
+                                placeholder={t("sessionAdvanced.performance.autoPlaceholder")}
                                 min={1}
                                 max={256}
                                 step={1}
@@ -429,10 +445,10 @@ export function SessionAdvancedSettings({
                               />
 
                               <ParameterField
-                                label="Batch Threads"
-                                description="CPU threads for batch processing."
+                                label={t("sessionAdvanced.performance.batchThreads")}
+                                description={t("sessionAdvanced.performance.batchThreadsDesc")}
                                 value={draft.llamaThreadsBatch}
-                                placeholder="Auto"
+                                placeholder={t("sessionAdvanced.performance.autoPlaceholder")}
                                 min={1}
                                 max={256}
                                 step={1}
@@ -441,8 +457,8 @@ export function SessionAdvancedSettings({
                               />
 
                               <ParameterField
-                                label="Batch Size"
-                                description="Prompt processing chunk size."
+                                label={t("sessionAdvanced.performance.batchSize")}
+                                description={t("sessionAdvanced.performance.batchSizeDesc")}
                                 value={draft.llamaBatchSize}
                                 placeholder="512"
                                 min={1}
@@ -453,10 +469,10 @@ export function SessionAdvancedSettings({
                               />
 
                               <ParameterField
-                                label="Context Length"
-                                description="Override context window size."
+                                label={t("sessionAdvanced.performance.contextLength")}
+                                description={t("sessionAdvanced.performance.contextLengthDesc")}
                                 value={draft.contextLength}
-                                placeholder="Auto"
+                                placeholder={t("sessionAdvanced.performance.autoPlaceholder")}
                                 min={0}
                                 max={262144}
                                 step={1}
@@ -466,10 +482,10 @@ export function SessionAdvancedSettings({
 
                               <div className="space-y-2">
                                 <label className="text-[13px] font-medium text-fg/80">
-                                  Flash Attention
+                                  {t("sessionAdvanced.performance.flashAttention")}
                                 </label>
                                 <p className="text-[11px] text-fg/40 leading-relaxed">
-                                  GPU memory optimization.
+                                  {t("sessionAdvanced.performance.flashAttentionDesc")}
                                 </p>
                                 <select
                                   value={draft.llamaFlashAttention ?? "auto"}
@@ -482,9 +498,9 @@ export function SessionAdvancedSettings({
                                   }}
                                   className="w-full rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-sm text-fg transition focus:border-fg/20 focus:outline-none"
                                 >
-                                  <option value="auto">Auto</option>
-                                  <option value="enabled">Enabled</option>
-                                  <option value="disabled">Disabled</option>
+                                  <option value="auto">{t("sessionAdvanced.performance.autoOption")}</option>
+                                  <option value="enabled">{t("sessionAdvanced.performance.enabled")}</option>
+                                  <option value="disabled">{t("sessionAdvanced.performance.disabled")}</option>
                                 </select>
                               </div>
                           </div>
@@ -499,15 +515,15 @@ export function SessionAdvancedSettings({
                                 </div>
                                 <div className="min-w-0 space-y-1">
                                   <span className="block text-[13px] font-medium text-fg/82">
-                                    Streaming
+                                    {t("sessionAdvanced.streaming.title")}
                                   </span>
                                   <span className="block text-[13px] leading-relaxed text-fg/48">
-                                    Disable incremental token streaming for this llama.cpp model.
+                                    {t("sessionAdvanced.streaming.description")}
                                   </span>
                                 </div>
                               </div>
                               <span className="block text-[12px] text-fg/42">
-                                When off, responses are delivered only after completion.
+                                {t("sessionAdvanced.streaming.hint")}
                               </span>
                             </div>
                             <div className="flex shrink-0 items-center gap-3">
@@ -519,7 +535,9 @@ export function SessionAdvancedSettings({
                                     : "text-fg/42",
                                 )}
                               >
-                                {draft.llamaStreamingEnabled !== false ? "On" : "Off"}
+                                {draft.llamaStreamingEnabled !== false
+                                  ? t("sessionAdvanced.streaming.on")
+                                  : t("sessionAdvanced.streaming.off")}
                               </span>
                               <Switch
                                 id="llama-streaming-enabled-session"
@@ -527,7 +545,7 @@ export function SessionAdvancedSettings({
                                 onChange={(next) =>
                                   update({ llamaStreamingEnabled: next ? true : false })
                                 }
-                                aria-label="Toggle llama.cpp streaming"
+                                aria-label={t("sessionAdvanced.streaming.toggleAria")}
                               />
                             </div>
                           </div>
@@ -536,14 +554,14 @@ export function SessionAdvancedSettings({
                           {/* Sampling & Memory */}
                           <div className="rounded-xl border border-fg/8 bg-fg/[0.02] p-4">
                             <h3 className="mb-5 text-[11px] font-bold uppercase tracking-wider text-fg/40">
-                              Sampling & Memory
+                              {t("sessionAdvanced.samplingMemory.title")}
                             </h3>
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                               <ParameterField
-                                label="Min P"
-                                description="Minimum probability threshold."
+                                label={t("sessionAdvanced.samplingMemory.minP")}
+                                description={t("sessionAdvanced.samplingMemory.minPDesc")}
                                 value={draft.llamaMinP}
-                                placeholder="Default"
+                                placeholder={t("sessionAdvanced.defaultPlaceholder")}
                                 min={0}
                                 max={1}
                                 step={0.01}
@@ -551,10 +569,10 @@ export function SessionAdvancedSettings({
                               />
 
                               <ParameterField
-                                label="Typical P"
-                                description="Typical sampling threshold."
+                                label={t("sessionAdvanced.samplingMemory.typicalP")}
+                                description={t("sessionAdvanced.samplingMemory.typicalPDesc")}
                                 value={draft.llamaTypicalP}
-                                placeholder="Default"
+                                placeholder={t("sessionAdvanced.defaultPlaceholder")}
                                 min={0}
                                 max={1}
                                 step={0.01}
@@ -562,8 +580,8 @@ export function SessionAdvancedSettings({
                               />
 
                               <ParameterField
-                                label="DRY Multiplier"
-                                description="Set above 0 to penalize repeated sequences."
+                                label={t("sessionAdvanced.dry.multiplier")}
+                                description={t("sessionAdvanced.dry.multiplierDesc")}
                                 value={draft.llamaDryMultiplier}
                                 placeholder="0.80"
                                 min={ADVANCED_LLAMA_DRY_MULTIPLIER_RANGE.min}
@@ -573,8 +591,8 @@ export function SessionAdvancedSettings({
                               />
 
                               <ParameterField
-                                label="DRY Base"
-                                description="How aggressively the DRY penalty ramps up."
+                                label={t("sessionAdvanced.dry.base")}
+                                description={t("sessionAdvanced.dry.baseDesc")}
                                 value={draft.llamaDryBase}
                                 placeholder="1.75"
                                 min={ADVANCED_LLAMA_DRY_BASE_RANGE.min}
@@ -584,8 +602,8 @@ export function SessionAdvancedSettings({
                               />
 
                               <ParameterField
-                                label="DRY Allowed Length"
-                                description="Ignore repeats shorter than this many tokens."
+                                label={t("sessionAdvanced.dry.allowedLength")}
+                                description={t("sessionAdvanced.dry.allowedLengthDesc")}
                                 value={draft.llamaDryAllowedLength}
                                 placeholder="2"
                                 min={ADVANCED_LLAMA_DRY_ALLOWED_LENGTH_RANGE.min}
@@ -596,8 +614,8 @@ export function SessionAdvancedSettings({
                               />
 
                               <ParameterField
-                                label="DRY Penalty Last N"
-                                description="Use `-1` to scan the full context."
+                                label={t("sessionAdvanced.dry.penaltyLastN")}
+                                description={t("sessionAdvanced.dry.penaltyLastNDesc")}
                                 value={draft.llamaDryPenaltyLastN}
                                 placeholder="-1"
                                 min={ADVANCED_LLAMA_DRY_PENALTY_LAST_N_RANGE.min}
@@ -608,10 +626,10 @@ export function SessionAdvancedSettings({
                               />
 
                               <ParameterField
-                                label="Seed"
-                                description="Random seed. Leave blank for random."
+                                label={t("sessionAdvanced.samplingMemory.seed")}
+                                description={t("sessionAdvanced.samplingMemory.seedDesc")}
                                 value={draft.llamaSeed}
-                                placeholder="Random"
+                                placeholder={t("sessionAdvanced.randomPlaceholder")}
                                 min={0}
                                 max={2147483647}
                                 step={1}
@@ -620,10 +638,10 @@ export function SessionAdvancedSettings({
                               />
 
                               <ParameterField
-                                label="RoPE Base"
-                                description="Frequency base override."
+                                label={t("sessionAdvanced.samplingMemory.ropeBase")}
+                                description={t("sessionAdvanced.samplingMemory.ropeBaseDesc")}
                                 value={draft.llamaRopeFreqBase}
-                                placeholder="Auto"
+                                placeholder={t("sessionAdvanced.performance.autoPlaceholder")}
                                 min={0}
                                 max={1000000}
                                 step={0.1}
@@ -631,10 +649,10 @@ export function SessionAdvancedSettings({
                               />
 
                               <ParameterField
-                                label="RoPE Scale"
-                                description="Frequency scale override."
+                                label={t("sessionAdvanced.samplingMemory.ropeScale")}
+                                description={t("sessionAdvanced.samplingMemory.ropeScaleDesc")}
                                 value={draft.llamaRopeFreqScale}
-                                placeholder="Auto"
+                                placeholder={t("sessionAdvanced.performance.autoPlaceholder")}
                                 min={0}
                                 max={10}
                                 step={0.01}
@@ -643,10 +661,10 @@ export function SessionAdvancedSettings({
 
                               <div className="space-y-2">
                                 <label className="text-[13px] font-medium text-fg/80">
-                                  DRY Sequence Breakers
+                                  {t("sessionAdvanced.dry.sequenceBreakers")}
                                 </label>
                                 <p className="text-[11px] text-fg/40 leading-relaxed">
-                                  Comma-separated boundaries like `\n`, `:`, `"`, `*`.
+                                  {t("sessionAdvanced.dry.sequenceBreakersDesc")}
                                 </p>
                                 <input
                                   type="text"
@@ -667,10 +685,10 @@ export function SessionAdvancedSettings({
 
                               <div className="space-y-2">
                                 <label className="text-[13px] font-medium text-fg/80">
-                                  KV Cache Type
+                                  {t("sessionAdvanced.samplingMemory.kvCacheType")}
                                 </label>
                                 <p className="text-[11px] text-fg/40 leading-relaxed">
-                                  Quantize KV cache to save VRAM.
+                                  {t("sessionAdvanced.samplingMemory.kvCacheTypeDesc")}
                                 </p>
                                 <select
                                   value={draft.llamaKvType ?? "auto"}
@@ -680,7 +698,7 @@ export function SessionAdvancedSettings({
                                   }}
                                   className="w-full rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-sm text-fg transition focus:border-fg/20 focus:outline-none"
                                 >
-                                  <option value="auto">Auto</option>
+                                  <option value="auto">{t("sessionAdvanced.performance.autoOption")}</option>
                                   <option value="f16">F16</option>
                                   <option value="q8_0">Q8_0</option>
                                   <option value="q4_0">Q4_0</option>
@@ -689,12 +707,12 @@ export function SessionAdvancedSettings({
 
                               <div className="space-y-2">
                                 <label className="text-[13px] font-medium text-fg/80">
-                                  Offload KQV
+                                  {t("sessionAdvanced.samplingMemory.offloadKqv")}
                                 </label>
                                 <p className="text-[11px] text-fg/40 leading-relaxed">
                                   {isCpuOnlyLlamaBackend
-                                    ? "Disabled on CPU-only backends."
-                                    : "KV cache & KQV ops on GPU."}
+                                    ? t("sessionAdvanced.performance.cpuOnlyDisabled")
+                                    : t("sessionAdvanced.samplingMemory.offloadKqvDesc")}
                                 </p>
                                 <select
                                   value={
@@ -716,18 +734,18 @@ export function SessionAdvancedSettings({
                                     isCpuOnlyLlamaBackend && "cursor-not-allowed opacity-60",
                                   )}
                                 >
-                                  <option value="auto">Auto</option>
-                                  <option value="on">On</option>
-                                  <option value="off">Off</option>
+                                  <option value="auto">{t("sessionAdvanced.performance.autoOption")}</option>
+                                  <option value="on">{t("sessionAdvanced.samplingMemory.on")}</option>
+                                  <option value="off">{t("sessionAdvanced.samplingMemory.off")}</option>
                                 </select>
                               </div>
 
                               <div className="space-y-2">
                                 <label className="text-[13px] font-medium text-fg/80">
-                                  Sampler Profile
+                                  {t("sessionAdvanced.samplingMemory.samplerProfile")}
                                 </label>
                                 <p className="text-[11px] text-fg/40 leading-relaxed">
-                                  Tuned defaults for stability or reasoning.
+                                  {t("sessionAdvanced.samplingMemory.samplerProfileDesc")}
                                 </p>
                                 <select
                                   value={draft.llamaSamplerProfile ?? "balanced"}
@@ -739,10 +757,10 @@ export function SessionAdvancedSettings({
                                   }}
                                   className="w-full rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-sm text-fg transition focus:border-fg/20 focus:outline-none"
                                 >
-                                  <option value="balanced">Balanced</option>
-                                  <option value="creative">Creative</option>
-                                  <option value="stable">Stable</option>
-                                  <option value="reasoning">Reasoning</option>
+                                  <option value="balanced">{t("sessionAdvanced.samplingMemory.balanced")}</option>
+                                  <option value="creative">{t("sessionAdvanced.samplingMemory.creative")}</option>
+                                  <option value="stable">{t("sessionAdvanced.samplingMemory.stable")}</option>
+                                  <option value="reasoning">{t("sessionAdvanced.samplingMemory.reasoning")}</option>
                                 </select>
                               </div>
 
@@ -759,18 +777,18 @@ export function SessionAdvancedSettings({
                           {contextInfo && (
                             <div className="rounded-xl border border-fg/8 bg-fg/[0.02] p-4">
                               <h3 className="mb-4 text-[11px] font-bold uppercase tracking-wider text-fg/40">
-                                System Info
+                                {t("sessionAdvanced.systemInfo.title")}
                               </h3>
                               <div className="grid grid-cols-2 gap-3 text-[12px] md:grid-cols-5">
                                 <div>
-                                  <div className="text-fg/35">Max Context</div>
+                                  <div className="text-fg/35">{t("sessionAdvanced.systemInfo.maxContext")}</div>
                                   <div className="font-mono text-fg/75">
                                     {contextInfo.maxContextLength?.toLocaleString()}
                                   </div>
                                 </div>
                                 {contextInfo.recommendedContextLength != null && (
                                   <div>
-                                    <div className="text-fg/35">Recommended</div>
+                                    <div className="text-fg/35">{t("sessionAdvanced.systemInfo.recommended")}</div>
                                     <div className="font-mono text-fg/75">
                                       {contextInfo.recommendedContextLength.toLocaleString()}
                                     </div>
@@ -778,7 +796,7 @@ export function SessionAdvancedSettings({
                                 )}
                                 {contextInfo.availableMemoryBytes != null && (
                                   <div>
-                                    <div className="text-fg/35">Available RAM</div>
+                                    <div className="text-fg/35">{t("sessionAdvanced.systemInfo.availableRam")}</div>
                                     <div className="font-mono text-fg/75">
                                       {(contextInfo.availableMemoryBytes / 1073741824).toFixed(1)}{" "}
                                       GB
@@ -787,7 +805,7 @@ export function SessionAdvancedSettings({
                                 )}
                                 {contextInfo.availableVramBytes != null && (
                                   <div>
-                                    <div className="text-fg/35">Available VRAM</div>
+                                    <div className="text-fg/35">{t("sessionAdvanced.systemInfo.availableVram")}</div>
                                     <div className="font-mono text-fg/75">
                                       {(contextInfo.availableVramBytes / 1073741824).toFixed(1)} GB
                                     </div>
@@ -795,7 +813,7 @@ export function SessionAdvancedSettings({
                                 )}
                                 {contextInfo.modelSizeBytes != null && (
                                   <div>
-                                    <div className="text-fg/35">Model Size</div>
+                                    <div className="text-fg/35">{t("sessionAdvanced.systemInfo.modelSize")}</div>
                                     <div className="font-mono text-fg/75">
                                       {(contextInfo.modelSizeBytes / 1073741824).toFixed(1)} GB
                                     </div>
@@ -807,7 +825,7 @@ export function SessionAdvancedSettings({
                           {contextLoading && (
                             <div className="flex items-center gap-2 text-[12px] text-fg/40">
                               <Loader className="h-3.5 w-3.5 animate-spin" />
-                              Loading context info...
+                              {t("sessionAdvanced.loadingContextInfo")}
                             </div>
                           )}
                         </div>
