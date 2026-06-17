@@ -22,25 +22,12 @@ interface LocaleSelectorProps {
 
 function LocaleText({ locale, selected = false }: { locale: Locale; selected?: boolean }) {
   const metadata = getLocaleMetadata(locale);
-  const completion = getLocaleTranslationCompletion(locale);
   const showName = metadata.label !== metadata.name;
 
   return (
     <div className="min-w-0 flex-1">
-      <div className="flex min-w-0 items-center gap-2">
-        <div className={cn("truncate text-sm font-medium", selected ? "text-accent" : "text-fg")}>
-          {metadata.label}
-        </div>
-        <span
-          className={cn(
-            "shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
-            selected
-              ? "border-accent/35 bg-accent/10 text-accent/85"
-              : "border-fg/10 bg-fg/5 text-fg/45",
-          )}
-        >
-          {completion.percent}%
-        </span>
+      <div className={cn("truncate text-sm font-medium", selected ? "text-accent" : "text-fg")}>
+        {metadata.label}
       </div>
       {showName && (
         <div className={cn("truncate text-[11px]", selected ? "text-accent/70" : "text-fg/45")}>
@@ -48,6 +35,23 @@ function LocaleText({ locale, selected = false }: { locale: Locale; selected?: b
         </div>
       )}
     </div>
+  );
+}
+
+function CompletionBadge({ locale, selected = false }: { locale: Locale; selected?: boolean }) {
+  const completion = getLocaleTranslationCompletion(locale);
+
+  return (
+    <span
+      className={cn(
+        "shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
+        selected
+          ? "border-accent/35 bg-accent/10 text-accent/85"
+          : "border-fg/10 bg-fg/5 text-fg/45",
+      )}
+    >
+      {completion.percent}%
+    </span>
   );
 }
 
@@ -90,6 +94,7 @@ export function LocaleSelector({
       >
         <LocaleIcon locale={value} className="h-5 w-5" fallbackClassName="h-4 w-4" />
         <LocaleText locale={value} />
+        <CompletionBadge locale={value} />
         <ChevronDown className="h-4 w-4 shrink-0 text-fg/45" />
       </button>
 
@@ -103,7 +108,6 @@ export function LocaleSelector({
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         title={title ?? label}
-        includeExitIcon
         className={menuClassName}
       >
         <div className="space-y-2">
@@ -129,6 +133,7 @@ export function LocaleSelector({
                   fallbackClassName={isSelected ? "h-4 w-4 text-accent/80" : "h-4 w-4 text-fg/55"}
                 />
                 <LocaleText locale={locale} selected={isSelected} />
+                <CompletionBadge locale={locale} selected={isSelected} />
                 <div
                   className={cn(
                     "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
