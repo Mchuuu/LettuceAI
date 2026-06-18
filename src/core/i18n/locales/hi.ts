@@ -4606,6 +4606,7 @@ export const hiMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "drawer को दाईं ओर ले जाएं",
       close: "बंद करें",
       clearAllOverrides: "सभी overrides को साफ़ करें",
+      resize: "पैनल का आकार बदलें",
     },
     tabs: {
       typography: "टाइपोग्राफी",

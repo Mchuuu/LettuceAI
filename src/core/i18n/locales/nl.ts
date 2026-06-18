@@ -5215,6 +5215,7 @@ export const nlMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "Verplaats lade naar rechts own",
       close: "Sluiten own",
       clearAllOverrides: "Alle overschrijvingen wissen own",
+      resize: "Formaat aanpassen",
     },
     tabs: {
       typography: "Typografie",

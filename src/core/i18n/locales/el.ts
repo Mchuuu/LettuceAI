@@ -5222,6 +5222,7 @@ export const elMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "Μετακίνηση συρταριού δεξιά",
       close: "Κλείσιμο",
       clearAllOverrides: "Εκκαθάριση όλων των παρακάμψεων",
+      resize: "Αλλαγή μεγέθους πίνακα",
     },
   },
   colorCustomization: {

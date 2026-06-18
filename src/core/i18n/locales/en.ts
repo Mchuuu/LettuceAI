@@ -5419,6 +5419,7 @@ export const enMessages = {
       moveRight: "Move drawer to right",
       close: "Close",
       clearAllOverrides: "Clear all overrides",
+      resize: "Resize drawer",
     },
   },
   colorCustomization: {

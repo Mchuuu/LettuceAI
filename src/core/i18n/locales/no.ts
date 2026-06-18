@@ -5215,6 +5215,7 @@ export const noMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "Flytt skuff til høyre",
       close: "Lukk",
       clearAllOverrides: "Slett alle overstyringer",
+      resize: "Endre størrelse",
     },
     tabs: {
       typography: "Typografi",

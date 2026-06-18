@@ -5215,6 +5215,7 @@ export const zhHansMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "将抽屉移至右侧",
       close: "关闭",
       clearAllOverrides: "清除所有覆盖设置",
+      resize: "调整面板宽度",
     },
     tabs: {
       typography: "排版",

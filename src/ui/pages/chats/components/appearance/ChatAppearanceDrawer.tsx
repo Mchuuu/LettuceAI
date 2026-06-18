@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, RefreshCw, PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import {
@@ -27,6 +27,18 @@ import {
   normalizeOverride,
 } from "./overrideHelpers";
 import type { AppearanceFieldUpdater } from "../../ChatLayout";
+
+const MIN_DRAWER_WIDTH = 360;
+const DEFAULT_DRAWER_WIDTH = 460;
+
+// Max width is always half the current viewport, read live so it tracks window resizes.
+function maxDrawerWidth(): number {
+  return typeof window === "undefined" ? Infinity : window.innerWidth / 2;
+}
+
+function clampDrawerWidth(width: number): number {
+  return Math.max(MIN_DRAWER_WIDTH, Math.min(width, maxDrawerWidth()));
+}
 
 interface ChatAppearanceDrawerProps {
   open: boolean;
@@ -61,6 +73,59 @@ export function ChatAppearanceDrawer({
       return next;
     });
   }, []);
+  const [width, setWidth] = useState<number>(() => {
+    if (typeof window === "undefined") return DEFAULT_DRAWER_WIDTH;
+    const stored = Number(window.localStorage.getItem("chatAppearanceDrawer.width"));
+    return clampDrawerWidth(Number.isFinite(stored) && stored > 0 ? stored : DEFAULT_DRAWER_WIDTH);
+  });
+  const asideRef = useRef<HTMLElement>(null);
+  const resizingRef = useRef(false);
+
+  const handleResizeMove = useCallback(
+    (e: PointerEvent) => {
+      if (!resizingRef.current || !asideRef.current) return;
+      const raw = side === "right" ? window.innerWidth - e.clientX : e.clientX;
+      asideRef.current.style.width = `${clampDrawerWidth(raw)}px`;
+    },
+    [side],
+  );
+
+  const handleResizeEnd = useCallback(() => {
+    if (!resizingRef.current) return;
+    resizingRef.current = false;
+    window.removeEventListener("pointermove", handleResizeMove);
+    window.removeEventListener("pointerup", handleResizeEnd);
+    document.body.style.userSelect = "";
+    document.body.style.cursor = "";
+    const measured = asideRef.current?.getBoundingClientRect().width ?? width;
+    const clamped = clampDrawerWidth(measured);
+    setWidth(clamped);
+    try {
+      window.localStorage.setItem("chatAppearanceDrawer.width", String(Math.round(clamped)));
+    } catch {
+      // ignore storage errors
+    }
+  }, [handleResizeMove, width]);
+
+  const handleResizeStart = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault();
+      resizingRef.current = true;
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "col-resize";
+      window.addEventListener("pointermove", handleResizeMove);
+      window.addEventListener("pointerup", handleResizeEnd);
+    },
+    [handleResizeMove, handleResizeEnd],
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    const onWindowResize = () => setWidth((w) => clampDrawerWidth(w));
+    window.addEventListener("resize", onWindowResize);
+    return () => window.removeEventListener("resize", onWindowResize);
+  }, [open]);
+
   const [globalSettings, setGlobalSettings] = useState<ChatAppearanceSettings>(
     createDefaultChatAppearanceSettings(),
   );
@@ -229,13 +294,16 @@ export function ChatAppearanceDrawer({
 
   const isRight = side === "right";
   const exitX = isRight ? "100%" : "-100%";
+  const overrideCount = Object.values(override).filter((v) => v !== undefined).length;
 
   return (
     <AnimatePresence>
       {open && (
         <motion.aside
+          ref={asideRef}
+          style={{ width }}
           className={cn(
-            "fixed bottom-0 top-[var(--titlebar-h,0px)] z-50 flex w-[460px] flex-col",
+            "fixed bottom-0 top-[var(--titlebar-h,0px)] z-50 flex flex-col",
             "bg-surface/96 backdrop-blur-2xl shadow-2xl",
             isRight ? "right-0 border-l border-fg/10" : "left-0 border-r border-fg/10",
           )}
@@ -244,6 +312,18 @@ export function ChatAppearanceDrawer({
           exit={{ x: exitX }}
           transition={{ type: "spring", stiffness: 320, damping: 32 }}
         >
+          <div
+            onPointerDown={handleResizeStart}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t("chatAppearance.drawer.resize")}
+            className={cn(
+              "group absolute inset-y-0 z-30 flex w-2 cursor-col-resize touch-none",
+              isRight ? "left-0 justify-start" : "right-0 justify-end",
+            )}
+          >
+            <span className="h-full w-px bg-transparent transition-colors group-hover:bg-accent/40" />
+          </div>
           <header className="flex items-center justify-between border-b border-fg/10 px-4 py-3">
             <div>
               <div className="text-sm font-semibold text-fg">{t("chats.chatAppearance")}</div>
@@ -252,6 +332,18 @@ export function ChatAppearanceDrawer({
               </div>
             </div>
             <div className="flex items-center gap-1">
+              {overrideCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setOverride({})}
+                  title={t("chatAppearance.drawer.clearAllOverrides")}
+                  aria-label={t("chatAppearance.drawer.clearAllOverrides")}
+                  className="mr-0.5 flex items-center gap-1.5 rounded-lg border border-accent/20 bg-accent/10 px-2 py-1 text-[11px] font-medium text-accent/80 transition-colors hover:bg-accent/15 hover:text-accent"
+                >
+                  <RefreshCw size={11} />
+                  {overrideCount}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={toggleSide}
@@ -275,19 +367,8 @@ export function ChatAppearanceDrawer({
             </div>
           </header>
 
-            <div className="space-y-3 border-b border-fg/10 px-4 py-3">
+            <div className="border-b border-fg/10 px-4 py-3">
               <AppearanceTabBar activeTab={activeTab} onChange={setActiveTab} />
-              <button
-                type="button"
-                onClick={() => setOverride({})}
-                className={cn(
-                  "flex w-full items-center justify-center gap-2 rounded-lg border py-2 text-[11px] font-medium transition-all",
-                  "border-fg/10 bg-fg/5 text-fg/50 hover:border-fg/20 hover:bg-fg/10 hover:text-fg/70",
-                )}
-              >
-                <RefreshCw size={11} />
-                {t("chatAppearance.drawer.clearAllOverrides")}
-              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 py-4">

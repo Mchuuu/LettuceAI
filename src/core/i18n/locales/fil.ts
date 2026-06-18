@@ -5222,6 +5222,7 @@ export const filMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "Ilipat ang drawer sa kanan",
       close: "Isara",
       clearAllOverrides: "Linisin ang lahat ng overrides",
+      resize: "Baguhin ang laki ng panel",
     },
   },
   colorCustomization: {

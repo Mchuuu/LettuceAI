@@ -4692,6 +4692,7 @@ export const plMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "Przenieś panel na prawo",
       close: "Zamknij",
       clearAllOverrides: "Wyczyść wszystkie nadpisania",
+      resize: "Zmień rozmiar panelu",
     },
     tabs: {
       typography: "Typografia",

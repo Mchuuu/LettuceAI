@@ -5215,6 +5215,7 @@ export const koMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "드로어(Drawer)를 오른쪽으로 이동",
       close: "닫기",
       clearAllOverrides: "모든 재정의(Override) 지우기",
+      resize: "패널 크기 조정",
     },
     tabs: {
       typography: "타이포그래피",

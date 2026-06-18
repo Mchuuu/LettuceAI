@@ -5215,6 +5215,7 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "將抽屜移至右側",
       close: "關閉",
       clearAllOverrides: "清除所有覆蓋設定",
+      resize: "調整面板寬度",
     },
     tabs: {
       typography: "排版",

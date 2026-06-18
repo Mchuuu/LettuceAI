@@ -5222,6 +5222,7 @@ export const esMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "Mover panel a la derecha",
       close: "Cerrar",
       clearAllOverrides: "Limpiar todas las anulaciones",
+      resize: "Redimensionar panel",
     },
   },
   colorCustomization: {

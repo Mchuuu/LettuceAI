@@ -4613,6 +4613,7 @@ export const itMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "Sposta il pannello a destra",
       close: "Chiudi",
       clearAllOverrides: "Cancella tutte le sostituzioni",
+      resize: "Ridimensiona pannello",
     },
   },
   colorCustomization: {

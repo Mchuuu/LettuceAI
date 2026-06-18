@@ -5222,6 +5222,7 @@ export const frMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "Déplacer le panneau à droite",
       close: "Fermer",
       clearAllOverrides: "Effacer toutes les surcharges",
+      resize: "Redimensionner le panneau",
     },
   },
   colorCustomization: {

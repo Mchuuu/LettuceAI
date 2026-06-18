@@ -4613,6 +4613,7 @@ export const ptMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "Mover gaveta para a direita",
       close: "Fechar",
       clearAllOverrides: "Limpar todas as sobreposições",
+      resize: "Redimensionar painel",
     },
   },
   colorCustomization: {

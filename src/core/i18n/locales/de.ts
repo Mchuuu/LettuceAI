@@ -5222,6 +5222,7 @@ export const deMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "Leiste nach rechts verschieben",
       close: "Schließen",
       clearAllOverrides: "Alle Überschreibungen löschen",
+      resize: "Größe anpassen",
     },
   },
   colorCustomization: {

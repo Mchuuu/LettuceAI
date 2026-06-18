@@ -4606,6 +4606,7 @@ export const viMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "Di chuyển ngăn kéo sang phải",
       close: "Đóng",
       clearAllOverrides: "Xóa tất cả các ghi đè",
+      resize: "Thay đổi kích thước bảng",
     },
     tabs: {
       typography: "Kiểu chữ",

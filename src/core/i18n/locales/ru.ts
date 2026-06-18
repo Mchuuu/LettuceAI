@@ -5215,6 +5215,7 @@ export const ruMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "Переместить панель вправо",
       close: "Закрыть",
       clearAllOverrides: "Сбросить все переопределения",
+      resize: "Изменить размер панели",
     },
     tabs: {
       typography: "Типографика",

@@ -4613,6 +4613,7 @@ export const idMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "Pindahkan laci ke kanan",
       close: "Tutup",
       clearAllOverrides: "Hapus semua penggantian",
+      resize: "Ubah ukuran panel",
     },
   },
   colorCustomization: {

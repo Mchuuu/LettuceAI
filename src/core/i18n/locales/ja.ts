@@ -4613,6 +4613,7 @@ export const jaMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "ドロワーを右に移動",
       close: "閉じる",
       clearAllOverrides: "すべてのオーバーライドをクリア",
+      resize: "パネルの幅を変更",
     },
   },
   colorCustomization: {

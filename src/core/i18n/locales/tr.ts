@@ -5222,6 +5222,7 @@ export const trMessages: DeepPartialMessageTree<LocaleMessages> = {
       moveRight: "Çekmeceyi sağa taşı",
       close: "Kapat",
       clearAllOverrides: "Tüm geçersiz kılmaları temizle",
+      resize: "Paneli yeniden boyutlandır",
     },
   },
   colorCustomization: {
