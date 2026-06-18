@@ -5137,6 +5137,7 @@ export const ruMessages: DeepPartialMessageTree<LocaleMessages> = {
       assistantBubble: "Цвет пузыря ассистента",
       userBubbleHex: "HEX-код пузыря пользователя",
       assistantBubbleHex: "HEX-код пузыря ассистента",
+      footerInputHex: "Цвет поля ввода",
       neutral: "Нейтральный",
       accent: "Акцентный",
       info: "Информационный",

@@ -5137,6 +5137,7 @@ export const frMessages: DeepPartialMessageTree<LocaleMessages> = {
       assistantBubble: "Couleur de la bulle assistant",
       userBubbleHex: "Code hex de la bulle utilisateur",
       assistantBubbleHex: "Code hex de la bulle assistant",
+      footerInputHex: "Couleur du champ de saisie",
       neutral: "Neutre",
       accent: "Accent",
       info: "Info",

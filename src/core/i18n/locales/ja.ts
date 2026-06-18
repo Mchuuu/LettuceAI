@@ -4528,6 +4528,7 @@ export const jaMessages: DeepPartialMessageTree<LocaleMessages> = {
       assistantBubble: "アシスタントバブルの色",
       userBubbleHex: "ユーザーバブルHexオーバーライド",
       assistantBubbleHex: "アシスタントバブルHexオーバーライド",
+      footerInputHex: "入力欄の色",
       neutral: "ニュートラル",
       accent: "アクセント",
       info: "情報",

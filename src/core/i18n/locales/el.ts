@@ -5137,6 +5137,7 @@ export const elMessages: DeepPartialMessageTree<LocaleMessages> = {
       assistantBubble: "Χρώμα Συννεφάκια Βοηθού",
       userBubbleHex: "Hex Παράκαμψη Συννεφάκια Χρήστη",
       assistantBubbleHex: "Hex Παράκαμψη Συννεφάκια Βοηθού",
+      footerInputHex: "Χρώμα πεδίου εισαγωγής",
       neutral: "Ουδέτερο",
       accent: "Έμφαση",
       info: "Πληροφορία",

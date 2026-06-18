@@ -4528,6 +4528,7 @@ export const viMessages: DeepPartialMessageTree<LocaleMessages> = {
       assistantBubble: "Màu bong bóng trợ lý",
       userBubbleHex: "Mã hex bong bóng người dùng",
       assistantBubbleHex: "Mã hex bong bóng trợ lý",
+      footerInputHex: "Màu ô nhập tin nhắn",
       neutral: "Trung tính",
       accent: "Nhấn",
       info: "Thông tin",

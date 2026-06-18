@@ -5137,6 +5137,7 @@ export const koMessages: DeepPartialMessageTree<LocaleMessages> = {
       assistantBubble: "어시스턴트 버블 색상",
       userBubbleHex: "사용자 버블 Hex 오버라이드",
       assistantBubbleHex: "어시스턴트 버블 Hex 오버라이드",
+      footerInputHex: "입력창 색상",
       neutral: "중립",
       accent: "강조",
       info: "정보",

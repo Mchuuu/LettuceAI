@@ -5137,6 +5137,7 @@ export const zhHansMessages: DeepPartialMessageTree<LocaleMessages> = {
       assistantBubble: "助手气泡颜色",
       userBubbleHex: "用户气泡十六进制覆盖",
       assistantBubbleHex: "助手气泡十六进制覆盖",
+      footerInputHex: "输入框颜色",
       neutral: "中性",
       accent: "强调色",
       info: "信息",

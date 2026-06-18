@@ -5137,6 +5137,7 @@ export const noMessages: DeepPartialMessageTree<LocaleMessages> = {
       assistantBubble: "Assistentboblefarge",
       userBubbleHex: "Brukerboble hex-overstyring",
       assistantBubbleHex: "Assistentboble hex-overstyring",
+      footerInputHex: "Farge på skrivefelt",
       neutral: "Nøytral",
       accent: "Aksent",
       info: "Info",

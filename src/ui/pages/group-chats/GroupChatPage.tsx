@@ -2131,6 +2131,9 @@ export function GroupChatPage() {
         onSelectSpeaker={handleDirectorTap}
         hasBackgroundImage={!!backgroundImageData}
         footerOverlayClassName={theme.footerOverlay}
+        footerOverlayColor={theme.footerOverlayColor}
+        footerFgColor={theme.footerFgColor}
+        footerFgMutedColor={theme.footerFgMutedColor}
         pendingAttachments={pendingAttachments}
         onAddAttachment={supportsImageInput ? addPendingAttachment : undefined}
         onRemoveAttachment={supportsImageInput ? removePendingAttachment : undefined}

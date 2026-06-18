@@ -4528,6 +4528,7 @@ export const idMessages: DeepPartialMessageTree<LocaleMessages> = {
       assistantBubble: "Warna Gelembung Asisten",
       userBubbleHex: "Override Hex Gelembung Pengguna",
       assistantBubbleHex: "Override Hex Gelembung Asisten",
+      footerInputHex: "Warna Kolom Masukan",
       neutral: "Netral",
       accent: "Aksen",
       info: "Info",

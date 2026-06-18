@@ -119,6 +119,9 @@ export interface ThemeColors {
   userBorderColor: string;
   headerOverlay: string;
   footerOverlay: string;
+  footerOverlayColor: string;
+  footerFgColor: string;
+  footerFgMutedColor: string;
   contentOverlay: string;
 }
 
@@ -216,6 +219,12 @@ export async function computeChatTheme(
     !normalizeHexColor(settings.assistantBubbleColorHex);
   const isLightBg = bgBrightness !== null && bgBrightness > 127.5;
 
+  const footerInputColorCSS = normalizeHexColor(settings.footerInputColorHex);
+  const footerFgBase =
+    footerInputColorCSS && colorToLuminance(footerInputColorCSS) > 0.5
+      ? "17, 24, 39"
+      : "255, 255, 255";
+
   const userText = computeBubbleTextClass(bgBrightness, userLum, opacity01, textMode);
   const assistantText =
     isNeutralAssistant && bgBrightness === null
@@ -260,7 +269,12 @@ export async function computeChatTheme(
     assistantBgColor,
     assistantBorderColor,
     headerOverlay: bgBrightness === null ? "" : isLightBg ? "bg-white/45" : "bg-[#050505]/40",
-    footerOverlay: bgBrightness === null ? "" : isLightBg ? "bg-white/50" : "bg-[#050505]/45",
+    footerOverlay: bgBrightness === null ? "" : "bg-[#050505]/45",
+    footerOverlayColor: footerInputColorCSS
+      ? `color-mix(in oklab, ${footerInputColorCSS} 92%, transparent)`
+      : "",
+    footerFgColor: footerInputColorCSS ? `rgba(${footerFgBase}, 0.92)` : "",
+    footerFgMutedColor: footerInputColorCSS ? `rgba(${footerFgBase}, 0.55)` : "",
     // Leave the chat background fully visible unless the user explicitly enables dimming.
     contentOverlay: "",
   };
@@ -291,6 +305,9 @@ export function getDefaultThemeSync(): ThemeColors {
     userBorderColor: "color-mix(in oklab, var(--color-accent) 50%, transparent)",
     headerOverlay: "",
     footerOverlay: "",
+    footerOverlayColor: "",
+    footerFgColor: "",
+    footerFgMutedColor: "",
     contentOverlay: "",
   };
 }

@@ -5137,6 +5137,7 @@ export const trMessages: DeepPartialMessageTree<LocaleMessages> = {
       assistantBubble: "Asistan balonu rengi",
       userBubbleHex: "Kullanıcı balonu özel hex",
       assistantBubbleHex: "Asistan balonu özel hex",
+      footerInputHex: "Mesaj kutusu rengi",
       neutral: "Nötr",
       accent: "Vurgu",
       info: "Bilgi",

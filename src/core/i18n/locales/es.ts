@@ -5137,6 +5137,7 @@ export const esMessages: DeepPartialMessageTree<LocaleMessages> = {
       assistantBubble: "Color de burbuja del asistente",
       userBubbleHex: "Hex personalizado de burbuja del usuario",
       assistantBubbleHex: "Hex personalizado de burbuja del asistente",
+      footerInputHex: "Color del campo de mensaje",
       neutral: "Neutral",
       accent: "Acento",
       info: "Info",

@@ -5137,6 +5137,7 @@ export const filMessages: DeepPartialMessageTree<LocaleMessages> = {
       assistantBubble: "Kulay ng Assistant Bubble",
       userBubbleHex: "Hex Override ng User Bubble",
       assistantBubbleHex: "Hex Override ng Assistant Bubble",
+      footerInputHex: "Kulay ng Input ng Chat",
       neutral: "Neutral",
       accent: "Accent",
       info: "Info",

@@ -21,6 +21,9 @@ interface ChatFooterProps {
   onAbort?: () => Promise<void>;
   hasBackgroundImage?: boolean;
   footerOverlayClassName?: string;
+  footerOverlayColor?: string;
+  footerFgColor?: string;
+  footerFgMutedColor?: string;
   pendingAttachments?: ImageAttachment[];
   onAddAttachment?: (attachment: ImageAttachment) => void;
   onRemoveAttachment?: (attachmentId: string) => void;
@@ -50,6 +53,9 @@ export function ChatFooter({
   onAbort,
   hasBackgroundImage,
   footerOverlayClassName,
+  footerOverlayColor,
+  footerFgColor,
+  footerFgMutedColor,
   pendingAttachments = [],
   onAddAttachment,
   onRemoveAttachment,
@@ -71,6 +77,9 @@ export function ChatFooter({
   const { t } = useI18n();
   const hasDraft = draft.trim().length > 0;
   const hasAttachments = pendingAttachments.length > 0;
+  const hasFooterColor = !!footerOverlayColor;
+  const footerIconIdle = hasFooterColor ? "text-[var(--footer-fg-muted)]" : "text-fg/60";
+  const footerIconHover = hasFooterColor ? "hover:text-[var(--footer-fg)]" : "hover:text-fg";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sendLongPressTimerRef = useRef<number | null>(null);
@@ -295,11 +304,22 @@ export function ChatFooter({
             "relative",
             "rounded-4xl",
             "border border-fg/15 backdrop-blur-md",
-            hasBackgroundImage
-              ? footerOverlayClassName || "bg-surface-el/65"
-              : "bg-surface-el/65",
+            footerOverlayColor
+              ? null
+              : hasBackgroundImage
+                ? footerOverlayClassName || "bg-surface-el/65"
+                : "bg-surface-el/65",
             shadows.md,
           )}
+          style={
+            footerOverlayColor
+              ? {
+                  backgroundColor: footerOverlayColor,
+                  ["--footer-fg" as string]: footerFgColor,
+                  ["--footer-fg-muted" as string]: footerFgMutedColor,
+                }
+              : undefined
+          }
         >
           {topSlot && (
             <div className="border-b border-fg/10">
@@ -317,10 +337,11 @@ export function ChatFooter({
             className={cn(
               "mb-0.5 flex h-[43px] w-[43px] shrink-0 items-center justify-center self-end",
               radius.full,
-              "text-fg/60",
+              footerIconIdle,
               interactive.transition.fast,
               interactive.active.scale,
-              "hover:bg-fg/10 hover:text-fg",
+              "hover:bg-fg/10",
+              footerIconHover,
               "disabled:cursor-not-allowed disabled:opacity-40",
             )}
             title={onOpenPlusMenu ? t("chats.footer.moreOptions") : t("chats.footer.addImage")}
@@ -405,7 +426,9 @@ export function ChatFooter({
               className={cn(
                 "max-h-32 flex-1 resize-none bg-transparent py-2.5",
                 typography.body.size,
-                "text-fg placeholder:text-fg/40",
+                hasFooterColor
+                  ? "text-[var(--footer-fg)] placeholder:text-[var(--footer-fg-muted)]"
+                  : "text-fg placeholder:text-fg/40",
                 "focus:outline-none",
               )}
               disabled={sending || composerDisabled}
@@ -419,10 +442,11 @@ export function ChatFooter({
                 className={cn(
                   "mb-0.5 flex h-[43px] w-[43px] shrink-0 items-center justify-center self-end",
                   radius.full,
-                  "text-fg/60",
+                  footerIconIdle,
                   interactive.transition.fast,
                   interactive.active.scale,
-                  "hover:bg-fg/10 hover:text-fg",
+                  "hover:bg-fg/10",
+                  footerIconHover,
                   "disabled:cursor-not-allowed disabled:opacity-40",
                 )}
                 title={t("chats.footer.recordVoice")}
@@ -450,7 +474,9 @@ export function ChatFooter({
                   ? "bg-red-400/90 text-white hover:brightness-110"
                   : hasDraft || hasAttachments
                     ? "bg-accent text-black shadow-sm hover:brightness-110"
-                    : "bg-fg/15 text-fg/55 hover:bg-fg/20",
+                    : hasFooterColor
+                      ? "bg-fg/15 text-[var(--footer-fg-muted)] hover:bg-fg/20"
+                      : "bg-fg/15 text-fg/55 hover:bg-fg/20",
                 "disabled:cursor-not-allowed disabled:opacity-40",
               )}
               title={

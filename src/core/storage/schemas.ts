@@ -2794,6 +2794,7 @@ export const ChatAppearanceSettingsSchema = z.object({
   assistantBubbleColor: z.enum(["neutral", "accent", "info", "secondary"]).default("neutral"),
   userBubbleColorHex: z.string().optional(),
   assistantBubbleColorHex: z.string().optional(),
+  footerInputColorHex: z.string().optional(),
 
   // Text colors (inline hex overrides per text style)
   messageTextColorHex: z.string().optional(),
@@ -2857,6 +2858,7 @@ export function createDefaultChatAppearanceSettings(): ChatAppearanceSettings {
     assistantBubbleColor: "neutral",
     userBubbleColorHex: undefined,
     assistantBubbleColorHex: undefined,
+    footerInputColorHex: undefined,
     messageTextColorHex: undefined,
     plainTextColorHex: undefined,
     italicTextColorHex: undefined,

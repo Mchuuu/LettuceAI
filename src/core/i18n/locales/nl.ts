@@ -5137,6 +5137,7 @@ export const nlMessages: DeepPartialMessageTree<LocaleMessages> = {
       assistantBubble: "Assistentballonkleur",
       userBubbleHex: "Hex-overschrijving gebruikersballon",
       assistantBubbleHex: "Hex-overschrijving assistentballon",
+      footerInputHex: "Kleur invoerveld",
       neutral: "Neutraal",
       accent: "Accent",
       info: "Info",

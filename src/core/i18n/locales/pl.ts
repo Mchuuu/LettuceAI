@@ -4614,6 +4614,7 @@ export const plMessages: DeepPartialMessageTree<LocaleMessages> = {
       assistantBubble: "Kolor bąbelka asystenta",
       userBubbleHex: "Nadpisanie hex bąbelka użytkownika",
       assistantBubbleHex: "Nadpisanie hex bąbelka asystenta",
+      footerInputHex: "Kolor pola wprowadzania",
       neutral: "Neutralny",
       accent: "Akcent",
       info: "Informacja",

@@ -4528,6 +4528,7 @@ export const ptMessages: DeepPartialMessageTree<LocaleMessages> = {
       assistantBubble: "Cor do Balão do Assistente",
       userBubbleHex: "Hex do Balão do Usuário",
       assistantBubbleHex: "Hex do Balão do Assistente",
+      footerInputHex: "Cor do Campo de Mensagem",
       neutral: "Neutro",
       accent: "Destaque",
       info: "Info",

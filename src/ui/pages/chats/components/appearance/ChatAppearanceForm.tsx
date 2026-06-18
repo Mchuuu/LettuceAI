@@ -810,6 +810,13 @@ export function ChatAppearanceForm({
             overridden={isOverridden("assistantBubbleColorHex")}
             onReset={resetFor("assistantBubbleColorHex")}
           />
+          <HexColorControl
+            label={t("chatAppearance.colors.footerInputHex")}
+            value={settings.footerInputColorHex}
+            onChange={(v) => onUpdate("footerInputColorHex", v)}
+            overridden={isOverridden("footerInputColorHex")}
+            onReset={resetFor("footerInputColorHex")}
+          />
         </div>
 
         <div>

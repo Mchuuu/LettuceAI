@@ -5361,6 +5361,7 @@ export const enMessages = {
       assistantBubble: "Assistant Bubble Color",
       userBubbleHex: "User Bubble Hex Override",
       assistantBubbleHex: "Assistant Bubble Hex Override",
+      footerInputHex: "Chat Input Color",
       neutral: "Neutral",
       accent: "Accent",
       info: "Info",

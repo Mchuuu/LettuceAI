@@ -4528,6 +4528,7 @@ export const hiMessages: DeepPartialMessageTree<LocaleMessages> = {
       assistantBubble: "सहायक बुलबुला रंग",
       userBubbleHex: "उपयोगकर्ता बुलबुला Hex ओवरराइड",
       assistantBubbleHex: "सहायक बुलबुला Hex ओवरराइड",
+      footerInputHex: "इनपुट बॉक्स का रंग",
       neutral: "तटस्थ",
       accent: "एक्सेंट",
       info: "जानकारी",

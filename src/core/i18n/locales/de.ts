@@ -5137,6 +5137,7 @@ export const deMessages: DeepPartialMessageTree<LocaleMessages> = {
       assistantBubble: "Assistenten-Blasenfarbe",
       userBubbleHex: "Benutzer-Blasen-Hex-Override",
       assistantBubbleHex: "Assistenten-Blasen-Hex-Override",
+      footerInputHex: "Farbe des Eingabefelds",
       neutral: "Neutral",
       accent: "Akzent",
       info: "Info",
