@@ -5038,6 +5038,8 @@ export const esMessages: DeepPartialMessageTree<LocaleMessages> = {
         normal: "Normal",
         spacious: "Espacioso",
       },
+      headerSection: "Encabezado del mensaje",
+      infoSection: "Información por mensaje",
       showAuthor: "Mostrar nombre del autor",
       showAuthorDesc: "Muestra el nombre del personaje o persona sobre cada mensaje.",
       showTimestamp: "Mostrar marca de tiempo",
@@ -5086,6 +5088,7 @@ export const esMessages: DeepPartialMessageTree<LocaleMessages> = {
       normal: "Normal",
       relaxed: "Relajado",
       chatColumn: {
+        title: "Columna del chat",
         widthLabel: "Ancho de la columna de chat",
         width: {
           narrow: "Estrecho (640)",
@@ -5133,6 +5136,7 @@ export const esMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     colors: {
       label: "Colores",
+      bubbleColors: "Colores de burbuja",
       userBubble: "Color de burbuja del usuario",
       assistantBubble: "Color de burbuja del asistente",
       userBubbleHex: "Hex personalizado de burbuja del usuario",

@@ -4429,6 +4429,8 @@ export const hiMessages: DeepPartialMessageTree<LocaleMessages> = {
         normal: "सामान्य",
         spacious: "विस्तृत",
       },
+      headerSection: "संदेश हेडर",
+      infoSection: "प्रति-संदेश जानकारी",
       showAuthor: "लेखक का नाम दिखाएं",
       showAuthorDesc: "प्रत्येक संदेश के ऊपर कैरेक्टर या पर्सोना का नाम दिखाएं।",
       showTimestamp: "टाइमस्टैम्प दिखाएं",
@@ -4477,6 +4479,7 @@ export const hiMessages: DeepPartialMessageTree<LocaleMessages> = {
       normal: "सामान्य",
       relaxed: "आरामदेह",
       chatColumn: {
+        title: "चैट कॉलम",
         widthLabel: "चैट कॉलम की चौड़ाई",
         width: {
           narrow: "संकीर्ण (640)",
@@ -4524,6 +4527,7 @@ export const hiMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     colors: {
       label: "रंग",
+      bubbleColors: "बुलबुला रंग",
       userBubble: "उपयोगकर्ता बुलबुला रंग",
       assistantBubble: "सहायक बुलबुला रंग",
       userBubbleHex: "उपयोगकर्ता बुलबुला Hex ओवरराइड",

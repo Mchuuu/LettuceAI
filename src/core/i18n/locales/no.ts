@@ -5038,6 +5038,8 @@ export const noMessages: DeepPartialMessageTree<LocaleMessages> = {
         normal: "Normal",
         spacious: "Romslig",
       },
+      headerSection: "Meldingshode",
+      infoSection: "Info per melding",
       showAuthor: "Vis forfatternavn",
       showAuthorDesc: "Vis karakter- eller personanavn over hver melding.",
       showTimestamp: "Vis tidsstempel",
@@ -5086,6 +5088,7 @@ export const noMessages: DeepPartialMessageTree<LocaleMessages> = {
       normal: "Normal",
       relaxed: "Avslappet",
       chatColumn: {
+        title: "Chat-kolonne",
         width: {
           wide: "Bred (1024)",
           xl: "Ekstra bred (1280)",
@@ -5133,6 +5136,7 @@ export const noMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     colors: {
       label: "Farger",
+      bubbleColors: "Bobblefarger",
       userBubble: "Brukerboblefarge",
       assistantBubble: "Assistentboblefarge",
       userBubbleHex: "Brukerboble hex-overstyring",

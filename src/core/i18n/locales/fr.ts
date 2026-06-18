@@ -5038,6 +5038,8 @@ export const frMessages: DeepPartialMessageTree<LocaleMessages> = {
         normal: "Normal",
         spacious: "Spacieux",
       },
+      headerSection: "En-tête du message",
+      infoSection: "Infos par message",
       showAuthor: "Afficher le nom de l'auteur",
       showAuthorDesc: "Affiche le nom du personnage ou de la persona au-dessus de chaque message.",
       showTimestamp: "Afficher l'horodatage",
@@ -5086,6 +5088,7 @@ export const frMessages: DeepPartialMessageTree<LocaleMessages> = {
       normal: "Normal",
       relaxed: "Aéré",
       chatColumn: {
+        title: "Colonne de discussion",
         widthLabel: "Largeur de la colonne de discussion",
         width: {
           narrow: "Étroite (640)",
@@ -5133,6 +5136,7 @@ export const frMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     colors: {
       label: "Couleurs",
+      bubbleColors: "Couleurs des bulles",
       userBubble: "Couleur de la bulle utilisateur",
       assistantBubble: "Couleur de la bulle assistant",
       userBubbleHex: "Code hex de la bulle utilisateur",

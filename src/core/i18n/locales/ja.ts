@@ -4429,6 +4429,8 @@ export const jaMessages: DeepPartialMessageTree<LocaleMessages> = {
         normal: "標準",
         spacious: "広い",
       },
+      headerSection: "メッセージヘッダー",
+      infoSection: "メッセージ情報",
       showAuthor: "作成者名を表示",
       showAuthorDesc: "各メッセージの上にキャラクターまたはペルソナの名前を表示します。",
       showTimestamp: "タイムスタンプを表示",
@@ -4477,6 +4479,7 @@ export const jaMessages: DeepPartialMessageTree<LocaleMessages> = {
       normal: "標準",
       relaxed: "広い",
       chatColumn: {
+        title: "チャット列",
         widthLabel: "チャット列の幅",
         width: {
           narrow: "狭い (640)",
@@ -4524,6 +4527,7 @@ export const jaMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     colors: {
       label: "カラー",
+      bubbleColors: "バブルの色",
       userBubble: "ユーザーバブルの色",
       assistantBubble: "アシスタントバブルの色",
       userBubbleHex: "ユーザーバブルHexオーバーライド",

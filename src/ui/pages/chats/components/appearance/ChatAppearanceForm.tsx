@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { RotateCcw } from "lucide-react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { ChevronDown, RotateCcw } from "lucide-react";
 import type { ChatAppearanceSettings } from "../../../../../core/storage/schemas";
 import { cn } from "../../../../design-tokens";
 import { Switch } from "../../../../components/Switch";
@@ -259,6 +259,52 @@ function ToggleControl({
   );
 }
 
+function CollapsibleSection({
+  title,
+  defaultOpen = false,
+  active = false,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  active?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded-xl border border-fg/10 bg-fg/5">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-fg/45">
+          {title}
+          {active && <span className="h-1.5 w-1.5 rounded-full bg-accent" />}
+        </span>
+        <ChevronDown
+          size={14}
+          className={cn(
+            "shrink-0 text-fg/40 transition-transform duration-200 ease-out",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows,opacity] duration-200 ease-out",
+          open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+        )}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="space-y-4 px-4 pb-4 pt-1">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export interface ChatAppearanceFormProps {
   settings: ChatAppearanceSettings;
   mode: "global" | "character";
@@ -279,6 +325,7 @@ export function ChatAppearanceForm({
   const { t } = useI18n();
   const resetFor = (key: AppearanceKey) =>
     mode === "character" ? () => onResetField(key) : undefined;
+  const anyOverridden = (...keys: AppearanceKey[]) => keys.some(isOverridden);
 
   if (activeTab === "typography") {
     return (
@@ -314,7 +361,8 @@ export function ChatAppearanceForm({
 
   if (activeTab === "bubbles") {
     return (
-      <div className="space-y-4 rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
+      <div className="space-y-4">
+        <div className="space-y-4 rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
         <OptionGrid
           label={t("chatAppearance.messageBubbles.style.label")}
           value={settings.bubbleStyle}
@@ -363,6 +411,16 @@ export function ChatAppearanceForm({
           overridden={isOverridden("bubblePadding")}
           onReset={resetFor("bubblePadding")}
         />
+        </div>
+        <CollapsibleSection
+          title={t("chatAppearance.messageBubbles.headerSection")}
+          active={anyOverridden(
+            "showMessageAuthor",
+            "showMessageTimestamp",
+            "timestampFormat",
+            "messageHeaderPlacement",
+          )}
+        >
         <ToggleControl
           label={t("chatAppearance.messageBubbles.showAuthor")}
           description={t("chatAppearance.messageBubbles.showAuthorDesc")}
@@ -406,6 +464,20 @@ export function ChatAppearanceForm({
             onReset={resetFor("messageHeaderPlacement")}
           />
         )}
+        </CollapsibleSection>
+        <CollapsibleSection
+          title={t("chatAppearance.messageBubbles.infoSection")}
+          active={anyOverridden(
+            "showMessageModel",
+            "showMessageInputTokens",
+            "showMessageOutputTokens",
+            "showMessageTotalTokens",
+            "showMessageTtft",
+            "showMessageTokensPerSecond",
+            "messageInfoPlacement",
+            "messageInfoSize",
+          )}
+        >
         <ToggleControl
           label={t("chatAppearance.messageBubbles.showModel")}
           description={t("chatAppearance.messageBubbles.showModelDesc")}
@@ -505,6 +577,7 @@ export function ChatAppearanceForm({
             onReset={resetFor("messageInfoSize")}
           />
         )}
+        </CollapsibleSection>
       </div>
     );
   }
@@ -549,7 +622,20 @@ export function ChatAppearanceForm({
           overridden={isOverridden("avatarSize")}
           onReset={resetFor("avatarSize")}
         />
-        <div className="hidden space-y-4 lg:block lg:space-y-4">
+        </div>
+        <div className="hidden lg:block">
+        <CollapsibleSection
+          title={t("chatAppearance.layout.chatColumn.title")}
+          active={anyOverridden(
+            "chatColumnWidth",
+            "chatColumnWidthPx",
+            "chatColumnAlign",
+            "chatHeaderMoves",
+            "chatFooterMoves",
+            "chatWidgetAreaEnabled",
+            "chatWidgetCenterMode",
+          )}
+        >
         <OptionGrid
           label={t("chatAppearance.layout.chatColumn.widthLabel")}
           value={settings.chatColumnWidth}
@@ -671,12 +757,20 @@ export function ChatAppearanceForm({
             {t("chatAppearance.layout.chatColumn.widgetEditHint")}
           </p>
         )}
+        </CollapsibleSection>
         </div>
-      </div>
-      <div className="space-y-4 rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-fg/45">
-          {t("chatAppearance.participantsBar.title")}
-        </div>
+        <CollapsibleSection
+          title={t("chatAppearance.participantsBar.title")}
+          active={anyOverridden(
+            "participantsBarEnabled",
+            "participantsBarAvatarSize",
+            "participantsBarAvatarShape",
+            "participantsBarBackground",
+            "participantsBarGap",
+            "participantsBarAlign",
+            "participantsBarHintPosition",
+          )}
+        >
         <ToggleControl
           label={t("chatAppearance.participantsBar.enabled")}
           description={t("chatAppearance.participantsBar.enabledDesc")}
@@ -761,7 +855,7 @@ export function ChatAppearanceForm({
             />
           </>
         )}
-      </div>
+        </CollapsibleSection>
       </div>
     );
   }
@@ -769,7 +863,17 @@ export function ChatAppearanceForm({
   if (activeTab === "colors") {
     return (
       <div className="space-y-5">
-        <div className="space-y-4 rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
+        <CollapsibleSection
+          title={t("chatAppearance.colors.bubbleColors")}
+          defaultOpen
+          active={anyOverridden(
+            "userBubbleColor",
+            "assistantBubbleColor",
+            "userBubbleColorHex",
+            "assistantBubbleColorHex",
+            "footerInputColorHex",
+          )}
+        >
           <OptionGrid
             label={t("chatAppearance.colors.userBubble")}
             value={settings.userBubbleColor}
@@ -817,7 +921,7 @@ export function ChatAppearanceForm({
             overridden={isOverridden("footerInputColorHex")}
             onReset={resetFor("footerInputColorHex")}
           />
-        </div>
+        </CollapsibleSection>
 
         <div>
           <h3 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35">

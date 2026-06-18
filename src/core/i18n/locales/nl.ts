@@ -5038,6 +5038,8 @@ export const nlMessages: DeepPartialMessageTree<LocaleMessages> = {
         normal: "Normaal",
         spacious: "Ruim",
       },
+      headerSection: "Berichtkop",
+      infoSection: "Info per bericht",
       showAuthor: "Auteursnaam tonen",
       showAuthorDesc: "Toon de naam van het personage of de persona boven elk bericht.",
       showTimestamp: "Tijdstempel tonen",
@@ -5086,6 +5088,7 @@ export const nlMessages: DeepPartialMessageTree<LocaleMessages> = {
       normal: "Normaal",
       relaxed: "Ruim",
       chatColumn: {
+        title: "Chatkolom",
         widthLabel: "Breedte chatkolom",
         width: {
           narrow: "Smal (640)",
@@ -5133,6 +5136,7 @@ export const nlMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     colors: {
       label: "Kleuren",
+      bubbleColors: "Ballonkleuren",
       userBubble: "Gebruikersballonkleur",
       assistantBubble: "Assistentballonkleur",
       userBubbleHex: "Hex-overschrijving gebruikersballon",

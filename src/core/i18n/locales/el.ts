@@ -5038,6 +5038,8 @@ export const elMessages: DeepPartialMessageTree<LocaleMessages> = {
         normal: "Κανονικό",
         spacious: "Ευρύχωρο",
       },
+      headerSection: "Κεφαλίδα μηνύματος",
+      infoSection: "Πληροφορίες ανά μήνυμα",
       showAuthor: "Εμφάνιση Ονόματος Συγγραφέα",
       showAuthorDesc: "Εμφάνιση του ονόματος του χαρακτήρα ή του persona πάνω από κάθε μήνυμα.",
       showTimestamp: "Εμφάνιση Χρονικής Σημασίας",
@@ -5086,6 +5088,7 @@ export const elMessages: DeepPartialMessageTree<LocaleMessages> = {
       normal: "Κανονικό",
       relaxed: "Χαλαρό",
       chatColumn: {
+        title: "Στήλη συνομιλίας",
         widthLabel: "Πλάτος Στήλης Συνομιλίας",
         width: {
           narrow: "Στενό (640)",
@@ -5133,6 +5136,7 @@ export const elMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     colors: {
       label: "Χρώματα",
+      bubbleColors: "Χρώματα συννεφιού",
       userBubble: "Χρώμα Συννεφάκια Χρήστη",
       assistantBubble: "Χρώμα Συννεφάκια Βοηθού",
       userBubbleHex: "Hex Παράκαμψη Συννεφάκια Χρήστη",

@@ -4429,6 +4429,8 @@ export const viMessages: DeepPartialMessageTree<LocaleMessages> = {
         normal: "Bình thường",
         spacious: "Rộng rãi",
       },
+      headerSection: "Tiêu đề tin nhắn",
+      infoSection: "Thông tin mỗi tin nhắn",
       showAuthor: "Hiện tên tác giả",
       showAuthorDesc: "Hiển thị tên nhân vật hoặc persona phía trên mỗi tin nhắn.",
       showTimestamp: "Hiện dấu thời gian",
@@ -4477,6 +4479,7 @@ export const viMessages: DeepPartialMessageTree<LocaleMessages> = {
       normal: "Bình thường",
       relaxed: "Thoải mái",
       chatColumn: {
+        title: "Cột trò chuyện",
         widthLabel: "Chiều rộng cột trò chuyện",
         width: {
           narrow: "Hẹp (640)",
@@ -4524,6 +4527,7 @@ export const viMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     colors: {
       label: "Màu sắc",
+      bubbleColors: "Màu bong bóng",
       userBubble: "Màu bong bóng người dùng",
       assistantBubble: "Màu bong bóng trợ lý",
       userBubbleHex: "Mã hex bong bóng người dùng",

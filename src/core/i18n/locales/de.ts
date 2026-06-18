@@ -5038,6 +5038,8 @@ export const deMessages: DeepPartialMessageTree<LocaleMessages> = {
         normal: "Normal",
         spacious: "Großzügig",
       },
+      headerSection: "Nachrichtenkopf",
+      infoSection: "Infos pro Nachricht",
       showAuthor: "Autorname anzeigen",
       showAuthorDesc: "Den Namen des Charakters oder der Persona über jeder Nachricht anzeigen.",
       showTimestamp: "Zeitstempel anzeigen",
@@ -5086,6 +5088,7 @@ export const deMessages: DeepPartialMessageTree<LocaleMessages> = {
       normal: "Normal",
       relaxed: "Entspannt",
       chatColumn: {
+        title: "Chat-Spalte",
         widthLabel: "Breite der Chat-Spalte",
         width: {
           narrow: "Schmal (640)",
@@ -5133,6 +5136,7 @@ export const deMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     colors: {
       label: "Farben",
+      bubbleColors: "Blasenfarben",
       userBubble: "Benutzer-Blasenfarbe",
       assistantBubble: "Assistenten-Blasenfarbe",
       userBubbleHex: "Benutzer-Blasen-Hex-Override",

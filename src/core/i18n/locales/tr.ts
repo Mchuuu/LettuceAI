@@ -5038,6 +5038,8 @@ export const trMessages: DeepPartialMessageTree<LocaleMessages> = {
         normal: "Normal",
         spacious: "Geniş",
       },
+      headerSection: "Mesaj başlığı",
+      infoSection: "Mesaj başına bilgi",
       showAuthor: "Yazar Adını Göster",
       showAuthorDesc: "Her mesajın üzerinde karakter veya persona adını görüntüle.",
       showTimestamp: "Zaman Damgasını Göster",
@@ -5086,6 +5088,7 @@ export const trMessages: DeepPartialMessageTree<LocaleMessages> = {
       normal: "Normal",
       relaxed: "Geniş",
       chatColumn: {
+        title: "Sohbet sütunu",
         widthLabel: "Sohbet Sütunu Genişliği",
         width: {
           narrow: "Dar (640)",
@@ -5133,6 +5136,7 @@ export const trMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     colors: {
       label: "Renkler",
+      bubbleColors: "Balon renkleri",
       userBubble: "Kullanıcı balonu rengi",
       assistantBubble: "Asistan balonu rengi",
       userBubbleHex: "Kullanıcı balonu özel hex",

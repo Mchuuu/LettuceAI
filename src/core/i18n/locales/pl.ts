@@ -4515,6 +4515,8 @@ export const plMessages: DeepPartialMessageTree<LocaleMessages> = {
         normal: "Normalne",
         spacious: "Przestronne",
       },
+      headerSection: "Nagłówek wiadomości",
+      infoSection: "Informacje o wiadomości",
       showAuthor: "Pokaż imię autora",
       showAuthorDesc: "Wyświetlaj imię postaci lub persony nad każdą wiadomością.",
       showTimestamp: "Pokaż znacznik czasu",
@@ -4563,6 +4565,7 @@ export const plMessages: DeepPartialMessageTree<LocaleMessages> = {
       normal: "Normalny",
       relaxed: "Luźny",
       chatColumn: {
+        title: "Kolumna czatu",
         widthLabel: "Szerokość kolumny czatu",
         width: {
           narrow: "Wąska (640)",
@@ -4610,6 +4613,7 @@ export const plMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     colors: {
       label: "Kolory",
+      bubbleColors: "Kolory dymków",
       userBubble: "Kolor bąbelka użytkownika",
       assistantBubble: "Kolor bąbelka asystenta",
       userBubbleHex: "Nadpisanie hex bąbelka użytkownika",

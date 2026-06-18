@@ -5038,6 +5038,8 @@ export const zhHansMessages: DeepPartialMessageTree<LocaleMessages> = {
         normal: "正常",
         spacious: "宽敞",
       },
+      headerSection: "消息头部",
+      infoSection: "每条消息信息",
       showAuthor: "显示作者姓名",
       showAuthorDesc: "在每条消息上方显示角色或人格名称。",
       showTimestamp: "显示时间戳",
@@ -5086,6 +5088,7 @@ export const zhHansMessages: DeepPartialMessageTree<LocaleMessages> = {
       normal: "正常",
       relaxed: "宽松",
       chatColumn: {
+        title: "聊天列",
         widthLabel: "聊天列宽",
         width: {
           narrow: "窄 (640)",
@@ -5133,6 +5136,7 @@ export const zhHansMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     colors: {
       label: "颜色",
+      bubbleColors: "气泡颜色",
       userBubble: "用户气泡颜色",
       assistantBubble: "助手气泡颜色",
       userBubbleHex: "用户气泡十六进制覆盖",

@@ -5242,6 +5242,8 @@ export const enMessages = {
         normal: "Normal",
         spacious: "Spacious",
       },
+      headerSection: "Message Header",
+      infoSection: "Per-Message Info",
       showAuthor: "Show Author Name",
       showAuthorDesc: "Display the character or persona name above each message.",
       showTimestamp: "Show Timestamp",
@@ -5290,6 +5292,7 @@ export const enMessages = {
       normal: "Normal",
       relaxed: "Relaxed",
       chatColumn: {
+        title: "Chat Column",
         widthLabel: "Chat Column Width",
         width: {
           narrow: "Narrow (640)",
@@ -5357,6 +5360,7 @@ export const enMessages = {
     },
     colors: {
       label: "Colors",
+      bubbleColors: "Bubble Colors",
       userBubble: "User Bubble Color",
       assistantBubble: "Assistant Bubble Color",
       userBubbleHex: "User Bubble Hex Override",

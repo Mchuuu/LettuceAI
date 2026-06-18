@@ -4429,6 +4429,8 @@ export const ptMessages: DeepPartialMessageTree<LocaleMessages> = {
         normal: "Normal",
         spacious: "Espaçoso",
       },
+      headerSection: "Cabeçalho da Mensagem",
+      infoSection: "Informações por Mensagem",
       showAuthor: "Mostrar Nome do Autor",
       showAuthorDesc: "Exibe o nome do personagem ou persona acima de cada mensagem.",
       showTimestamp: "Mostrar Carimbo de Tempo",
@@ -4477,6 +4479,7 @@ export const ptMessages: DeepPartialMessageTree<LocaleMessages> = {
       normal: "Normal",
       relaxed: "Relaxado",
       chatColumn: {
+        title: "Coluna do Chat",
         widthLabel: "Largura da Coluna de Chat",
         width: {
           narrow: "Estreita (640)",
@@ -4524,6 +4527,7 @@ export const ptMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     colors: {
       label: "Cores",
+      bubbleColors: "Cores do Balão",
       userBubble: "Cor do Balão do Usuário",
       assistantBubble: "Cor do Balão do Assistente",
       userBubbleHex: "Hex do Balão do Usuário",

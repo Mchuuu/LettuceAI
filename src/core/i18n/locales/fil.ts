@@ -5038,6 +5038,8 @@ export const filMessages: DeepPartialMessageTree<LocaleMessages> = {
         normal: "Normal",
         spacious: "Maluwag",
       },
+      headerSection: "Header ng Mensahe",
+      infoSection: "Impormasyon kada Mensahe",
       showAuthor: "Ipakita ang Pangalan ng Author",
       showAuthorDesc: "Ipakita ang pangalan ng character o persona sa itaas ng bawat mensahe.",
       showTimestamp: "Ipakita ang Timestamp",
@@ -5086,6 +5088,7 @@ export const filMessages: DeepPartialMessageTree<LocaleMessages> = {
       normal: "Normal",
       relaxed: "Maluwag",
       chatColumn: {
+        title: "Column ng Chat",
         widthLabel: "Lapad ng Chat Column",
         width: {
           narrow: "Makitid (640)",
@@ -5133,6 +5136,7 @@ export const filMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     colors: {
       label: "Mga Kulay",
+      bubbleColors: "Mga Kulay ng Bubble",
       userBubble: "Kulay ng User Bubble",
       assistantBubble: "Kulay ng Assistant Bubble",
       userBubbleHex: "Hex Override ng User Bubble",

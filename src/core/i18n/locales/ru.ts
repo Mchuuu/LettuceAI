@@ -5038,6 +5038,8 @@ export const ruMessages: DeepPartialMessageTree<LocaleMessages> = {
         normal: "Обычные",
         spacious: "Просторные",
       },
+      headerSection: "Заголовок сообщения",
+      infoSection: "Информация о сообщении",
       showAuthor: "Показывать имя автора",
       showAuthorDesc: "Отображать имя персонажа или персоны над каждым сообщением.",
       showTimestamp: "Показывать время",
@@ -5086,6 +5088,7 @@ export const ruMessages: DeepPartialMessageTree<LocaleMessages> = {
       normal: "Обычный",
       relaxed: "Свободный",
       chatColumn: {
+        title: "Колонка чата",
         widthLabel: "Ширина колонки чата",
         width: {
           narrow: "Узкая (640)",
@@ -5133,6 +5136,7 @@ export const ruMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     colors: {
       label: "Цвета",
+      bubbleColors: "Цвета пузырей",
       userBubble: "Цвет пузыря пользователя",
       assistantBubble: "Цвет пузыря ассистента",
       userBubbleHex: "HEX-код пузыря пользователя",

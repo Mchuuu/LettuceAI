@@ -4429,6 +4429,8 @@ export const itMessages: DeepPartialMessageTree<LocaleMessages> = {
         normal: "Normale",
         spacious: "Spazioso",
       },
+      headerSection: "Intestazione messaggio",
+      infoSection: "Info per messaggio",
       showAuthor: "Mostra nome autore",
       showAuthorDesc: "Mostra il nome del personaggio o della persona sopra ogni messaggio.",
       showTimestamp: "Mostra orario",
@@ -4477,6 +4479,7 @@ export const itMessages: DeepPartialMessageTree<LocaleMessages> = {
       normal: "Normale",
       relaxed: "Rilassata",
       chatColumn: {
+        title: "Colonna chat",
         widthLabel: "Larghezza colonna chat",
         width: {
           narrow: "Stretta (640)",
@@ -4524,6 +4527,7 @@ export const itMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     colors: {
       label: "Colori",
+      bubbleColors: "Colori bolle",
       userBubble: "Colore bolla utente",
       assistantBubble: "Colore bolla assistente",
       userBubbleHex: "Override hex bolla utente",

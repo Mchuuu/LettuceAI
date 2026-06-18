@@ -5038,6 +5038,8 @@ export const koMessages: DeepPartialMessageTree<LocaleMessages> = {
         normal: "보통",
         spacious: "넓음",
       },
+      headerSection: "메시지 헤더",
+      infoSection: "메시지별 정보",
       showAuthor: "작성자 이름 표시",
       showAuthorDesc: "각 메시지 위에 캐릭터 또는 페르소나 이름을 표시합니다.",
       showTimestamp: "타임스탬프 표시",
@@ -5086,6 +5088,7 @@ export const koMessages: DeepPartialMessageTree<LocaleMessages> = {
       normal: "보통",
       relaxed: "넓음",
       chatColumn: {
+        title: "채팅 열",
         widthLabel: "채팅 열 너비",
         width: {
           narrow: "좁게 (640)",
@@ -5133,6 +5136,7 @@ export const koMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     colors: {
       label: "색상",
+      bubbleColors: "버블 색상",
       userBubble: "사용자 버블 색상",
       assistantBubble: "어시스턴트 버블 색상",
       userBubbleHex: "사용자 버블 Hex 오버라이드",

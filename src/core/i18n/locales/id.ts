@@ -4429,6 +4429,8 @@ export const idMessages: DeepPartialMessageTree<LocaleMessages> = {
         normal: "Normal",
         spacious: "Luas",
       },
+      headerSection: "Header Pesan",
+      infoSection: "Info per Pesan",
       showAuthor: "Tampilkan Nama Penulis",
       showAuthorDesc: "Tampilkan nama karakter atau persona di atas setiap pesan.",
       showTimestamp: "Tampilkan Stempel Waktu",
@@ -4477,6 +4479,7 @@ export const idMessages: DeepPartialMessageTree<LocaleMessages> = {
       normal: "Normal",
       relaxed: "Longgar",
       chatColumn: {
+        title: "Kolom Obrolan",
         widthLabel: "Lebar Kolom Obrolan",
         width: {
           narrow: "Sempit (640)",
@@ -4524,6 +4527,7 @@ export const idMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     colors: {
       label: "Warna",
+      bubbleColors: "Warna Gelembung",
       userBubble: "Warna Gelembung Pengguna",
       assistantBubble: "Warna Gelembung Asisten",
       userBubbleHex: "Override Hex Gelembung Pengguna",
