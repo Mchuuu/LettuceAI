@@ -510,6 +510,9 @@ pub(crate) async fn llamacpp_context_info(
     llama_offload_kqv: Option<bool>,
     llama_kv_type: Option<String>,
     llama_gpu_layers: Option<u32>,
+    llama_mmproj_path: Option<String>,
+    llama_mtp_enabled: Option<bool>,
+    llama_mtp_model_path: Option<String>,
 ) -> Result<LlamaCppContextInfo, String> {
     let _ = app;
     if model_path.trim().is_empty() {
@@ -532,6 +535,27 @@ pub(crate) async fn llamacpp_context_info(
     let available_memory_bytes = get_available_memory_bytes();
     let available_vram_bytes = get_available_vram_bytes();
     let supports_gpu_offload = shared_backend()?.supports_gpu_offload();
+    let sidecar_vram_reserve_bytes = if supports_gpu_offload {
+        let mmproj_reserve = llama_mmproj_path
+            .as_deref()
+            .filter(|path| !path.trim().is_empty())
+            .and_then(|path| std::fs::metadata(path).ok())
+            .map(|meta| meta.len())
+            .unwrap_or(0);
+        let mtp_reserve = if llama_mtp_enabled == Some(true) {
+            llama_mtp_model_path
+                .as_deref()
+                .filter(|path| !path.trim().is_empty())
+                .and_then(|path| std::fs::metadata(path).ok())
+                .map(|meta| meta.len())
+                .unwrap_or(0)
+        } else {
+            0
+        };
+        mmproj_reserve.saturating_add(mtp_reserve)
+    } else {
+        0
+    };
     let resolved_offload_kqv = if llama_offload_kqv.is_some() {
         llama_offload_kqv
     } else if !supports_gpu_offload || using_rocm_backend() {
@@ -562,6 +586,7 @@ pub(crate) async fn llamacpp_context_info(
             resolved_offload_kqv,
             llama_kv_type.as_deref(),
             flash_attention_policy,
+            sidecar_vram_reserve_bytes,
         )?
         .estimated_gpu_layers
     };
@@ -580,6 +605,7 @@ pub(crate) async fn llamacpp_context_info(
             resolved_gpu_layers,
             resolved_offload_kqv,
             llama_kv_type.as_deref(),
+            sidecar_vram_reserve_bytes,
         )
     };
 

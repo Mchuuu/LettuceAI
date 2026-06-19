@@ -942,6 +942,36 @@ mod desktop {
                     .flatten();
 
             let backend_supports_gpu_offload = shared_backend()?.supports_gpu_offload();
+            let llama_mtp_bundled = llama_mtp_enabled && mtp::model_has_mtp(model_path);
+            let llama_mtp_external_path = if llama_mtp_enabled && !llama_mtp_bundled {
+                llama_mtp_model_path
+                    .clone()
+                    .or_else(|| mtp::discover_external_mtp(model_path))
+            } else {
+                None
+            };
+            if let Some(ref external) = llama_mtp_external_path {
+                log_info(
+                    &app,
+                    "llama_cpp",
+                    format!("MTP external draft model resolved: {}", external),
+                );
+            }
+            let sidecar_vram_reserve_bytes = if backend_supports_gpu_offload {
+                let mmproj_reserve = llama_mmproj_path
+                    .as_deref()
+                    .and_then(|path| std::fs::metadata(path).ok())
+                    .map(|meta| meta.len())
+                    .unwrap_or(0);
+                let mtp_reserve = llama_mtp_external_path
+                    .as_deref()
+                    .and_then(|path| std::fs::metadata(path).ok())
+                    .map(|meta| meta.len())
+                    .unwrap_or(0);
+                mmproj_reserve.saturating_add(mtp_reserve)
+            } else {
+                0
+            };
 
             if llama_gpu_layers.is_none() && !llama_strict_mode && backend_supports_gpu_offload {
                 let mut smart_offload_plan = plan_smart_gpu_offload(
@@ -953,6 +983,7 @@ mod desktop {
                     resolved_offload_kqv,
                     llama_kv_type_raw.as_deref(),
                     resolved_flash_attention_policy,
+                    sidecar_vram_reserve_bytes,
                 )?;
                 let current_context_bucket =
                     context_bucket_upper(smart_offload_plan.planned_context.max(1));
@@ -1058,6 +1089,11 @@ mod desktop {
                 );
                 update_runtime_report_field(
                     &mut runtime_report,
+                    "smartOffloadSidecarVramReserveBytes",
+                    json!(smart_offload_plan.estimated_sidecar_vram_reserve_bytes),
+                );
+                update_runtime_report_field(
+                    &mut runtime_report,
                     "smartOffloadRuntimeReserveBytes",
                     json!(smart_offload_plan.estimated_runtime_reserve_bytes),
                 );
@@ -1070,7 +1106,7 @@ mod desktop {
                     &app,
                     "llama_cpp",
                     format!(
-                        "smart gpu offload plan: total_layers={} planned_ctx={} estimated_gpu_layers={} candidates={:?} planning_offload_kqv={:?} reserve_kqv_vram={} kv_bytes={} runtime_reserve_bytes={} effective_vram_budget_bytes={}",
+                        "smart gpu offload plan: total_layers={} planned_ctx={} estimated_gpu_layers={} candidates={:?} planning_offload_kqv={:?} reserve_kqv_vram={} kv_bytes={} sidecar_vram_reserve_bytes={} runtime_reserve_bytes={} effective_vram_budget_bytes={}",
                         smart_offload_plan.total_layers,
                         smart_offload_plan.planned_context,
                         smart_offload_plan.estimated_gpu_layers,
@@ -1078,6 +1114,7 @@ mod desktop {
                         smart_offload_plan.planning_offload_kqv,
                         smart_offload_plan.kqv_vram_reserved,
                         smart_offload_plan.estimated_kv_bytes,
+                        smart_offload_plan.estimated_sidecar_vram_reserve_bytes,
                         smart_offload_plan.estimated_runtime_reserve_bytes,
                         smart_offload_plan.effective_vram_budget_bytes,
                     ),
@@ -1091,22 +1128,6 @@ mod desktop {
             }
 
             log_info(&app, "llama_cpp", "loading llama.cpp engine/model");
-            let llama_mtp_bundled = llama_mtp_enabled && mtp::model_has_mtp(model_path);
-            let llama_mtp_external_path = if llama_mtp_enabled && !llama_mtp_bundled {
-                llama_mtp_model_path
-                    .clone()
-                    .or_else(|| mtp::discover_external_mtp(model_path))
-            } else {
-                None
-            };
-            if let Some(ref external) = llama_mtp_external_path {
-                log_info(
-                    &app,
-                    "llama_cpp",
-                    format!("MTP external draft model resolved: {}", external),
-                );
-            }
-
             let engine = load_engine(
                 Some(&app),
                 request_id.as_deref(),
@@ -2912,6 +2933,9 @@ pub async fn llamacpp_context_info(
     llama_offload_kqv: Option<bool>,
     llama_kv_type: Option<String>,
     llama_gpu_layers: Option<u32>,
+    llama_mmproj_path: Option<String>,
+    llama_mtp_enabled: Option<bool>,
+    llama_mtp_model_path: Option<String>,
 ) -> Result<serde_json::Value, String> {
     #[cfg(not(mobile))]
     {
@@ -2921,6 +2945,9 @@ pub async fn llamacpp_context_info(
             llama_offload_kqv,
             llama_kv_type,
             llama_gpu_layers,
+            llama_mmproj_path,
+            llama_mtp_enabled,
+            llama_mtp_model_path,
         )
         .await?;
         serde_json::to_value(info).map_err(|e| {

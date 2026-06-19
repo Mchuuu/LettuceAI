@@ -1600,10 +1600,8 @@ fn build_recommendation(
         }
 
         let load_size = effective_model_size(file.size, meta);
-        let qq = quant_quality_with_qat(
-            &file.quantization,
-            repo_qat || is_qat_name(&file.filename),
-        );
+        let qq =
+            quant_quality_with_qat(&file.quantization, repo_qat || is_qat_name(&file.filename));
         let (max_f16, max_q8, max_q4) = if let Some(base) = kv_base {
             (
                 max_context_for(
@@ -1740,10 +1738,8 @@ fn build_recommendation(
             if file.size == 0 || load_size > vram_budget || is_draft_file(&file.filename) {
                 continue;
             }
-            let qq = quant_quality_with_qat(
-                &file.quantization,
-                repo_qat || is_qat_name(&file.filename),
-            );
+            let qq =
+                quant_quality_with_qat(&file.quantization, repo_qat || is_qat_name(&file.filename));
             if gpu_candidate
                 .as_ref()
                 .is_none_or(|(_, prev_rec)| qq > prev_rec.quant_quality as f64)
@@ -2038,7 +2034,8 @@ pub async fn hf_get_model_files(
                 return false;
             }
             if sd_mode {
-                !lower.contains('/') && (lower.ends_with(".gguf") || lower.ends_with(".safetensors"))
+                !lower.contains('/')
+                    && (lower.ends_with(".gguf") || lower.ends_with(".safetensors"))
             } else {
                 lower.ends_with(".gguf")
             }
@@ -2662,7 +2659,8 @@ fn rewire_llama_model_paths(
 
     let mut count = 0u32;
     for (id, name, advanced) in rows {
-        let new_name = crate::infra::model_storage::rewrite_path_prefix(&name, old_prefix, new_prefix);
+        let new_name =
+            crate::infra::model_storage::rewrite_path_prefix(&name, old_prefix, new_prefix);
         let mut changed = new_name != name;
         let new_advanced = match advanced.as_deref() {
             Some(text) => match serde_json::from_str::<serde_json::Value>(text) {
@@ -2670,8 +2668,9 @@ fn rewire_llama_model_paths(
                     if let Some(map) = value.as_object_mut() {
                         for key in ["llamaMmprojPath", "llamaMtpModelPath"] {
                             if let Some(serde_json::Value::String(current)) = map.get(key) {
-                                let rewritten =
-                                    crate::infra::model_storage::rewrite_path_prefix(current, old_prefix, new_prefix);
+                                let rewritten = crate::infra::model_storage::rewrite_path_prefix(
+                                    current, old_prefix, new_prefix,
+                                );
                                 if rewritten != *current {
                                     map.insert(
                                         key.to_string(),
@@ -3031,6 +3030,9 @@ pub struct LocalRunabilityResult {
 pub async fn hf_compute_local_runability(
     app: AppHandle,
     file_path: String,
+    llama_mmproj_path: Option<String>,
+    llama_mtp_enabled: Option<bool>,
+    llama_mtp_model_path: Option<String>,
 ) -> Result<LocalRunabilityResult, String> {
     let path = PathBuf::from(&file_path);
     if !path.exists() {
@@ -3048,6 +3050,27 @@ pub async fn hf_compute_local_runability(
     let supports_gpu_offload = crate::llama_cpp::supports_gpu_offload();
     let available_vram = if supports_gpu_offload {
         crate::llama_cpp::available_vram_bytes().unwrap_or(0)
+    } else {
+        0
+    };
+    let sidecar_reserve_bytes = if supports_gpu_offload {
+        let mmproj_reserve = llama_mmproj_path
+            .as_deref()
+            .filter(|path| !path.trim().is_empty())
+            .and_then(|path| std::fs::metadata(path).ok())
+            .map(|meta| meta.len())
+            .unwrap_or(0);
+        let mtp_reserve = if llama_mtp_enabled == Some(true) {
+            llama_mtp_model_path
+                .as_deref()
+                .filter(|path| !path.trim().is_empty())
+                .and_then(|path| std::fs::metadata(path).ok())
+                .map(|meta| meta.len())
+                .unwrap_or(0)
+        } else {
+            0
+        };
+        mmproj_reserve.saturating_add(mtp_reserve)
     } else {
         0
     };
@@ -3071,15 +3094,23 @@ pub async fn hf_compute_local_runability(
         &app,
         "hf_browser",
         format!(
-            "local runability: path={} size={} quant={} RAM={} VRAM={} supports_gpu_offload={}",
-            file_path, file_size, quantization, available_ram, available_vram, supports_gpu_offload
+            "local runability: path={} size={} quant={} RAM={} VRAM={} sidecar_reserve={} supports_gpu_offload={}",
+            file_path,
+            file_size,
+            quantization,
+            available_ram,
+            available_vram,
+            sidecar_reserve_bytes,
+            supports_gpu_offload
         ),
     );
 
     let active_ratio = meta.as_ref().map(active_weight_ratio).unwrap_or(1.0);
+    let estimated_resident_size =
+        effective_model_size(file_size, meta.as_ref()).saturating_add(sidecar_reserve_bytes);
     let (score, fits_in_ram, fits_in_vram, memory_score, gpu_score, kv_score, gpu_mode) =
         score_configuration(
-            effective_model_size(file_size, meta.as_ref()),
+            estimated_resident_size,
             quant_quality,
             kv_8k,
             available_ram,

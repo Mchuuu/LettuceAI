@@ -1650,6 +1650,9 @@ export function EditModelPage() {
           llamaOffloadKqv: modelAdvancedDraft.llamaOffloadKqv ?? null,
           llamaKvType: modelAdvancedDraft.llamaKvType ?? null,
           llamaGpuLayers: modelAdvancedDraft.llamaGpuLayers ?? null,
+          llamaMmprojPath: modelAdvancedDraft.llamaMmprojPath ?? null,
+          llamaMtpEnabled: modelAdvancedDraft.llamaMtpEnabled ?? null,
+          llamaMtpModelPath: modelAdvancedDraft.llamaMtpModelPath ?? null,
         });
         if (!cancelled) {
           setLlamaContextInfo(info);
@@ -1681,6 +1684,9 @@ export function EditModelPage() {
     modelAdvancedDraft.llamaOffloadKqv,
     modelAdvancedDraft.llamaKvType,
     modelAdvancedDraft.llamaGpuLayers,
+    modelAdvancedDraft.llamaMmprojPath,
+    modelAdvancedDraft.llamaMtpEnabled,
+    modelAdvancedDraft.llamaMtpModelPath,
   ]);
 
   useEffect(() => {
@@ -1722,7 +1728,12 @@ export function EditModelPage() {
       try {
         const result = await invoke<NonNullable<typeof runabilityScore>>(
           "hf_compute_local_runability",
-          { filePath: modelPath },
+          {
+            filePath: modelPath,
+            llamaMmprojPath: modelAdvancedDraft.llamaMmprojPath ?? null,
+            llamaMtpEnabled: modelAdvancedDraft.llamaMtpEnabled ?? null,
+            llamaMtpModelPath: modelAdvancedDraft.llamaMtpModelPath ?? null,
+          },
         );
         if (!cancelled) {
           setRunabilityScore(result);
@@ -1742,7 +1753,13 @@ export function EditModelPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [editorModel?.name, isLocalModel]);
+  }, [
+    editorModel?.name,
+    isLocalModel,
+    modelAdvancedDraft.llamaMmprojPath,
+    modelAdvancedDraft.llamaMtpEnabled,
+    modelAdvancedDraft.llamaMtpModelPath,
+  ]);
 
   const scopeOrder = ["text", "image", "audio"] as const;
   const toggleScope = (

@@ -165,11 +165,12 @@ function maxContextForBpv(
   bpv: number,
   totalAvailable: number,
   modelMaxCtx: number,
+  sidecarReserveBytes = 0,
 ): number {
   if (!kvBasePerToken || kvBasePerToken <= 0) return modelMaxCtx;
   const safety = dynamicSafetyReserve(totalAvailable);
   const overhead = computeOverhead(fileSize);
-  const remaining = Math.max(totalAvailable - fileSize - overhead - safety, 0);
+  const remaining = Math.max(totalAvailable - fileSize - overhead - sidecarReserveBytes - safety, 0);
   const bytesPerToken = kvBasePerToken * bpv;
   if (bytesPerToken <= 0) return modelMaxCtx;
   const maxCtx = Math.floor(remaining / bytesPerToken);
@@ -188,9 +189,10 @@ function computeGpuOptimalContext(
   availableVram: number,
   modelMaxCtx: number,
   kvContextCap: number | null,
+  sidecarReserveBytes = 0,
 ): number {
   if (availableVram <= 0 || !kvBasePerToken) return 0;
-  const vramBudget = availableVram * 0.9;
+  const vramBudget = Math.max(availableVram * 0.9 - sidecarReserveBytes, 0);
   const overhead = computeOverhead(fileSize);
   if (fileSize + overhead >= vramBudget) return 0;
   const vramForKv = vramBudget - fileSize - overhead;
@@ -206,11 +208,12 @@ function computeRamMaxContext(
   totalAvailable: number,
   modelMaxCtx: number,
   kvContextCap: number | null,
+  sidecarReserveBytes = 0,
 ): number {
   if (!kvBasePerToken) return 0;
   const safety = dynamicSafetyReserve(totalAvailable);
   const overhead = computeOverhead(fileSize);
-  const remaining = Math.max(totalAvailable - fileSize - overhead - safety, 0);
+  const remaining = Math.max(totalAvailable - fileSize - overhead - sidecarReserveBytes - safety, 0);
   const rawCtx = Math.floor(remaining / (kvBasePerToken * bpv));
   if (kvContextCap && rawCtx >= kvContextCap) return modelMaxCtx;
   return rawCtx >= 512 ? Math.min(rawCtx, modelMaxCtx) : 0;
@@ -225,9 +228,10 @@ function calcScore(
   availableVram: number,
   modelOffload: ModelOffload = "auto",
   kvPlacement: KvPlacement = "auto",
+  sidecarReserveBytes = 0,
 ): { score: number; label: string; fitsVram: boolean; gpuMode: string; gpuScore: number } {
   const overhead = computeOverhead(modelSize);
-  const totalNeeded = modelSize + kvCacheBytes + overhead;
+  const totalNeeded = modelSize + kvCacheBytes + overhead + sidecarReserveBytes;
   const ramBudget = availableRam * 0.9;
   const vramBudget = availableVram * 0.9;
   const modelFitsRam = availableRam > 0 && modelSize + overhead <= ramBudget;
@@ -235,7 +239,8 @@ function calcScore(
   const kvFitsRam = availableRam > 0 && kvCacheBytes + overhead <= ramBudget;
   const kvOnVramRequested = kvPlacement === "vram";
   const kvOnRamRequested = kvPlacement === "ram";
-  const effectiveVramNeed = modelSize + overhead + (kvOnRamRequested ? 0 : kvCacheBytes);
+  const effectiveVramNeed =
+    modelSize + overhead + sidecarReserveBytes + (kvOnRamRequested ? 0 : kvCacheBytes);
 
   // Memory fitness (25%)
   let memoryScore: number;
@@ -826,6 +831,7 @@ function DetailReportContent({
   modelOffload,
   kvPlacement,
   contextLength,
+  sidecarReserveBytes = 0,
   t,
 }: {
   recData: RecommendationData;
@@ -834,6 +840,7 @@ function DetailReportContent({
   modelOffload: ModelOffload;
   kvPlacement: KvPlacement;
   contextLength: number;
+  sidecarReserveBytes?: number;
   t: TFn;
 }) {
   const bpv = KV_BPV[kvType] || 2;
@@ -845,6 +852,7 @@ function DetailReportContent({
       bpv,
       totalAvail,
       recData.modelMaxContext,
+      sidecarReserveBytes,
     ),
     1024,
   );
@@ -854,10 +862,11 @@ function DetailReportContent({
     : clampedCtx;
   const kvBytes = recData.kvBasePerToken ? recData.kvBasePerToken * bpv * effectiveKvCtx : 0;
   const overhead = computeOverhead(selectedFile.size);
-  const totalNeeded = selectedFile.size + kvBytes + overhead;
-  const gpuResidentBytes = selectedFile.size + overhead + (kvPlacement === "ram" ? 0 : kvBytes);
+  const totalNeeded = selectedFile.size + kvBytes + overhead + sidecarReserveBytes;
+  const gpuResidentBytes =
+    selectedFile.size + overhead + sidecarReserveBytes + (kvPlacement === "ram" ? 0 : kvBytes);
   const headroom = Math.max(totalAvail - totalNeeded, 0);
-  const vramBudget = recData.availableVram * 0.9;
+  const vramBudget = Math.max(recData.availableVram * 0.9 - sidecarReserveBytes, 0);
   const { score, gpuMode, gpuScore } = calcScore(
     selectedFile.size,
     selectedFile.quantQuality,
@@ -867,6 +876,7 @@ function DetailReportContent({
     recData.availableVram,
     modelOffload,
     kvPlacement,
+    sidecarReserveBytes,
   );
 
   const modelMax = recData.modelMaxContext;
@@ -877,6 +887,7 @@ function DetailReportContent({
     recData.availableVram,
     modelMax,
     recData.kvContextCap,
+    sidecarReserveBytes,
   );
   const detailMaxRamCtx = computeRamMaxContext(
     selectedFile.size,
@@ -885,6 +896,7 @@ function DetailReportContent({
     totalAvail,
     modelMax,
     recData.kvContextCap,
+    sidecarReserveBytes,
   );
 
   const memoryScore = (() => {
@@ -895,7 +907,7 @@ function DetailReportContent({
   })();
   const kvScore = (() => {
     if (kvBytes === 0) return 50;
-    const h = Math.max(totalAvail - selectedFile.size - overhead, 0);
+    const h = Math.max(totalAvail - selectedFile.size - overhead - sidecarReserveBytes, 0);
     if (h === 0) return 0;
     if (h >= kvBytes) {
       const r = h / kvBytes;
@@ -1786,6 +1798,25 @@ export function HuggingFaceBrowserPage() {
     () => recData?.files.find((file) => file.filename === recFile) ?? recData?.files[0] ?? null,
     [recData, recFile],
   );
+  const recMtpBundled = (recData?.arch?.nextnPredictLayers ?? 0) > 0;
+  const recMtpAvailable = recMtpBundled || mtpFilesWithSize.length > 0;
+  const selectedRecMmproj = useMemo(
+    () =>
+      recImageSupport && recMmprojFile
+        ? (mmprojFilesWithSize.find((file) => file.filename === recMmprojFile) ?? null)
+        : null,
+    [mmprojFilesWithSize, recImageSupport, recMmprojFile],
+  );
+  const selectedRecMtp = useMemo(
+    () =>
+      recMtpSupport && !recMtpBundled
+        ? (mtpFilesWithSize.find((file) => file.filename === recMtpFile) ??
+          mtpFilesWithSize[0] ??
+          null)
+        : null,
+    [mtpFilesWithSize, recMtpBundled, recMtpFile, recMtpSupport],
+  );
+  const activeSidecarReserveBytes = (selectedRecMmproj?.size ?? 0) + (selectedRecMtp?.size ?? 0);
   const gpuOptionsEnabled = Boolean(recData?.supportsGpuOffload);
   const recommendedMixedGpuLayers = useMemo(() => {
     if (!recData || !selectedRecommendedFile) return null;
@@ -1800,6 +1831,7 @@ export function HuggingFaceBrowserPage() {
         bpv,
         recData.totalAvailable,
         recData.modelMaxContext,
+        activeSidecarReserveBytes,
       ),
       1024,
     );
@@ -1809,8 +1841,8 @@ export function HuggingFaceBrowserPage() {
       : clampedCtx;
     const kvBytes = recData.kvBasePerToken ? recData.kvBasePerToken * bpv * effectiveKvCtx : 0;
     const overhead = computeOverhead(selectedRecommendedFile.size);
-    const totalNeeded = selectedRecommendedFile.size + kvBytes + overhead;
-    const vramBudget = recData.availableVram * 0.9;
+    const totalNeeded = selectedRecommendedFile.size + kvBytes + overhead + activeSidecarReserveBytes;
+    const vramBudget = Math.max(recData.availableVram * 0.9 - activeSidecarReserveBytes, 0);
 
     if (selectedRecommendedFile.size <= vramBudget) return totalLayers;
     if (totalNeeded <= 0) return null;
@@ -1821,7 +1853,15 @@ export function HuggingFaceBrowserPage() {
         : Math.max(vramBudget - Math.min(kvBytes, vramBudget * 0.25), 0);
     const layers = Math.floor((layerBudget / totalNeeded) * totalLayers);
     return Math.max(Math.min(layers, totalLayers), 1);
-  }, [recContext, recData, recFile, recKvPlacement, recKvType, selectedRecommendedFile]);
+  }, [
+    activeSidecarReserveBytes,
+    recContext,
+    recData,
+    recFile,
+    recKvPlacement,
+    recKvType,
+    selectedRecommendedFile,
+  ]);
 
   useEffect(() => {
     if (!mmprojFilesWithSize.length) {
@@ -1837,9 +1877,6 @@ export function HuggingFaceBrowserPage() {
       return mmprojFilesWithSize[0]?.filename ?? "";
     });
   }, [mmprojFilesWithSize]);
-
-  const recMtpBundled = (recData?.arch?.nextnPredictLayers ?? 0) > 0;
-  const recMtpAvailable = recMtpBundled || mtpFilesWithSize.length > 0;
 
   useEffect(() => {
     if (!mtpFilesWithSize.length) {
@@ -2101,10 +2138,7 @@ export function HuggingFaceBrowserPage() {
     if (!modelInfo || !recData) return;
     const selectedFile = recData.files.find((f) => f.filename === recFile) ?? recData.files[0];
     if (!selectedFile) return;
-    const selectedMmproj =
-      recImageSupport && recMmprojFile
-        ? (mmprojFilesWithSize.find((f) => f.filename === recMmprojFile) ?? null)
-        : null;
+    const selectedMmproj = selectedRecMmproj;
     if (recImageSupport && !selectedMmproj) {
       toast.error(
         t("hfBrowser.imageSupportUnavailable"),
@@ -2121,6 +2155,7 @@ export function HuggingFaceBrowserPage() {
         bpv,
         recData.totalAvailable,
         recData.modelMaxContext,
+        activeSidecarReserveBytes,
       ),
       1024,
     );
@@ -2136,10 +2171,7 @@ export function HuggingFaceBrowserPage() {
       recommendedMixedGpuLayers,
     );
 
-    const selectedMtp =
-      recMtpSupport && !recMtpBundled
-        ? (mtpFilesWithSize.find((f) => f.filename === recMtpFile) ?? mtpFilesWithSize[0] ?? null)
-        : null;
+    const selectedMtp = selectedRecMtp;
 
     if (selectedMmproj) {
       const mmprojQueueId = await queueTrackedDownload(modelInfo.modelId, selectedMmproj.filename, {
@@ -2204,6 +2236,9 @@ export function HuggingFaceBrowserPage() {
     recMtpSupport,
     recMtpFile,
     recMtpBundled,
+    selectedRecMmproj,
+    selectedRecMtp,
+    activeSidecarReserveBytes,
     gpuOptionsEnabled,
     recommendedMixedGpuLayers,
     t,
@@ -3052,6 +3087,7 @@ export function HuggingFaceBrowserPage() {
                                       bpvSel,
                                       totalAvail,
                                       recData.modelMaxContext,
+                                      activeSidecarReserveBytes,
                                     ),
                                     1024,
                                   );
@@ -3072,10 +3108,15 @@ export function HuggingFaceBrowserPage() {
                                     recData.availableVram,
                                     recModelOffload,
                                     recKvPlacement,
+                                    activeSidecarReserveBytes,
                                   );
                                   const modeCopy = getRunabilityModeCopy(t, gpuMode);
                                   const runStatus = getRunStatus(t, score);
-                                  const totalNeeded = selFile.size + kvBytes + computeOverhead(selFile.size);
+                                  const totalNeeded =
+                                    selFile.size +
+                                    kvBytes +
+                                    computeOverhead(selFile.size) +
+                                    activeSidecarReserveBytes;
                                   const remainingHeadroom = Math.max(totalAvail - totalNeeded, 0);
                                   const headroomStatus = getHeadroomStatus(
                                     t,
@@ -3116,6 +3157,7 @@ export function HuggingFaceBrowserPage() {
                                           bpvVal,
                                           totalAvail,
                                           recData.modelMaxContext,
+                                          activeSidecarReserveBytes,
                                         ),
                                         1024,
                                       );
@@ -3136,6 +3178,7 @@ export function HuggingFaceBrowserPage() {
                                         recData.availableVram,
                                         recModelOffload,
                                         recKvPlacement,
+                                        activeSidecarReserveBytes,
                                       );
                                       if (fScore < 70) continue;
                                       if (
@@ -3206,6 +3249,7 @@ export function HuggingFaceBrowserPage() {
                                                 bpvSel,
                                                 totalAvail,
                                                 recData.modelMaxContext,
+                                                activeSidecarReserveBytes,
                                               ),
                                               1024,
                                             );
@@ -3249,6 +3293,7 @@ export function HuggingFaceBrowserPage() {
                                                   bpvSel,
                                                   totalAvail,
                                                   recData.modelMaxContext,
+                                                  activeSidecarReserveBytes,
                                                 ),
                                                 1024,
                                               );
@@ -3259,6 +3304,7 @@ export function HuggingFaceBrowserPage() {
                                                 recData.availableVram,
                                                 recData.modelMaxContext,
                                                 recData.kvContextCap,
+                                                activeSidecarReserveBytes,
                                               );
                                               const optimalRamCtx = computeRamMaxContext(
                                                 f.size,
@@ -3267,6 +3313,7 @@ export function HuggingFaceBrowserPage() {
                                                 totalAvail,
                                                 recData.modelMaxContext,
                                                 recData.kvContextCap,
+                                                activeSidecarReserveBytes,
                                               );
                                               const optimal =
                                                 optimalGpuCtx > 0
@@ -3392,6 +3439,7 @@ export function HuggingFaceBrowserPage() {
                                           recData.availableVram,
                                           modelMax,
                                           recData.kvContextCap,
+                                          activeSidecarReserveBytes,
                                         );
                                         // Max context before RAM runs out (dynamic for current KV type)
                                         const ramCtx = computeRamMaxContext(
@@ -3401,6 +3449,7 @@ export function HuggingFaceBrowserPage() {
                                           totalAvail,
                                           modelMax,
                                           recData.kvContextCap,
+                                          activeSidecarReserveBytes,
                                         );
 
                                         return (
@@ -3549,6 +3598,7 @@ export function HuggingFaceBrowserPage() {
                                                 bpv,
                                                 totalAvail,
                                                 recData.modelMaxContext,
+                                                activeSidecarReserveBytes,
                                               ),
                                               1024,
                                             );
@@ -3956,6 +4006,7 @@ export function HuggingFaceBrowserPage() {
                           modelOffload={recModelOffload}
                           kvPlacement={recKvPlacement}
                           contextLength={recContext}
+                          sidecarReserveBytes={activeSidecarReserveBytes}
                           t={t}
                         />
                       </div>
@@ -3986,6 +4037,7 @@ export function HuggingFaceBrowserPage() {
                 modelOffload={recModelOffload}
                 kvPlacement={recKvPlacement}
                 contextLength={recContext}
+                sidecarReserveBytes={activeSidecarReserveBytes}
                 t={t}
               />
             );

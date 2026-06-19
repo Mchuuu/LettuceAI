@@ -24,6 +24,7 @@ pub(super) struct SmartGpuOffloadPlan {
     pub(super) kqv_vram_reserved: bool,
     pub(super) planning_offload_kqv: Option<bool>,
     pub(super) estimated_kv_bytes: u64,
+    pub(super) estimated_sidecar_vram_reserve_bytes: u64,
     pub(super) estimated_runtime_reserve_bytes: u64,
     pub(super) effective_vram_budget_bytes: u64,
 }
@@ -252,12 +253,14 @@ pub(super) fn compute_recommended_context_for_gpu_layers(
     gpu_layers: u32,
     llama_offload_kqv: Option<bool>,
     llama_kv_type: Option<&str>,
+    sidecar_vram_reserve_bytes: u64,
 ) -> Option<u32> {
     let (cpu_weight_bytes, gpu_weight_bytes) = model_weight_split_bytes(metadata, gpu_layers);
     let available_for_ctx = if llama_offload_kqv == Some(true) {
         let vram = available_vram_bytes?;
         let reserve = default_memory_reserve_bytes(vram);
         vram.saturating_sub(gpu_weight_bytes.saturating_add(reserve))
+            .saturating_sub(sidecar_vram_reserve_bytes)
     } else {
         let ram = available_memory_bytes?;
         let reserve = default_memory_reserve_bytes(ram);
@@ -283,6 +286,7 @@ pub(super) fn plan_smart_gpu_offload(
     resolved_offload_kqv: Option<bool>,
     llama_kv_type: Option<&str>,
     flash_attention_policy: llama_flash_attn_type,
+    sidecar_vram_reserve_bytes: u64,
 ) -> Result<SmartGpuOffloadPlan, String> {
     let metadata = load_model_metadata(model_path)?;
     let total_layers = metadata.layer_count.max(1);
@@ -330,6 +334,7 @@ pub(super) fn plan_smart_gpu_offload(
         };
         let available_for_layers = effective_vram_budget_bytes
             .saturating_sub(estimated_runtime_reserve_bytes)
+            .saturating_sub(sidecar_vram_reserve_bytes)
             .saturating_sub(estimated_kv_bytes);
         let estimated_gpu_layers = if available_for_layers == 0 || bytes_per_layer == 0 {
             0
@@ -373,6 +378,7 @@ pub(super) fn plan_smart_gpu_offload(
         kqv_vram_reserved,
         planning_offload_kqv,
         estimated_kv_bytes,
+        estimated_sidecar_vram_reserve_bytes: sidecar_vram_reserve_bytes,
         estimated_runtime_reserve_bytes,
         effective_vram_budget_bytes,
     })
