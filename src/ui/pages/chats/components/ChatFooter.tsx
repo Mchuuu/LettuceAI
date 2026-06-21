@@ -6,6 +6,7 @@ import { getPlatform } from "../../../../core/utils/platform";
 import { useI18n } from "../../../../core/i18n/context";
 import { BottomMenu } from "../../../components/BottomMenu";
 import { ChatErrorBanner } from "./ChatErrorBanner";
+import { AudioAttachmentPlayer } from "./AudioAttachmentPlayer";
 
 const SYSTEM_SEND_CONFIRMATION_DISABLED_STORAGE_KEY =
   "lettuce.chat.systemSendConfirmationDisabled";
@@ -30,6 +31,8 @@ interface ChatFooterProps {
   onOpenPlusMenu?: () => void;
   triggerFileInput?: boolean;
   onFileInputTriggered?: () => void;
+  triggerAudioInput?: boolean;
+  onAudioInputTriggered?: () => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
   topSlot?: ReactNode;
   inlinePanel?: ReactNode;
@@ -62,6 +65,8 @@ export function ChatFooter({
   onOpenPlusMenu,
   triggerFileInput,
   onFileInputTriggered,
+  triggerAudioInput,
+  onAudioInputTriggered,
   textareaRef: externalTextareaRef,
   topSlot,
   inlinePanel,
@@ -81,6 +86,7 @@ export function ChatFooter({
   const footerIconIdle = hasFooterColor ? "text-[var(--footer-fg-muted)]" : "text-fg/60";
   const footerIconHover = hasFooterColor ? "hover:text-[var(--footer-fg)]" : "hover:text-fg";
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sendLongPressTimerRef = useRef<number | null>(null);
   const sendLongPressTriggeredRef = useRef(false);
@@ -172,6 +178,29 @@ export function ChatFooter({
     event.target.value = "";
   };
 
+  const handleAudioFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || !onAddAttachment) return;
+
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("audio/")) continue;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result as string;
+        onAddAttachment({
+          id: crypto.randomUUID(),
+          data: base64,
+          mimeType: file.type,
+          filename: file.name,
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+
+    event.target.value = "";
+  };
+
   const handlePlusClick = () => {
     if (onOpenPlusMenu) {
       onOpenPlusMenu();
@@ -186,6 +215,13 @@ export function ChatFooter({
       onFileInputTriggered?.();
     }
   }, [triggerFileInput, onFileInputTriggered]);
+
+  useEffect(() => {
+    if (triggerAudioInput) {
+      audioInputRef.current?.click();
+      onAudioInputTriggered?.();
+    }
+  }, [triggerAudioInput, onAudioInputTriggered]);
 
   useEffect(() => clearSendLongPressTimer, [clearSendLongPressTimer]);
 
@@ -262,31 +298,44 @@ export function ChatFooter({
 
         {hasAttachments && (
           <div className="mb-2 flex flex-wrap gap-2 overflow-visible p-1">
-            {pendingAttachments.map((attachment) => (
-              <div
-                key={attachment.id}
-                className={cn("relative", radius.md, "border border-fg/15 bg-fg/8")}
-              >
-                <img
-                  src={attachment.data}
-                  alt={attachment.filename || t("chats.footer.attachmentAlt")}
-                  className={cn("h-20 w-20 object-cover", radius.md)}
-                />
-                {onRemoveAttachment && (
-                  <button
-                    onClick={() => onRemoveAttachment(attachment.id)}
-                    className={cn(
-                      "absolute -right-1 -top-1 z-50",
-                      interactive.transition.fast,
-                      interactive.active.scale,
-                    )}
-                    aria-label={t("chats.footer.removeAttachment")}
-                  >
-                    <X className="h-5 w-5 text-fg drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]" />
-                  </button>
-                )}
-              </div>
-            ))}
+            {pendingAttachments.map((attachment) => {
+              const isAudio = attachment.mimeType?.startsWith("audio/");
+              return (
+                <div
+                  key={attachment.id}
+                  className={cn("relative", radius.md, "border border-fg/15 bg-fg/8")}
+                >
+                  {isAudio ? (
+                    <AudioAttachmentPlayer
+                      src={attachment.data}
+                      filename={attachment.filename}
+                      fallbackLabel={t("chats.footer.audioAttachmentLabel")}
+                      className="w-72 px-3 py-3"
+                      buttonClassName="bg-accent text-black"
+                    />
+                  ) : (
+                    <img
+                      src={attachment.data}
+                      alt={attachment.filename || t("chats.footer.attachmentAlt")}
+                      className={cn("h-20 w-20 object-cover", radius.md)}
+                    />
+                  )}
+                  {onRemoveAttachment && (
+                    <button
+                      onClick={() => onRemoveAttachment(attachment.id)}
+                      className={cn(
+                        "absolute -right-1 -top-1 z-50",
+                        interactive.transition.fast,
+                        interactive.active.scale,
+                      )}
+                      aria-label={t("chats.footer.removeAttachment")}
+                    >
+                      <X className="h-5 w-5 text-fg drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -297,6 +346,15 @@ export function ChatFooter({
           multiple
           className="hidden"
           onChange={handleFileSelect}
+        />
+
+        <input
+          ref={audioInputRef}
+          type="file"
+          accept="audio/*"
+          multiple
+          className="hidden"
+          onChange={handleAudioFileSelect}
         />
 
         <div

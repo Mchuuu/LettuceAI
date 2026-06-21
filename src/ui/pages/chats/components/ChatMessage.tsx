@@ -10,6 +10,7 @@ import type { ChatAppearanceSettings } from "../../../../core/storage/schemas";
 import { AvatarImage } from "../../../components/AvatarImage";
 import { useAvatar } from "../../../hooks/useAvatar";
 import { useSessionAttachments } from "../../../hooks/useSessionAttachment";
+import { AudioAttachmentPlayer } from "./AudioAttachmentPlayer";
 import { useI18n, type TranslationKey, type TranslateParams } from "../../../../core/i18n/context";
 import { replacePlaceholders } from "../../../../core/utils/placeholders";
 
@@ -993,49 +994,67 @@ function ChatMessageInner({
             {/* Display attachments below the message content */}
             {loadedAttachments.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-2">
-                {loadedAttachments.map((attachment) => (
-                  <div
-                    key={attachment.id}
-                    className={cn(
-                      radius.md,
-                      "overflow-hidden border border-white/15",
-                      attachment.data &&
-                        onImageClick &&
-                        "cursor-pointer hover:border-white/30 transition-colors",
-                    )}
-                    onClick={() =>
-                      attachment.data &&
-                      onImageClick?.(
-                        attachment.data,
-                        attachment.filename || t("chats.message.attachedImage"),
-                      )
-                    }
-                  >
-                    {attachment.data ? (
-                      <img
+                {loadedAttachments.map((attachment) => {
+                  const isAudio = attachment.mimeType?.startsWith("audio/");
+                  if (isAudio) {
+                    return (
+                      <AudioAttachmentPlayer
+                        key={attachment.id}
                         src={attachment.data}
-                        alt={attachment.filename || t("chats.message.attachedImage")}
-                        className="max-h-48 max-w-full object-contain"
-                        style={{
-                          maxWidth:
-                            attachment.width && attachment.width > 300
-                              ? 300
-                              : attachment.width || 300,
-                        }}
+                        filename={attachment.filename}
+                        fallbackLabel={t("chats.message.attachedAudio")}
+                        className={cn(
+                          radius.md,
+                          "w-72 border border-white/15 bg-white/5 px-3 py-3",
+                        )}
+                        buttonClassName="bg-accent text-black"
                       />
-                    ) : (
-                      <div
-                        className="flex items-center justify-center bg-white/5"
-                        style={{
-                          width: Math.min(attachment.width || 150, 300),
-                          height: Math.min(attachment.height || 100, 192),
-                        }}
-                      >
-                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
-                      </div>
-                    )}
-                  </div>
-                ))}
+                    );
+                  }
+                  return (
+                    <div
+                      key={attachment.id}
+                      className={cn(
+                        radius.md,
+                        "overflow-hidden border border-white/15",
+                        attachment.data &&
+                          onImageClick &&
+                          "cursor-pointer hover:border-white/30 transition-colors",
+                      )}
+                      onClick={() =>
+                        attachment.data &&
+                        onImageClick?.(
+                          attachment.data,
+                          attachment.filename || t("chats.message.attachedImage"),
+                        )
+                      }
+                    >
+                      {attachment.data ? (
+                        <img
+                          src={attachment.data}
+                          alt={attachment.filename || t("chats.message.attachedImage")}
+                          className="max-h-48 max-w-full object-contain"
+                          style={{
+                            maxWidth:
+                              attachment.width && attachment.width > 300
+                                ? 300
+                                : attachment.width || 300,
+                          }}
+                        />
+                      ) : (
+                        <div
+                          className="flex items-center justify-center bg-white/5"
+                          style={{
+                            width: Math.min(attachment.width || 150, 300),
+                            height: Math.min(attachment.height || 100, 192),
+                          }}
+                        >
+                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </>

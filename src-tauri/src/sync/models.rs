@@ -452,6 +452,8 @@ pub struct UsageRecord {
     pub summary_tokens: Option<i64>,
     pub reasoning_tokens: Option<i64>,
     pub image_tokens: Option<i64>,
+    #[serde(default)]
+    pub audio_tokens: Option<i64>,
     pub prompt_cost: Option<f64>,
     pub completion_cost: Option<f64>,
     pub total_cost: Option<f64>,

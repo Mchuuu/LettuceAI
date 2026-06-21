@@ -391,6 +391,10 @@ impl CompletionFlow {
             .input_scopes
             .iter()
             .any(|scope| scope.eq_ignore_ascii_case("image"));
+        let allow_audio_input = model
+            .input_scopes
+            .iter()
+            .any(|scope| scope.eq_ignore_ascii_case("audio"));
 
         let time_stamp_enabled =
             companion_mode_enabled && companion_time_awareness_enabled(&session);
@@ -416,6 +420,7 @@ impl CompletionFlow {
                 char_name,
                 persona_name,
                 allow_image_input,
+                allow_audio_input,
                 time_frame_delta,
                 time_stamp_enabled,
             );
@@ -430,6 +435,7 @@ impl CompletionFlow {
                 char_name,
                 persona_name,
                 allow_image_input,
+                allow_audio_input,
                 time_frame_delta,
                 time_stamp_enabled,
             );

@@ -187,6 +187,7 @@ fn build_debug_completion_messages(
     character_name: &str,
     persona_name: &str,
     allow_image_input: bool,
+    allow_audio_input: bool,
     system_role: &str,
     relative_entries: &[SystemPromptEntry],
     in_chat_entries: &[SystemPromptEntry],
@@ -239,6 +240,7 @@ fn build_debug_completion_messages(
             character_name,
             persona_name,
             allow_image_input,
+            allow_audio_input,
             time_frame_delta,
             time_stamp_enabled,
         );
@@ -253,6 +255,7 @@ fn build_debug_completion_messages(
             character_name,
             persona_name,
             allow_image_input,
+            allow_audio_input,
             time_frame_delta,
             time_stamp_enabled,
         );
@@ -272,6 +275,7 @@ fn build_debug_regenerate_messages(
     character_name: &str,
     persona_name: &str,
     allow_image_input: bool,
+    allow_audio_input: bool,
     system_role: &str,
     relative_entries: &[SystemPromptEntry],
     in_chat_entries: &[SystemPromptEntry],
@@ -324,6 +328,7 @@ fn build_debug_regenerate_messages(
                 character_name,
                 persona_name,
                 allow_image_input,
+                allow_audio_input,
                 time_frame_delta,
                 time_stamp_enabled,
             );
@@ -337,6 +342,7 @@ fn build_debug_regenerate_messages(
                 character_name,
                 persona_name,
                 allow_image_input,
+                allow_audio_input,
                 time_frame_delta,
                 time_stamp_enabled,
             );
@@ -358,6 +364,7 @@ fn build_debug_regenerate_messages(
                 character_name,
                 persona_name,
                 allow_image_input,
+                allow_audio_input,
                 time_frame_delta,
                 time_stamp_enabled,
             );
@@ -377,6 +384,7 @@ fn build_debug_continue_messages(
     character_name: &str,
     persona_name: &str,
     allow_image_input: bool,
+    allow_audio_input: bool,
     system_role: &str,
     relative_entries: &[SystemPromptEntry],
     in_chat_entries: &[SystemPromptEntry],
@@ -388,6 +396,7 @@ fn build_debug_continue_messages(
         character_name,
         persona_name,
         allow_image_input,
+        allow_audio_input,
         system_role,
         relative_entries,
         in_chat_entries,
@@ -531,6 +540,10 @@ pub fn chat_message_debug_snapshot(
         .input_scopes
         .iter()
         .any(|scope| scope.eq_ignore_ascii_case("image"));
+    let allow_audio_input = model
+        .input_scopes
+        .iter()
+        .any(|scope| scope.eq_ignore_ascii_case("audio"));
 
     let request_messages = match operation {
         DebugMessageOperation::Completion => build_debug_completion_messages(
@@ -540,6 +553,7 @@ pub fn chat_message_debug_snapshot(
             character_name,
             persona_name,
             allow_image_input,
+            allow_audio_input,
             &system_role,
             &relative_entries,
             &in_chat_entries,
@@ -552,6 +566,7 @@ pub fn chat_message_debug_snapshot(
             character_name,
             persona_name,
             allow_image_input,
+            allow_audio_input,
             &system_role,
             &relative_entries,
             &in_chat_entries,
@@ -563,6 +578,7 @@ pub fn chat_message_debug_snapshot(
             character_name,
             persona_name,
             allow_image_input,
+            allow_audio_input,
             &system_role,
             &relative_entries,
             &in_chat_entries,

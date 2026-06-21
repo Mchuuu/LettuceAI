@@ -772,6 +772,7 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           summary_tokens INTEGER,
           reasoning_tokens INTEGER,
           image_tokens INTEGER,
+          audio_tokens INTEGER,
           prompt_cost REAL,
           completion_cost REAL,
           total_cost REAL,
@@ -1254,6 +1255,13 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
     if !cols.contains("image_tokens") {
         conn.execute(
             "ALTER TABLE usage_records ADD COLUMN image_tokens INTEGER",
+            [],
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    }
+    if !cols.contains("audio_tokens") {
+        conn.execute(
+            "ALTER TABLE usage_records ADD COLUMN audio_tokens INTEGER",
             [],
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;

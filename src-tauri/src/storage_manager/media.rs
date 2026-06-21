@@ -1692,6 +1692,19 @@ fn create_default_gradient() -> AvatarGradient {
     }
 }
 
+fn audio_extension_from_mime(mime: &str) -> &'static str {
+    match mime {
+        "audio/wav" | "audio/x-wav" | "audio/wave" => "wav",
+        "audio/mpeg" | "audio/mp3" => "mp3",
+        "audio/ogg" | "audio/vorbis" => "ogg",
+        "audio/flac" | "audio/x-flac" => "flac",
+        "audio/aac" => "aac",
+        "audio/aiff" | "audio/x-aiff" => "aiff",
+        "audio/mp4" | "audio/x-m4a" | "audio/m4a" => "m4a",
+        _ => "wav",
+    }
+}
+
 #[tauri::command]
 pub fn storage_save_session_attachment(
     app: tauri::AppHandle,
@@ -1707,6 +1720,15 @@ pub fn storage_save_session_attachment(
     } else {
         &base64_data
     };
+
+    let declared_mime = base64_data
+        .strip_prefix("data:")
+        .and_then(|rest| rest.split(";base64,").next())
+        .map(|s| s.trim().to_ascii_lowercase());
+    let is_audio = declared_mime
+        .as_deref()
+        .map(|m| m.starts_with("audio/"))
+        .unwrap_or(false);
 
     let bytes = general_purpose::STANDARD.decode(data).map_err(|e| {
         crate::utils::err_msg(
@@ -1724,6 +1746,25 @@ pub fn storage_save_session_attachment(
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
     let role_prefix = if role == "assistant" { "ai" } else { "user" };
+
+    if is_audio {
+        let extension = audio_extension_from_mime(declared_mime.as_deref().unwrap_or(""));
+        let filename = format!(
+            "{}_{}_{}.{}",
+            role_prefix, message_id, attachment_id, extension
+        );
+        let audio_path = sessions_dir.join(&filename);
+        fs::write(&audio_path, &bytes)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+        let relative_path = format!("sessions/{}/{}/{}", character_id, session_id, filename);
+        log_debug(
+            &app,
+            "session_attachment",
+            format!("Saved audio attachment: {}", relative_path),
+        );
+        return Ok(relative_path);
+    }
 
     let webp_bytes = match image::load_from_memory(&bytes) {
         Ok(img) => {
@@ -1785,6 +1826,20 @@ pub fn storage_load_session_attachment(
         "image/jpeg"
     } else if storage_path.ends_with(".gif") {
         "image/gif"
+    } else if storage_path.ends_with(".wav") {
+        "audio/wav"
+    } else if storage_path.ends_with(".mp3") {
+        "audio/mpeg"
+    } else if storage_path.ends_with(".ogg") {
+        "audio/ogg"
+    } else if storage_path.ends_with(".flac") {
+        "audio/flac"
+    } else if storage_path.ends_with(".aac") {
+        "audio/aac"
+    } else if storage_path.ends_with(".aiff") {
+        "audio/aiff"
+    } else if storage_path.ends_with(".m4a") {
+        "audio/mp4"
     } else {
         "image/webp"
     };

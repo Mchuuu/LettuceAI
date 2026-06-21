@@ -99,7 +99,7 @@ import {
 import { BottomMenu, GuidedTour, MenuButton, useGuidedTour } from "../../components";
 import { AvatarImage } from "../../components/AvatarImage";
 import { useAvatar } from "../../hooks/useAvatar";
-import { Image, RefreshCw, Sparkles, Check, PenLine, Lock } from "lucide-react";
+import { Image, RefreshCw, Sparkles, Check, PenLine, Lock, FileAudio } from "lucide-react";
 import { radius, cn } from "../../design-tokens";
 import { useI18n } from "../../../core/i18n/context";
 import { PersonaSelector } from "../group-chats/components/settings";
@@ -235,6 +235,7 @@ export function ChatConversationPage() {
   const [selectedImage, setSelectedImage] = useState<{ src: string; alt: string } | null>(null);
   const [selectedImagePromptExpanded, setSelectedImagePromptExpanded] = useState(false);
   const [supportsImageInput, setSupportsImageInput] = useState(false);
+  const [supportsAudioInput, setSupportsAudioInput] = useState(false);
   const [keyboardInset, setKeyboardInset] = useState(0);
   const audioCacheRef = useRef<{
     providers: AudioProvider[] | null;
@@ -296,6 +297,7 @@ export function ChatConversationPage() {
   const [helpMeReplyEnabled, setHelpMeReplyEnabled] = useState(true);
   const [sceneGenerationEnabled, setSceneGenerationEnabled] = useState(false);
   const [shouldTriggerFileInput, setShouldTriggerFileInput] = useState(false);
+  const [shouldTriggerAudioInput, setShouldTriggerAudioInput] = useState(false);
   const [savingSessionBackground, setSavingSessionBackground] = useState(false);
   const [personas, setPersonas] = useState<Persona[]>([]);
   const isMobile = useMemo(() => getPlatform().type === "mobile", []);
@@ -1038,6 +1040,7 @@ export function ChatConversationPage() {
     const checkModelCapabilities = async () => {
       if (!character) {
         setSupportsImageInput(false);
+        setSupportsAudioInput(false);
         return;
       }
       try {
@@ -1045,10 +1048,13 @@ export function ChatConversationPage() {
         const effectiveModelId = character.defaultModelId || settings.defaultModelId;
         const currentModel = settings.models.find((m: Model) => m.id === effectiveModelId);
         const hasImageScope = currentModel?.inputScopes?.includes("image") ?? false;
+        const hasAudioScope = currentModel?.inputScopes?.includes("audio") ?? false;
         setSupportsImageInput(hasImageScope);
+        setSupportsAudioInput(hasAudioScope);
       } catch (err) {
         console.error("Failed to check model capabilities:", err);
         setSupportsImageInput(false);
+        setSupportsAudioInput(false);
       }
     };
     checkModelCapabilities();
@@ -1724,6 +1730,11 @@ export function ChatConversationPage() {
   const handlePlusMenuImageUpload = useCallback(() => {
     setShowPlusMenu(false);
     setShouldTriggerFileInput(true);
+  }, []);
+
+  const handlePlusMenuAudioUpload = useCallback(() => {
+    setShowPlusMenu(false);
+    setShouldTriggerAudioInput(true);
   }, []);
 
   const handlePlusMenuHelpMeReply = useCallback(() => {
@@ -2807,8 +2818,12 @@ export function ChatConversationPage() {
           footerFgColor={theme.footerFgColor}
           footerFgMutedColor={theme.footerFgMutedColor}
           pendingAttachments={pendingAttachments}
-          onAddAttachment={supportsImageInput ? addPendingAttachment : undefined}
-          onRemoveAttachment={supportsImageInput ? removePendingAttachment : undefined}
+          onAddAttachment={
+            supportsImageInput || supportsAudioInput ? addPendingAttachment : undefined
+          }
+          onRemoveAttachment={
+            supportsImageInput || supportsAudioInput ? removePendingAttachment : undefined
+          }
           onOpenPlusMenu={handleOpenPlusMenu}
           onMicClick={
             installedWhisperModels.length === 0
@@ -2826,6 +2841,8 @@ export function ChatConversationPage() {
           composerDisabled={footerAsrMode !== "idle"}
           triggerFileInput={shouldTriggerFileInput}
           onFileInputTriggered={() => setShouldTriggerFileInput(false)}
+          triggerAudioInput={shouldTriggerAudioInput}
+          onAudioInputTriggered={() => setShouldTriggerAudioInput(false)}
           textareaRef={footerTextareaRef}
         />
       </div>
@@ -2867,8 +2884,12 @@ export function ChatConversationPage() {
           footerFgColor={theme.footerFgColor}
           footerFgMutedColor={theme.footerFgMutedColor}
           pendingAttachments={pendingAttachments}
-          onAddAttachment={supportsImageInput ? addPendingAttachment : undefined}
-          onRemoveAttachment={supportsImageInput ? removePendingAttachment : undefined}
+          onAddAttachment={
+            supportsImageInput || supportsAudioInput ? addPendingAttachment : undefined
+          }
+          onRemoveAttachment={
+            supportsImageInput || supportsAudioInput ? removePendingAttachment : undefined
+          }
           onOpenPlusMenu={handleOpenPlusMenu}
           onMicClick={
             installedWhisperModels.length === 0
@@ -2886,6 +2907,8 @@ export function ChatConversationPage() {
           composerDisabled={footerAsrMode !== "idle"}
           triggerFileInput={shouldTriggerFileInput}
           onFileInputTriggered={() => setShouldTriggerFileInput(false)}
+          triggerAudioInput={shouldTriggerAudioInput}
+          onAudioInputTriggered={() => setShouldTriggerAudioInput(false)}
           textareaRef={footerTextareaRef}
         />
       </div>
@@ -3039,6 +3062,14 @@ export function ChatConversationPage() {
         title={t("chats.addContent")}
       >
         <div className="space-y-2">
+          {helpMeReplyEnabled && (
+            <MenuButton
+              icon={Sparkles}
+              title={t("chats.helpMeReply")}
+              description={t("chats.helpMeReplyDesc")}
+              onClick={handlePlusMenuHelpMeReply}
+            />
+          )}
           <MenuButton
             icon={User}
             title={t("chats.settings.persona")}
@@ -3047,16 +3078,21 @@ export function ChatConversationPage() {
               void handleOpenPersonaSelector();
             }}
           />
-          <MenuButton
-            icon={NotebookPen}
-            title={t("chats.authorNote.title")}
-            description={
-              (sessionForHeader?.authorNote ?? chatController.session?.authorNote)?.trim()
-                ? t("chats.plusMenu.authorNoteActive")
-                : t("chats.plusMenu.authorNoteInactive")
-            }
-            onClick={handleOpenAuthorNoteMenu}
-          />
+          {supportsImageInput && (
+            <MenuButton
+              icon={Image}
+              title={t("chats.uploadImage")}
+              onClick={handlePlusMenuImageUpload}
+            />
+          )}
+          {supportsAudioInput && (
+            <MenuButton
+              icon={FileAudio}
+              title={t("chats.uploadAudio")}
+              description={t("chats.uploadAudioDesc")}
+              onClick={handlePlusMenuAudioUpload}
+            />
+          )}
           <MenuButton
             icon={Image}
             title={t("chats.chatBackground")}
@@ -3075,6 +3111,16 @@ export function ChatConversationPage() {
             }}
           />
           <MenuButton
+            icon={NotebookPen}
+            title={t("chats.authorNote.title")}
+            description={
+              (sessionForHeader?.authorNote ?? chatController.session?.authorNote)?.trim()
+                ? t("chats.plusMenu.authorNoteActive")
+                : t("chats.plusMenu.authorNoteInactive")
+            }
+            onClick={handleOpenAuthorNoteMenu}
+          />
+          <MenuButton
             icon={ArrowLeftRight}
             title={swapPlaces ? t("chats.swapPlacesOn") : t("chats.swapPlaces")}
             description={
@@ -3091,21 +3137,6 @@ export function ChatConversationPage() {
                 : handleEnableSwapPlaces
             }
           />
-          {supportsImageInput && (
-            <MenuButton
-              icon={Image}
-              title={t("chats.uploadImage")}
-              onClick={handlePlusMenuImageUpload}
-            />
-          )}
-          {helpMeReplyEnabled && (
-            <MenuButton
-              icon={Sparkles}
-              title={t("chats.helpMeReply")}
-              description={t("chats.helpMeReplyDesc")}
-              onClick={handlePlusMenuHelpMeReply}
-            />
-          )}
         </div>
       </BottomMenu>
 

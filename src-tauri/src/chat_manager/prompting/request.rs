@@ -407,6 +407,19 @@ fn usage_from_map(map: &Map<String, Value>) -> Option<UsageSummary> {
                     .and_then(|details| take_first(details, &["image_tokens", "imageTokens"]))
             })
     });
+    let audio_tokens = take_first(map, &["audio_tokens", "audioTokens"])
+        .or_else(|| {
+            map.get("prompt_tokens_details")
+                .and_then(|v| v.as_object())
+                .and_then(|details| take_first(details, &["audio_tokens", "audioTokens"]))
+        })
+        .or_else(|| {
+            map.get("completion_tokens_details")
+                .and_then(|v| v.as_object())
+                .and_then(|details| take_first(details, &["audio_tokens", "audioTokens"]))
+        })
+        .or_else(|| modality_token_count(map.get("promptTokensDetails"), "AUDIO"))
+        .or_else(|| modality_token_count(map.get("candidatesTokensDetails"), "AUDIO"));
     let cached_prompt_tokens = take_first(
         map,
         &[
@@ -471,6 +484,7 @@ fn usage_from_map(map: &Map<String, Value>) -> Option<UsageSummary> {
         && total_tokens.is_none()
         && reasoning_tokens.is_none()
         && image_tokens.is_none()
+        && audio_tokens.is_none()
         && web_search_requests.is_none()
         && api_cost.is_none()
     {
@@ -484,6 +498,7 @@ fn usage_from_map(map: &Map<String, Value>) -> Option<UsageSummary> {
             cache_write_tokens,
             reasoning_tokens,
             image_tokens,
+            audio_tokens,
             web_search_requests,
             api_cost,
             response_id: None,
@@ -491,6 +506,33 @@ fn usage_from_map(map: &Map<String, Value>) -> Option<UsageSummary> {
             tokens_per_second,
             finish_reason,
         })
+    }
+}
+
+pub(crate) fn modality_token_count(details: Option<&Value>, modality: &str) -> Option<u64> {
+    let arr = details?.as_array()?;
+    let mut total = 0u64;
+    let mut found = false;
+    for entry in arr {
+        let entry_modality = entry
+            .get("modality")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
+        if entry_modality.eq_ignore_ascii_case(modality) {
+            if let Some(count) = entry
+                .get("tokenCount")
+                .or_else(|| entry.get("token_count"))
+                .and_then(parse_token_value)
+            {
+                total += count;
+                found = true;
+            }
+        }
+    }
+    if found {
+        Some(total)
+    } else {
+        None
     }
 }
 

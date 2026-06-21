@@ -241,6 +241,31 @@ pub(crate) fn extract_image_data_urls(value: Option<&Value>) -> Vec<String> {
         .collect()
 }
 
+pub(crate) fn extract_input_audio(value: Option<&Value>) -> Vec<(String, String)> {
+    let Some(Value::Array(parts)) = value else {
+        return Vec::new();
+    };
+
+    parts
+        .iter()
+        .filter_map(|part| {
+            let obj = part.as_object()?;
+            if obj.get("type").and_then(|v| v.as_str()) != Some("input_audio") {
+                return None;
+            }
+
+            let input_audio = obj.get("input_audio").and_then(|v| v.as_object())?;
+            let data = input_audio.get("data").and_then(|v| v.as_str())?.to_string();
+            let format = input_audio
+                .get("format")
+                .and_then(|v| v.as_str())
+                .unwrap_or("wav")
+                .to_string();
+            Some((format, data))
+        })
+        .collect()
+}
+
 pub(crate) fn parse_data_url(data_url: &str) -> Option<(String, String)> {
     let (prefix, data) = data_url.split_once(";base64,")?;
     let mime_type = prefix.strip_prefix("data:")?;

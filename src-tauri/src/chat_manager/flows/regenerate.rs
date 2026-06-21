@@ -331,6 +331,10 @@ impl RegenerateFlow {
                 .input_scopes
                 .iter()
                 .any(|scope| scope.eq_ignore_ascii_case("image"));
+            let allow_audio_input = model
+                .input_scopes
+                .iter()
+                .any(|scope| scope.eq_ignore_ascii_case("audio"));
 
             let messages_before_target: Vec<StoredMessage> = session
                 .messages
@@ -367,6 +371,7 @@ impl RegenerateFlow {
                         char_name,
                         persona_name,
                         allow_image_input,
+                        allow_audio_input,
                         time_frame_delta,
                         time_stamp_enabled,
                     );
@@ -381,6 +386,7 @@ impl RegenerateFlow {
                         char_name,
                         persona_name,
                         allow_image_input,
+                        allow_audio_input,
                         time_frame_delta,
                         time_stamp_enabled,
                     );
@@ -405,6 +411,7 @@ impl RegenerateFlow {
                         char_name,
                         persona_name,
                         allow_image_input,
+                        allow_audio_input,
                         time_frame_delta,
                         time_stamp_enabled,
                     );

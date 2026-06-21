@@ -486,6 +486,7 @@ fn typed_usage_summary(
         cache_write_tokens: None,
         reasoning_tokens: None,
         image_tokens: None,
+        audio_tokens: None,
         web_search_requests: None,
         api_cost: None,
         response_id: None,

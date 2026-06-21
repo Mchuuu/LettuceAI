@@ -1007,7 +1007,7 @@ fn export_usage_records(app: &tauri::AppHandle) -> Result<Vec<JsonValue>, String
         .prepare("SELECT id, timestamp, session_id, character_id, character_name, model_id, model_name,
                   provider_id, provider_label, operation_type, finish_reason, prompt_tokens, completion_tokens, total_tokens,
                   memory_tokens, summary_tokens, reasoning_tokens, image_tokens, prompt_cost, completion_cost, total_cost,
-                  success, error_message FROM usage_records")
+                  success, error_message, audio_tokens FROM usage_records")
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
     let records: Vec<(String, JsonValue)> = stmt
@@ -1037,6 +1037,7 @@ fn export_usage_records(app: &tauri::AppHandle) -> Result<Vec<JsonValue>, String
                 "total_cost": r.get::<_, Option<f64>>(20)?,
                 "success": r.get::<_, i64>(21)? != 0,
                 "error_message": r.get::<_, Option<String>>(22)?,
+                "audio_tokens": r.get::<_, Option<i64>>(23)?,
             });
             Ok((id, json))
         })
@@ -2798,8 +2799,8 @@ fn import_usage_records(app: &tauri::AppHandle, data: &JsonValue) -> Result<(), 
                 "INSERT INTO usage_records (id, timestamp, session_id, character_id, character_name,
                  model_id, model_name, provider_id, provider_label, operation_type, finish_reason, prompt_tokens,
                  completion_tokens, total_tokens, memory_tokens, summary_tokens, reasoning_tokens, image_tokens,
-                 prompt_cost, completion_cost, total_cost, success, error_message)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)",
+                 prompt_cost, completion_cost, total_cost, success, error_message, audio_tokens)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)",
                 params![
                     record_id,
                     item.get("timestamp").and_then(|v| v.as_i64()),
@@ -2824,6 +2825,7 @@ fn import_usage_records(app: &tauri::AppHandle, data: &JsonValue) -> Result<(), 
                     item.get("total_cost").and_then(|v| v.as_f64()),
                     item.get("success").and_then(|v| v.as_bool()).unwrap_or(false) as i64,
                     item.get("error_message").and_then(|v| v.as_str()),
+                    item.get("audio_tokens").and_then(|v| v.as_i64()),
                 ],
             ).map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 

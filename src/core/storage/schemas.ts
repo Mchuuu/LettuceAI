@@ -281,6 +281,7 @@ export const UsageSummarySchema = z.object({
   totalTokens: OptionalTokenCount,
   reasoningTokens: OptionalTokenCount,
   imageTokens: OptionalTokenCount,
+  audioTokens: OptionalTokenCount,
   firstTokenMs: OptionalMsCount,
   tokensPerSecond: OptionalPositiveNumber,
 });

@@ -590,6 +590,7 @@ pub fn usage_from_value(v: &Value) -> Option<UsageSummary> {
         completion_tokens,
         reasoning_tokens,
         image_tokens,
+        audio_tokens,
         cached_prompt_tokens,
         cache_write_tokens,
         web_search_requests,
@@ -637,6 +638,27 @@ pub fn usage_from_value(v: &Value) -> Option<UsageSummary> {
             u.get("prompt_tokens_details")
                 .and_then(|d| take_first(d, &["image_tokens", "imageTokens", "cached_tokens"]))
         });
+        let audio_tokens = take_first(u, &["audio_tokens", "audioTokens"])
+            .or_else(|| {
+                u.get("prompt_tokens_details")
+                    .and_then(|d| take_first(d, &["audio_tokens", "audioTokens"]))
+            })
+            .or_else(|| {
+                u.get("completion_tokens_details")
+                    .and_then(|d| take_first(d, &["audio_tokens", "audioTokens"]))
+            })
+            .or_else(|| {
+                crate::chat_manager::request::modality_token_count(
+                    u.get("promptTokensDetails"),
+                    "AUDIO",
+                )
+            })
+            .or_else(|| {
+                crate::chat_manager::request::modality_token_count(
+                    u.get("candidatesTokensDetails"),
+                    "AUDIO",
+                )
+            });
         let cached_prompt_tokens = take_first(
             u,
             &[
@@ -675,6 +697,7 @@ pub fn usage_from_value(v: &Value) -> Option<UsageSummary> {
             completion_tokens,
             reasoning_tokens,
             image_tokens,
+            audio_tokens,
             cached_prompt_tokens,
             cache_write_tokens,
             web_search_requests,
@@ -691,6 +714,7 @@ pub fn usage_from_value(v: &Value) -> Option<UsageSummary> {
         (
             prompt_tokens,
             completion_tokens,
+            None,
             None,
             None,
             None,
@@ -751,6 +775,7 @@ pub fn usage_from_value(v: &Value) -> Option<UsageSummary> {
             cache_write_tokens,
             reasoning_tokens,
             image_tokens,
+            audio_tokens,
             web_search_requests,
             api_cost,
             response_id: v
