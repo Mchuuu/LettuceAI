@@ -5783,8 +5783,14 @@ fn build_group_system_prompt(
         result = result.replace("{{context_summary}}", &context_summary_text);
         result = result.replace("{{key_memories}}", &key_memories_text);
         result = result.replace("{{content_rules}}", &content_rules);
-        result = result.replace("{{scene}}", &scene_content);
-        result = result.replace("{{scene_direction}}", &scene_direction);
+        result = result.replace(
+            "{{scene}}",
+            &crate::chat_manager::request::strip_inline_image_tokens(&scene_content),
+        );
+        result = result.replace(
+            "{{scene_direction}}",
+            &crate::chat_manager::request::strip_inline_image_tokens(&scene_direction),
+        );
         if lorebook_text.trim().is_empty() {
             result = result.replace(
                 "# World Information\n    The following is essential lore about this world, its characters, locations, items, and concepts. You MUST incorporate this information naturally into your roleplay when relevant. Treat this as established canon that shapes how characters behave, what they know, and how the world works.\n    {{lorebook}}",

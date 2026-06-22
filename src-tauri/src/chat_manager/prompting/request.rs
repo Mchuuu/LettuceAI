@@ -26,9 +26,29 @@ fn selected_variant(message: &StoredMessage) -> Option<&MessageVariant> {
 }
 
 pub fn message_text_for_api(message: &StoredMessage) -> String {
-    selected_variant(message)
+    let raw = selected_variant(message)
         .map(|variant| variant.content.clone())
-        .unwrap_or_else(|| message.content.clone())
+        .unwrap_or_else(|| message.content.clone());
+    strip_inline_image_tokens(&raw)
+}
+
+pub fn strip_inline_image_tokens(text: &str) -> String {
+    const PREFIX: &str = "{{image:";
+    if !text.contains(PREFIX) {
+        return text.to_string();
+    }
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(start) = rest.find(PREFIX) {
+        if let Some(end_rel) = rest[start..].find("}}") {
+            out.push_str(&rest[..start]);
+            rest = &rest[start + end_rel + 2..];
+        } else {
+            break;
+        }
+    }
+    out.push_str(rest);
+    out
 }
 
 /// Extract reasoning tokens from API response (for thinking models)

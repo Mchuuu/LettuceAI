@@ -3854,8 +3854,14 @@ pub fn render_with_context_internal(
         );
     }
 
-    result = result.replace("{{scene}}", &scene_content);
-    result = result.replace("{{scene_direction}}", &scene_direction);
+    result = result.replace(
+        "{{scene}}",
+        &crate::chat_manager::request::strip_inline_image_tokens(&scene_content),
+    );
+    result = result.replace(
+        "{{scene_direction}}",
+        &crate::chat_manager::request::strip_inline_image_tokens(&scene_direction),
+    );
     result = result.replace("{{char.name}}", char_name);
     result = result.replace("{{char.desc}}", &char_desc);
     result = result.replace("{{persona.name}}", persona_name);
