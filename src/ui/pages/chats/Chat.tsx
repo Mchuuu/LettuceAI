@@ -3663,7 +3663,12 @@ export function ChatConversationPage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 12 }}
               transition={{ duration: 0.22 }}
-              className="relative z-10 flex max-h-[92vh] w-full max-w-[min(94vw,1380px)] flex-col items-center gap-4 lg:grid lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] lg:items-stretch lg:gap-6"
+              className={cn(
+                "relative z-10 flex max-h-[92vh] w-full flex-col items-center gap-4",
+                selectedImagePrompt
+                  ? "max-w-[min(94vw,1380px)] lg:grid lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] lg:items-stretch lg:gap-6"
+                  : "max-w-[min(94vw,1100px)] lg:gap-6",
+              )}
               onClick={(e) => e.stopPropagation()}
             >
               {selectedImagePrompt && (
