@@ -2,6 +2,7 @@ import { motion, type PanInfo, AnimatePresence } from "framer-motion";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw, Pin, User, Bot, ChevronDown, Volume2, Loader2, Square } from "lucide-react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
+import { SceneContent } from "./SceneContent";
 import type { StoredMessage, Character, Persona } from "../../../../core/storage/schemas";
 import { radius, typography, interactive, cn } from "../../../design-tokens";
 import { BottomMenu } from "../../../components/BottomMenu";
@@ -969,7 +970,7 @@ function ChatMessageInner({
           <TypingIndicator />
         ) : computed.showTypingIndicator ? null : (
           <>
-            <MarkdownRenderer
+            <SceneContent
               key={message.id + ":" + computed.selectedVariantIndex}
               content={resolvedDisplayContent}
               className="text-inherit select-none"
