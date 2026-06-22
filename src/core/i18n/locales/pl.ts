@@ -4833,6 +4833,12 @@ export const plMessages: DeepPartialMessageTree<LocaleMessages> = {
       importedMessage: "Dodano preset „{{name}}”.",
     },
   },
+  sceneImage: {
+    add: "Dodaj obraz / GIF",
+    upload: "Prześlij",
+    fromLibrary: "Z biblioteki",
+    hint: "Wstawione obrazy są widoczne w scenie, ale nie są wysyłane do AI.",
+  },
   dynamicMemory: {
     mode: {
       title: "Aktualizacje pamięci",

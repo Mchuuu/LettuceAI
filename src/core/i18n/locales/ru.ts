@@ -5356,6 +5356,12 @@ export const ruMessages: DeepPartialMessageTree<LocaleMessages> = {
       importedMessage: "Добавлен пресет «{{name}}».",
     },
   },
+  sceneImage: {
+    add: "Добавить изображение / GIF",
+    upload: "Загрузить",
+    fromLibrary: "Из библиотеки",
+    hint: "Вставленные изображения отображаются в сцене, но не отправляются ИИ.",
+  },
   dynamicMemory: {
     mode: {
       title: "Обновления памяти",

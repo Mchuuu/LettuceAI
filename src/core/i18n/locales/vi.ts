@@ -4747,6 +4747,12 @@ export const viMessages: DeepPartialMessageTree<LocaleMessages> = {
       importedMessage: "Đã thêm thiết lập sẵn \\\"{{name}}\\\".",
     },
   },
+  sceneImage: {
+    add: "Thêm ảnh / GIF",
+    upload: "Tải lên",
+    fromLibrary: "Từ thư viện",
+    hint: "Ảnh được chèn hiển thị trong cảnh nhưng không gửi đến AI.",
+  },
   dynamicMemory: {
     mode: {
       title: "Cập nhật bộ nhớ",

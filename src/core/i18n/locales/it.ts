@@ -4747,6 +4747,12 @@ export const itMessages: DeepPartialMessageTree<LocaleMessages> = {
       importedMessage: "Preset \"{{name}}\" aggiunto.",
     },
   },
+  sceneImage: {
+    add: "Aggiungi immagine / GIF",
+    upload: "Carica",
+    fromLibrary: "Dalla libreria",
+    hint: "Le immagini inserite appaiono nella scena ma non vengono inviate all'IA.",
+  },
   dynamicMemory: {
     mode: {
       title: "Aggiornamenti della memoria",

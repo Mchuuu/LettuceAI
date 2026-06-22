@@ -5356,6 +5356,12 @@ export const nlMessages: DeepPartialMessageTree<LocaleMessages> = {
       importedMessage: "Voorinstelling \\\"{{name}}\\\" toegevoegd. own",
     },
   },
+  sceneImage: {
+    add: "Afbeelding / GIF toevoegen",
+    upload: "Uploaden",
+    fromLibrary: "Uit bibliotheek",
+    hint: "Ingevoegde afbeeldingen verschijnen in de scène maar worden niet naar de AI gestuurd.",
+  },
   dynamicMemory: {
     mode: {
       title: "Geheugenupdates",

@@ -5356,6 +5356,12 @@ export const koMessages: DeepPartialMessageTree<LocaleMessages> = {
       importedMessage: "프리셋 \\\"{{name}}\\\"이(가) 추가되었습니다.",
     },
   },
+  sceneImage: {
+    add: "이미지 / GIF 추가",
+    upload: "업로드",
+    fromLibrary: "라이브러리에서",
+    hint: "삽입한 이미지는 장면에 표시되지만 AI에는 전송되지 않습니다.",
+  },
   dynamicMemory: {
     mode: {
       title: "메모리 업데이트",

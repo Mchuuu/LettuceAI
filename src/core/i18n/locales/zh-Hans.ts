@@ -5356,6 +5356,12 @@ export const zhHansMessages: DeepPartialMessageTree<LocaleMessages> = {
       importedMessage: "已添加预设 \"{{name}}\"。",
     },
   },
+  sceneImage: {
+    add: "添加图片 / GIF",
+    upload: "上传",
+    fromLibrary: "从库中选择",
+    hint: "插入的图片会显示在场景中，但不会发送给 AI。",
+  },
   dynamicMemory: {
     mode: {
       title: "记忆更新",

@@ -5356,6 +5356,12 @@ export const trMessages: DeepPartialMessageTree<LocaleMessages> = {
       importedMessage: "\"{{name}}\" ön ayarı eklendi.",
     },
   },
+  sceneImage: {
+    add: "Görsel / GIF ekle",
+    upload: "Yükle",
+    fromLibrary: "Kitaplıktan",
+    hint: "Eklenen görseller sahnede görünür ancak yapay zekaya gönderilmez.",
+  },
   dynamicMemory: {
     mode: {
       title: "Hafıza güncellemeleri",

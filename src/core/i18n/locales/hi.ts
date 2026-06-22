@@ -4747,6 +4747,12 @@ export const hiMessages: DeepPartialMessageTree<LocaleMessages> = {
       importedMessage: "preset \\\"{{name}}\\\" जोड़ दिया गया।",
     },
   },
+  sceneImage: {
+    add: "छवि / GIF जोड़ें",
+    upload: "अपलोड करें",
+    fromLibrary: "लाइब्रेरी से",
+    hint: "जोड़ी गई छवियां सीन में दिखती हैं लेकिन AI को नहीं भेजी जातीं।",
+  },
   dynamicMemory: {
     mode: {
       title: "मेमोरी अपडेट",

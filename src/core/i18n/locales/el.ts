@@ -5356,6 +5356,12 @@ export const elMessages: DeepPartialMessageTree<LocaleMessages> = {
       importedMessage: "Προστέθηκε η προεπιλογή \"{{name}}\".",
     },
   },
+  sceneImage: {
+    add: "Προσθήκη εικόνας / GIF",
+    upload: "Μεταφόρτωση",
+    fromLibrary: "Από τη βιβλιοθήκη",
+    hint: "Οι εικόνες που εισάγονται εμφανίζονται στη σκηνή αλλά δεν αποστέλλονται στο AI.",
+  },
   dynamicMemory: {
     mode: {
       title: "Ενημερώσεις μνήμης",

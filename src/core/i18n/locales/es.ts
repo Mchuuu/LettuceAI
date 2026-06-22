@@ -5356,6 +5356,12 @@ export const esMessages: DeepPartialMessageTree<LocaleMessages> = {
       importedMessage: "Ajuste preestablecido \\\"{{name}}\\\" añadido.",
     },
   },
+  sceneImage: {
+    add: "Añadir imagen / GIF",
+    upload: "Subir",
+    fromLibrary: "Desde la biblioteca",
+    hint: "Las imágenes insertadas aparecen en la escena, pero no se envían a la IA.",
+  },
   dynamicMemory: {
     mode: {
       title: "Actualizaciones de memoria",

@@ -5356,6 +5356,12 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       importedMessage: "已新增預設集「{{name}}」。",
     },
   },
+  sceneImage: {
+    add: "新增圖片 / GIF",
+    upload: "上傳",
+    fromLibrary: "從媒體庫選擇",
+    hint: "插入的圖片會顯示在場景中，但不會傳送給 AI。",
+  },
   dynamicMemory: {
     mode: {
       title: "記憶更新",

@@ -5356,6 +5356,12 @@ export const filMessages: DeepPartialMessageTree<LocaleMessages> = {
       importedMessage: "Naidagdag ang preset na \\\"{{name}}\\\".",
     },
   },
+  sceneImage: {
+    add: "Magdagdag ng larawan / GIF",
+    upload: "I-upload",
+    fromLibrary: "Mula sa library",
+    hint: "Ang mga inilagay na larawan ay lumalabas sa eksena ngunit hindi ipinapadala sa AI.",
+  },
   dynamicMemory: {
     mode: {
       title: "Mga Update sa Memory",

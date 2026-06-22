@@ -5553,6 +5553,12 @@ export const enMessages = {
       secondary: "Secondary",
     },
   },
+  sceneImage: {
+    add: "Add image / GIF",
+    upload: "Upload",
+    fromLibrary: "From library",
+    hint: "Inserted images show in the scene but are not sent to the AI.",
+  },
   dynamicMemory: {
     mode: {
       title: "Memory Updates",

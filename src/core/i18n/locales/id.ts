@@ -4747,6 +4747,12 @@ export const idMessages: DeepPartialMessageTree<LocaleMessages> = {
       importedMessage: "Prasetel \"{{name}}\" telah ditambahkan.",
     },
   },
+  sceneImage: {
+    add: "Tambah gambar / GIF",
+    upload: "Unggah",
+    fromLibrary: "Dari pustaka",
+    hint: "Gambar yang disisipkan tampil di scene tetapi tidak dikirim ke AI.",
+  },
   dynamicMemory: {
     mode: {
       title: "Pembaruan Memori",

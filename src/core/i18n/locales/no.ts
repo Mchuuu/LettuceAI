@@ -5356,6 +5356,12 @@ export const noMessages: DeepPartialMessageTree<LocaleMessages> = {
       importedMessage: "La til forhåndsinnstilling \\\"{{name}}\\\".",
     },
   },
+  sceneImage: {
+    add: "Legg til bilde / GIF",
+    upload: "Last opp",
+    fromLibrary: "Fra bibliotek",
+    hint: "Innsatte bilder vises i scenen, men sendes ikke til AI-en.",
+  },
   dynamicMemory: {
     mode: {
       title: "Minneoppdateringer",

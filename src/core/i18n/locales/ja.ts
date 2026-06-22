@@ -4747,6 +4747,12 @@ export const jaMessages: DeepPartialMessageTree<LocaleMessages> = {
       importedMessage: "プリセット「{{name}}」を追加しました。",
     },
   },
+  sceneImage: {
+    add: "画像 / GIF を追加",
+    upload: "アップロード",
+    fromLibrary: "ライブラリから",
+    hint: "挿入した画像はシーンに表示されますが、AI には送信されません。",
+  },
   dynamicMemory: {
     mode: {
       title: "メモリの更新",
