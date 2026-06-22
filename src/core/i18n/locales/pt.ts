@@ -1675,6 +1675,8 @@ export const ptMessages: DeepPartialMessageTree<LocaleMessages> = {
         insertIntoMessage: "Inserir na mensagem",
         recent: "Recentes",
         clear: "Limpar",
+        menuDescription: "Role os dados e adicione o resultado à sua mensagem",
+        editNotation: "Editar notação dos dados",
       },
       image: {
         alt: "Imagem do widget",

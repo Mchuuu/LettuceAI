@@ -1675,6 +1675,8 @@ export const filMessages: DeepPartialMessageTree<LocaleMessages> = {
         insertIntoMessage: "Ilagay sa mensahe",
         recent: "Kamakailan",
         clear: "I-clear",
+        menuDescription: "Maghagis ng dice at idagdag ang resulta sa iyong mensahe",
+        editNotation: "I-edit ang dice notation",
       },
       image: {
         alt: "Larawan ng widget",

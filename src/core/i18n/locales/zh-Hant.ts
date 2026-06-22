@@ -1631,6 +1631,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
         insertIntoMessage: "插入訊息中",
         recent: "最近記錄",
         clear: "清除",
+        menuDescription: "擲骰子並將結果加入你的訊息中",
+        editNotation: "編輯骰子表達式",
       },
       image: {
         alt: "元件圖片",

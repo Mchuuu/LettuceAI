@@ -1675,6 +1675,8 @@ export const frMessages: DeepPartialMessageTree<LocaleMessages> = {
         insertIntoMessage: "Insérer dans le message",
         recent: "Récents",
         clear: "Effacer",
+        menuDescription: "Lancez les dés et ajoutez le résultat à votre message",
+        editNotation: "Modifier la notation des dés",
       },
       image: {
         alt: "Image du widget",

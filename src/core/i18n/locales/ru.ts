@@ -1675,6 +1675,8 @@ export const ruMessages: DeepPartialMessageTree<LocaleMessages> = {
         insertIntoMessage: "Вставить в сообщение",
         recent: "Недавние",
         clear: "Очистить",
+        menuDescription: "Бросьте кости и добавьте результат в ваше сообщение",
+        editNotation: "Изменить запись костей",
       },
       image: {
         alt: "Изображение виджета",

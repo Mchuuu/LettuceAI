@@ -1675,6 +1675,8 @@ export const hiMessages: DeepPartialMessageTree<LocaleMessages> = {
         insertIntoMessage: "संदेश में डालें",
         recent: "हालिया",
         clear: "साफ़ करें",
+        menuDescription: "पासा फेंकें और परिणाम को अपने संदेश में जोड़ें",
+        editNotation: "पासा नोटेशन संपादित करें",
       },
       image: {
         alt: "विजेट छवि",

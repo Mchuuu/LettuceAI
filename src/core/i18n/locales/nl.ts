@@ -1675,6 +1675,8 @@ export const nlMessages: DeepPartialMessageTree<LocaleMessages> = {
         insertIntoMessage: "In bericht invoegen",
         recent: "Recent",
         clear: "Wissen",
+        menuDescription: "Gooi de dobbelstenen en voeg het resultaat toe aan je bericht",
+        editNotation: "Dobbelsteennotatie bewerken",
       },
       image: {
         alt: "Widget-afbeelding",

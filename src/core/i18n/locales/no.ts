@@ -1675,6 +1675,8 @@ export const noMessages: DeepPartialMessageTree<LocaleMessages> = {
         insertIntoMessage: "Sett inn i melding",
         recent: "Nylige",
         clear: "Tøm",
+        menuDescription: "Kast terninger og legg resultatet til i meldingen din",
+        editNotation: "Rediger terningnotasjon",
       },
       image: {
         alt: "Modulbilde",

@@ -1675,6 +1675,8 @@ export const jaMessages: DeepPartialMessageTree<LocaleMessages> = {
         insertIntoMessage: "メッセージに挿入",
         recent: "最近",
         clear: "クリア",
+        menuDescription: "サイコロを振って結果をメッセージに追加します",
+        editNotation: "ダイス記法を編集",
       },
       image: {
         alt: "ウィジェット画像",

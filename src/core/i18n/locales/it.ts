@@ -1675,6 +1675,8 @@ export const itMessages: DeepPartialMessageTree<LocaleMessages> = {
         insertIntoMessage: "Inserisci nel messaggio",
         recent: "Recenti",
         clear: "Cancella",
+        menuDescription: "Lancia i dadi e aggiungi il risultato al tuo messaggio",
+        editNotation: "Modifica notazione dei dadi",
       },
       image: {
         alt: "Immagine widget",

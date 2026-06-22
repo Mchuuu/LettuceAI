@@ -1675,6 +1675,8 @@ export const esMessages: DeepPartialMessageTree<LocaleMessages> = {
         insertIntoMessage: "Insertar en el mensaje",
         recent: "Reciente",
         clear: "Borrar",
+        menuDescription: "Lanza los dados y añade el resultado a tu mensaje",
+        editNotation: "Editar notación de dados",
       },
       image: {
         alt: "Imagen del widget",

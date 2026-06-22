@@ -1675,6 +1675,8 @@ export const koMessages: DeepPartialMessageTree<LocaleMessages> = {
         insertIntoMessage: "메시지에 삽입",
         recent: "최근",
         clear: "지우기",
+        menuDescription: "주사위를 굴려 결과를 메시지에 추가합니다",
+        editNotation: "주사위 표기법 편집",
       },
       image: {
         alt: "위젯 이미지",

@@ -1635,6 +1635,8 @@ export const elMessages: DeepPartialMessageTree<LocaleMessages> = {
         insertIntoMessage: "Εισαγωγή στο μήνυμα",
         recent: "Πρόσφατα",
         clear: "Καθαρισμός",
+        menuDescription: "Ρίξτε ζάρια και προσθέστε το αποτέλεσμα στο μήνυμά σας",
+        editNotation: "Επεξεργασία σημειογραφίας ζαριών",
       },
       image: {
         alt: "Εικόνα widget",

@@ -1675,6 +1675,8 @@ export const plMessages: DeepPartialMessageTree<LocaleMessages> = {
         insertIntoMessage: "Wstaw do wiadomości",
         recent: "Ostatnie",
         clear: "Wyczyść",
+        menuDescription: "Rzuć kośćmi i dodaj wynik do swojej wiadomości",
+        editNotation: "Edytuj notację kości",
       },
       image: {
         alt: "Obraz widżetu",

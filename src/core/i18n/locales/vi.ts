@@ -1675,6 +1675,8 @@ export const viMessages: DeepPartialMessageTree<LocaleMessages> = {
         insertIntoMessage: "Chèn vào tin nhắn",
         recent: "Gần đây",
         clear: "Xóa",
+        menuDescription: "Tung xúc xắc và thêm kết quả vào tin nhắn của bạn",
+        editNotation: "Chỉnh sửa ký hiệu xúc xắc",
       },
       image: {
         alt: "Hình ảnh tiện ích",

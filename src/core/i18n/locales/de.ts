@@ -1675,6 +1675,8 @@ export const deMessages: DeepPartialMessageTree<LocaleMessages> = {
         insertIntoMessage: "In Nachricht einfügen",
         recent: "Zuletzt",
         clear: "Leeren",
+        menuDescription: "Würfeln und das Ergebnis zu deiner Nachricht hinzufügen",
+        editNotation: "Würfelnotation bearbeiten",
       },
       image: {
         alt: "Widget-Bild",

@@ -1675,6 +1675,8 @@ export const trMessages: DeepPartialMessageTree<LocaleMessages> = {
         insertIntoMessage: "Mesaja ekle",
         recent: "Son kullanılanlar",
         clear: "Temizle",
+        menuDescription: "Zar atın ve sonucu mesajınıza ekleyin",
+        editNotation: "Zar gösterimini düzenle",
       },
       image: {
         alt: "Widget resmi",

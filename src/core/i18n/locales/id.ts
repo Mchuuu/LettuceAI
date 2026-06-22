@@ -1675,6 +1675,8 @@ export const idMessages: DeepPartialMessageTree<LocaleMessages> = {
         insertIntoMessage: "Sisipkan ke pesan",
         recent: "Terbaru",
         clear: "Bersihkan",
+        menuDescription: "Lempar dadu dan tambahkan hasilnya ke pesan Anda",
+        editNotation: "Edit notasi dadu",
       },
       image: {
         alt: "Gambar widget",
