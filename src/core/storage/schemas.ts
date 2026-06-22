@@ -2374,6 +2374,7 @@ export const DynamicMemorySettingsSchema = z.object({
   contextEnrichmentEnabled: z.boolean().default(true),
   recursiveMemoryLoops: z.boolean().default(false),
   recursiveMemoryLoopHardCap: z.number().min(1).max(100).default(20),
+  runMode: z.enum(["auto", "askFirst", "manual"]).optional(),
 });
 export type DynamicMemorySettings = z.infer<typeof DynamicMemorySettingsSchema>;
 

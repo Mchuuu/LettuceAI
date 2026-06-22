@@ -98,6 +98,7 @@ import {
 } from "../../../core/storage";
 import { BottomMenu, GuidedTour, MenuButton, useGuidedTour } from "../../components";
 import { AvatarImage } from "../../components/AvatarImage";
+import { DynamicMemoryApprovalGate } from "../../components/DynamicMemoryApprovalGate";
 import { useAvatar } from "../../hooks/useAvatar";
 import { Image, RefreshCw, Sparkles, Check, PenLine, Lock, FileAudio } from "lucide-react";
 import { radius, cn } from "../../design-tokens";
@@ -3175,6 +3176,11 @@ export function ChatConversationPage() {
         onClose={() => setShowAuthorNoteMenu(false)}
         session={sessionForHeader ?? chatController.session}
         onSaved={setSessionForHeader}
+      />
+
+      <DynamicMemoryApprovalGate
+        sessionId={chatController.session?.id ?? null}
+        variant="chat"
       />
 
       <PersonaSelector
