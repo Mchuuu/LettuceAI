@@ -1188,6 +1188,34 @@ pub async fn chat_generate_companion_soul(
 }
 
 #[tauri::command]
+pub fn companion_remove_soul_growth(
+    app: AppHandle,
+    session_id: String,
+    index: u32,
+) -> Result<bool, String> {
+    let mut session = super::storage::load_session(&app, &session_id)?
+        .ok_or_else(|| "Session not found".to_string())?;
+    let now = crate::utils::now_millis()?;
+    let removed = super::companion::remove_soul_growth_at(&mut session, index as usize, now);
+    if removed {
+        super::storage::save_session(&app, &session)?;
+    }
+    Ok(removed)
+}
+
+#[tauri::command]
+pub fn companion_clear_soul_growth(app: AppHandle, session_id: String) -> Result<u32, String> {
+    let mut session = super::storage::load_session(&app, &session_id)?
+        .ok_or_else(|| "Session not found".to_string())?;
+    let now = crate::utils::now_millis()?;
+    let removed = super::companion::clear_soul_growth(&mut session, now);
+    if removed > 0 {
+        super::storage::save_session(&app, &session)?;
+    }
+    Ok(removed as u32)
+}
+
+#[tauri::command]
 pub async fn chat_generate_lorebook_entry_draft(
     app: AppHandle,
     args: ChatGenerateLorebookEntryDraftArgs,

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -10,13 +10,18 @@ import {
   Loader2,
   ScrollText,
   Shield,
+  ShieldAlert,
   Shirt,
   Sparkles,
+  Sprout,
   Star,
   Target,
+  Trash2,
   TrendingDown,
   TrendingUp,
+  X,
 } from "lucide-react";
+import { clearCompanionSoulGrowth, removeCompanionSoulGrowth } from "../../../core/companion/soul";
 import { useParams, useSearchParams } from "react-router-dom";
 import { cn, components, interactive, radius } from "../../design-tokens";
 import { Routes, useNavigationManager } from "../../navigation";
@@ -239,21 +244,71 @@ function SoulCard({
   );
 }
 
+function growthCategoryLabelKey(category: string) {
+  switch (category) {
+    case "appearance":
+      return "chats.companionRelationship.appearance" as const;
+    case "goals":
+      return "chats.companionRelationship.goals" as const;
+    case "likes":
+      return "chats.companionRelationship.likes" as const;
+    case "voice":
+      return "chats.companionRelationship.voice" as const;
+    case "relationalStyle":
+      return "chats.companionRelationship.relationalStyle" as const;
+    case "vulnerabilities":
+      return "chats.companionRelationship.vulnerabilities" as const;
+    case "fears":
+      return "chats.companionRelationship.fears" as const;
+    case "habits":
+      return "chats.companionRelationship.habits" as const;
+    case "boundaries":
+      return "chats.companionRelationship.boundaries" as const;
+    default:
+      return "chats.companionRelationship.soulGrowth" as const;
+  }
+}
+
 export function CompanionRelationshipPage() {
   const { characterId } = useParams<{ characterId: string }>();
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("sessionId");
   const { go, backOrReplace } = useNavigationManager();
   const { t } = useI18n();
-  const { session, character, loading, error, memoryItems } = useCompanionSessionData(
+  const { session, character, loading, error, memoryItems, reload } = useCompanionSessionData(
     characterId,
     sessionId,
   );
+  const [clearingGrowth, setClearingGrowth] = useState(false);
+  const [removingGrowth, setRemovingGrowth] = useState<number | null>(null);
 
   const companion = character?.companion ?? null;
   const relationshipState = session?.companionState?.relationshipState;
   const emotionalState = session?.companionState?.emotionalState;
   const activeSignals = session?.companionState?.activeSignals ?? [];
+  const soulGrowth = session?.companionState?.soulGrowth ?? [];
+
+  const handleClearGrowth = async () => {
+    if (!session || clearingGrowth || soulGrowth.length === 0) return;
+    setClearingGrowth(true);
+    try {
+      await clearCompanionSoulGrowth(session.id);
+      await reload();
+    } finally {
+      setClearingGrowth(false);
+    }
+  };
+
+  const handleRemoveGrowth = async (storageIndex: number) => {
+    if (!session || removingGrowth !== null || storageIndex < 0) return;
+    setRemovingGrowth(storageIndex);
+    try {
+      await removeCompanionSoulGrowth(session.id, storageIndex);
+      await reload();
+    } finally {
+      setRemovingGrowth(null);
+    }
+  };
 
   const feltEntries = useMemo(() => topEmotionEntries(emotionalState?.felt, 5), [emotionalState?.felt]);
   const expressedEntries = useMemo(() => topEmotionEntries(emotionalState?.expressed, 5), [emotionalState?.expressed]);
@@ -486,9 +541,100 @@ export function CompanionRelationshipPage() {
               <SoulCard label={t("chats.companionRelationship.voice")} value={companion?.soul?.voice} icon={BookHeart} />
               <SoulCard label={t("chats.companionRelationship.relationalStyle")} value={companion?.soul?.relationalStyle} icon={Heart} />
               <SoulCard label={t("chats.companionRelationship.vulnerabilities")} value={companion?.soul?.vulnerabilities} icon={Heart} />
+              <SoulCard label={t("chats.companionRelationship.fears")} value={companion?.soul?.fears} icon={ShieldAlert} />
               <SoulCard label={t("chats.companionRelationship.habits")} value={companion?.soul?.habits} icon={Link2} />
               <SoulCard label={t("chats.companionRelationship.boundaries")} value={companion?.soul?.boundaries} icon={Shield} />
             </div>
+          </section>
+
+          <section>
+            <SectionLabel
+              right={
+                soulGrowth.length ? (
+                  <button
+                    onClick={handleClearGrowth}
+                    disabled={clearingGrowth}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-md border border-fg/10 bg-fg/4 px-2.5 py-1 text-[11px] font-medium text-fg/60",
+                      "hover:border-rose-400/30 hover:bg-rose-400/10 hover:text-rose-400 disabled:opacity-50",
+                      interactive.transition.fast,
+                    )}
+                  >
+                    {clearingGrowth ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                    {t("chats.companionRelationship.soulGrowthClear")}
+                  </button>
+                ) : (
+                  t("chats.companionRelationship.soulGrowthCount", { count: 0 })
+                )
+              }
+            >
+              {t("chats.companionRelationship.soulGrowth")}
+            </SectionLabel>
+            <p className="mb-2 text-[11px] text-fg/40">{t("chats.companionRelationship.soulGrowthDesc")}</p>
+
+            {soulGrowth.length ? (
+              <div className="space-y-2">
+                {soulGrowth
+                  .slice()
+                  .sort((a, b) => b.createdAt - a.createdAt)
+                  .map((entry, index) => {
+                    const storageIndex = soulGrowth.indexOf(entry);
+                    const removing = removingGrowth === storageIndex;
+                    return (
+                      <div
+                        key={`${entry.category}-${entry.createdAt}-${index}`}
+                        className="rounded-xl border border-fg/8 bg-fg/2 px-3 py-2.5"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-fg/40">
+                            <Sprout size={11} className="text-accent" />
+                            <span className="font-semibold uppercase tracking-wider text-fg/55">
+                              {t(growthCategoryLabelKey(entry.category))}
+                            </span>
+                            <span className="rounded-full border border-fg/10 bg-fg/5 px-1.5 py-0.5 text-[9px] font-medium text-fg/55">
+                              {entry.kind === "adjust"
+                                ? t("chats.companionRelationship.growthKindAdjust")
+                                : t("chats.companionRelationship.growthKindAdd")}
+                            </span>
+                            {entry.createdAt ? (
+                              <>
+                                <span className="text-fg/20">·</span>
+                                <span>{formatRelativeTime(t, entry.createdAt)}</span>
+                              </>
+                            ) : null}
+                            {entry.sourceMemoryIds.length ? (
+                              <>
+                                <span className="text-fg/20">·</span>
+                                <span>
+                                  {t("chats.companionRelationship.soulGrowthSources", {
+                                    count: entry.sourceMemoryIds.length,
+                                  })}
+                                </span>
+                              </>
+                            ) : null}
+                          </div>
+                          <button
+                            onClick={() => handleRemoveGrowth(storageIndex)}
+                            disabled={removingGrowth !== null}
+                            title={t("chats.companionRelationship.soulGrowthRemove")}
+                            aria-label={t("chats.companionRelationship.soulGrowthRemove")}
+                            className={cn(
+                              "shrink-0 rounded-md p-1 text-fg/35",
+                              "hover:bg-rose-400/10 hover:text-rose-400 disabled:opacity-40",
+                              interactive.transition.fast,
+                            )}
+                          >
+                            {removing ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
+                          </button>
+                        </div>
+                        <p className="mt-1 text-sm leading-relaxed text-fg/85">{entry.value}</p>
+                      </div>
+                    );
+                  })}
+              </div>
+            ) : (
+              <p className="text-[11px] italic text-fg/35">{t("chats.companionRelationship.soulGrowthEmpty")}</p>
+            )}
           </section>
 
           {/* Timeline */}

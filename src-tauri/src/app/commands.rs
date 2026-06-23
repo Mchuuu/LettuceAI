@@ -178,6 +178,8 @@ macro_rules! invoke_handler {
             crate::chat_manager::chat_generate_scene_prompt,
             crate::chat_manager::chat_generate_design_reference_description,
             crate::chat_manager::chat_generate_companion_soul,
+            crate::chat_manager::companion_clear_soul_growth,
+            crate::chat_manager::companion_remove_soul_growth,
             crate::chat_manager::chat_generate_lorebook_entry_draft,
             crate::chat_manager::chat_generate_lorebook_keyword_draft,
             crate::chat_manager::lorebook_generator::commands::lorebook_gen_create,

@@ -3336,10 +3336,20 @@ const DEFAULT_COMPANION_RELATIONSHIP_STATE: CompanionRelationshipState = {
   lastInteractionAt: 0,
 };
 
+export const CompanionSoulGrowthEntrySchema = z.object({
+  category: z.string().default(""),
+  value: z.string().default(""),
+  kind: z.string().default("add"),
+  sourceMemoryIds: z.array(z.string()).default([]),
+  createdAt: z.number().int().default(0),
+});
+export type CompanionSoulGrowthEntry = z.infer<typeof CompanionSoulGrowthEntrySchema>;
+
 export const CompanionSessionStateSchema = z.object({
   emotionalState: CompanionEmotionalStateSchema.default(DEFAULT_COMPANION_EMOTIONAL_STATE),
   relationshipState: CompanionRelationshipStateSchema.default(DEFAULT_COMPANION_RELATIONSHIP_STATE),
   activeSignals: z.array(z.string()).default([]),
+  soulGrowth: z.array(CompanionSoulGrowthEntrySchema).optional(),
   preferences: z
     .object({
       timeAwarenessEnabled: z.boolean().default(false),

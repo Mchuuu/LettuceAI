@@ -778,6 +778,43 @@ pub fn changeable_soul_snapshot(character: &Character, session: &Session) -> Vec
         .collect()
 }
 
+pub fn remove_soul_growth_at(session: &mut Session, index: usize, now: u64) -> bool {
+    let raw = match &session.companion_state {
+        Some(raw) => raw.clone(),
+        None => return false,
+    };
+    let mut state: CompanionSessionState = match serde_json::from_value(raw) {
+        Ok(state) => state,
+        Err(_) => return false,
+    };
+    if index >= state.soul_growth.len() {
+        return false;
+    }
+    state.soul_growth.remove(index);
+    state.updated_at = now;
+    session.companion_state = serde_json::to_value(state).ok();
+    true
+}
+
+pub fn clear_soul_growth(session: &mut Session, now: u64) -> usize {
+    let raw = match &session.companion_state {
+        Some(raw) => raw.clone(),
+        None => return 0,
+    };
+    let mut state: CompanionSessionState = match serde_json::from_value(raw) {
+        Ok(state) => state,
+        Err(_) => return 0,
+    };
+    let removed = state.soul_growth.len();
+    if removed == 0 {
+        return 0;
+    }
+    state.soul_growth.clear();
+    state.updated_at = now;
+    session.companion_state = serde_json::to_value(state).ok();
+    removed
+}
+
 pub fn append_soul_growth(
     session: &mut Session,
     character: &Character,
