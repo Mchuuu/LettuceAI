@@ -72,6 +72,10 @@ export const hiMessages: DeepPartialMessageTree<LocaleMessages> = {
       discover: "खोजें",
       library: "लाइब्रेरी",
     },
+    toasts: {
+      openingBrowser: "आपके ब्राउज़र में खोला जा रहा है",
+      openLinkFailed: "लिंक नहीं खोला जा सका",
+    },
     buttons: {
       cancel: "रद्द करें",
       confirm: "पुष्टि करें",

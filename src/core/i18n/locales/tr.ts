@@ -72,6 +72,10 @@ export const trMessages: DeepPartialMessageTree<LocaleMessages> = {
       discover: "Keşfet",
       library: "Kütüphane",
     },
+    toasts: {
+      openingBrowser: "Tarayıcınızda açılıyor",
+      openLinkFailed: "Bağlantı açılamadı",
+    },
     buttons: {
       cancel: "İptal",
       confirm: "Onayla",

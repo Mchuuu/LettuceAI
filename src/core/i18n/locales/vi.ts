@@ -72,6 +72,10 @@ export const viMessages: DeepPartialMessageTree<LocaleMessages> = {
       discover: "Khám phá",
       library: "Thư viện",
     },
+    toasts: {
+      openingBrowser: "Đang mở trong trình duyệt của bạn",
+      openLinkFailed: "Không thể mở liên kết",
+    },
     buttons: {
       cancel: "Hủy",
       confirm: "Xác nhận",

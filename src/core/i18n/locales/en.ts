@@ -68,6 +68,10 @@ export const enMessages = {
       discover: "Discover",
       library: "Library",
     },
+    toasts: {
+      openingBrowser: "Opening in your browser",
+      openLinkFailed: "Could not open link",
+    },
     buttons: {
       cancel: "Cancel",
       confirm: "Confirm",

@@ -72,6 +72,10 @@ export const idMessages: DeepPartialMessageTree<LocaleMessages> = {
       discover: "Jelajahi",
       library: "Perpustakaan",
     },
+    toasts: {
+      openingBrowser: "Membuka di browser Anda",
+      openLinkFailed: "Tidak dapat membuka tautan",
+    },
     buttons: {
       cancel: "Batal",
       confirm: "Konfirmasi",

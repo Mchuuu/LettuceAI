@@ -72,6 +72,10 @@ export const ruMessages: DeepPartialMessageTree<LocaleMessages> = {
       discover: "Обзор",
       library: "Библиотека",
     },
+    toasts: {
+      openingBrowser: "Открытие в браузере",
+      openLinkFailed: "Не удалось открыть ссылку",
+    },
     buttons: {
       cancel: "Отмена",
       confirm: "Подтвердить",

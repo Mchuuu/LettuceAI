@@ -72,6 +72,10 @@ export const elMessages: DeepPartialMessageTree<LocaleMessages> = {
       discover: "Ανακάλυψη",
       library: "Βιβλιοθήκη",
     },
+    toasts: {
+      openingBrowser: "Άνοιγμα στο πρόγραμμα περιήγησης",
+      openLinkFailed: "Δεν ήταν δυνατό το άνοιγμα του συνδέσμου",
+    },
     buttons: {
       cancel: "Ακύρωση",
       confirm: "Επιβεβαίωση",

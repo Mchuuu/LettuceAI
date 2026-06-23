@@ -72,6 +72,10 @@ export const ptMessages: DeepPartialMessageTree<LocaleMessages> = {
       discover: "Descobrir",
       library: "Biblioteca",
     },
+    toasts: {
+      openingBrowser: "Abrindo no navegador",
+      openLinkFailed: "Não foi possível abrir o link",
+    },
     buttons: {
       cancel: "Cancelar",
       confirm: "Confirmar",

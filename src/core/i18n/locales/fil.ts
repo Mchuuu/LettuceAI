@@ -72,6 +72,10 @@ export const filMessages: DeepPartialMessageTree<LocaleMessages> = {
       discover: "Tuklasin",
       library: "Library",
     },
+    toasts: {
+      openingBrowser: "Binubuksan sa iyong browser",
+      openLinkFailed: "Hindi mabuksan ang link",
+    },
     buttons: {
       cancel: "Kanselahin",
       confirm: "Kumpirmahin",

@@ -72,6 +72,10 @@ export const koMessages: DeepPartialMessageTree<LocaleMessages> = {
       discover: "탐색",
       library: "라이브러리",
     },
+    toasts: {
+      openingBrowser: "브라우저에서 여는 중",
+      openLinkFailed: "링크를 열 수 없습니다",
+    },
     buttons: {
       cancel: "취소",
       confirm: "확인",

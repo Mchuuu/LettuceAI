@@ -72,6 +72,10 @@ export const zhHansMessages: DeepPartialMessageTree<LocaleMessages> = {
       discover: "发现",
       library: "资源库",
     },
+    toasts: {
+      openingBrowser: "正在浏览器中打开",
+      openLinkFailed: "无法打开链接",
+    },
     buttons: {
       cancel: "取消",
       confirm: "确认",

@@ -72,6 +72,10 @@ export const jaMessages: DeepPartialMessageTree<LocaleMessages> = {
       discover: "探索",
       library: "ライブラリ",
     },
+    toasts: {
+      openingBrowser: "ブラウザで開いています",
+      openLinkFailed: "リンクを開けませんでした",
+    },
     buttons: {
       cancel: "キャンセル",
       confirm: "確認",

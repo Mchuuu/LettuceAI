@@ -72,6 +72,10 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       discover: "探索",
       library: "資源庫",
     },
+    toasts: {
+      openingBrowser: "正在瀏覽器中開啟",
+      openLinkFailed: "無法開啟連結",
+    },
     buttons: {
       cancel: "取消",
       confirm: "確認",

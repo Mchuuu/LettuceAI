@@ -72,6 +72,10 @@ export const nlMessages: DeepPartialMessageTree<LocaleMessages> = {
       discover: "Ontdekken",
       library: "Bibliotheek",
     },
+    toasts: {
+      openingBrowser: "Wordt geopend in je browser",
+      openLinkFailed: "Kan de link niet openen",
+    },
     buttons: {
       cancel: "Annuleren",
       confirm: "Bevestigen",

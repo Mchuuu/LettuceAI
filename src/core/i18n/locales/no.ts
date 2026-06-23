@@ -72,6 +72,10 @@ export const noMessages: DeepPartialMessageTree<LocaleMessages> = {
       discover: "Oppdag",
       library: "Bibliotek",
     },
+    toasts: {
+      openingBrowser: "Åpner i nettleseren",
+      openLinkFailed: "Kunne ikke åpne lenken",
+    },
     buttons: {
       cancel: "Avbryt",
       confirm: "Bekreft",
