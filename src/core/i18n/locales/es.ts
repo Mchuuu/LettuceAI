@@ -3569,6 +3569,7 @@ export const esMessages: DeepPartialMessageTree<LocaleMessages> = {
       memoryDynamicDesc: "Resúmenes automáticos cuando está activada globalmente.",
       memoryModeHint: "La memoria dinámica debe estar activada en los ajustes avanzados; de lo contrario, se usa la memoria manual.",
       companionPromptTitle: "Prompt del compañero",
+      companionModeRequiredHint: "Activa el modo compañero para editar",
       systemPromptTitle: "Prompt del sistema",
       loadingTemplates: "Cargando plantillas...",
       useDefaultCompanionPrompt: "Usar el prompt de compañero predeterminado",

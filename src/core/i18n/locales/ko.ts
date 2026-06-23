@@ -3569,6 +3569,7 @@ export const koMessages: DeepPartialMessageTree<LocaleMessages> = {
       memoryDynamicDesc: "전역적으로 활성화되면 자동 요약.",
       memoryModeHint: "동적 기억은 고급 설정에서 켜야 합니다. 그렇지 않으면 수동 기억이 사용됩니다.",
       companionPromptTitle: "컴패니언 프롬프트",
+      companionModeRequiredHint: "편집하려면 컴패니언 모드를 활성화하세요",
       systemPromptTitle: "시스템 프롬프트",
       loadingTemplates: "템플릿 불러오는 중...",
       useDefaultCompanionPrompt: "기본 컴패니언 프롬프트 사용",

@@ -3569,6 +3569,7 @@ export const zhHansMessages: DeepPartialMessageTree<LocaleMessages> = {
       memoryDynamicDesc: "全局启用时自动生成摘要。",
       memoryModeHint: "必须在高级设置中开启动态记忆，否则将使用手动记忆。",
       companionPromptTitle: "伴侣提示词",
+      companionModeRequiredHint: "启用伴侣模式以编辑",
       systemPromptTitle: "系统提示词",
       loadingTemplates: "正在加载模板...",
       useDefaultCompanionPrompt: "使用默认伴侣提示词",

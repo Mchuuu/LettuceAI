@@ -3569,6 +3569,7 @@ export const elMessages: DeepPartialMessageTree<LocaleMessages> = {
       memoryDynamicDesc: "Αυτόματες περιλήψεις όταν είναι ενεργοποιημένες παγκόμια.",
       memoryModeHint: "Η Δυναμική Μνήμη πρέπει να είναι ενεργοποιημένη στις Προχωρημένες ρυθμίσεις· διαφορετικά χρησιμοποιείται η χειροκίνητη μνήμη.",
       companionPromptTitle: "Prompt Συνοδού",
+      companionModeRequiredHint: "Ενεργοποιήστε τη λειτουργία companion για επεξεργασία",
       systemPromptTitle: "System Prompt",
       loadingTemplates: "Φόρτωση προτύπων...",
       useDefaultCompanionPrompt: "Χρήση προεπιλεγμένου prompt συνοδού",

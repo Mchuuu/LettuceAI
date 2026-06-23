@@ -3569,6 +3569,7 @@ export const nlMessages: DeepPartialMessageTree<LocaleMessages> = {
       memoryDynamicDesc: "Automatische samenvattingen wanneer globaal ingeschakeld.",
       memoryModeHint: "Dynamisch geheugen moet worden ingeschakeld in Geavanceerde instellingen; anders wordt handmatig geheugen gebruikt.",
       companionPromptTitle: "Companion-prompt",
+      companionModeRequiredHint: "Schakel de companion-modus in om te bewerken",
       systemPromptTitle: "Systeemprompt",
       loadingTemplates: "Templates laden...",
       useDefaultCompanionPrompt: "Gebruik standaard companion-prompt",

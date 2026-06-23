@@ -3569,6 +3569,7 @@ export const jaMessages: DeepPartialMessageTree<LocaleMessages> = {
       memoryDynamicDesc: "グローバルで有効な場合に自動で要約します。",
       memoryModeHint: "ダイナミックメモリは詳細設定でオンにする必要があります。そうでない場合は手動メモリが使われます。",
       companionPromptTitle: "コンパニオンプロンプト",
+      companionModeRequiredHint: "編集するにはコンパニオンモードを有効にしてください",
       systemPromptTitle: "システムプロンプト",
       loadingTemplates: "テンプレートを読み込み中...",
       useDefaultCompanionPrompt: "既定のコンパニオンプロンプトを使用",

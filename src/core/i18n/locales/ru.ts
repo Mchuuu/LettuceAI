@@ -3569,6 +3569,7 @@ export const ruMessages: DeepPartialMessageTree<LocaleMessages> = {
       memoryDynamicDesc: "Автоматические сводки, когда включено глобально.",
       memoryModeHint: "Динамическая память должна быть включена в расширенных настройках; иначе используется ручная память.",
       companionPromptTitle: "Промпт компаньона",
+      companionModeRequiredHint: "Включите режим компаньона для редактирования",
       systemPromptTitle: "Системный промпт",
       loadingTemplates: "Загрузка шаблонов...",
       useDefaultCompanionPrompt: "Использовать промпт компаньона по умолчанию",

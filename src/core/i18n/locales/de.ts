@@ -3569,6 +3569,7 @@ export const deMessages: DeepPartialMessageTree<LocaleMessages> = {
       memoryDynamicDesc: "Automatische Zusammenfassungen, wenn global aktiviert.",
       memoryModeHint: "Dynamische Erinnerung muss in den erweiterten Einstellungen aktiviert sein; andernfalls wird die manuelle Erinnerung verwendet.",
       companionPromptTitle: "Companion-Prompt",
+      companionModeRequiredHint: "Companion-Modus aktivieren zum Bearbeiten",
       systemPromptTitle: "System-Prompt",
       loadingTemplates: "Vorlagen werden geladen...",
       useDefaultCompanionPrompt: "Standard-Companion-Prompt verwenden",

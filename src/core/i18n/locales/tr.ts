@@ -3569,6 +3569,7 @@ export const trMessages: DeepPartialMessageTree<LocaleMessages> = {
       memoryDynamicDesc: "Küresel olarak etkinleştirildiğinde otomatik özetler.",
       memoryModeHint: "Dinamik Bellek, Gelişmiş ayarlarda açılmalıdır; aksi takdirde manuel bellek kullanılır.",
       companionPromptTitle: "Yoldaş Komutu",
+      companionModeRequiredHint: "Düzenlemek için yoldaş modunu etkinleştir",
       systemPromptTitle: "Sistem Komutu",
       loadingTemplates: "Şablonlar yükleniyor...",
       useDefaultCompanionPrompt: "Varsayılan yoldaş komutunu kullan",

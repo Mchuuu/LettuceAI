@@ -3569,6 +3569,7 @@ export const filMessages: DeepPartialMessageTree<LocaleMessages> = {
       memoryDynamicDesc: "Awtomatikong mga lagom kapag naka-enable nang global.",
       memoryModeHint: "Dapat naka-on ang Dynamic Memory sa Advanced settings; kung hindi, ginagamit ang manual memory.",
       companionPromptTitle: "Companion Prompt",
+      companionModeRequiredHint: "I-enable ang companion mode para mai-edit",
       systemPromptTitle: "System Prompt",
       loadingTemplates: "Niloload ang mga template...",
       useDefaultCompanionPrompt: "Gamitin ang default na companion prompt",

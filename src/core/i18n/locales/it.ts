@@ -3569,6 +3569,7 @@ export const itMessages: DeepPartialMessageTree<LocaleMessages> = {
       memoryDynamicDesc: "Riepiloghi automatici quando abilitata globalmente.",
       memoryModeHint: "La Memoria dinamica deve essere attivata nelle impostazioni Avanzate; altrimenti viene usata la memoria manuale.",
       companionPromptTitle: "Prompt del compagno",
+      companionModeRequiredHint: "Attiva la modalità companion per modificare",
       systemPromptTitle: "Prompt di sistema",
       loadingTemplates: "Caricamento template...",
       useDefaultCompanionPrompt: "Usa prompt del compagno predefinito",

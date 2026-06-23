@@ -3569,6 +3569,7 @@ export const noMessages: DeepPartialMessageTree<LocaleMessages> = {
       memoryDynamicDesc: "Automatiske sammendrag når aktivert globalt.",
       memoryModeHint: "Dynamisk minne må slås på i Avanserte innstillinger; ellers brukes manuelt minne.",
       companionPromptTitle: "Følgesvennprompt",
+      companionModeRequiredHint: "Aktiver ledsager-modus for å redigere",
       systemPromptTitle: "Systemprompt",
       loadingTemplates: "Laster maler...",
       useDefaultCompanionPrompt: "Bruk standard følgesvennprompt",

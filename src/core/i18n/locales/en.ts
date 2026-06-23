@@ -3565,6 +3565,7 @@ export const enMessages = {
       memoryDynamicDesc: "Automatic summaries when enabled globally.",
       memoryModeHint: "Dynamic Memory must be turned on in Advanced settings; otherwise manual memory is used.",
       companionPromptTitle: "Companion Prompt",
+      companionModeRequiredHint: "Enable companion mode to edit",
       systemPromptTitle: "System Prompt",
       loadingTemplates: "Loading templates...",
       useDefaultCompanionPrompt: "Use default companion prompt",

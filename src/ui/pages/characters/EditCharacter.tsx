@@ -27,6 +27,8 @@ import {
   FolderOpen,
   Heart,
   Trash2,
+  Users,
+  Drama,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEditCharacterForm } from "./hooks/useEditCharacterForm";
@@ -2159,17 +2161,23 @@ export function EditCharacterPage() {
                 </div>
 
                 <div className="space-y-4">
-                  {/* Prompt Template Section */}
-                  <div className="space-y-3">
+                  <ActiveLorebooksSelector
+                    selectedIds={activeLorebookIds}
+                    onChange={(ids) => setFields({ activeLorebookIds: ids })}
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+
+              {/* Prompt Templates */}
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                {/* System Prompt */}
+                <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <div className="rounded-lg border border-info/30 bg-info/10 p-1.5">
-                      <BookOpen className="h-4 w-4 text-info" />
+                    <div className="rounded-lg border border-secondary/30 bg-secondary/10 p-1.5">
+                      <MessageSquare className="h-4 w-4 text-secondary" />
                     </div>
-                    <h3 className="text-sm font-semibold text-fg">
-                      {mode === "companion"
-                        ? t("characters.edit.companionPromptTitle")
-                        : t("characters.edit.systemPromptTitle")}
-                    </h3>
+                    <h3 className="text-sm font-semibold text-fg">{t("characters.edit.systemPromptTitle")}</h3>
                     <span className="ml-auto text-xs text-fg/40">{t("characters.edit.optionalSuffix")}</span>
                   </div>
 
@@ -2180,26 +2188,14 @@ export function EditCharacterPage() {
                     </div>
                   ) : promptTemplates.length > 0 ? (
                     <select
-                      value={
-                        mode === "companion"
-                          ? companionPromptTemplateId || ""
-                          : systemPromptTemplateId || ""
-                      }
+                      value={systemPromptTemplateId || ""}
                       onChange={(e) =>
-                        setFields(
-                          mode === "companion"
-                            ? { companionPromptTemplateId: e.target.value || null }
-                            : { systemPromptTemplateId: e.target.value || null },
-                        )
+                        setFields({ systemPromptTemplateId: e.target.value || null })
                       }
                       className="w-full appearance-none rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-sm text-fg transition focus:border-fg/25 focus:outline-none"
                     >
-                      <option value="">
-                        {mode === "companion"
-                          ? t("characters.edit.useDefaultCompanionPrompt")
-                          : t("characters.edit.useDefaultSystemPrompt")}
-                      </option>
-                      {(mode === "companion" ? companionPromptTemplates : directPromptTemplates).map((template) => (
+                      <option value="">{t("characters.edit.useDefaultSystemPrompt")}</option>
+                      {directPromptTemplates.map((template) => (
                         <option key={template.id} value={template.id}>
                           {template.name}
                         </option>
@@ -2208,30 +2204,67 @@ export function EditCharacterPage() {
                   ) : (
                     <div className="rounded-xl border border-fg/10 bg-surface-el/20 px-4 py-3">
                       <p className="text-sm text-fg/50">{t("characters.edit.usingAppDefault")}</p>
-                      <p className="mt-1 text-xs text-fg/40">
-                        {mode === "companion"
-                          ? t("characters.edit.noCompanionTemplatesHint")
-                          : t("characters.edit.noDirectTemplatesHint")}
-                      </p>
+                      <p className="mt-1 text-xs text-fg/40">{t("characters.edit.noDirectTemplatesHint")}</p>
                     </div>
                   )}
-                  <p className="text-xs text-fg/50">
-                    {mode === "companion"
-                      ? t("characters.edit.companionPromptStoredHint")
-                      : t("characters.edit.systemPromptOverrideHint")}
-                  </p>
+                  <p className="text-xs text-fg/50">{t("characters.edit.systemPromptOverrideHint")}</p>
                 </div>
 
-                <ActiveLorebooksSelector
-                  selectedIds={activeLorebookIds}
-                  onChange={(ids) => setFields({ activeLorebookIds: ids })}
-                  disabled={saving}
-                />
+                {/* Companion Prompt */}
+                <div
+                  className={cn(
+                    "space-y-3",
+                    mode !== "companion" && "pointer-events-none opacity-50",
+                  )}
+                  aria-disabled={mode !== "companion"}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-lg border border-danger/30 bg-danger/10 p-1.5">
+                      <Heart className="h-4 w-4 text-danger" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-fg">{t("characters.edit.companionPromptTitle")}</h3>
+                    <span className="ml-auto text-xs text-fg/40">
+                      {mode === "companion"
+                        ? t("characters.edit.optionalSuffix")
+                        : t("characters.edit.companionModeRequiredHint")}
+                    </span>
+                  </div>
 
+                  {loadingTemplates ? (
+                    <div className="flex items-center gap-2 rounded-xl border border-fg/10 bg-surface-el/20 px-4 py-3">
+                      <Loader2 className="h-4 w-4 animate-spin text-fg/50" />
+                      <span className="text-sm text-fg/50">{t("characters.edit.loadingTemplates")}</span>
+                    </div>
+                  ) : promptTemplates.length > 0 ? (
+                    <select
+                      value={companionPromptTemplateId || ""}
+                      disabled={mode !== "companion"}
+                      onChange={(e) =>
+                        setFields({ companionPromptTemplateId: e.target.value || null })
+                      }
+                      className="w-full appearance-none rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-sm text-fg transition focus:border-fg/25 focus:outline-none"
+                    >
+                      <option value="">{t("characters.edit.useDefaultCompanionPrompt")}</option>
+                      {companionPromptTemplates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="rounded-xl border border-fg/10 bg-surface-el/20 px-4 py-3">
+                      <p className="text-sm text-fg/50">{t("characters.edit.usingAppDefault")}</p>
+                      <p className="mt-1 text-xs text-fg/40">{t("characters.edit.noCompanionTemplatesHint")}</p>
+                    </div>
+                  )}
+                  <p className="text-xs text-fg/50">{t("characters.edit.companionPromptStoredHint")}</p>
+                </div>
+
+                {/* Group Chat Prompt (Conversation) */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <div className="rounded-lg border border-info/30 bg-info/10 p-1.5">
-                      <BookOpen className="h-4 w-4 text-info" />
+                      <Users className="h-4 w-4 text-info" />
                     </div>
                     <h3 className="text-sm font-semibold text-fg">{t("characters.edit.groupChatPromptTitle")}</h3>
                     <span className="ml-auto text-xs text-fg/40">{t("characters.edit.conversationSuffix")}</span>
@@ -2270,10 +2303,11 @@ export function EditCharacterPage() {
                   </p>
                 </div>
 
+                {/* Group Chat Prompt (Roleplay) */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <div className="rounded-lg border border-info/30 bg-info/10 p-1.5">
-                      <BookOpen className="h-4 w-4 text-info" />
+                    <div className="rounded-lg border border-warning/30 bg-warning/10 p-1.5">
+                      <Drama className="h-4 w-4 text-warning" />
                     </div>
                     <h3 className="text-sm font-semibold text-fg">{t("characters.edit.groupChatPromptTitle")}</h3>
                     <span className="ml-auto text-xs text-fg/40">{t("characters.edit.roleplaySuffix")}</span>
@@ -2313,7 +2347,6 @@ export function EditCharacterPage() {
                     {t("characters.edit.groupRoleplayOverrideHint")}
                   </p>
                 </div>
-              </div>
               </div>
             </>
           )}

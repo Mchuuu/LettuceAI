@@ -3569,6 +3569,7 @@ export const viMessages: DeepPartialMessageTree<LocaleMessages> = {
       memoryDynamicDesc: "Tóm tắt tự động khi được bật toàn cục.",
       memoryModeHint: "Ký ức động phải được bật trong cài đặt Nâng cao; nếu không, ký ức thủ công được dùng.",
       companionPromptTitle: "Prompt bạn đồng hành",
+      companionModeRequiredHint: "Bật chế độ bạn đồng hành để chỉnh sửa",
       systemPromptTitle: "Prompt hệ thống",
       loadingTemplates: "Đang tải mẫu...",
       useDefaultCompanionPrompt: "Dùng prompt bạn đồng hành mặc định",

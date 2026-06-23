@@ -3569,6 +3569,7 @@ export const idMessages: DeepPartialMessageTree<LocaleMessages> = {
       memoryDynamicDesc: "Ringkasan otomatis saat diaktifkan secara global.",
       memoryModeHint: "Memori Dinamis harus diaktifkan di pengaturan Lanjutan; jika tidak, memori manual yang dipakai.",
       companionPromptTitle: "Prompt Companion",
+      companionModeRequiredHint: "Aktifkan mode pendamping untuk mengedit",
       systemPromptTitle: "Prompt Sistem",
       loadingTemplates: "Memuat templat...",
       useDefaultCompanionPrompt: "Gunakan prompt companion default",

@@ -3569,6 +3569,7 @@ export const hiMessages: DeepPartialMessageTree<LocaleMessages> = {
       memoryDynamicDesc: "ग्लोबल रूप से सक्षम होने पर स्वचालित सारांश।",
       memoryModeHint: "डायनेमिक मेमोरी को एडवांस्ड सेटिंग्स में चालू करना होगा; अन्यथा मैनुअल मेमोरी का उपयोग किया जाता है।",
       companionPromptTitle: "कंपैनियन प्रॉम्प्ट",
+      companionModeRequiredHint: "संपादित करने के लिए कंपैनियन मोड सक्षम करें",
       systemPromptTitle: "सिस्टम प्रॉम्प्ट",
       loadingTemplates: "टेम्प्लेट लोड हो रहे हैं...",
       useDefaultCompanionPrompt: "डिफ़ॉल्ट कंपैनियन प्रॉम्प्ट का उपयोग करें",

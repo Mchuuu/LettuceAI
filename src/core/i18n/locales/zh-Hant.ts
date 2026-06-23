@@ -3569,6 +3569,7 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       memoryDynamicDesc: "全域啟用時自動生成摘要。",
       memoryModeHint: "必須在「進階設定」中開啟動態記憶，否則將使用手動記憶。",
       companionPromptTitle: "同伴提示詞",
+      companionModeRequiredHint: "啟用伴侶模式以編輯",
       systemPromptTitle: "系統提示詞",
       loadingTemplates: "正在載入模板...",
       useDefaultCompanionPrompt: "使用預設同伴提示詞",
