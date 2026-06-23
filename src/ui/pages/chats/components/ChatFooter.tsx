@@ -393,7 +393,7 @@ export function ChatFooter({
             onClick={handlePlusClick}
             disabled={sending}
             className={cn(
-              "mb-0.5 flex h-[43px] w-[43px] shrink-0 items-center justify-center self-end",
+              "mb-0.5 flex h-10.75 w-10.75 shrink-0 items-center justify-center self-end",
               radius.full,
               footerIconIdle,
               interactive.transition.fast,
@@ -423,7 +423,7 @@ export function ChatFooter({
                 onClick={onMicCancel}
                 disabled={recordingTranscribing}
                 className={cn(
-                  "mb-0.5 flex h-[43px] w-[43px] shrink-0 items-center justify-center self-end",
+                  "mb-0.5 flex h-10.75 w-10.75 shrink-0 items-center justify-center self-end",
                   radius.full,
                   "text-fg/60",
                   interactive.transition.fast,
@@ -440,7 +440,7 @@ export function ChatFooter({
             {recordingTranscribing ? (
               <div
                 className={cn(
-                  "mb-0.5 flex h-[43px] w-[43px] shrink-0 items-center justify-center self-end",
+                  "mb-0.5 flex h-10.75 w-10.75 shrink-0 items-center justify-center self-end",
                   radius.full,
                   "bg-accent text-black",
                 )}
@@ -455,7 +455,7 @@ export function ChatFooter({
                   onClick={onMicClick}
                   disabled={micDisabled}
                   className={cn(
-                    "mb-0.5 flex h-[43px] w-[43px] shrink-0 items-center justify-center self-end",
+                    "mb-0.5 flex h-10.75 w-10.75 shrink-0 items-center justify-center self-end",
                     radius.full,
                     "bg-accent text-black shadow-sm",
                     interactive.transition.fast,
@@ -498,7 +498,7 @@ export function ChatFooter({
                 onClick={onMicClick}
                 disabled={micDisabled}
                 className={cn(
-                  "mb-0.5 flex h-[43px] w-[43px] shrink-0 items-center justify-center self-end",
+                  "mb-0.5 flex h-10.75 w-10.75 shrink-0 items-center justify-center self-end",
                   radius.full,
                   footerIconIdle,
                   interactive.transition.fast,
@@ -524,7 +524,7 @@ export function ChatFooter({
               onContextMenu={handleSendButtonContextMenu}
               disabled={(sending && !onAbort) || composerDisabled}
               className={cn(
-                "mb-0.5 flex h-[43px] w-[43px] shrink-0 items-center justify-center self-end",
+                "mb-0.5 flex h-10.75 w-10.75 shrink-0 items-center justify-center self-end",
                 radius.full,
                 interactive.transition.fast,
                 interactive.active.scale,
@@ -586,7 +586,7 @@ export function ChatFooter({
               className={cn(
                 "h-11 border px-3 text-sm font-semibold transition",
                 radius.md,
-                "border-fg/10 bg-fg/[0.04] text-fg/75 hover:border-fg/20 hover:bg-fg/[0.07]",
+                "border-fg/10 bg-fg/4 text-fg/75 hover:border-fg/20 hover:bg-fg/[0.07]",
                 "disabled:cursor-not-allowed disabled:opacity-45",
               )}
             >
