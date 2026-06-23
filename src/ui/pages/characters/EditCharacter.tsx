@@ -1923,56 +1923,6 @@ export function EditCharacterPage() {
           {/* Settings Tab: Model & Memory */}
           {activeTab === "settings" && (
             <>
-              <div className="grid grid-cols-1 gap-4">
-                {/* Model Selection Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="rounded-lg border border-secondary/30 bg-secondary/10 p-1.5">
-                      <Cpu className="h-4 w-4 text-secondary" />
-                    </div>
-                    <h3 className="text-sm font-semibold text-fg">{t("characters.edit.defaultModelTitle")}</h3>
-                    <span className="ml-auto text-xs text-fg/40">{t("characters.edit.optionalSuffix")}</span>
-                  </div>
-
-                  {loadingModels ? (
-                    <div className="flex items-center gap-2 rounded-xl border border-fg/10 bg-surface-el/20 px-4 py-3">
-                      <Loader2 className="h-4 w-4 animate-spin text-fg/50" />
-                      <span className="text-sm text-fg/50">{t("characters.edit.loadingModels")}</span>
-                    </div>
-                  ) : models.length > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowModelMenu(true)}
-                      className="flex w-full items-center justify-between rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-left transition hover:bg-surface-el/30 focus:border-fg/25 focus:outline-none"
-                    >
-                      <div className="flex items-center gap-2">
-                        {selectedModelId ? (
-                          getProviderIcon(
-                            models.find((m) => m.id === selectedModelId)?.providerId || "",
-                          )
-                        ) : (
-                          <Cpu className="h-5 w-5 text-fg/40" />
-                        )}
-                        <span className={`text-sm ${selectedModelId ? "text-fg" : "text-fg/50"}`}>
-                          {selectedModelId
-                            ? models.find((m) => m.id === selectedModelId)?.displayName ||
-                              t("characters.edit.selectedModelFallback")
-                            : t("characters.edit.useGlobalDefaultModel")}
-                        </span>
-                      </div>
-                      <ChevronDown className="h-4 w-4 text-fg/40" />
-                    </button>
-                  ) : (
-                    <div className="rounded-xl border border-fg/10 bg-surface-el/20 px-4 py-3">
-                      <p className="text-sm text-fg/50">{t("characters.edit.noModelsAvailable")}</p>
-                    </div>
-                  )}
-                  <p className="text-xs text-fg/50">
-                    {t("characters.edit.defaultModelHint")}
-                  </p>
-                </div>
-              </div>
-
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 <div className="space-y-4">
                   {/* Voice Selection */}
@@ -2113,6 +2063,54 @@ export function EditCharacterPage() {
                 </div>
 
                 <div className="space-y-4">
+                  {/* Default Model */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="rounded-lg border border-secondary/30 bg-secondary/10 p-1.5">
+                        <Cpu className="h-4 w-4 text-secondary" />
+                      </div>
+                      <h3 className="text-sm font-semibold text-fg">{t("characters.edit.defaultModelTitle")}</h3>
+                      <span className="ml-auto text-xs text-fg/40">{t("characters.edit.optionalSuffix")}</span>
+                    </div>
+
+                    {loadingModels ? (
+                      <div className="flex items-center gap-2 rounded-xl border border-fg/10 bg-surface-el/20 px-4 py-3">
+                        <Loader2 className="h-4 w-4 animate-spin text-fg/50" />
+                        <span className="text-sm text-fg/50">{t("characters.edit.loadingModels")}</span>
+                      </div>
+                    ) : models.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowModelMenu(true)}
+                        className="flex w-full items-center justify-between rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-left transition hover:bg-surface-el/30 focus:border-fg/25 focus:outline-none"
+                      >
+                        <div className="flex items-center gap-2">
+                          {selectedModelId ? (
+                            getProviderIcon(
+                              models.find((m) => m.id === selectedModelId)?.providerId || "",
+                            )
+                          ) : (
+                            <Cpu className="h-5 w-5 text-fg/40" />
+                          )}
+                          <span className={`text-sm ${selectedModelId ? "text-fg" : "text-fg/50"}`}>
+                            {selectedModelId
+                              ? models.find((m) => m.id === selectedModelId)?.displayName ||
+                                t("characters.edit.selectedModelFallback")
+                              : t("characters.edit.useGlobalDefaultModel")}
+                          </span>
+                        </div>
+                        <ChevronDown className="h-4 w-4 text-fg/40" />
+                      </button>
+                    ) : (
+                      <div className="rounded-xl border border-fg/10 bg-surface-el/20 px-4 py-3">
+                        <p className="text-sm text-fg/50">{t("characters.edit.noModelsAvailable")}</p>
+                      </div>
+                    )}
+                    <p className="text-xs text-fg/50">
+                      {t("characters.edit.defaultModelHint")}
+                    </p>
+                  </div>
+
                   <ActiveLorebooksSelector
                     selectedIds={activeLorebookIds}
                     onChange={(ids) => setFields({ activeLorebookIds: ids })}
