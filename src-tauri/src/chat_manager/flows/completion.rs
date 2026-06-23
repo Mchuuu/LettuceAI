@@ -9,7 +9,7 @@ use crate::chat_manager::attachments::{
 use crate::chat_manager::commands::take_aborted_request;
 use crate::chat_manager::companion;
 use crate::chat_manager::execution::{
-    build_model_attempts, build_provider_extra_fields, emit_fallback_retry_toast, RequestSettings,
+    build_provider_extra_fields, RequestSettings,
 };
 use crate::chat_manager::memory::dynamic::{
     context_enrichment_enabled, dynamic_min_similarity, dynamic_retrieval_limit,
@@ -169,7 +169,6 @@ impl CompletionFlow {
             attachments: persisted_attachments,
             reasoning: None,
             model_id: None,
-            fallback_from_model_id: None,
         };
         session.messages.push(user_msg.clone());
         session.updated_at = now;
@@ -452,22 +451,13 @@ impl CompletionFlow {
             None
         };
 
-        let attempts = build_model_attempts(
-            &app,
-            settings,
-            &character,
-            &model,
-            &credential,
-            "chat_completion",
-        );
+        let attempts = vec![(&model, &credential, false)];
 
         let mut selected_model = &model;
         let mut selected_credential = &credential;
         let mut selected_api_key = String::new();
-        let mut fallback_from_model_id: Option<String> = None;
         let mut successful_response = None;
         let mut last_error = "request failed".to_string();
-        let mut fallback_toast_shown = false;
 
         for (idx, (attempt_model, attempt_credential, is_fallback_attempt)) in
             attempts.iter().enumerate()
@@ -488,7 +478,6 @@ impl CompletionFlow {
                     );
                     last_error = err;
                     if has_next_attempt {
-                        emit_fallback_retry_toast(&app, &mut fallback_toast_shown);
                         continue;
                     }
                     return Err(last_error);
@@ -614,7 +603,6 @@ impl CompletionFlow {
                     );
                     last_error = err;
                     if has_next_attempt {
-                        emit_fallback_retry_toast(&app, &mut fallback_toast_shown);
                         continue;
                     }
                     return Err(last_error);
@@ -676,7 +664,6 @@ impl CompletionFlow {
                 };
 
                 if has_next_attempt {
-                    emit_fallback_retry_toast(&app, &mut fallback_toast_shown);
                     continue;
                 }
                 return Err(last_error);
@@ -685,11 +672,6 @@ impl CompletionFlow {
             selected_model = attempt_model;
             selected_credential = attempt_credential;
             selected_api_key = attempt_api_key;
-            fallback_from_model_id = if *is_fallback_attempt {
-                Some(model.id.clone())
-            } else {
-                None
-            };
             successful_response = Some(api_response);
             break;
         }
@@ -837,7 +819,6 @@ impl CompletionFlow {
             attachments: persisted_assistant_attachments,
             reasoning,
             model_id: Some(selected_model.id.clone()),
-            fallback_from_model_id: fallback_from_model_id.clone(),
         };
 
         session.messages.push(assistant_message.clone());

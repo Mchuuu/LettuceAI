@@ -609,7 +609,6 @@ export function ChatConversationPage() {
       personas: widgetPersonas,
       models: widgetModels,
       currentModelId: character?.defaultModelId ?? null,
-      fallbackModelId: character?.fallbackModelId ?? null,
       swapPlacesActive: swapPlaces,
       voiceAutoplayActive:
         chatController.session?.voiceAutoplay ?? character?.voiceAutoplay ?? false,
@@ -628,11 +627,6 @@ export function ChatConversationPage() {
       onSelectModel: async (modelId) => {
         if (!character) return;
         await saveCharacter({ id: character.id, defaultModelId: modelId ?? null });
-        reloadCharacter();
-      },
-      onSelectFallbackModel: async (modelId) => {
-        if (!character) return;
-        await saveCharacter({ id: character.id, fallbackModelId: modelId });
         reloadCharacter();
       },
       onAuthorNoteSaved: (next) => {

@@ -1147,7 +1147,6 @@ fn dummy_character() -> crate::chat_manager::types::Character {
         scenes: Vec::new(),
         default_scene_id: None,
         default_model_id: None,
-        fallback_model_id: None,
         mode: "roleplay".to_string(),
         companion: None,
         memory_type: "manual".to_string(),

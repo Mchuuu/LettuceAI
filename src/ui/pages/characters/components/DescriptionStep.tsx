@@ -49,8 +49,6 @@ interface DescriptionStepProps {
   loadingModels: boolean;
   selectedModelId: string | null;
   onSelectModel: (value: string | null) => void;
-  selectedFallbackModelId: string | null;
-  onSelectFallbackModel: (value: string | null) => void;
   memoryType: "manual" | "dynamic";
   dynamicMemoryEnabled: boolean;
   onMemoryTypeChange: (value: "manual" | "dynamic") => void;
@@ -97,8 +95,6 @@ export function DescriptionStep({
   loadingModels,
   selectedModelId,
   onSelectModel,
-  selectedFallbackModelId,
-  onSelectFallbackModel,
   memoryType,
   dynamicMemoryEnabled,
   onMemoryTypeChange,
@@ -131,7 +127,6 @@ export function DescriptionStep({
   const resolvedSubmitLabel = submitLabel ?? t("characters.identity.title");
   const wordCount = definition.trim().split(/\s+/).filter(Boolean).length;
   const [showModelMenu, setShowModelMenu] = useState(false);
-  const [showFallbackModelMenu, setShowFallbackModelMenu] = useState(false);
   const [showVoiceMenu, setShowVoiceMenu] = useState(false);
   const [voiceSearchQuery, setVoiceSearchQuery] = useState("");
   const directPromptTemplates = promptTemplates.filter(
@@ -678,68 +673,6 @@ export function DescriptionStep({
             </p>
           </div>
 
-          {/* Fallback Model Selection */}
-          <div className={spacing.field}>
-            <label
-              className={cn(
-                typography.label.size,
-                typography.label.weight,
-                typography.label.tracking,
-                "uppercase text-fg/70",
-              )}
-            >
-              {t("characters.description.fallbackModelLabel")}
-            </label>
-            {loadingModels ? (
-              <div
-                className={cn(
-                  "flex items-center gap-3 border border-fg/10 bg-surface-el/20 px-4 py-3 backdrop-blur-xl",
-                  radius.md,
-                )}
-              >
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-fg/10 border-t-white/60" />
-                <span className={cn(typography.body.size, "text-fg/60")}>{t("characters.description.loadingModels")}</span>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowFallbackModelMenu(true)}
-                className={cn(
-                  "flex w-full items-center justify-between border bg-surface-el/20 px-4 py-3.5 text-left backdrop-blur-xl",
-                  radius.md,
-                  interactive.transition.default,
-                  "focus:border-fg/30 focus:bg-surface-el/30 focus:outline-none hover:bg-surface-el/30",
-                  selectedFallbackModelId ? "border-fg/20" : "border-fg/10",
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  {selectedFallbackModelId ? (
-                    getProviderIcon(
-                      models.find((m) => m.id === selectedFallbackModelId)?.providerId || "",
-                    )
-                  ) : (
-                    <Cpu className="h-5 w-5 text-fg/40" />
-                  )}
-                  <span
-                    className={cn(
-                      "text-sm",
-                      selectedFallbackModelId ? "text-fg" : "text-fg/50",
-                    )}
-                  >
-                    {selectedFallbackModelId
-                      ? models.find((m) => m.id === selectedFallbackModelId)?.displayName ||
-                        t("characters.description.selectedFallbackFallback")
-                      : t("characters.description.fallbackOff")}
-                  </span>
-                </div>
-                <ChevronDown className="h-4 w-4 text-fg/40" />
-              </button>
-            )}
-            <p className={cn(typography.bodySmall.size, "text-fg/40")}>
-              {t("characters.description.fallbackHint")}
-            </p>
-          </div>
-
           {/* Memory Mode */}
           <div className={spacing.field}>
             <div className="flex items-center justify-between">
@@ -870,28 +803,6 @@ export function DescriptionStep({
         onSelectModel={(modelId) => {
           onSelectModel(modelId);
           setShowModelMenu(false);
-        }}
-      />
-
-      <ModelSelectionBottomMenu
-        isOpen={showFallbackModelMenu}
-        onClose={() => setShowFallbackModelMenu(false)}
-        title={t("characters.description.selectFallbackModelTitle")}
-        models={models.filter((m) => m.id !== selectedModelId)}
-        selectedModelIds={selectedFallbackModelId ? [selectedFallbackModelId] : []}
-        searchPlaceholder={t("characters.description.searchModelsPlaceholder")}
-        onSelectModel={(modelId) => {
-          onSelectFallbackModel(modelId);
-          setShowFallbackModelMenu(false);
-        }}
-        clearOption={{
-          label: t("characters.description.fallbackOff"),
-          icon: Cpu,
-          selected: !selectedFallbackModelId,
-          onClick: () => {
-            onSelectFallbackModel(null);
-            setShowFallbackModelMenu(false);
-          },
         }}
       />
 

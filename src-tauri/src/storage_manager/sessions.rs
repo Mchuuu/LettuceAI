@@ -903,7 +903,6 @@ fn fetch_messages_page_typed(
             ),
             reasoning,
             model_id: None,
-            fallback_from_model_id: None,
         });
     }
 
@@ -1067,7 +1066,6 @@ fn fetch_pinned_messages_typed(
             ),
             reasoning,
             model_id: None,
-            fallback_from_model_id: None,
         });
     }
 

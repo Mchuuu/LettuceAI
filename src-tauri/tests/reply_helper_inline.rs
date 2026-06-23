@@ -18,7 +18,6 @@ fn make_character() -> Character {
         scenes: Vec::new(),
         default_scene_id: None,
         default_model_id: None,
-        fallback_model_id: None,
         lora_name: None,
         lora_strength: None,
         mode: "roleplay".to_string(),

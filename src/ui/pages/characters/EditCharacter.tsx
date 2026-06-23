@@ -208,7 +208,6 @@ export function EditCharacterPage() {
   const [soulDraft, setSoulDraft] = React.useState<Partial<import("../../../core/storage/schemas").CompanionConfig> | null>(null);
   const [soulDirection, setSoulDirection] = React.useState("");
   const [showModelMenu, setShowModelMenu] = React.useState(false);
-  const [showFallbackModelMenu, setShowFallbackModelMenu] = React.useState(false);
   const [showVoiceMenu, setShowVoiceMenu] = React.useState(false);
   const [voiceSearchQuery, setVoiceSearchQuery] = React.useState("");
   const [exportMenuOpen, setExportMenuOpen] = React.useState(false);
@@ -257,7 +256,6 @@ export function EditCharacterPage() {
     newSceneDirection,
     newSceneBackgroundImagePath,
     selectedModelId,
-    selectedFallbackModelId,
     groupChatPromptTemplateId,
     groupChatRoleplayPromptTemplateId,
     activeLorebookIds,
@@ -1925,7 +1923,7 @@ export function EditCharacterPage() {
           {/* Settings Tab: Model & Memory */}
           {activeTab === "settings" && (
             <>
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4">
                 {/* Model Selection Section */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
@@ -1971,52 +1969,6 @@ export function EditCharacterPage() {
                   )}
                   <p className="text-xs text-fg/50">
                     {t("characters.edit.defaultModelHint")}
-                  </p>
-                </div>
-
-                {/* Fallback Model Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="rounded-lg border border-info/30 bg-info/10 p-1.5">
-                      <Cpu className="h-4 w-4 text-info" />
-                    </div>
-                    <h3 className="text-sm font-semibold text-fg">{t("characters.edit.fallbackModelTitle")}</h3>
-                    <span className="ml-auto text-xs text-fg/40">{t("characters.edit.optionalSuffix")}</span>
-                  </div>
-
-                  {loadingModels ? (
-                    <div className="flex items-center gap-2 rounded-xl border border-fg/10 bg-surface-el/20 px-4 py-3">
-                      <Loader2 className="h-4 w-4 animate-spin text-fg/50" />
-                      <span className="text-sm text-fg/50">{t("characters.edit.loadingModels")}</span>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowFallbackModelMenu(true)}
-                      className="flex w-full items-center justify-between rounded-xl border border-fg/10 bg-surface-el/20 px-3.5 py-3 text-left transition hover:bg-surface-el/30 focus:border-fg/25 focus:outline-none"
-                    >
-                      <div className="flex items-center gap-2">
-                        {selectedFallbackModelId ? (
-                          getProviderIcon(
-                            models.find((m) => m.id === selectedFallbackModelId)?.providerId || "",
-                          )
-                        ) : (
-                          <Cpu className="h-5 w-5 text-fg/40" />
-                        )}
-                        <span
-                          className={`text-sm ${selectedFallbackModelId ? "text-fg" : "text-fg/50"}`}
-                        >
-                          {selectedFallbackModelId
-                            ? models.find((m) => m.id === selectedFallbackModelId)?.displayName ||
-                              t("characters.edit.selectedFallbackFallback")
-                            : t("characters.edit.fallbackOff")}
-                        </span>
-                      </div>
-                      <ChevronDown className="h-4 w-4 text-fg/40" />
-                    </button>
-                  )}
-                  <p className="text-xs text-fg/50">
-                    {t("characters.edit.fallbackModelHint")}
                   </p>
                 </div>
               </div>
@@ -2673,11 +2625,7 @@ export function EditCharacterPage() {
         selectedModelIds={selectedModelId ? [selectedModelId] : []}
         searchPlaceholder={t("characters.edit.searchModelsPlaceholder")}
         onSelectModel={(modelId) => {
-          setFields({
-            selectedModelId: modelId,
-            selectedFallbackModelId:
-              selectedFallbackModelId === modelId ? null : selectedFallbackModelId,
-          });
+          setFields({ selectedModelId: modelId });
           setShowModelMenu(false);
         }}
         clearOption={{
@@ -2687,28 +2635,6 @@ export function EditCharacterPage() {
           onClick: () => {
             setFields({ selectedModelId: null });
             setShowModelMenu(false);
-          },
-        }}
-      />
-
-      <ModelSelectionBottomMenu
-        isOpen={showFallbackModelMenu}
-        onClose={() => setShowFallbackModelMenu(false)}
-        title={t("characters.edit.selectFallbackModelTitle")}
-        models={models.filter((m) => m.id !== selectedModelId)}
-        selectedModelIds={selectedFallbackModelId ? [selectedFallbackModelId] : []}
-        searchPlaceholder={t("characters.edit.searchModelsPlaceholder")}
-        onSelectModel={(modelId) => {
-          setFields({ selectedFallbackModelId: modelId });
-          setShowFallbackModelMenu(false);
-        }}
-        clearOption={{
-          label: t("characters.edit.fallbackOff"),
-          icon: Cpu,
-          selected: !selectedFallbackModelId,
-          onClick: () => {
-            setFields({ selectedFallbackModelId: null });
-            setShowFallbackModelMenu(false);
           },
         }}
       />

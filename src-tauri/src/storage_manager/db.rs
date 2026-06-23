@@ -484,7 +484,6 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           tags TEXT,
           default_scene_id TEXT,
           default_model_id TEXT,
-          fallback_model_id TEXT,
           mode TEXT NOT NULL DEFAULT 'roleplay',
           companion TEXT,
           memory_type TEXT NOT NULL DEFAULT 'manual',
@@ -1683,9 +1682,9 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
             [],
         );
     }
-    if !has_fallback_model_id {
+    if has_fallback_model_id {
         let _ = conn.execute(
-            "ALTER TABLE characters ADD COLUMN fallback_model_id TEXT",
+            "ALTER TABLE characters DROP COLUMN fallback_model_id",
             [],
         );
     }

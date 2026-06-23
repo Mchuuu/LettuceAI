@@ -1948,7 +1948,6 @@ export function GroupChatPage() {
       personas,
       models: settings?.models ?? [],
       currentModelId: widgetCharacter?.defaultModelId ?? null,
-      fallbackModelId: widgetCharacter?.fallbackModelId ?? null,
       swapPlacesActive: false,
       voiceAutoplayActive: false,
       canRegenerate: !!lastAssistant && !sending,
@@ -1967,11 +1966,6 @@ export function GroupChatPage() {
       onSelectModel: async (modelId) => {
         if (!widgetCharacter) return;
         await saveCharacter({ id: widgetCharacter.id, defaultModelId: modelId ?? null });
-        reloadSession();
-      },
-      onSelectFallbackModel: async (modelId) => {
-        if (!widgetCharacter) return;
-        await saveCharacter({ id: widgetCharacter.id, fallbackModelId: modelId });
         reloadSession();
       },
       onAuthorNoteSaved: () => {},

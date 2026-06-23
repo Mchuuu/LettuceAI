@@ -243,8 +243,6 @@ pub struct Character {
     pub tags: Option<String>,
     pub default_scene_id: Option<String>,
     pub default_model_id: Option<String>,
-    #[serde(default)]
-    pub fallback_model_id: Option<String>,
     #[serde(default = "default_character_mode")]
     pub mode: String,
     #[serde(default)]

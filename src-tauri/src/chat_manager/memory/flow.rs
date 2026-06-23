@@ -1131,7 +1131,6 @@ fn fetch_conversation_messages_range(
                 attachments: Vec::new(),
                 reasoning: None,
                 model_id: None,
-                fallback_from_model_id: None,
             })
         })
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;

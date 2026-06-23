@@ -1037,7 +1037,6 @@ export async function saveCharacter(c: Partial<Character>): Promise<Character> {
     defaultSceneId,
     rules: defaultRules,
     defaultModelId: c.defaultModelId ?? null,
-    fallbackModelId: c.fallbackModelId ?? null,
     mode: c.mode ?? "roleplay",
     companion: c.companion ?? null,
     memoryType: c.memoryType ?? "manual",
