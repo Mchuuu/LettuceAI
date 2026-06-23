@@ -644,8 +644,8 @@ export function CompanionRelationshipPage() {
             </SectionLabel>
 
             {relationshipTimeline.length ? (
-              <ol className="relative mx-auto max-w-3xl space-y-2 border-l border-fg/8 pl-4">
-                {relationshipTimeline.map((memory) => (
+              <ol className="relative space-y-2 border-l border-fg/8 pl-4 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0 lg:border-l-0 lg:pl-0 2xl:grid-cols-3">
+                {relationshipTimeline.map((memory, index) => (
                   <motion.li
                     key={memory.id}
                     initial={{ opacity: 0, x: -4 }}
@@ -653,8 +653,14 @@ export function CompanionRelationshipPage() {
                     transition={{ duration: 0.15 }}
                     className="relative"
                   >
-                    <span className="absolute -left-[21px] top-3 h-2 w-2 rounded-full border border-fg/15 bg-base" />
-                    <div className="rounded-xl border border-fg/6 bg-fg/2 px-3 py-2.5 hover:border-fg/10 hover:bg-fg/3">
+                    <span className="absolute -left-[21px] top-3 h-2 w-2 rounded-full border border-fg/15 bg-base lg:hidden" />
+                    <div className="relative isolate overflow-hidden rounded-xl border border-fg/6 bg-fg/2 px-3 py-2.5 hover:border-fg/10 hover:bg-fg/3 lg:h-full">
+                      <span
+                        aria-hidden
+                        className="pointer-events-none absolute -bottom-5 right-1 -z-10 select-none text-6xl font-bold leading-none tabular-nums text-fg/[0.06]"
+                      >
+                        {index + 1}
+                      </span>
                       <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-fg/40">
                         <span className="font-semibold uppercase tracking-wider text-fg/55">
                           {companionCategoryLabel(t, memory.category)}
