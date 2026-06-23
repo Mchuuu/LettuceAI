@@ -29,6 +29,7 @@ pub enum PromptTemplateType {
     ScenePromptWriter,
     DesignReferenceWriter,
     CompanionSoulWriter,
+    CompanionGrowthcycle,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]

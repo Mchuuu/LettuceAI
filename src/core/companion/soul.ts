@@ -70,6 +70,7 @@ function createDefaultCompanionConfig(): CompanionConfig {
       voice: "",
       relationalStyle: "",
       vulnerabilities: "",
+      fears: "",
       habits: "",
       boundaries: "",
       baselineAffect: {

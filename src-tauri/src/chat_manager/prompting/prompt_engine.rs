@@ -109,6 +109,80 @@ pub fn default_companion_soul_writer_prompt() -> String {
     join_entries(&default_companion_soul_writer_entries())
 }
 
+pub fn default_companion_growthcycle_prompt() -> String {
+    join_entries(&default_companion_growthcycle_entries())
+}
+
+pub fn default_companion_growthcycle_entries() -> Vec<SystemPromptEntry> {
+    fn system_entry(id: &str, name: &str, content: &str) -> SystemPromptEntry {
+        SystemPromptEntry {
+            id: id.to_string(),
+            name: name.to_string(),
+            role: PromptEntryRole::System,
+            content: content.to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: true,
+            conditions: None,
+            prompt_entry_payload: None,
+        }
+    }
+
+    fn user_entry(id: &str, name: &str, content: &str) -> SystemPromptEntry {
+        SystemPromptEntry {
+            id: id.to_string(),
+            name: name.to_string(),
+            role: PromptEntryRole::User,
+            content: content.to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: false,
+            conditions: None,
+            prompt_entry_payload: None,
+        }
+    }
+
+    vec![
+        system_entry(
+            "companion_growthcycle_task",
+            "Task",
+            r#"You run the Growthcycle: a second pass over a roleplay companion's freshly created memories that decides whether those memories should change the companion's evolving personality. You are given the companion's changeable personality categories with their current values, and the new memories from the latest exchange.
+
+For each category, decide whether the new memories justify an adjustment. Most turns change nothing — only record a change when a memory plainly supports it (for example, sharing that a new dish was enjoyed can add to Likes, but says nothing about Appearance). Never invent facts that are not present in the memories."#,
+        ),
+        system_entry(
+            "companion_growthcycle_rules",
+            "Rules",
+            r#"RULES:
+- Identity-core categories (essence, traits, backstory) are fixed and are never listed here. Never attempt to change them.
+- Phrase every value as a short additive clause describing the new or revised trait, written in third person about the character.
+- Use kind "add" for a new detail and "adjust" for revising an existing one.
+- Cite the leading index of each supporting memory in sourceIndices.
+
+OUTPUT DISCIPLINE: call record_growth exactly once with an adjustments array. The array may be empty when nothing changed. Do not write prose, JSON, or markdown outside the tool call."#,
+        ),
+        user_entry(
+            "companion_growthcycle_payload",
+            "Payload",
+            r#"Companion: {{companion.name}}
+
+Changeable personality categories (use the bracketed key as category):
+{{changeable_categories}}
+
+New memories from the latest exchange (cite their leading number in sourceIndices):
+{{new_memories}}
+
+Decide which categories, if any, the new memories should change."#,
+        ),
+    ]
+}
+
 pub fn default_creation_helper_system_prompt() -> String {
     join_entries(&default_creation_helper_system_entries())
 }

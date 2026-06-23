@@ -111,6 +111,7 @@ export const PromptTemplateTypeSchema = z.enum([
   "scenePromptWriter",
   "designReferenceWriter",
   "companionSoulWriter",
+  "companionGrowthcycle",
 ]);
 export type PromptTemplateType = z.infer<typeof PromptTemplateTypeSchema>;
 
@@ -3088,6 +3089,7 @@ export const CompanionSoulSchema = z.object({
   voice: z.string().default(""),
   relationalStyle: z.string().default(""),
   vulnerabilities: z.string().default(""),
+  fears: z.string().default(""),
   habits: z.string().default(""),
   boundaries: z.string().default(""),
   baselineAffect: z
@@ -3201,6 +3203,7 @@ export const CompanionConfigSchema = z.object({
     voice: "",
     relationalStyle: "",
     vulnerabilities: "",
+    fears: "",
     habits: "",
     boundaries: "",
     baselineAffect: {

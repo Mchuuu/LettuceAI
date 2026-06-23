@@ -248,8 +248,58 @@ pub struct CompanionSessionState {
     pub active_signals: Vec<String>,
     #[serde(default)]
     pub preferences: CompanionPreferences,
+    #[serde(default)]
+    pub soul_growth: Vec<SoulGrowthEntry>,
     pub updated_at: u64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SoulGrowthEntry {
+    #[serde(default)]
+    pub category: String,
+    #[serde(default)]
+    pub value: String,
+    #[serde(default)]
+    pub kind: String,
+    #[serde(default)]
+    pub source_memory_ids: Vec<String>,
+    #[serde(default)]
+    pub created_at: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SoulMutability {
+    Immutable,
+    Slow,
+    Fast,
+}
+
+pub fn soul_category_mutability(category: &str) -> SoulMutability {
+    match category {
+        "essence" | "traits" | "backstory" => SoulMutability::Immutable,
+        "likes" => SoulMutability::Fast,
+        "appearance" | "goals" | "voice" | "relationalStyle" | "vulnerabilities" | "fears"
+        | "habits" | "boundaries" => SoulMutability::Slow,
+        _ => SoulMutability::Immutable,
+    }
+}
+
+pub fn soul_category_is_changeable(category: &str) -> bool {
+    !matches!(soul_category_mutability(category), SoulMutability::Immutable)
+}
+
+pub const CHANGEABLE_SOUL_CATEGORIES: &[&str] = &[
+    "appearance",
+    "goals",
+    "likes",
+    "voice",
+    "relationalStyle",
+    "vulnerabilities",
+    "fears",
+    "habits",
+    "boundaries",
+];
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -340,6 +390,8 @@ struct SoulConfig {
     #[serde(default)]
     vulnerabilities: String,
     #[serde(default)]
+    fears: String,
+    #[serde(default)]
     habits: String,
     #[serde(default)]
     boundaries: String,
@@ -361,6 +413,7 @@ impl Default for SoulConfig {
             voice: String::new(),
             relational_style: String::new(),
             vulnerabilities: String::new(),
+            fears: String::new(),
             habits: String::new(),
             boundaries: String::new(),
             baseline_affect: EmotionVector {
@@ -563,17 +616,55 @@ pub fn render_prompt_state(
         ),
     ];
 
+    let growth = &state.soul_growth;
     push_soul_line(&mut lines, "Soul essence", &soul.essence);
     push_soul_line(&mut lines, "Defining traits", &soul.traits);
     push_soul_line(&mut lines, "Backstory", &soul.backstory);
-    push_soul_line(&mut lines, "Appearance", &soul.appearance);
-    push_soul_line(&mut lines, "Goals", &soul.goals);
-    push_soul_line(&mut lines, "Likes and favorites", &soul.likes);
-    push_soul_line(&mut lines, "Companion voice", &soul.voice);
-    push_soul_line(&mut lines, "Relational style", &soul.relational_style);
-    push_soul_line(&mut lines, "Vulnerabilities", &soul.vulnerabilities);
-    push_soul_line(&mut lines, "Habits", &soul.habits);
-    push_soul_line(&mut lines, "Boundaries", &soul.boundaries);
+    push_soul_line(
+        &mut lines,
+        "Appearance",
+        &effective_soul_value(&soul.appearance, "appearance", growth),
+    );
+    push_soul_line(
+        &mut lines,
+        "Goals",
+        &effective_soul_value(&soul.goals, "goals", growth),
+    );
+    push_soul_line(
+        &mut lines,
+        "Likes and favorites",
+        &effective_soul_value(&soul.likes, "likes", growth),
+    );
+    push_soul_line(
+        &mut lines,
+        "Companion voice",
+        &effective_soul_value(&soul.voice, "voice", growth),
+    );
+    push_soul_line(
+        &mut lines,
+        "Relational style",
+        &effective_soul_value(&soul.relational_style, "relationalStyle", growth),
+    );
+    push_soul_line(
+        &mut lines,
+        "Vulnerabilities",
+        &effective_soul_value(&soul.vulnerabilities, "vulnerabilities", growth),
+    );
+    push_soul_line(
+        &mut lines,
+        "Fears",
+        &effective_soul_value(&soul.fears, "fears", growth),
+    );
+    push_soul_line(
+        &mut lines,
+        "Habits",
+        &effective_soul_value(&soul.habits, "habits", growth),
+    );
+    push_soul_line(
+        &mut lines,
+        "Boundaries",
+        &effective_soul_value(&soul.boundaries, "boundaries", growth),
+    );
     push_soul_line(
         &mut lines,
         "Companion style notes",
@@ -618,6 +709,107 @@ fn push_soul_line(lines: &mut Vec<String>, label: &str, value: &str) {
     }
 }
 
+fn effective_soul_value(base: &str, category: &str, growth: &[SoulGrowthEntry]) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    let trimmed = base.trim();
+    if !trimmed.is_empty() {
+        parts.push(trimmed.to_string());
+    }
+    for entry in growth {
+        if entry.category != category {
+            continue;
+        }
+        let value = entry.value.trim();
+        if !value.is_empty() {
+            parts.push(value.to_string());
+        }
+    }
+    parts.join(" ")
+}
+
+fn soul_base_value<'a>(soul: &'a SoulConfig, category: &str) -> &'a str {
+    match category {
+        "essence" => &soul.essence,
+        "traits" => &soul.traits,
+        "backstory" => &soul.backstory,
+        "appearance" => &soul.appearance,
+        "goals" => &soul.goals,
+        "likes" => &soul.likes,
+        "voice" => &soul.voice,
+        "relationalStyle" => &soul.relational_style,
+        "vulnerabilities" => &soul.vulnerabilities,
+        "fears" => &soul.fears,
+        "habits" => &soul.habits,
+        "boundaries" => &soul.boundaries,
+        _ => "",
+    }
+}
+
+pub fn soul_category_label(category: &str) -> &'static str {
+    match category {
+        "essence" => "Essence",
+        "traits" => "Traits",
+        "backstory" => "Backstory",
+        "appearance" => "Appearance",
+        "goals" => "Goals",
+        "likes" => "Likes",
+        "voice" => "Voice",
+        "relationalStyle" => "Relational style",
+        "vulnerabilities" => "Vulnerabilities",
+        "fears" => "Fears",
+        "habits" => "Habits",
+        "boundaries" => "Boundaries",
+        _ => "Unknown",
+    }
+}
+
+pub fn changeable_soul_snapshot(character: &Character, session: &Session) -> Vec<(String, String)> {
+    let config = companion_config(character);
+    let state = current_state(session, &config);
+    CHANGEABLE_SOUL_CATEGORIES
+        .iter()
+        .map(|category| {
+            let base = soul_base_value(&config.soul, category);
+            (
+                (*category).to_string(),
+                effective_soul_value(base, category, &state.soul_growth),
+            )
+        })
+        .collect()
+}
+
+pub fn append_soul_growth(
+    session: &mut Session,
+    character: &Character,
+    entries: Vec<SoulGrowthEntry>,
+    now: u64,
+) -> usize {
+    if entries.is_empty() {
+        return 0;
+    }
+    let config = companion_config(character);
+    let mut state = current_state(session, &config);
+    let mut applied = 0;
+    for mut entry in entries {
+        if !soul_category_is_changeable(&entry.category) {
+            continue;
+        }
+        if entry.value.trim().is_empty() {
+            continue;
+        }
+        if entry.created_at == 0 {
+            entry.created_at = now;
+        }
+        state.soul_growth.push(entry);
+        applied += 1;
+    }
+    if applied > 0 {
+        state.updated_at = now;
+        session.companion_state = serde_json::to_value(state).ok();
+    }
+    applied
+}
+
 fn default_state(config: &CompanionConfig) -> CompanionSessionState {
     CompanionSessionState {
         emotional_state: EmotionalState {
@@ -646,6 +838,7 @@ fn default_state(config: &CompanionConfig) -> CompanionSessionState {
             time_awareness_enabled: config.time_awareness || config.context.time_awareness,
             time_override: None,
         },
+        soul_growth: Vec::new(),
         updated_at: 0,
     }
 }
