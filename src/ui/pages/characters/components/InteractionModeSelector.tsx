@@ -1,17 +1,20 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { BookOpen, MessageCircleHeart } from "lucide-react";
+import { BookOpen, Check, ChevronRight, MessageCircleHeart, Sparkles } from "lucide-react";
 import type { CharacterMode } from "../../../../core/storage/schemas";
 import { useI18n, type TranslationKey } from "../../../../core/i18n/context";
 import { cn, interactive, radius, typography } from "../../../design-tokens";
-import { MissingCompanionModelsSheet } from "../../../components/MissingCompanionModelsSheet";
+import { CompanionSetupGuide } from "./CompanionSetupGuide";
 import { useCompanionRequirements } from "../hooks/useCompanionRequirements";
 import { buildModelRequirementsQueuePath } from "../../../modelRequirements";
+
+const EXPLAIN_PENDING_KEY = "companion-setup-explain-pending";
 
 interface InteractionModeSelectorProps {
   mode: CharacterMode;
   onChange: (mode: CharacterMode) => void;
   disabled?: boolean;
+  onBeforeNavigateAway?: () => void;
 }
 
 const modes: Array<{
@@ -38,25 +41,35 @@ export function InteractionModeSelector({
   mode,
   onChange,
   disabled = false,
+  onBeforeNavigateAway,
 }: InteractionModeSelectorProps) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
-  const { missing, refresh } = useCompanionRequirements();
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const { loading, missing, refresh } = useCompanionRequirements();
+  const [setupOpen, setSetupOpen] = useState(false);
+
+  useEffect(() => {
+    if (loading) return;
+    if (sessionStorage.getItem(EXPLAIN_PENDING_KEY) !== "true") return;
+    sessionStorage.removeItem(EXPLAIN_PENDING_KEY);
+    if (missing.length === 0) setSetupOpen(true);
+  }, [loading, missing.length]);
 
   const handleSelect = (next: CharacterMode) => {
     onChange(next);
     if (next === "companion") {
       void (async () => {
         const result = await refresh();
-        if (result.length > 0) setSheetOpen(true);
+        if (result.length > 0) setSetupOpen(true);
       })();
     }
   };
 
   const handleDownload = () => {
-    setSheetOpen(false);
+    sessionStorage.setItem(EXPLAIN_PENDING_KEY, "true");
+    setSetupOpen(false);
+    onBeforeNavigateAway?.();
     const returnTo = `${location.pathname}${location.search}`;
     navigate(buildModelRequirementsQueuePath(missing, returnTo));
   };
@@ -155,13 +168,57 @@ export function InteractionModeSelector({
         })}
       </div>
 
-      <MissingCompanionModelsSheet
-        isOpen={sheetOpen && missing.length > 0}
+      {mode === "companion" && (
+        <button
+          type="button"
+          onClick={() => setSetupOpen(true)}
+          className={cn(
+            "flex w-full items-center gap-2.5 border px-3.5 py-2.5 text-left",
+            radius.lg,
+            interactive.transition.fast,
+            missing.length > 0
+              ? "border-accent/30 bg-accent/10 hover:bg-accent/15"
+              : "border-fg/10 bg-fg/[0.03] hover:bg-fg/5",
+          )}
+        >
+          <div
+            className={cn(
+              "flex h-7 w-7 shrink-0 items-center justify-center border",
+              radius.md,
+              missing.length > 0
+                ? "border-accent/30 bg-accent/15 text-accent"
+                : "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
+            )}
+          >
+            {missing.length > 0 ? (
+              <Sparkles className="h-3.5 w-3.5" />
+            ) : (
+              <Check className="h-3.5 w-3.5" />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-fg">
+              {t("characters.companionSetup.triggerTitle")}
+            </p>
+            <p className={cn(typography.caption.size, "text-fg/50")}>
+              {loading
+                ? t("characters.companionSetup.modelsChecking")
+                : missing.length > 0
+                  ? missing.length === 1
+                    ? t("characters.companionSetup.triggerNeedsOne")
+                    : t("characters.companionSetup.triggerNeedsMany", { count: missing.length })
+                  : t("characters.companionSetup.triggerReady")}
+            </p>
+          </div>
+          <ChevronRight className="h-4 w-4 shrink-0 text-fg/30" />
+        </button>
+      )}
+
+      <CompanionSetupGuide
+        isOpen={setupOpen}
+        onClose={() => setSetupOpen(false)}
+        loading={loading}
         missing={missing}
-        onClose={() => {
-          setSheetOpen(false);
-          if (mode === "companion") onChange("roleplay");
-        }}
         onDownload={handleDownload}
       />
     </div>

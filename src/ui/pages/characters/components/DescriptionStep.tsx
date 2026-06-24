@@ -45,6 +45,7 @@ interface DescriptionStepProps {
   onDesignReferenceImageIdsChange: (value: string[]) => void;
   mode: CharacterMode;
   onModeChange: (value: CharacterMode) => void;
+  onBeforeModeNavigateAway?: () => void;
   models: Model[];
   loadingModels: boolean;
   selectedModelId: string | null;
@@ -91,6 +92,7 @@ export function DescriptionStep({
   onDesignReferenceImageIdsChange,
   mode,
   onModeChange,
+  onBeforeModeNavigateAway,
   models,
   loadingModels,
   selectedModelId,
@@ -178,7 +180,11 @@ export function DescriptionStep({
         <p className={cn(typography.body.size, "text-fg/50")}>{t("characters.details.subtitle")}</p>
       </div>
 
-      <InteractionModeSelector mode={mode} onChange={onModeChange} />
+      <InteractionModeSelector
+        mode={mode}
+        onChange={onModeChange}
+        onBeforeNavigateAway={onBeforeModeNavigateAway}
+      />
 
       {/* Desktop: Two-column layout / Mobile: stacked */}
       <div className="flex flex-col lg:flex-row lg:gap-8">

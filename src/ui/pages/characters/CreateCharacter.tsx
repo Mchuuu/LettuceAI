@@ -454,6 +454,7 @@ export function CreateCharacterPage() {
               onDesignReferenceImageIdsChange={actions.setDesignReferenceImageIds}
               mode={state.mode}
               onModeChange={actions.setMode}
+              onBeforeModeNavigateAway={markDraftForLibraryReturn}
               models={state.models}
               loadingModels={state.loadingModels}
               selectedModelId={state.selectedModelId}

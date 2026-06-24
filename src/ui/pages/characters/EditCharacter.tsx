@@ -216,6 +216,8 @@ export function EditCharacterPage() {
   const sceneInlineImageInputRef = React.useRef<HTMLInputElement | null>(null);
   const sceneNavRestoredRef = React.useRef(false);
   const EDIT_CHARACTER_SCENE_DRAFT_KEY = "edit-character-scene-draft";
+  const formNavRestoredRef = React.useRef(false);
+  const EDIT_CHARACTER_FORM_DRAFT_KEY = "edit-character-form-draft";
   const tabsId = React.useId();
   const tabPanelId = `${tabsId}-panel`;
   const characterTabId = `${tabsId}-tab-character`;
@@ -224,6 +226,7 @@ export function EditCharacterPage() {
   const returnPath = `${location.pathname}${location.search}`;
   const sceneBackgroundLibraryReturnPath = `${returnPath}:scene-background`;
   const sceneInlineImageLibraryReturnPath = `${returnPath}:scene-inline-image`;
+  const companionSetupResumeKey = `${returnPath}:companion-setup-resume`;
 
   const {
     loading,
@@ -744,6 +747,60 @@ export function EditCharacterPage() {
     setFields,
   ]);
 
+  const persistCompanionSetupReturn = React.useCallback(() => {
+    const transient = new Set([
+      "loading",
+      "saving",
+      "exporting",
+      "error",
+      "models",
+      "loadingModels",
+      "promptTemplates",
+      "loadingTemplates",
+    ]);
+    const fields: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(state)) {
+      if (!transient.has(key)) fields[key] = value;
+    }
+    try {
+      sessionStorage.setItem(
+        EDIT_CHARACTER_FORM_DRAFT_KEY,
+        JSON.stringify({ characterId, activeTab, fields }),
+      );
+      sessionStorage.setItem(companionSetupResumeKey, "true");
+    } catch (error) {
+      console.error("Failed to persist character editor draft:", error);
+      sessionStorage.removeItem(EDIT_CHARACTER_FORM_DRAFT_KEY);
+      sessionStorage.removeItem(companionSetupResumeKey);
+    }
+  }, [state, characterId, activeTab, companionSetupResumeKey]);
+
+  React.useEffect(() => {
+    if (loading || formNavRestoredRef.current) return;
+
+    const resume = sessionStorage.getItem(companionSetupResumeKey) === "true";
+    const raw = sessionStorage.getItem(EDIT_CHARACTER_FORM_DRAFT_KEY);
+    if (!resume || !raw) {
+      if (!resume) sessionStorage.removeItem(EDIT_CHARACTER_FORM_DRAFT_KEY);
+      return;
+    }
+    formNavRestoredRef.current = true;
+    sessionStorage.removeItem(companionSetupResumeKey);
+    sessionStorage.removeItem(EDIT_CHARACTER_FORM_DRAFT_KEY);
+
+    let draft: { characterId?: string; activeTab?: EditCharacterTab; fields?: unknown } | null = null;
+    try {
+      draft = JSON.parse(raw);
+    } catch (error) {
+      console.error("Failed to parse character editor draft:", error);
+      return;
+    }
+    if (!draft?.fields || (draft.characterId && draft.characterId !== characterId)) return;
+
+    setFields(draft.fields as Parameters<typeof setFields>[0]);
+    if (draft.activeTab) setActiveTab(draft.activeTab);
+  }, [loading, characterId, companionSetupResumeKey, setFields]);
+
   const handleChooseBackgroundFromLibrary = React.useCallback(() => {
     navigate("/library/images/pick", {
       state: {
@@ -866,6 +923,7 @@ export function EditCharacterPage() {
                 mode={mode}
                 onChange={(nextMode) => setFields({ mode: nextMode })}
                 disabled={saving}
+                onBeforeNavigateAway={persistCompanionSetupReturn}
               />
 
               {/* Background Image Section */}
