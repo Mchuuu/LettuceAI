@@ -3,6 +3,7 @@ import {
   Brain,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Clock,
   Compass,
   Database,
@@ -10,6 +11,7 @@ import {
   Shield,
   SlidersHorizontal,
   Sparkles,
+  Square,
 } from "lucide-react";
 import type { CompanionConfig } from "../../../../core/storage/schemas";
 import { useI18n, type TranslationKey } from "../../../../core/i18n/context";
@@ -43,10 +45,30 @@ interface CompanionSoulEditorProps {
   disabled?: boolean;
   onGenerate?: () => void;
   generating?: boolean;
+  liveText?: string | null;
+  stepTool?: string | null;
+  onAbort?: () => void;
   generationDisabledReason?: string | null;
   modelLabel?: string | null;
   direction?: string;
   onDirectionChange?: (next: string) => void;
+}
+
+function soulStepLabelKey(tool?: string | null): TranslationKey {
+  switch (tool) {
+    case "set_identity":
+      return "characters.soulEditor.steps.identity";
+    case "set_baseline_affect":
+      return "characters.soulEditor.steps.baselineAffect";
+    case "set_regulation_style":
+      return "characters.soulEditor.steps.regulation";
+    case "set_relationship_defaults":
+      return "characters.soulEditor.steps.relationship";
+    case "done":
+      return "characters.soulEditor.steps.finalizing";
+    default:
+      return "characters.soulEditor.steps.starting";
+  }
 }
 
 interface TextField {
@@ -235,6 +257,9 @@ export function CompanionSoulEditor({
   disabled = false,
   onGenerate,
   generating = false,
+  liveText,
+  stepTool,
+  onAbort,
   generationDisabledReason,
   modelLabel,
   direction = "",
@@ -245,6 +270,7 @@ export function CompanionSoulEditor({
   const [openSection, setOpenSection] = useState<"affect" | "regulation" | "relationship" | null>(null);
   const [showExamples, setShowExamples] = useState(false);
   const [directionOpen, setDirectionOpen] = useState(false);
+  const [showLiveOutput, setShowLiveOutput] = useState(false);
 
   const updateSoulText = (key: SoulTextKey, nextValue: string) => {
     onChange({ ...value, soul: { ...value.soul, [key]: nextValue } });
@@ -412,28 +438,85 @@ export function CompanionSoulEditor({
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={onGenerate}
-              disabled={disabled || generating || generateBlocked}
-              title={generationDisabledReason ?? undefined}
-              className={cn(
-                "inline-flex shrink-0 items-center justify-center gap-1.5 border border-accent/40 bg-accent/20 px-4 py-2.5 font-semibold text-accent",
-                typography.bodySmall.size,
-                radius.md,
-                interactive.transition.fast,
-                interactive.active.scale,
-                "hover:border-accent/55 hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-50",
-              )}
-            >
-              {generating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
+            {generating ? (
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowLiveOutput((open) => !open)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 border border-accent/30 bg-accent/10 px-3 py-2.5 font-medium text-accent/90",
+                    typography.bodySmall.size,
+                    radius.md,
+                    interactive.transition.fast,
+                    "hover:border-accent/45 hover:bg-accent/20",
+                  )}
+                >
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                  <span className="max-w-[10rem] truncate">{t(soulStepLabelKey(stepTool))}</span>
+                  {showLiveOutput ? (
+                    <ChevronUp className="h-3.5 w-3.5 shrink-0" />
+                  ) : (
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                  )}
+                </button>
+                {onAbort && (
+                  <button
+                    type="button"
+                    onClick={onAbort}
+                    className={cn(
+                      "inline-flex shrink-0 items-center gap-1.5 border border-danger/35 bg-danger/10 px-4 py-2.5 font-semibold text-danger",
+                      typography.bodySmall.size,
+                      radius.md,
+                      interactive.transition.fast,
+                      interactive.active.scale,
+                      "hover:border-danger/55 hover:bg-danger/20",
+                    )}
+                  >
+                    <Square className="h-3.5 w-3.5" />
+                    {t("characters.soulEditor.stop")}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={onGenerate}
+                disabled={disabled || generateBlocked}
+                title={generationDisabledReason ?? undefined}
+                className={cn(
+                  "inline-flex shrink-0 items-center justify-center gap-1.5 border border-accent/40 bg-accent/20 px-4 py-2.5 font-semibold text-accent",
+                  typography.bodySmall.size,
+                  radius.md,
+                  interactive.transition.fast,
+                  interactive.active.scale,
+                  "hover:border-accent/55 hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-50",
+                )}
+              >
                 <Sparkles className="h-4 w-4" />
-              )}
-              {generating ? t("characters.soulEditor.generatingEllipsis") : t("characters.soulEditor.generateSoul")}
-            </button>
+                {t("characters.soulEditor.generateSoul")}
+              </button>
+            )}
           </div>
+
+          {generating && showLiveOutput && (
+            <div className="mt-3 border-t border-accent/15 pt-3">
+              {liveText ? (
+                <pre
+                  className={cn(
+                    "max-h-40 overflow-y-auto whitespace-pre-wrap break-words bg-base/40 p-2 text-fg/55",
+                    radius.md,
+                  )}
+                  style={{ fontSize: "11px", lineHeight: "1.5" }}
+                >
+                  {liveText}
+                </pre>
+              ) : (
+                <p className={cn(typography.bodySmall.size, "text-fg/45")}>
+                  {t("characters.soulEditor.waitingForOutput")}
+                </p>
+              )}
+            </div>
+          )}
 
           {onDirectionChange && (
             <button

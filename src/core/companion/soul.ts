@@ -31,6 +31,10 @@ export async function generateCompanionSoulDraft(
   });
 }
 
+export async function abortCompanionSoul(requestId: string): Promise<void> {
+  await invoke("abort_companion_soul", { requestId });
+}
+
 export async function clearCompanionSoulGrowth(sessionId: string): Promise<number> {
   return await invoke<number>("companion_clear_soul_growth", { sessionId });
 }

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { AlertCircle, ArrowLeft, Heart, RefreshCcw } from "lucide-react";
 import type { CompanionConfig, Scene } from "../../../../core/storage/schemas";
-import { generateCompanionSoulDraft } from "../../../../core/companion/soul";
+import { useCompanionSoulGeneration } from "../../../../core/companion/useCompanionSoulGeneration";
 import { useI18n } from "../../../../core/i18n/context";
 import {
   cn,
@@ -53,10 +53,11 @@ export function CompanionSoulStep({
   onContinue,
 }: CompanionSoulStepProps) {
   const { t } = useI18n();
-  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Partial<CompanionConfig> | null>(null);
   const [direction, setDirection] = useState("");
+  const soulGen = useCompanionSoulGeneration();
+  const generating = soulGen.generating;
 
   const value = normalizeCompanionConfig(companion);
 
@@ -76,10 +77,9 @@ export function CompanionSoulStep({
       setError(generationDisabledReason);
       return;
     }
-    setGenerating(true);
     setError(null);
     try {
-      const next = await generateCompanionSoulDraft({
+      const next = await soulGen.generate({
         characterName: name,
         characterDefinition: definition,
         characterDescription: description,
@@ -88,11 +88,10 @@ export function CompanionSoulStep({
         userNotes: direction.trim() || null,
         modelId: selectedModelId,
       });
+      if (!next) return;
       setDraft(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setGenerating(false);
     }
   };
 
@@ -128,6 +127,9 @@ export function CompanionSoulStep({
         onChange={onCompanionChange}
         onGenerate={runGeneration}
         generating={generating}
+        liveText={soulGen.liveText}
+        stepTool={soulGen.stepTool}
+        onAbort={soulGen.abort}
         generationDisabledReason={generationDisabledReason}
         modelLabel={modelLabel}
         direction={direction}

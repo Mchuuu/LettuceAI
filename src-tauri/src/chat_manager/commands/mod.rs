@@ -1188,6 +1188,11 @@ pub async fn chat_generate_companion_soul(
 }
 
 #[tauri::command]
+pub fn abort_companion_soul(app: AppHandle, request_id: String) -> Result<(), String> {
+    super::companion_soul_writer::abort_companion_soul(app, request_id)
+}
+
+#[tauri::command]
 pub fn companion_remove_soul_growth(
     app: AppHandle,
     session_id: String,

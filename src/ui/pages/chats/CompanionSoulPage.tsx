@@ -3,10 +3,8 @@ import { AlertCircle, ArrowLeft, Loader2, Save } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { saveCharacter } from "../../../core/storage/repo";
 import type { CompanionConfig } from "../../../core/storage/schemas";
-import {
-  generateCompanionSoulDraft,
-  mergeCompanionSoulDraft,
-} from "../../../core/companion/soul";
+import { mergeCompanionSoulDraft } from "../../../core/companion/soul";
+import { useCompanionSoulGeneration } from "../../../core/companion/useCompanionSoulGeneration";
 import { CompanionSoulEditor } from "../characters/components/CompanionSoulEditor";
 import { normalizeCompanionConfig } from "../characters/utils/companionDefaults";
 import { cn, components, radius } from "../../design-tokens";
@@ -86,8 +84,9 @@ export function CompanionSoulPage() {
   const { character, characterLoading, chatController, reloadCharacter } = useChatLayoutContext();
   const [draft, setDraft] = useState<CompanionConfig | null>(null);
   const [saving, setSaving] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const soulGen = useCompanionSoulGeneration();
+  const generating = soulGen.generating;
 
   const companion = useMemo(
     () => normalizeCompanionConfig(draft ?? character?.companion),
@@ -109,10 +108,9 @@ export function CompanionSoulPage() {
 
   const handleGenerate = async () => {
     if (!character) return;
-    setGenerating(true);
     setError(null);
     try {
-      const generated = await generateCompanionSoulDraft({
+      const generated = await soulGen.generate({
         characterName: character.name,
         characterDefinition: character.definition ?? character.description ?? "",
         characterDescription: character.description ?? "",
@@ -120,11 +118,10 @@ export function CompanionSoulPage() {
         currentSoul: companion,
         modelId: character.defaultModelId,
       });
+      if (!generated) return;
       setDraft(mergeCompanionSoulDraft(companion, generated));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setGenerating(false);
     }
   };
 
@@ -204,6 +201,9 @@ export function CompanionSoulPage() {
           onChange={setDraft}
           onGenerate={handleGenerate}
           generating={generating}
+          liveText={soulGen.liveText}
+          stepTool={soulGen.stepTool}
+          onAbort={soulGen.abort}
           disabled={saving}
         />
 

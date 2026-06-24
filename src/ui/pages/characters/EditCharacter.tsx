@@ -74,7 +74,7 @@ import {
   APP_GROUP_CHAT_ROLEPLAY_TEMPLATE_ID,
   APP_GROUP_CHAT_TEMPLATE_ID,
 } from "../../../core/prompts/constants";
-import { generateCompanionSoulDraft } from "../../../core/companion/soul";
+import { useCompanionSoulGeneration } from "../../../core/companion/useCompanionSoulGeneration";
 import { recalculateGradient } from "../../../core/storage/avatars";
 import { useImageData } from "../../hooks/useImageData";
 import { useAvatarGradient } from "../../hooks/useAvatarGradient";
@@ -203,7 +203,13 @@ export function EditCharacterPage() {
 
   // Tab state
   const [activeTab, setActiveTab] = React.useState<EditCharacterTab>("character");
-  const [generatingSoul, setGeneratingSoul] = React.useState(false);
+  const {
+    generate: generateSoul,
+    abort: abortSoul,
+    generating: generatingSoul,
+    liveText: soulLiveText,
+    stepTool: soulStepTool,
+  } = useCompanionSoulGeneration();
   const [soulError, setSoulError] = React.useState<string | null>(null);
   const [soulDraft, setSoulDraft] = React.useState<Partial<import("../../../core/storage/schemas").CompanionConfig> | null>(null);
   const [soulDirection, setSoulDirection] = React.useState("");
@@ -534,10 +540,9 @@ export function EditCharacterPage() {
       if (soulGenerationDisabledReason) setSoulError(soulGenerationDisabledReason);
       return;
     }
-    setGeneratingSoul(true);
     setSoulError(null);
     try {
-      const draft = await generateCompanionSoulDraft({
+      const draft = await generateSoul({
         characterName: name.trim(),
         characterDefinition: definition,
         characterDescription: description,
@@ -546,17 +551,17 @@ export function EditCharacterPage() {
         userNotes: soulDirection.trim() || null,
         modelId: selectedModelId,
       });
+      if (!draft) return;
       setSoulDraft(draft);
     } catch (err) {
       console.error("Failed to generate companion soul:", err);
       setSoulError(err instanceof Error ? err.message : t("characters.edit.soulGenerateFailed"));
-    } finally {
-      setGeneratingSoul(false);
     }
   }, [
     companion,
     definition,
     description,
+    generateSoul,
     generatingSoul,
     name,
     scenes,
@@ -1272,6 +1277,9 @@ export function EditCharacterPage() {
                 disabled={saving || generatingSoul}
                 onGenerate={handleGenerateSoul}
                 generating={generatingSoul}
+                liveText={soulLiveText}
+                stepTool={soulStepTool}
+                onAbort={abortSoul}
                 generationDisabledReason={soulGenerationDisabledReason}
                 modelLabel={soulModelLabel}
                 direction={soulDirection}

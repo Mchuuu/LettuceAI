@@ -3,9 +3,10 @@ use quick_xml::events::{BytesRef, Event};
 use quick_xml::Reader;
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::api::{api_request, ApiRequest, ApiResponse};
+use crate::dynamic_memory_run_manager::{DynamicMemoryRunGuard, DynamicMemoryRunManager};
 use crate::chat_manager::execution::{
     find_model_with_credential, prepare_default_sampling_request,
 };
@@ -26,6 +27,26 @@ use crate::usage::tracking::UsageOperationType;
 use crate::utils::{log_info, log_warn, now_millis};
 
 const MAX_LOOP_ITERATIONS: usize = 8;
+
+const SOUL_CANCELLED_MARKER: &str = "__companion_soul_cancelled__";
+
+fn emit_soul_status(app: &AppHandle, event: &str, request_id: &str) {
+    let _ = app.emit(event, json!({ "requestId": request_id }));
+}
+
+fn emit_soul_progress(app: &AppHandle, request_id: &str, step: usize, tool: &str) {
+    let _ = app.emit(
+        "companion-soul:progress",
+        json!({ "requestId": request_id, "step": step, "tool": tool }),
+    );
+}
+
+fn emit_soul_error(app: &AppHandle, request_id: &str, error: &str) {
+    let _ = app.emit(
+        "companion-soul:error",
+        json!({ "requestId": request_id, "error": error }),
+    );
+}
 
 const COMPANION_SOUL_JSON_FALLBACK_PROMPT: &str = r#"Return only JSON. Format: {"operations":[{"name":"set_identity","arguments":{"essence":"...","traits":"...","backstory":"...","appearance":"...","goals":"...","likes":"...","voice":"...","relationalStyle":"...","vulnerabilities":"...","fears":"...","habits":"...","boundaries":"..."}},{"name":"set_baseline_affect","arguments":{"warmth":0.5,"trust":0.5,"calm":0.5,"vulnerability":0.5,"longing":0.5,"hurt":0.5,"tension":0.5,"irritation":0.5,"affectionIntensity":0.5,"reassuranceNeed":0.5}},{"name":"set_regulation_style","arguments":{"suppression":0.5,"volatility":0.5,"recoverySpeed":0.5,"conflictAvoidance":0.5,"reassuranceSeeking":0.5,"protestBehavior":0.5,"emotionalTransparency":0.5,"attachmentActivation":0.5,"pride":0.5}},{"name":"set_relationship_defaults","arguments":{"closeness":0.2,"trust":0.3,"affection":0.2,"tension":0.05}},{"name":"done","arguments":{"notes":"optional"}}]}. End with done. Numeric fields are optional; baseline and regulation values clamp to [0,1], and relationship closeness/trust/affection clamp to [-1,1] (negative means the character starts disliking/distrusting/distant from the user) while relationship tension clamps to [0,1]. Do not use markdown."#;
 
@@ -844,6 +865,7 @@ async fn run_with_target(
     credential: &ProviderCredential,
     api_key: &str,
     operation_label: &str,
+    guard: Option<&DynamicMemoryRunGuard>,
 ) -> Result<Value, String> {
     let mut working_soul = normalize_working_soul(args.current_soul.as_ref());
 
@@ -874,10 +896,21 @@ async fn run_with_target(
     let mut last_failure_reason: Option<String> = None;
 
     for iteration in 0..MAX_LOOP_ITERATIONS {
+        if let (Some(g), Some(id)) = (guard, args.request_id.as_deref()) {
+            if g.token().is_cancelled() {
+                emit_soul_status(app, "companion-soul:cancelled", id);
+                return Err(SOUL_CANCELLED_MARKER.to_string());
+            }
+        }
+
         let iteration_request_id = args
             .request_id
             .as_deref()
             .map(|id| format!("{}:loop-{}", id, iteration + 1));
+
+        if let Some(g) = guard {
+            g.set_active_request_id(iteration_request_id.clone());
+        }
 
         let send_result = send_request(
             app,
@@ -892,6 +925,10 @@ async fn run_with_target(
             iteration_request_id.clone(),
         )
         .await;
+
+        if let Some(g) = guard {
+            g.set_active_request_id(None);
+        }
 
         let api_response = match send_result {
             Ok(response) => response,
@@ -957,6 +994,15 @@ async fn run_with_target(
                 saw_done = true;
                 break;
             }
+        }
+
+        if let Some(id) = args.request_id.as_deref() {
+            let tool = calls
+                .iter()
+                .map(|call| call.name.as_str())
+                .find(|name| *name != "done")
+                .unwrap_or("done");
+            emit_soul_progress(app, id, iteration + 1, tool);
         }
 
         log_info(
@@ -1025,11 +1071,22 @@ async fn run_with_target(
         ),
     );
 
+    if let (Some(g), Some(id)) = (guard, args.request_id.as_deref()) {
+        if g.token().is_cancelled() {
+            emit_soul_status(app, "companion-soul:cancelled", id);
+            return Err(SOUL_CANCELLED_MARKER.to_string());
+        }
+    }
+
     let mut fallback_messages = render_messages(app, settings, credential, args);
     fallback_messages.push(json!({
         "role": "user",
         "content": fallback_prompt(format),
     }));
+
+    if let Some(g) = guard {
+        g.set_active_request_id(args.request_id.clone());
+    }
 
     let api_response = send_request(
         app,
@@ -1043,7 +1100,13 @@ async fn run_with_target(
         None,
         args.request_id.clone(),
     )
-    .await?;
+    .await;
+
+    if let Some(g) = guard {
+        g.set_active_request_id(None);
+    }
+
+    let api_response = api_response?;
 
     let usage = extract_usage(api_response.data());
     record_usage_if_available(
@@ -1167,19 +1230,67 @@ pub async fn chat_generate_companion_soul(
     let context = ChatContext::initialize(app.clone())?;
     let settings = context.settings.clone();
 
-    let primary_target = resolve_companion_soul_writer_target(&settings, args.model_id.as_deref())?;
+    let request_id = args.request_id.clone();
+    let guard = request_id.as_deref().map(|id| {
+        app.state::<DynamicMemoryRunManager>()
+            .inner()
+            .clone()
+            .start_run(id.to_string())
+    });
+    if let Some(id) = request_id.as_deref() {
+        emit_soul_status(&app, "companion-soul:processing", id);
+    }
+
+    let result =
+        run_companion_soul_with_fallback(&app, &context, &settings, &args, guard.as_ref()).await;
+
+    if let Some(id) = request_id.as_deref() {
+        match &result {
+            Ok(_) => emit_soul_status(&app, "companion-soul:success", id),
+            Err(err) if err == SOUL_CANCELLED_MARKER => {}
+            Err(err) => emit_soul_error(&app, id, err),
+        }
+    }
+    drop(guard);
+
+    match result {
+        Err(err) if err == SOUL_CANCELLED_MARKER => {
+            Err("Companion soul generation was cancelled".to_string())
+        }
+        other => other,
+    }
+}
+
+pub fn abort_companion_soul(app: AppHandle, request_id: String) -> Result<(), String> {
+    let run_manager = app
+        .state::<DynamicMemoryRunManager>()
+        .inner()
+        .clone();
+    let abort_registry = app.state::<crate::abort_manager::AbortRegistry>();
+    run_manager.cancel_run(&abort_registry, &request_id)
+}
+
+async fn run_companion_soul_with_fallback(
+    app: &AppHandle,
+    context: &ChatContext,
+    settings: &Settings,
+    args: &ChatGenerateCompanionSoulArgs,
+    guard: Option<&DynamicMemoryRunGuard>,
+) -> Result<Value, String> {
+    let primary_target = resolve_companion_soul_writer_target(settings, args.model_id.as_deref())?;
     let (model, credential) = primary_target;
-    let api_key = require_api_key(&app, credential, "companion_soul_writer")?;
+    let api_key = require_api_key(app, credential, "companion_soul_writer")?;
 
     let primary_result = run_with_target(
-        &app,
-        &context,
-        &settings,
-        &args,
+        app,
+        context,
+        settings,
+        args,
         model,
         credential,
         &api_key,
         "companion_soul_writer",
+        guard,
     )
     .await;
 
@@ -1188,38 +1299,44 @@ pub async fn chat_generate_companion_soul(
     }
 
     let primary_err = primary_result.err().unwrap();
+    if primary_err == SOUL_CANCELLED_MARKER {
+        return Err(primary_err);
+    }
 
-    if let Some((fb_model, fb_credential)) =
-        resolve_companion_soul_writer_fallback_target(&settings)
-    {
+    if let Some((fb_model, fb_credential)) = resolve_companion_soul_writer_fallback_target(settings) {
         if fb_model.id == model.id {
             return Err(primary_err);
         }
         log_warn(
-            &app,
+            app,
             "companion_soul_writer",
             format!(
                 "primary model failed ({}); retrying with fallback model {}",
                 primary_err, fb_model.name
             ),
         );
-        let fb_api_key = require_api_key(&app, fb_credential, "companion_soul_writer")?;
+        let fb_api_key = require_api_key(app, fb_credential, "companion_soul_writer")?;
         return run_with_target(
-            &app,
-            &context,
-            &settings,
-            &args,
+            app,
+            context,
+            settings,
+            args,
             fb_model,
             fb_credential,
             &fb_api_key,
             "companion_soul_writer_fallback_model",
+            guard,
         )
         .await
         .map_err(|err| {
-            format!(
-                "companion soul writer failed on primary ({}) and fallback ({})",
-                primary_err, err
-            )
+            if err == SOUL_CANCELLED_MARKER {
+                err
+            } else {
+                format!(
+                    "companion soul writer failed on primary ({}) and fallback ({})",
+                    primary_err, err
+                )
+            }
         });
     }
 
