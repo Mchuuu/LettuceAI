@@ -2128,7 +2128,6 @@ export function EditCharacterPage() {
                         <Cpu className="h-4 w-4 text-secondary" />
                       </div>
                       <h3 className="text-sm font-semibold text-fg">{t("characters.edit.defaultModelTitle")}</h3>
-                      <span className="ml-auto text-xs text-fg/40">{t("characters.edit.optionalSuffix")}</span>
                     </div>
 
                     {loadingModels ? (
