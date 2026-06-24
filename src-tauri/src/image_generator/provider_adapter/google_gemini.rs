@@ -208,3 +208,54 @@ impl ImageProviderAdapter for GoogleGeminiAdapter {
         Ok(images)
     }
 }
+
+// Express variant: same Gemini payload, just aiplatform.googleapis.com + x-goog-api-key
+pub struct GeminiAgentPlatformExpressAdapter;
+
+impl ImageProviderAdapter for GeminiAgentPlatformExpressAdapter {
+    fn endpoint(&self, base_url: &str, request: &ImageGenerationRequest) -> String {
+        // share the chat adapter's normalization so /v1 and /v1beta bases upgrade consistently
+        use crate::chat_manager::provider_adapter::gemini_agent_platform_express::{
+            bare_model_id, express_base, MODEL_RESOURCE_PREFIX,
+        };
+        let base = express_base(base_url);
+        format!(
+            "{}/{}{}:generateContent",
+            base,
+            MODEL_RESOURCE_PREFIX,
+            urlencoding::encode(bare_model_id(&request.model))
+        )
+    }
+
+    fn requires_api_key(&self) -> bool {
+        true
+    }
+
+    fn required_auth_headers(&self) -> &'static [&'static str] {
+        &["x-goog-api-key"]
+    }
+
+    fn headers(
+        &self,
+        api_key: &str,
+        extra: Option<&HashMap<String, String>>,
+    ) -> HashMap<String, String> {
+        let mut headers = HashMap::new();
+        headers.insert("Content-Type".into(), "application/json".into());
+        headers.insert("x-goog-api-key".into(), api_key.to_string());
+        if let Some(extra) = extra {
+            for (k, v) in extra.iter() {
+                headers.insert(k.clone(), v.clone());
+            }
+        }
+        headers
+    }
+
+    fn payload(&self, request: &ImageGenerationRequest) -> Result<ImageRequestPayload, String> {
+        GoogleGeminiAdapter.payload(request)
+    }
+
+    fn parse_response(&self, response: Value) -> Result<Vec<ImageResponseData>, String> {
+        GoogleGeminiAdapter.parse_response(response)
+    }
+}
