@@ -892,6 +892,7 @@ export const idMessages: DeepPartialMessageTree<LocaleMessages> = {
     swapPlaces: "Tukar Posisi",
     swapPlacesOn: "Tukar Posisi (Aktif)",
     uploadImage: "Unggah Gambar",
+    uploadImageDesc: "Kirim gambar ke model",
     uploadAudio: "Unggah Audio",
     uploadAudioDesc: "Kirim klip audio ke model",
     helpMeReply: "Bantu Saya Balas",

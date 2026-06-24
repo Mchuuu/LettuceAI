@@ -892,6 +892,7 @@ export const ruMessages: DeepPartialMessageTree<LocaleMessages> = {
     swapPlaces: "Поменять местами",
     swapPlacesOn: "Поменять местами (вкл.)",
     uploadImage: "Загрузить изображение",
+    uploadImageDesc: "Отправьте изображение модели",
     uploadAudio: "Загрузить аудио",
     uploadAudioDesc: "Отправьте аудиоклип модели",
     helpMeReply: "Помоги ответить",

@@ -892,6 +892,7 @@ export const koMessages: DeepPartialMessageTree<LocaleMessages> = {
     swapPlaces: "위치 교환",
     swapPlacesOn: "위치 교환 (켜기)",
     uploadImage: "이미지 업로드",
+    uploadImageDesc: "이미지를 모델에 전송합니다",
     uploadAudio: "오디오 업로드",
     uploadAudioDesc: "오디오 클립을 모델에 전송합니다",
     helpMeReply: "답장 도우미",

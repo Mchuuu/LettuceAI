@@ -892,6 +892,7 @@ export const jaMessages: DeepPartialMessageTree<LocaleMessages> = {
     swapPlaces: "入れ替え",
     swapPlacesOn: "入れ替え（オン）",
     uploadImage: "画像をアップロード",
+    uploadImageDesc: "画像をモデルに送信します",
     uploadAudio: "音声をアップロード",
     uploadAudioDesc: "音声クリップをモデルに送信します",
     helpMeReply: "返信アシスト",

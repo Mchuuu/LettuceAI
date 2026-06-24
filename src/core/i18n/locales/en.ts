@@ -888,6 +888,7 @@ export const enMessages = {
     swapPlaces: "Swap Places",
     swapPlacesOn: "Swap Places (On)",
     uploadImage: "Upload Image",
+    uploadImageDesc: "Send an image to the model",
     uploadAudio: "Upload Audio",
     uploadAudioDesc: "Send an audio clip to the model",
     helpMeReply: "Help Me Reply",

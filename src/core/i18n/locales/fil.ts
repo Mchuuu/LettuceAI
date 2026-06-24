@@ -892,6 +892,7 @@ export const filMessages: DeepPartialMessageTree<LocaleMessages> = {
     swapPlaces: "Magpalit ng Lugar",
     swapPlacesOn: "Magpalit ng Lugar (Bukas)",
     uploadImage: "Mag-upload ng Larawan",
+    uploadImageDesc: "Magpadala ng larawan sa model",
     uploadAudio: "Mag-upload ng Audio",
     uploadAudioDesc: "Magpadala ng audio clip sa model",
     helpMeReply: "Tulungan Akong Sumagot",

@@ -892,6 +892,7 @@ export const itMessages: DeepPartialMessageTree<LocaleMessages> = {
     swapPlaces: "Scambia posti",
     swapPlacesOn: "Scambia posti (attivo)",
     uploadImage: "Carica immagine",
+    uploadImageDesc: "Invia un'immagine al modello",
     uploadAudio: "Carica audio",
     uploadAudioDesc: "Invia un clip audio al modello",
     helpMeReply: "Aiutami a rispondere",

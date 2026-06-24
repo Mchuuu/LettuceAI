@@ -892,6 +892,7 @@ export const elMessages: DeepPartialMessageTree<LocaleMessages> = {
     swapPlaces: "Εναλλαγή Θέσεων",
     swapPlacesOn: "Εναλλαγή Θέσεων (Ενεργό)",
     uploadImage: "Μεταφόρτωση Εικόνας",
+    uploadImageDesc: "Στείλτε μια εικόνα στο μοντέλο",
     uploadAudio: "Μεταφόρτωση Ήχου",
     uploadAudioDesc: "Στείλτε ένα ηχητικό απόσπασμα στο μοντέλο",
     helpMeReply: "Βοήθησέ με να Απαντήσω",

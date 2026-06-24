@@ -892,6 +892,7 @@ export const nlMessages: DeepPartialMessageTree<LocaleMessages> = {
     swapPlaces: "Wisselen van plaats",
     swapPlacesOn: "Wisselen van plaats (Aan)",
     uploadImage: "Afbeelding uploaden",
+    uploadImageDesc: "Stuur een afbeelding naar het model",
     uploadAudio: "Audio uploaden",
     uploadAudioDesc: "Stuur een audiofragment naar het model",
     helpMeReply: "Help me antwoorden",

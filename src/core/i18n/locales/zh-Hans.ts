@@ -892,6 +892,7 @@ export const zhHansMessages: DeepPartialMessageTree<LocaleMessages> = {
     swapPlaces: "交换位置",
     swapPlacesOn: "交换位置（开启）",
     uploadImage: "上传图片",
+    uploadImageDesc: "向模型发送一张图片",
     uploadAudio: "上传音频",
     uploadAudioDesc: "向模型发送一段音频",
     helpMeReply: "帮我回复",

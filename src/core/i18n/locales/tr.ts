@@ -892,6 +892,7 @@ export const trMessages: DeepPartialMessageTree<LocaleMessages> = {
     swapPlaces: "Yer değiştir",
     swapPlacesOn: "Yer değiştir (Açık)",
     uploadImage: "Görsel yükle",
+    uploadImageDesc: "Modele bir görsel gönder",
     uploadAudio: "Ses yükle",
     uploadAudioDesc: "Modele bir ses kaydı gönder",
     helpMeReply: "Yanıtlamamda yardım et",

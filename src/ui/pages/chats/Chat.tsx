@@ -3111,6 +3111,7 @@ export function ChatConversationPage() {
             <MenuButton
               icon={Image}
               title={t("chats.uploadImage")}
+              description={t("chats.uploadImageDesc")}
               onClick={handlePlusMenuImageUpload}
             />
           )}

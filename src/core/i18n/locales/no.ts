@@ -892,6 +892,7 @@ export const noMessages: DeepPartialMessageTree<LocaleMessages> = {
     swapPlaces: "Bytt plass",
     swapPlacesOn: "Bytt plass (på)",
     uploadImage: "Last opp bilde",
+    uploadImageDesc: "Send et bilde til modellen",
     uploadAudio: "Last opp lyd",
     uploadAudioDesc: "Send et lydklipp til modellen",
     helpMeReply: "Hjelp meg å svare",

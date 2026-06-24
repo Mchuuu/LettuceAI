@@ -892,6 +892,7 @@ export const viMessages: DeepPartialMessageTree<LocaleMessages> = {
     swapPlaces: "Đổi vị trí",
     swapPlacesOn: "Đổi vị trí (Bật)",
     uploadImage: "Tải hình ảnh lên",
+    uploadImageDesc: "Gửi một hình ảnh đến mô hình",
     uploadAudio: "Tải âm thanh lên",
     uploadAudioDesc: "Gửi một đoạn âm thanh đến mô hình",
     helpMeReply: "Giúp tôi trả lời",

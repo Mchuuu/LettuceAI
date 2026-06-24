@@ -892,6 +892,7 @@ export const hiMessages: DeepPartialMessageTree<LocaleMessages> = {
     swapPlaces: "स्थान बदलें",
     swapPlacesOn: "स्थान बदलें (चालू)",
     uploadImage: "छवि अपलोड करें",
+    uploadImageDesc: "मॉडल को एक छवि भेजें",
     uploadAudio: "ऑडियो अपलोड करें",
     uploadAudioDesc: "मॉडल को एक ऑडियो क्लिप भेजें",
     helpMeReply: "जवाब देने में मदद करें",
