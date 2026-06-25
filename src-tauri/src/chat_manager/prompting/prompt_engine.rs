@@ -687,6 +687,20 @@ pub fn default_dynamic_memory_entries() -> Vec<SystemPromptEntry> {
             }),
             prompt_entry_payload: None,
         },
+        SystemPromptEntry {
+            id: "memory_companion_supersede".to_string(),
+            name: "Companion Memory Supersession".to_string(),
+            role: PromptEntryRole::System,
+            content: "Companion memory supersession:\n- When a new fact replaces or corrects an existing memory (for example the user moved, changed a preference, or an earlier fact is now wrong), call create_memory for the corrected fact and list the outdated memory's 6-digit IDs (shown in brackets) in supersedes.\n- Prefer supersedes over delete_memory for corrections, so the older fact is kept as history but is no longer recalled.\n- Only supersede memories that the new fact genuinely makes outdated; never supersede unrelated memories.".to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: true,
+            conditions: Some(PromptEntryCondition::IsCompanionMode { value: true }),
+            prompt_entry_payload: None,
+        },
     ]
 }
 
@@ -822,6 +836,20 @@ pub fn default_dynamic_memory_local_entries() -> Vec<SystemPromptEntry> {
                     PromptEntryCondition::IsTimeAwarenessEnabled { value: true },
                 ],
             }),
+            prompt_entry_payload: None,
+        },
+        SystemPromptEntry {
+            id: "memory_companion_supersede".to_string(),
+            name: "Companion Memory Supersession".to_string(),
+            role: PromptEntryRole::System,
+            content: "Companion memory supersession:\n- When a new fact replaces or corrects an existing memory (for example the user moved, changed a preference, or an earlier fact is now wrong), call create_memory for the corrected fact and list the outdated memory's 6-digit IDs (shown in brackets) in supersedes.\n- Prefer supersedes over delete_memory for corrections, so the older fact is kept as history but is no longer recalled.\n- Only supersede memories that the new fact genuinely makes outdated; never supersede unrelated memories.".to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: true,
+            conditions: Some(PromptEntryCondition::IsCompanionMode { value: true }),
             prompt_entry_payload: None,
         },
     ]
@@ -3346,7 +3374,7 @@ pub fn build_system_prompt_entries(
         session
             .memory_embeddings
             .iter()
-            .any(|memory| !memory.is_cold || memory.is_pinned)
+            .any(|memory| (!memory.is_cold || memory.is_pinned) && memory.superseded_by.is_none())
     } else {
         has_manual_memories(&session.memories)
     };
@@ -3449,7 +3477,7 @@ pub fn build_system_prompt_entries(
         session
             .memory_embeddings
             .iter()
-            .filter(|mem| !mem.is_cold || mem.is_pinned)
+            .filter(|mem| (!mem.is_cold || mem.is_pinned) && mem.superseded_by.is_none())
             .map(|mem| format_memory_for_prompt(mem, memory_now))
             .collect::<Vec<_>>()
     } else if has_manual_memories(&session.memories) {
@@ -4087,7 +4115,7 @@ pub fn render_with_context_internal(
         session
             .memory_embeddings
             .iter()
-            .filter(|memory| !memory.is_cold || memory.is_pinned)
+            .filter(|memory| (!memory.is_cold || memory.is_pinned) && memory.superseded_by.is_none())
             .map(|memory| format!("- {}", memory.text))
             .collect::<Vec<_>>()
             .join("\n")

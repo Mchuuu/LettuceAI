@@ -1146,8 +1146,34 @@ fn format_memories_with_ids(session: &Session) -> Vec<String> {
     session
         .memory_embeddings
         .iter()
+        .filter(|m| m.superseded_by.is_none())
         .map(|m| format!("[{}] {}", m.id, m.text))
         .collect()
+}
+
+const MAX_SUPERSEDED_MEMORIES: usize = 40;
+
+fn enforce_superseded_cap(memories: &mut Vec<MemoryEmbedding>, cap: usize) {
+    let superseded_count = memories.iter().filter(|m| m.superseded_by.is_some()).count();
+    if superseded_count <= cap {
+        return;
+    }
+    let to_drop = superseded_count - cap;
+    let mut order: Vec<(usize, u64)> = memories
+        .iter()
+        .enumerate()
+        .filter(|(_, m)| m.superseded_by.is_some())
+        .map(|(i, m)| (i, m.superseded_at.unwrap_or(0)))
+        .collect();
+    order.sort_by_key(|(_, at)| *at);
+    let drop_set: std::collections::HashSet<usize> =
+        order.into_iter().take(to_drop).map(|(i, _)| i).collect();
+    let mut idx = 0usize;
+    memories.retain(|_| {
+        let keep = !drop_set.contains(&idx);
+        idx += 1;
+        keep
+    });
 }
 
 fn normalized_tokens(text: &str) -> Vec<String> {
@@ -1227,7 +1253,9 @@ pub(crate) async fn select_relevant_memories(
                 .iter()
                 .cloned()
                 .enumerate()
-                .filter(|(_, memory)| memory_matches_temporal_range(memory, range))
+                .filter(|(_, memory)| {
+                    memory.superseded_by.is_none() && memory_matches_temporal_range(memory, range)
+                })
                 .collect()
         });
     let (candidate_index_map, candidate_memories): (Vec<usize>, Vec<MemoryEmbedding>) =
@@ -1237,10 +1265,13 @@ pub(crate) async fn select_relevant_memories(
             }
             candidates.into_iter().unzip()
         } else {
-            (
-                (0..session.memory_embeddings.len()).collect(),
-                session.memory_embeddings.clone(),
-            )
+            session
+                .memory_embeddings
+                .iter()
+                .cloned()
+                .enumerate()
+                .filter(|(_, memory)| memory.superseded_by.is_none())
+                .unzip()
         };
     let temporal_query_active = temporal_range.is_some();
     let effective_min_similarity = if temporal_query_active {
@@ -3292,7 +3323,8 @@ async fn run_memory_tool_update(
     cancel_token: Option<&DynamicMemoryCancellationToken>,
 ) -> Result<Vec<Value>, String> {
     let overwrite_llama_sampler_config = dynamic_memory_llama_sampler_overwrite_enabled(settings);
-    let tool_config = build_memory_tool_config();
+    let memory_supersede_enabled = companion::is_companion_mode(session, character);
+    let tool_config = build_memory_tool_config(memory_supersede_enabled);
     let max_entries = dynamic_max_entries(settings);
 
     let mut messages_for_api = Vec::new();
@@ -3629,6 +3661,26 @@ async fn run_memory_tool_update(
                         let (embedding_source_version, embedding_dimensions) =
                             embedding::resolve_active_embedding_signature(app)
                                 .unwrap_or_else(|_| ("v3".to_string(), 512));
+                        let supersede_ids: Vec<String> = if memory_supersede_enabled {
+                            call.arguments
+                                .get("supersedes")
+                                .and_then(|v| v.as_array())
+                                .map(|arr| {
+                                    arr.iter()
+                                        .filter_map(|v| v.as_str())
+                                        .map(sanitize_memory_id)
+                                        .filter(|id| {
+                                            id != &mem_id
+                                                && session.memory_embeddings.iter().any(|m| {
+                                                    m.id == *id && m.superseded_by.is_none()
+                                                })
+                                        })
+                                        .collect()
+                                })
+                                .unwrap_or_default()
+                        } else {
+                            Vec::new()
+                        };
                         session.memory_embeddings.push(MemoryEmbedding {
                             id: mem_id.clone(),
                             text,
@@ -3656,8 +3708,24 @@ async fn run_memory_tool_update(
                             source_message_id,
                             superseded_by: None,
                             superseded_at: None,
-                            supersedes: Vec::new(),
+                            supersedes: supersede_ids.clone(),
                         });
+                        if !supersede_ids.is_empty() {
+                            let superseded_at = now_millis().unwrap_or_default();
+                            for old in session.memory_embeddings.iter_mut() {
+                                if old.id != mem_id
+                                    && old.superseded_by.is_none()
+                                    && supersede_ids.iter().any(|id| id == &old.id)
+                                {
+                                    old.superseded_by = Some(mem_id.clone());
+                                    old.superseded_at = Some(superseded_at);
+                                }
+                            }
+                            enforce_superseded_cap(
+                                &mut session.memory_embeddings,
+                                MAX_SUPERSEDED_MEMORIES,
+                            );
+                        }
                         let action = json!({
                             "name": "create_memory",
                             "arguments": call.arguments,
@@ -4439,7 +4507,35 @@ async fn run_memory_tag_repair(
     Ok(repaired)
 }
 
-fn build_memory_tool_config() -> ToolConfig {
+fn build_memory_tool_config(is_companion: bool) -> ToolConfig {
+    let mut create_memory_params = json!({
+        "type": "object",
+        "properties": {
+            "text": { "type": "string", "description": "Concise memory to store" },
+            "important": { "type": "boolean", "description": "If true, memory will be pinned (never decays)" },
+            "category": {
+                "type": "string",
+                "enum": ["character_trait", "relationship", "plot_event", "world_detail", "preference", "other"],
+                "description": "Category of this memory for organization"
+            }
+        },
+        "required": ["text", "category"]
+    });
+    if is_companion {
+        if let Some(props) = create_memory_params
+            .get_mut("properties")
+            .and_then(|value| value.as_object_mut())
+        {
+            props.insert(
+                "supersedes".to_string(),
+                json!({
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "6-digit IDs (shown in brackets) of older memories this entry replaces. Use this to correct an outdated fact instead of deleting it."
+                }),
+            );
+        }
+    }
     ToolConfig {
         tools: vec![
             ToolDefinition {
@@ -4447,19 +4543,7 @@ fn build_memory_tool_config() -> ToolConfig {
                 description: Some(
                     "Create a concise memory entry capturing important facts.".to_string(),
                 ),
-                parameters: json!({
-                    "type": "object",
-                    "properties": {
-                        "text": { "type": "string", "description": "Concise memory to store" },
-                        "important": { "type": "boolean", "description": "If true, memory will be pinned (never decays)" },
-                        "category": {
-                            "type": "string",
-                            "enum": ["character_trait", "relationship", "plot_event", "world_detail", "preference", "other"],
-                            "description": "Category of this memory for organization"
-                        }
-                    },
-                    "required": ["text", "category"]
-                }),
+                parameters: create_memory_params,
             },
             ToolDefinition {
                 name: "delete_memory".to_string(),
