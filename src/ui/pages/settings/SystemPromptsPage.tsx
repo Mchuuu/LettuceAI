@@ -20,6 +20,7 @@ import {
   ListFilter,
   Check,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { getPromptTypeName } from "./EditPromptTemplate";
 import { cn, typography, radius, interactive } from "../../design-tokens";
@@ -29,6 +30,7 @@ import {
   deletePromptTemplate,
   createPromptTemplate,
   exportPromptTemplateAsUsc,
+  resetAllProtectedTemplates,
 } from "../../../core/prompts/service";
 import type {
   PromptTemplateType,
@@ -702,6 +704,8 @@ export function SystemPromptsPage() {
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exportTarget, setExportTarget] = useState<SystemPromptTemplate | null>(null);
   const [importing, setImporting] = useState(false);
+  const [showUpdateConfirm, setShowUpdateConfirm] = useState(false);
+  const [updatingProtected, setUpdatingProtected] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -949,6 +953,27 @@ export function SystemPromptsPage() {
     }
   }
 
+  async function handleUpdateProtected() {
+    setUpdatingProtected(true);
+    try {
+      await resetAllProtectedTemplates();
+      await loadData();
+      setShowUpdateConfirm(false);
+      toast.success(
+        t("systemPrompts.updateProtected.successTitle"),
+        t("systemPrompts.updateProtected.successMessage"),
+      );
+    } catch (error) {
+      console.error("Failed to update protected templates:", error);
+      toast.error(
+        t("systemPrompts.updateProtected.failTitle"),
+        String(error),
+      );
+    } finally {
+      setUpdatingProtected(false);
+    }
+  }
+
   async function handleDelete() {
     if (!templateToDelete) return;
     if (isProtectedPromptTemplate(templateToDelete.id)) {
@@ -1076,6 +1101,29 @@ export function SystemPromptsPage() {
                     {selectedTypes.size}
                   </span>
                 )}
+              </button>
+              <button
+                onClick={() => setShowUpdateConfirm(true)}
+                disabled={updatingProtected}
+                title={t("systemPrompts.updateProtected.button")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2.5",
+                  radius.lg,
+                  "border border-fg/10 bg-fg/5",
+                  "text-xs font-medium text-fg/70",
+                  interactive.transition.fast,
+                  "hover:bg-fg/10 hover:text-fg",
+                  "disabled:opacity-50",
+                )}
+              >
+                <RefreshCw
+                  className={cn("h-3.5 w-3.5", updatingProtected && "animate-spin")}
+                />
+                <span className="hidden sm:inline">
+                  {updatingProtected
+                    ? t("systemPrompts.updateProtected.updating")
+                    : t("systemPrompts.updateProtected.button")}
+                </span>
               </button>
               <button
                 onClick={() => importInputRef.current?.click()}
@@ -1277,6 +1325,62 @@ export function SystemPromptsPage() {
               )}
             >
               {deleting ? t("systemPrompts.delete.deleting") : t("common.buttons.delete")}
+            </button>
+          </div>
+        </div>
+      </BottomMenu>
+
+      {/* Update Protected Confirmation */}
+      <BottomMenu
+        isOpen={showUpdateConfirm}
+        onClose={() => setShowUpdateConfirm(false)}
+        title={t("systemPrompts.updateProtected.title")}
+      >
+        <div className="space-y-4">
+          <div className={cn(radius.lg, "border border-warning/30 bg-warning/10 p-3")}>
+            <div className="flex items-center gap-2 text-warning">
+              <AlertTriangle className="h-4 w-4" />
+              <p className="text-sm font-semibold">
+                {t("systemPrompts.updateProtected.warningTitle")}
+              </p>
+            </div>
+            <p className="mt-1.5 text-xs leading-relaxed text-fg/70">
+              {t("systemPrompts.updateProtected.warningBody")}
+            </p>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowUpdateConfirm(false)}
+              disabled={updatingProtected}
+              className={cn(
+                "flex-1 py-3",
+                radius.lg,
+                "border border-fg/10 bg-fg/5",
+                "text-sm font-medium text-fg",
+                interactive.transition.fast,
+                "hover:bg-fg/10",
+                "disabled:opacity-50",
+              )}
+            >
+              {t("common.buttons.cancel")}
+            </button>
+            <button
+              onClick={handleUpdateProtected}
+              disabled={updatingProtected}
+              className={cn(
+                "flex-1 py-3",
+                radius.lg,
+                "border border-accent/30 bg-accent/15",
+                "text-sm font-medium text-accent/80",
+                interactive.transition.fast,
+                "hover:bg-accent/25",
+                "disabled:opacity-50",
+              )}
+            >
+              {updatingProtected
+                ? t("systemPrompts.updateProtected.updating")
+                : t("systemPrompts.updateProtected.confirm")}
             </button>
           </div>
         </div>

@@ -938,6 +938,11 @@ pub fn reset_companion_soul_writer_template(
 }
 
 #[tauri::command]
+pub fn reset_all_protected_templates(app: AppHandle) -> Result<Vec<SystemPromptTemplate>, String> {
+    prompts::reset_all_protected_templates(&app)
+}
+
+#[tauri::command]
 pub fn get_required_template_variables(app: AppHandle, template_id: String) -> Vec<String> {
     prompts::get_template(&app, &template_id)
         .ok()

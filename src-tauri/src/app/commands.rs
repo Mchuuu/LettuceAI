@@ -239,6 +239,7 @@ macro_rules! invoke_handler {
             crate::chat_manager::reset_scene_prompt_writer_template,
             crate::chat_manager::reset_design_reference_template,
             crate::chat_manager::reset_companion_soul_writer_template,
+            crate::chat_manager::reset_all_protected_templates,
             crate::chat_manager::get_prompt_parameter_engine,
             crate::chat_manager::get_required_template_variables,
             crate::chat_manager::validate_template_variables,

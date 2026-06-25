@@ -65,6 +65,10 @@ export async function isAppDefaultTemplate(id: string): Promise<boolean> {
   return await invoke<boolean>("is_app_default_template", { id });
 }
 
+export async function resetAllProtectedTemplates(): Promise<SystemPromptTemplate[]> {
+  return await invoke<SystemPromptTemplate[]>("reset_all_protected_templates");
+}
+
 export async function resetAppDefaultTemplate(): Promise<SystemPromptTemplate> {
   return await invoke<SystemPromptTemplate>("reset_app_default_template");
 }

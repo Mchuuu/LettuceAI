@@ -797,6 +797,11 @@ pub fn load_templates(app: &AppHandle) -> Result<Vec<SystemPromptTemplate>, Stri
     ensure_companion_soul_writer_template(app)?;
     ensure_companion_growthcycle_template(app)?;
     ensure_companion_consolidation_template(app)?;
+    ensure_help_me_reply_template(app)?;
+    ensure_avatar_image_templates(app)?;
+    ensure_scene_generation_template(app)?;
+    ensure_scene_prompt_writer_template(app)?;
+    ensure_design_reference_template(app)?;
     let conn = open_db(app)?;
     migrate_legacy_lorebook_entry_writer_template_id(&conn)?;
     let mut stmt = conn
@@ -969,6 +974,11 @@ fn reset_protected_template_to_defaults(
         params![updated.created_at, id],
     )
     .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    crate::utils::log_info(
+        app,
+        "prompts",
+        format!("Reset protected prompt template to latest: {} ({})", updated.name, id),
+    );
     get_template(app, id).map(|opt| opt.expect("reset row should exist"))
 }
 
@@ -2304,6 +2314,88 @@ pub fn reset_companion_soul_writer_template(
         content,
         entries,
     )
+}
+
+pub fn reset_lorebook_generator_planner_template(
+    app: &AppHandle,
+) -> Result<SystemPromptTemplate, String> {
+    let content = get_base_prompt(PromptType::LorebookGeneratorPlannerPrompt);
+    let entries = get_base_prompt_entries(PromptType::LorebookGeneratorPlannerPrompt);
+    reset_protected_template_to_defaults(
+        app,
+        APP_LOREBOOK_GENERATOR_PLANNER_TEMPLATE_ID,
+        content,
+        entries,
+    )
+}
+
+pub fn reset_lorebook_generator_writer_template(
+    app: &AppHandle,
+) -> Result<SystemPromptTemplate, String> {
+    let content = get_base_prompt(PromptType::LorebookGeneratorWriterPrompt);
+    let entries = get_base_prompt_entries(PromptType::LorebookGeneratorWriterPrompt);
+    reset_protected_template_to_defaults(
+        app,
+        APP_LOREBOOK_GENERATOR_WRITER_TEMPLATE_ID,
+        content,
+        entries,
+    )
+}
+
+pub fn reset_lorebook_generator_refine_template(
+    app: &AppHandle,
+) -> Result<SystemPromptTemplate, String> {
+    let content = get_base_prompt(PromptType::LorebookGeneratorRefinePrompt);
+    let entries = get_base_prompt_entries(PromptType::LorebookGeneratorRefinePrompt);
+    reset_protected_template_to_defaults(
+        app,
+        APP_LOREBOOK_GENERATOR_REFINE_TEMPLATE_ID,
+        content,
+        entries,
+    )
+}
+
+pub fn reset_lorebook_generator_coherence_template(
+    app: &AppHandle,
+) -> Result<SystemPromptTemplate, String> {
+    let content = get_base_prompt(PromptType::LorebookGeneratorCoherencePrompt);
+    let entries = get_base_prompt_entries(PromptType::LorebookGeneratorCoherencePrompt);
+    reset_protected_template_to_defaults(
+        app,
+        APP_LOREBOOK_GENERATOR_COHERENCE_TEMPLATE_ID,
+        content,
+        entries,
+    )
+}
+
+pub fn reset_all_protected_templates(app: &AppHandle) -> Result<Vec<SystemPromptTemplate>, String> {
+    crate::utils::log_info(app, "prompts", "Updating all protected prompt templates to latest");
+    load_templates(app)?;
+    reset_app_default_template(app)?;
+    reset_local_roleplay_template(app)?;
+    reset_companion_template(app)?;
+    reset_dynamic_summary_template(app)?;
+    reset_dynamic_memory_template(app)?;
+    reset_dynamic_memory_local_template(app)?;
+    reset_help_me_reply_template(app)?;
+    reset_help_me_reply_conversational_template(app)?;
+    reset_lorebook_entry_writer_template(app)?;
+    reset_lorebook_keyword_generator_template(app)?;
+    reset_lorebook_generator_planner_template(app)?;
+    reset_lorebook_generator_writer_template(app)?;
+    reset_lorebook_generator_refine_template(app)?;
+    reset_lorebook_generator_coherence_template(app)?;
+    reset_group_chat_template(app)?;
+    reset_group_chat_roleplay_template(app)?;
+    reset_avatar_generation_template(app)?;
+    reset_avatar_edit_template(app)?;
+    reset_scene_generation_template(app)?;
+    reset_scene_prompt_writer_template(app)?;
+    reset_design_reference_template(app)?;
+    reset_companion_soul_writer_template(app)?;
+    reset_companion_growthcycle_template(app)?;
+    reset_companion_consolidation_template(app)?;
+    load_templates(app)
 }
 
 /// Get the Help Me Reply template from DB, falling back to default if not found

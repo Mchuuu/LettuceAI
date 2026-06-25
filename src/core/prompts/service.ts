@@ -11,6 +11,7 @@ export {
   getDefaultSystemPromptTemplate,
   getAppDefaultTemplateId,
   isAppDefaultTemplate,
+  resetAllProtectedTemplates,
   resetAppDefaultTemplate,
   resetLocalRoleplayTemplate,
   resetCompanionTemplate,
