@@ -209,10 +209,19 @@ jobs:
     name: Windows Check
     runs-on: windows-latest
     timeout-minutes: 60
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+      CARGO_TARGET_DIR: C:\t
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Enable Windows long paths
+        shell: pwsh
+        run: |
+          git config --system core.longpaths true
+          reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -256,4 +265,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run checks
-        run: bun run check
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:CARGO_TARGET_DIR | Out-Null
+          bun run check
