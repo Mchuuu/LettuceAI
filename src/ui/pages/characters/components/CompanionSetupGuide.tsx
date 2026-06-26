@@ -1,7 +1,8 @@
-import { Check, Download, Heart, Loader2, MessageCircleHeart, Waypoints } from "lucide-react";
+import { BookOpen, Check, Download, Heart, Loader2, MessageCircleHeart, Waypoints } from "lucide-react";
 import type { ModelRequirement } from "../../../modelRequirements";
 import { BottomMenu } from "../../../components/BottomMenu";
 import { useI18n, type TranslationKey } from "../../../../core/i18n/context";
+import { openDocs } from "../../../../core/utils/docs";
 import { cn, interactive, radius, typography } from "../../../design-tokens";
 
 interface CompanionSetupGuideProps {
@@ -174,6 +175,15 @@ function ExplainPhase() {
           {t("characters.companionSetup.whereBody")}
         </p>
       </div>
+
+      <button
+        type="button"
+        onClick={() => void openDocs("companionMode")}
+        className="inline-flex items-center gap-1.5 text-xs font-medium text-fg/40 transition active:scale-95 hover:text-fg/70"
+      >
+        <BookOpen className="h-3.5 w-3.5" />
+        {t("common.buttons.learnMore")}
+      </button>
     </div>
   );
 }

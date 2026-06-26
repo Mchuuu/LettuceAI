@@ -8,10 +8,12 @@ import {
   ArrowLeft,
   ArrowRight,
   Lightbulb,
+  BookOpen,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn, typography } from "../../../design-tokens";
 import { useI18n, type TranslationKey } from "../../../../core/i18n/context";
+import { openDocs } from "../../../../core/utils/docs";
 
 interface LearnStepProps {
   onDone: () => void;
@@ -89,6 +91,14 @@ export function LearnStep({ onDone, onExitBack }: LearnStepProps) {
             {t(`onboarding.learn.${card.key}.plain` as TranslationKey)}
           </p>
         </div>
+
+        <button
+          onClick={() => void openDocs("aiBasics")}
+          className="mt-5 inline-flex items-center gap-1.5 text-[12px] font-medium text-emerald-300/80 transition hover:text-emerald-200"
+        >
+          <BookOpen size={13} strokeWidth={2} />
+          {t("onboarding.learn.fullGuide")}
+        </button>
       </div>
 
       <div className="mt-8 flex items-center gap-3">

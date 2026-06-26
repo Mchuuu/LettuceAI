@@ -75,6 +75,7 @@ export const enMessages = {
     buttons: {
       cancel: "Cancel",
       confirm: "Confirm",
+      learnMore: "Learn more",
       save: "Save",
       saving: "Saving...",
       delete: "Delete",
@@ -1575,6 +1576,8 @@ export const enMessages = {
       },
       picker: {
         title: "Add widget",
+        learnMore: "How widgets work",
+        learnMoreDesc: "Open the chat widgets guide",
       },
       config: {
         editTitle: "Edit widget",
@@ -6773,6 +6776,7 @@ export const enMessages = {
     learn: {
       done: "Got it, continue",
       plainLabel: "In other words",
+      fullGuide: "Read the full AI Basics guide",
       app: {
         tag: "How it works",
         title: "The app is the car, not the engine",

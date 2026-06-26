@@ -492,7 +492,7 @@ export function AdvancedPage() {
             onToggle={handleToggleCreationHelper}
             onNavigate={() => navigate("/settings/advanced/creation-helper")}
             colorScheme="rose"
-            helpKey="creationHelper"
+            helpKey="smartCreator"
           />
 
           <FeatureCard
@@ -504,6 +504,7 @@ export function AdvancedPage() {
             onToggle={handleToggleHelpMeReply}
             onNavigate={() => navigate("/settings/advanced/help-me-reply")}
             colorScheme="emerald"
+            helpKey="helpMeReply"
           />
 
           <button
@@ -565,6 +566,7 @@ export function AdvancedPage() {
             onToggle={handleToggleDynamicMemory}
             onNavigate={() => navigate("/settings/advanced/memory")}
             colorScheme="blue"
+            helpKey="memorySystem"
           />
 
           {/* Context Window Settings Card */}
@@ -660,6 +662,7 @@ export function AdvancedPage() {
             onToggle={handleToggleHostApi}
             onNavigate={() => navigate("/settings/advanced/host-api")}
             colorScheme="blue"
+            helpKey="hostApi"
           />
         </SettingsSection>
 

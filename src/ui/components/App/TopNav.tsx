@@ -37,12 +37,7 @@ const appPlatform = getPlatform();
 const isDesktop = appPlatform.type === "desktop";
 const isMacOS = appPlatform.os === "macos";
 
-export function TopNav({
-  currentPath,
-  onBackOverride,
-  titleOverride,
-  rightAction,
-}: TopNavProps) {
+export function TopNav({ currentPath, onBackOverride, titleOverride, rightAction }: TopNavProps) {
   const navigate = useNavigate();
   const { t } = useI18n();
   const basePath = useMemo(() => currentPath.split("?")[0], [currentPath]);
@@ -233,8 +228,7 @@ export function TopNav({
       }
       if (basePath === "/settings/models/browse") {
         const mode =
-          (window as any).__hfBrowserViewMode ||
-          window.localStorage.getItem("hfBrowser:viewMode");
+          (window as any).__hfBrowserViewMode || window.localStorage.getItem("hfBrowser:viewMode");
         if (mode) setLayoutViewMode(mode);
         return;
       }
@@ -289,10 +283,7 @@ export function TopNav({
     [basePath],
   );
 
-  const showRefreshButton = useMemo(
-    () => basePath === "/settings/speech-recognition",
-    [basePath],
-  );
+  const showRefreshButton = useMemo(() => basePath === "/settings/speech-recognition", [basePath]);
 
   const showInstalledModelsButton = useMemo(
     () => basePath === "/settings/models/browse",
@@ -301,7 +292,10 @@ export function TopNav({
 
   // Map paths to docs keys for contextual help
   const docsKeyForPath = useMemo(() => {
+    if (basePath.includes("/lorebook")) return "lorebooks";
     if (basePath === "/settings/providers") return "providers";
+    if (basePath === "/settings/models/browse" || basePath === "/settings/models/installed")
+      return "modelBrowser";
     if (basePath === "/settings/models" || basePath.startsWith("/settings/models/"))
       return "models";
     if (basePath === "/settings/prompts" || basePath.startsWith("/settings/prompts/"))
@@ -311,16 +305,32 @@ export function TopNav({
       (basePath.startsWith("/settings/characters/") && basePath.endsWith("/edit"))
     )
       return "characters";
+    if (basePath === "/create/character/helper") return "smartCreator";
+    if (basePath === "/create/character") return "characters";
+    if (basePath === "/create/persona") return "personas";
     if (
       (basePath.startsWith("/personas/") && basePath.endsWith("/edit")) ||
       basePath === "/settings/personas" ||
       (basePath.startsWith("/settings/personas/") && basePath.endsWith("/edit"))
     )
       return "personas";
-    if (basePath === "/settings/customization") return "accessibility";
+    if (basePath.startsWith("/settings/customization")) return "accessibility";
     if (basePath === "/settings/sync") return "sync";
+    if (basePath === "/settings/security") return "security";
+    if (basePath.startsWith("/settings/usage")) return "usage";
+    if (basePath === "/settings/backup") return "backupRestore";
+    if (basePath === "/settings/image-generation") return "imagegen";
+    if (basePath === "/settings/voices") return "textToSpeech";
+    if (basePath === "/settings/speech-recognition") return "speechRecognition";
+    if (basePath === "/settings/advanced/host-api") return "hostApi";
+    if (basePath === "/settings/advanced/help-me-reply") return "helpMeReply";
+    if (basePath === "/settings/advanced/companions") return "companionMode";
+    if (basePath === "/settings/advanced/creation-helper") return "smartCreator";
     if (basePath === "/settings/advanced/memory") return "memorySystem";
-    if (basePath.includes("/lorebook")) return "lorebooks";
+    if (basePath.startsWith("/group-chats")) return "groupChats";
+    if (basePath.startsWith("/discover")) return "discovery";
+    if (basePath.endsWith("/tree")) return "branching";
+    if (basePath.endsWith("/memories")) return "memorySystem";
     return null;
   }, [basePath]);
 
@@ -489,17 +499,11 @@ export function TopNav({
       globalWindow.__saveCharacter();
     } else if (isPersonaEdit && typeof globalWindow.__savePersona === "function") {
       globalWindow.__savePersona();
-    } else if (
-      (isModelEdit || isModelNew) &&
-      typeof globalWindow.__saveModel === "function"
-    ) {
+    } else if ((isModelEdit || isModelNew) && typeof globalWindow.__saveModel === "function") {
       globalWindow.__saveModel();
     } else if (isPromptEdit || isPromptNew) {
       window.dispatchEvent(new CustomEvent("prompt:save"));
-    } else if (
-      isChatAppearanceEdit &&
-      typeof globalWindow.__saveChatAppearance === "function"
-    ) {
+    } else if (isChatAppearanceEdit && typeof globalWindow.__saveChatAppearance === "function") {
       globalWindow.__saveChatAppearance();
     } else if (
       isColorCustomizationEdit &&
@@ -574,9 +578,7 @@ export function TopNav({
         navigate(`/settings/characters/${templateEditorMatch[1]}/templates`);
         return;
       }
-      const templateListMatch = basePath.match(
-        /^\/settings\/characters\/([^/]+)\/templates$/,
-      );
+      const templateListMatch = basePath.match(/^\/settings\/characters\/([^/]+)\/templates$/);
       if (templateListMatch) {
         navigate(`/settings/characters/${templateListMatch[1]}/edit`);
         return;
@@ -696,10 +698,7 @@ export function TopNav({
         {...dragRegionAttr}
       >
         {/* Left side: */}
-        <div
-          className="flex items-center gap-1 overflow-hidden h-full"
-          {...dragRegionAttr}
-        >
+        <div className="flex items-center gap-1 overflow-hidden h-full" {...dragRegionAttr}>
           <div
             className={cn(
               "flex items-center justify-center shrink-0",
@@ -781,6 +780,20 @@ export function TopNav({
               <Search size={20} strokeWidth={2.5} className="text-fg" />
             </button>
           )}
+          {showHelpButton && (
+            <button
+              onClick={() => docsKeyForPath && openDocs(docsKeyForPath as any)}
+              className={cn(
+                "flex items-center px-[0.6em] py-[0.3em] justify-center rounded-full",
+                "text-fg/80 hover:text-fg hover:bg-fg/10",
+                interactive.transition.fast,
+                interactive.active.scale,
+              )}
+              aria-label={t("topNav.help")}
+            >
+              <HelpCircle size={20} strokeWidth={2.5} className="text-fg/50" />
+            </button>
+          )}
           {showSettingsButton && (
             <button
               onClick={() => navigate("/settings")}
@@ -794,20 +807,6 @@ export function TopNav({
               aria-label={t("topNav.settings")}
             >
               <Settings size={20} strokeWidth={2.5} className="text-fg" />
-            </button>
-          )}
-          {showHelpButton && (
-            <button
-              onClick={() => docsKeyForPath && openDocs(docsKeyForPath as any)}
-              className={cn(
-                "flex items-center px-[0.6em] py-[0.3em] justify-center rounded-full",
-                "text-fg/80 hover:text-fg hover:bg-fg/10",
-                interactive.transition.fast,
-                interactive.active.scale,
-              )}
-              aria-label={t("topNav.help")}
-            >
-              <HelpCircle size={20} strokeWidth={2.5} className="text-fg/50" />
             </button>
           )}
           {showInstalledModelsButton && (

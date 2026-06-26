@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, memo } from "react";
-import { ChevronRight, MessageCircle, Plus, Rocket, Users } from "lucide-react";
+import { BookOpen, ChevronRight, MessageCircle, Plus, Rocket, Users } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { useI18n } from "../../../../../core/i18n/context";
@@ -19,6 +19,7 @@ import { useRocketEasterEgg } from "../../../../hooks/useRocketEasterEgg";
 import { AvatarImage } from "../../../../components/AvatarImage";
 import { formatTimeAgo } from "../../utils/formatTimeAgo";
 import { isRenderableImageUrl } from "../../../../../core/utils/image";
+import { openDocs } from "../../../../../core/utils/docs";
 
 export function GroupSessionList({
   groups,
@@ -255,6 +256,13 @@ export function EmptyState() {
         <p className={cn(typography.body.size, typography.body.lineHeight, "text-fg/50")}>
           {t("groupChats.list.noGroupChatsDesc")}
         </p>
+        <button
+          onClick={() => void openDocs("groupChats")}
+          className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-fg/40 transition active:scale-95 hover:text-fg/70"
+        >
+          <BookOpen className="h-3.5 w-3.5" />
+          {t("common.buttons.learnMore")}
+        </button>
       </div>
     </div>
   );

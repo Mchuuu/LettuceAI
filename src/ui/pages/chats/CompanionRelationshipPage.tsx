@@ -6,6 +6,7 @@ import {
   Brain,
   Drama,
   Heart,
+  HelpCircle,
   Link2,
   Loader2,
   ScrollText,
@@ -22,6 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { clearCompanionSoulGrowth, removeCompanionSoulGrowth } from "../../../core/companion/soul";
+import { openDocs } from "../../../core/utils/docs";
 import { confirmBottomMenu } from "../../components/ConfirmBottomMenu";
 import { useParams, useSearchParams } from "react-router-dom";
 import { cn, components, interactive, radius } from "../../design-tokens";
@@ -428,16 +430,30 @@ export function CompanionRelationshipPage() {
         subtitle={session.title || character.name}
         onBack={() => backOrReplace(Routes.chatCompanionMemories(character.id, session.id))}
         right={
-          <button
-            onClick={() => go(Routes.chatCompanionMemories(character.id, session.id))}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md border border-fg/10 bg-fg/4 px-2.5 py-1.5 text-[11px] font-medium text-fg/70",
-              "hover:border-fg/20 hover:bg-fg/8 hover:text-fg",
-              interactive.transition.fast,
-            )}
-          >
-            <Brain size={12} /> {t("chats.companionRelationship.memoryButton")}
-          </button>
+          <>
+            <button
+              onClick={() => void openDocs("companionMode")}
+              aria-label={t("common.buttons.learnMore")}
+              className={cn(
+                "flex items-center justify-center rounded-full px-[0.6em] py-[0.3em] text-fg/50",
+                "hover:bg-fg/10 hover:text-fg",
+                interactive.transition.fast,
+                interactive.active.scale,
+              )}
+            >
+              <HelpCircle size={18} strokeWidth={2.5} />
+            </button>
+            <button
+              onClick={() => go(Routes.chatCompanionMemories(character.id, session.id))}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md border border-fg/10 bg-fg/4 px-2.5 py-1.5 text-[11px] font-medium text-fg/70",
+                "hover:border-fg/20 hover:bg-fg/8 hover:text-fg",
+                interactive.transition.fast,
+              )}
+            >
+              <Brain size={12} /> {t("chats.companionRelationship.memoryButton")}
+            </button>
+          </>
         }
       />
 

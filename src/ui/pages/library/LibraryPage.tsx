@@ -11,6 +11,7 @@ import {
   saveLorebook,
 } from "../../../core/storage/repo";
 import { deleteImageRef } from "../../../core/storage";
+import { openDocs } from "../../../core/utils/docs";
 import type { Character, Persona, Lorebook } from "../../../core/storage/schemas";
 import { typography, interactive, cn } from "../../design-tokens";
 import { useAvatar } from "../../hooks/useAvatar";
@@ -455,6 +456,21 @@ export function LibraryPage() {
                   : t("characters.empty.createButton")}
               </button>
             )}
+            <button
+              onClick={() =>
+                void openDocs(
+                  filter === "Personas"
+                    ? "personas"
+                    : filter === "Lorebooks"
+                      ? "lorebooks"
+                      : "characters",
+                )
+              }
+              className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-fg/40 transition active:scale-95 hover:text-fg/70"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              {t("common.buttons.learnMore")}
+            </button>
             <input
               ref={lorebookImportRef}
               type="file"

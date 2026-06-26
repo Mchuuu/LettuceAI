@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  BookOpen,
   Download,
   FileAudio,
   Loader2,
@@ -17,6 +18,7 @@ import {
   loadAudioLibraryItemData,
 } from "../../../core/storage/repo";
 import type { AudioLibraryItem } from "../../../core/storage/repo";
+import { openDocs } from "../../../core/utils/docs";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../../../core/i18n/context";
 import { cn, typography, interactive } from "../../design-tokens";
@@ -188,6 +190,13 @@ export function AudioLibraryPanel() {
           <p className={cn(typography.bodySmall.size, "mt-1 max-w-xs text-fg/55")}>
             {t("library.audio.empty.description")}
           </p>
+          <button
+            onClick={() => void openDocs("textToSpeech")}
+            className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-fg/40 transition active:scale-95 hover:text-fg/70"
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            {t("common.buttons.learnMore")}
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

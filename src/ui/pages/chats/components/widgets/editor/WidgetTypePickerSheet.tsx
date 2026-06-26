@@ -15,10 +15,12 @@ import {
   User,
   UserCircle,
   Zap,
+  BookOpen,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { BottomMenu, MenuButton } from "../../../../../components";
 import { useI18n } from "../../../../../../core/i18n/context";
+import { openDocs } from "../../../../../../core/utils/docs";
 import { useWidgetContext } from "../WidgetContext";
 import {
   WIDGET_TYPE_DESC,
@@ -96,6 +98,12 @@ export function WidgetTypePickerSheet({
             }}
           />
         ))}
+        <MenuButton
+          icon={BookOpen}
+          title={t("chats.widgets.picker.learnMore")}
+          description={t("chats.widgets.picker.learnMoreDesc")}
+          onClick={() => void openDocs("chatWidgets")}
+        />
       </div>
     </BottomMenu>
   );
