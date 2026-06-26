@@ -3769,6 +3769,10 @@ export const nlMessages: DeepPartialMessageTree<LocaleMessages> = {
       baseUrl: "Base URL",
       apiKeyOptional: "API Key (optioneel)",
       apiKeyOptionalPlaceholder: "Bearer-token voor authenticatie",
+      comfyTxt2imgWorkflow: "Tekst-naar-afbeelding-workflow (API JSON)",
+      comfyImg2imgWorkflow: "Afbeelding-naar-afbeelding-workflow (API JSON, optioneel)",
+      comfyWorkflowHelp:
+        "Plak API-indeling-workflows die uit ComfyUI zijn geëxporteerd. Tokens: %PROMPT%, %NEGATIVE%, %WIDTH%, %HEIGHT%, %STEPS%, %CFG%, %SEED%, %SAMPLER%, %CKPT%, %DENOISE%, %IMAGE_COUNT% en %IMAGE0%, %IMAGE1%, ... voor referentieafbeeldingen op volgorde (%IMAGE% is de eerste). De afbeeldingsworkflow wordt gebruikt wanneer er referentieafbeeldingen aanwezig zijn.",
       streaming: "Streaming",
       streamingDesc: "Stream reacties voor deze provider wanneer een functie dat toestaat",
       allowInvalidTls: "Ongeldige TLS toestaan",

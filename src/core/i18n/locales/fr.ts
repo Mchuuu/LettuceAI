@@ -3769,6 +3769,10 @@ export const frMessages: DeepPartialMessageTree<LocaleMessages> = {
       baseUrl: "URL de base",
       apiKeyOptional: "Clé API (facultative)",
       apiKeyOptionalPlaceholder: "Jeton Bearer pour l'authentification",
+      comfyTxt2imgWorkflow: "Workflow Texte vers Image (API JSON)",
+      comfyImg2imgWorkflow: "Workflow Image vers Image (API JSON, facultatif)",
+      comfyWorkflowHelp:
+        "Collez des workflows au format API exportés depuis ComfyUI. Jetons : %PROMPT%, %NEGATIVE%, %WIDTH%, %HEIGHT%, %STEPS%, %CFG%, %SEED%, %SAMPLER%, %CKPT%, %DENOISE%, %IMAGE_COUNT% et %IMAGE0%, %IMAGE1%, ... pour les images de référence dans l'ordre (%IMAGE% est la première). Le workflow d'image est utilisé lorsque des images de référence sont présentes.",
       streaming: "Streaming",
       streamingDesc: "Diffuser les réponses pour ce fournisseur lorsqu'une fonctionnalité le permet",
       allowInvalidTls: "Autoriser le TLS invalide",

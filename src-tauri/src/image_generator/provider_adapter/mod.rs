@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use super::types::ImageGenerationRequest;
 
 pub mod automatic1111;
+pub mod diffusers;
 pub mod google_gemini;
 pub mod nanogpt;
 pub mod openai;
@@ -72,6 +73,7 @@ pub fn parse_size_dimensions(
 pub fn get_adapter(provider_id: &str) -> Result<Box<dyn ImageProviderAdapter>, String> {
     match provider_id {
         "automatic1111" => Ok(Box::new(automatic1111::Automatic1111Adapter)),
+        "diffusers" => Ok(Box::new(diffusers::DiffusersAdapter)),
         "openai" => Ok(Box::new(openai::OpenAIAdapter)),
         "openrouter" => Ok(Box::new(openrouter::OpenRouterAdapter)),
         "pollinations" => Ok(Box::new(pollinations::PollinationsAdapter)),

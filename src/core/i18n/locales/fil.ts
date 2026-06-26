@@ -3769,6 +3769,10 @@ export const filMessages: DeepPartialMessageTree<LocaleMessages> = {
       baseUrl: "Base URL",
       apiKeyOptional: "API Key (opsyonal)",
       apiKeyOptionalPlaceholder: "Bearer token para sa auth",
+      comfyTxt2imgWorkflow: "Text-to-Image Workflow (API JSON)",
+      comfyImg2imgWorkflow: "Image-to-Image Workflow (API JSON, opsyonal)",
+      comfyWorkflowHelp:
+        "I-paste ang mga workflow na nasa API-format na na-export mula sa ComfyUI. Mga Token: %PROMPT%, %NEGATIVE%, %WIDTH%, %HEIGHT%, %STEPS%, %CFG%, %SEED%, %SAMPLER%, %CKPT%, %DENOISE%, %IMAGE_COUNT%, at %IMAGE0%, %IMAGE1%, ... para sa mga reference na imahe ayon sa pagkakasunod (%IMAGE% ang una). Ginagamit ang image workflow kapag may mga reference na imahe.",
       streaming: "Streaming",
       streamingDesc: "I-stream ang mga tugon para sa provider na ito kapag pinapayagan ng feature",
       allowInvalidTls: "Payagan ang Invalid TLS",

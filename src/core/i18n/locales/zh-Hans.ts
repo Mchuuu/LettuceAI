@@ -3769,6 +3769,10 @@ export const zhHansMessages: DeepPartialMessageTree<LocaleMessages> = {
       baseUrl: "基础 URL",
       apiKeyOptional: "API 密钥 (可选)",
       apiKeyOptionalPlaceholder: "用于身份验证的 Bearer 令牌",
+      comfyTxt2imgWorkflow: "文本到图像工作流 (API JSON)",
+      comfyImg2imgWorkflow: "图像到图像工作流 (API JSON，可选)",
+      comfyWorkflowHelp:
+        "粘贴从 ComfyUI 导出的 API 格式工作流。令牌：%PROMPT%、%NEGATIVE%、%WIDTH%、%HEIGHT%、%STEPS%、%CFG%、%SEED%、%SAMPLER%、%CKPT%、%DENOISE%、%IMAGE_COUNT%，以及按顺序用于参考图像的 %IMAGE0%、%IMAGE1%、…（%IMAGE% 为第一张）。当存在参考图像时使用图像工作流。",
       streaming: "流式传输",
       streamingDesc: "当功能允许时，为此提供者启用流式响应",
       allowInvalidTls: "允许无效 TLS",

@@ -141,6 +141,49 @@ pub async fn generate_image(
         )?;
         provider_label = provider_cred.label.clone();
 
+        if request.provider_id == "comfyui" {
+            let api_key = provider_cred.api_key.clone().unwrap_or_default();
+            let base_url = resolve_base_url(
+                &ProviderId(request.provider_id.clone()),
+                provider_cred.base_url.as_deref(),
+            );
+            let image_data = super::comfyui::generate(
+                &app,
+                &request,
+                &base_url,
+                &api_key,
+                provider_cred.config.as_ref(),
+            )
+            .await?;
+
+            let mut generated_images = Vec::new();
+            for img_data in image_data {
+                let image_source = match img_data.url.as_ref().or(img_data.b64_json.as_ref()) {
+                    Some(source) => source,
+                    None => return Err("No image data in ComfyUI response.".to_string()),
+                };
+                let saved = save_image(&app, image_source).await?;
+                generated_images.push(GeneratedImage {
+                    asset_id: saved.asset_id,
+                    file_path: saved.file_path,
+                    mime_type: saved.mime_type,
+                    url: img_data.url,
+                    width: saved.width,
+                    height: saved.height,
+                    text: img_data.text,
+                });
+            }
+
+            return Ok((
+                ImageGenerationResponse {
+                    images: generated_images,
+                    model: request.model.clone(),
+                    provider_id: request.provider_id.clone(),
+                },
+                None,
+            ));
+        }
+
         let adapter = get_adapter(&request.provider_id)?;
 
         let api_key = if !adapter.requires_api_key() {

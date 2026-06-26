@@ -3757,6 +3757,10 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       baseUrl: "基礎 URL (Base URL)",
       apiKeyOptional: "API 金鑰 (選填)",
       apiKeyOptionalPlaceholder: "用於驗證的 Bearer token",
+      comfyTxt2imgWorkflow: "文字轉圖像工作流程 (API JSON)",
+      comfyImg2imgWorkflow: "圖像轉圖像工作流程 (API JSON，選填)",
+      comfyWorkflowHelp:
+        "貼上從 ComfyUI 匯出的 API 格式工作流程。權杖：%PROMPT%、%NEGATIVE%、%WIDTH%、%HEIGHT%、%STEPS%、%CFG%、%SEED%、%SAMPLER%、%CKPT%、%DENOISE%、%IMAGE_COUNT%，以及依序用於參考圖像的 %IMAGE0%、%IMAGE1%、…（%IMAGE% 為第一張）。當存在參考圖像時使用圖像工作流程。",
       streaming: "串流 (Streaming)",
       streamingDesc: "當功能允許時，為此提供者啟用串流回應",
       allowInvalidTls: "允許無效的 TLS",

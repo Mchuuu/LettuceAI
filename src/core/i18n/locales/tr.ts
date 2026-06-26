@@ -3769,6 +3769,10 @@ export const trMessages: DeepPartialMessageTree<LocaleMessages> = {
       baseUrl: "Temel URL",
       apiKeyOptional: "API Anahtarı (isteğe bağlı)",
       apiKeyOptionalPlaceholder: "Kimlik doğrulama için Bearer token",
+      comfyTxt2imgWorkflow: "Metinden Görüntüye İş Akışı (API JSON)",
+      comfyImg2imgWorkflow: "Görüntüden Görüntüye İş Akışı (API JSON, isteğe bağlı)",
+      comfyWorkflowHelp:
+        "ComfyUI'den dışa aktarılan API biçimindeki iş akışlarını yapıştırın. Belirteçler: %PROMPT%, %NEGATIVE%, %WIDTH%, %HEIGHT%, %STEPS%, %CFG%, %SEED%, %SAMPLER%, %CKPT%, %DENOISE%, %IMAGE_COUNT% ve sırayla referans görüntüler için %IMAGE0%, %IMAGE1%, ... (%IMAGE% ilkidir). Referans görüntüler mevcut olduğunda görüntü iş akışı kullanılır.",
       streaming: "Akış (Streaming)",
       streamingDesc: "Bir özellik izin verdiğinde bu sağlayıcı için yanıtları akışla iletin",
       allowInvalidTls: "Geçersiz TLS'ye İzin Ver",

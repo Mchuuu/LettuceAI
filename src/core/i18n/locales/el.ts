@@ -3769,6 +3769,10 @@ export const elMessages: DeepPartialMessageTree<LocaleMessages> = {
       baseUrl: "Base URL",
       apiKeyOptional: "API Key (προαιρετικά)",
       apiKeyOptionalPlaceholder: "Bearer token για ταυτοποίηση",
+      comfyTxt2imgWorkflow: "Ροή εργασίας Κειμένου σε Εικόνα (API JSON)",
+      comfyImg2imgWorkflow: "Ροή εργασίας Εικόνας σε Εικόνα (API JSON, προαιρετικό)",
+      comfyWorkflowHelp:
+        "Επικολλήστε ροές εργασίας σε μορφή API που έχουν εξαχθεί από το ComfyUI. Tokens: %PROMPT%, %NEGATIVE%, %WIDTH%, %HEIGHT%, %STEPS%, %CFG%, %SEED%, %SAMPLER%, %CKPT%, %DENOISE%, %IMAGE_COUNT% και %IMAGE0%, %IMAGE1%, ... για εικόνες αναφοράς με τη σειρά (%IMAGE% είναι η πρώτη). Η ροή εργασίας εικόνας χρησιμοποιείται όταν υπάρχουν εικόνες αναφοράς.",
       streaming: "Streaming",
       streamingDesc: "Μεταφορά απαντήσεων σε streaming για αυτόν τον πάροχο όταν το επιτρέπει κάποια λειτουργία",
       allowInvalidTls: "Επιτρέψτε Ακύρωτο TLS",

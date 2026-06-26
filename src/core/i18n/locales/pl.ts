@@ -3769,6 +3769,10 @@ export const plMessages: DeepPartialMessageTree<LocaleMessages> = {
       baseUrl: "Base URL",
       apiKeyOptional: "API Key (opcjonalny)",
       apiKeyOptionalPlaceholder: "Token bearer do uwierzytelniania",
+      comfyTxt2imgWorkflow: "Przepływ pracy Tekst na Obraz (API JSON)",
+      comfyImg2imgWorkflow: "Przepływ pracy Obraz na Obraz (API JSON, opcjonalnie)",
+      comfyWorkflowHelp:
+        "Wklej przepływy pracy w formacie API wyeksportowane z ComfyUI. Tokeny: %PROMPT%, %NEGATIVE%, %WIDTH%, %HEIGHT%, %STEPS%, %CFG%, %SEED%, %SAMPLER%, %CKPT%, %DENOISE%, %IMAGE_COUNT% oraz %IMAGE0%, %IMAGE1%, ... dla obrazów referencyjnych w kolejności (%IMAGE% to pierwszy). Przepływ pracy obrazu jest używany, gdy obecne są obrazy referencyjne.",
       streaming: "Strumieniowanie",
       streamingDesc: "Strumieniuj odpowiedzi dla tego dostawcy, gdy funkcja na to pozwala",
       allowInvalidTls: "Zezwól na nieprawidłowy TLS",

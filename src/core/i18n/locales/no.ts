@@ -3769,6 +3769,10 @@ export const noMessages: DeepPartialMessageTree<LocaleMessages> = {
       baseUrl: "Base-URL",
       apiKeyOptional: "API-nøkkel (valgfritt)",
       apiKeyOptionalPlaceholder: "Bearer-token for autentisering",
+      comfyTxt2imgWorkflow: "Tekst-til-bilde-arbeidsflyt (API JSON)",
+      comfyImg2imgWorkflow: "Bilde-til-bilde-arbeidsflyt (API JSON, valgfritt)",
+      comfyWorkflowHelp:
+        "Lim inn arbeidsflyter i API-format eksportert fra ComfyUI. Tokens: %PROMPT%, %NEGATIVE%, %WIDTH%, %HEIGHT%, %STEPS%, %CFG%, %SEED%, %SAMPLER%, %CKPT%, %DENOISE%, %IMAGE_COUNT% og %IMAGE0%, %IMAGE1%, ... for referansebilder i rekkefølge (%IMAGE% er det første). Bildearbeidsflyten brukes når referansebilder er til stede.",
       streaming: "Strømming",
       streamingDesc: "Strøm svar for denne leverandøren når en funksjon tillater det",
       allowInvalidTls: "Tillat ugyldig TLS",

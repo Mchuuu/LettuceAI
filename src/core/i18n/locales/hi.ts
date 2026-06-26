@@ -3769,6 +3769,10 @@ export const hiMessages: DeepPartialMessageTree<LocaleMessages> = {
       baseUrl: "बेस URL",
       apiKeyOptional: "API कुंजी (वैकल्पिक)",
       apiKeyOptionalPlaceholder: "प्रमाणीकरण के लिए Bearer टोकन",
+      comfyTxt2imgWorkflow: "टेक्स्ट-से-इमेज वर्कफ़्लो (API JSON)",
+      comfyImg2imgWorkflow: "इमेज-से-इमेज वर्कफ़्लो (API JSON, वैकल्पिक)",
+      comfyWorkflowHelp:
+        "ComfyUI से निर्यात किए गए API-फ़ॉर्मेट वर्कफ़्लो पेस्ट करें। टोकन: %PROMPT%, %NEGATIVE%, %WIDTH%, %HEIGHT%, %STEPS%, %CFG%, %SEED%, %SAMPLER%, %CKPT%, %DENOISE%, %IMAGE_COUNT%, और क्रम में संदर्भ छवियों के लिए %IMAGE0%, %IMAGE1%, ... (%IMAGE% पहली है)। संदर्भ छवियाँ मौजूद होने पर इमेज वर्कफ़्लो का उपयोग किया जाता है।",
       streaming: "स्ट्रीमिंग",
       streamingDesc: "जब कोई फीचर अनुमति दे, तो इस प्रोवाइडर के लिए रिस्पॉन्स स्ट्रीम करें",
       allowInvalidTls: "अमान्य TLS की अनुमति दें",

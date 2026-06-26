@@ -3769,6 +3769,10 @@ export const viMessages: DeepPartialMessageTree<LocaleMessages> = {
       baseUrl: "URL cơ sở",
       apiKeyOptional: "Khóa API (tùy chọn)",
       apiKeyOptionalPlaceholder: "Bearer token để xác thực",
+      comfyTxt2imgWorkflow: "Quy trình Văn bản sang Hình ảnh (API JSON)",
+      comfyImg2imgWorkflow: "Quy trình Hình ảnh sang Hình ảnh (API JSON, tùy chọn)",
+      comfyWorkflowHelp:
+        "Dán các quy trình định dạng API được xuất từ ComfyUI. Token: %PROMPT%, %NEGATIVE%, %WIDTH%, %HEIGHT%, %STEPS%, %CFG%, %SEED%, %SAMPLER%, %CKPT%, %DENOISE%, %IMAGE_COUNT%, và %IMAGE0%, %IMAGE1%, ... cho các hình ảnh tham chiếu theo thứ tự (%IMAGE% là hình đầu tiên). Quy trình hình ảnh được dùng khi có hình ảnh tham chiếu.",
       streaming: "Truyền trực tiếp",
       streamingDesc: "Truyền phản hồi cho nhà cung cấp này khi một tính năng cho phép",
       allowInvalidTls: "Cho phép TLS không hợp lệ",

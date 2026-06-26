@@ -3769,6 +3769,10 @@ export const ruMessages: DeepPartialMessageTree<LocaleMessages> = {
       baseUrl: "Базовый URL",
       apiKeyOptional: "API-ключ (необязательно)",
       apiKeyOptionalPlaceholder: "Bearer-токен для авторизации",
+      comfyTxt2imgWorkflow: "Рабочий процесс «Текст в изображение» (API JSON)",
+      comfyImg2imgWorkflow: "Рабочий процесс «Изображение в изображение» (API JSON, необязательно)",
+      comfyWorkflowHelp:
+        "Вставьте рабочие процессы в формате API, экспортированные из ComfyUI. Токены: %PROMPT%, %NEGATIVE%, %WIDTH%, %HEIGHT%, %STEPS%, %CFG%, %SEED%, %SAMPLER%, %CKPT%, %DENOISE%, %IMAGE_COUNT%, а также %IMAGE0%, %IMAGE1%, ... для референсных изображений по порядку (%IMAGE% — первое). Рабочий процесс изображения используется при наличии референсных изображений.",
       streaming: "Потоковая передача",
       streamingDesc: "Передавать ответы потоком для этого провайдера, когда функция это позволяет",
       allowInvalidTls: "Разрешить недействительный TLS",

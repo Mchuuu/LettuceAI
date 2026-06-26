@@ -143,6 +143,12 @@ fn get_all_provider_configs_internal() -> Vec<ProviderConfig> {
             "AUTOMATIC1111 (Local)",
             "http://127.0.0.1:7860",
         ),
+        ("comfyui", "ComfyUI (Self-hosted)", "http://127.0.0.1:8188"),
+        (
+            "diffusers",
+            "Diffusers (Self-hosted)",
+            "http://127.0.0.1:8000",
+        ),
         ("ollama", "Ollama (Local)", ""),
         ("lmstudio", "LM Studio (Local)", ""),
         (

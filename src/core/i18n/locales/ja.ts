@@ -3769,6 +3769,10 @@ export const jaMessages: DeepPartialMessageTree<LocaleMessages> = {
       baseUrl: "ベースURL",
       apiKeyOptional: "API Key（任意）",
       apiKeyOptionalPlaceholder: "認証用のBearerトークン",
+      comfyTxt2imgWorkflow: "テキストから画像へのワークフロー (API JSON)",
+      comfyImg2imgWorkflow: "画像から画像へのワークフロー (API JSON、任意)",
+      comfyWorkflowHelp:
+        "ComfyUI からエクスポートした API 形式のワークフローを貼り付けてください。トークン: %PROMPT%、%NEGATIVE%、%WIDTH%、%HEIGHT%、%STEPS%、%CFG%、%SEED%、%SAMPLER%、%CKPT%、%DENOISE%、%IMAGE_COUNT%、および参照画像を順番に指定する %IMAGE0%、%IMAGE1%、...（%IMAGE% が最初）。参照画像がある場合は画像ワークフローが使用されます。",
       streaming: "ストリーミング",
       streamingDesc: "機能が許可する場合、このプロバイダーで応答をストリーミングします",
       allowInvalidTls: "無効なTLSを許可",

@@ -3769,6 +3769,10 @@ export const idMessages: DeepPartialMessageTree<LocaleMessages> = {
       baseUrl: "Base URL",
       apiKeyOptional: "API Key (opsional)",
       apiKeyOptionalPlaceholder: "Bearer token untuk autentikasi",
+      comfyTxt2imgWorkflow: "Workflow Teks ke Gambar (API JSON)",
+      comfyImg2imgWorkflow: "Workflow Gambar ke Gambar (API JSON, opsional)",
+      comfyWorkflowHelp:
+        "Tempel workflow format API yang diekspor dari ComfyUI. Token: %PROMPT%, %NEGATIVE%, %WIDTH%, %HEIGHT%, %STEPS%, %CFG%, %SEED%, %SAMPLER%, %CKPT%, %DENOISE%, %IMAGE_COUNT%, dan %IMAGE0%, %IMAGE1%, ... untuk gambar referensi secara berurutan (%IMAGE% adalah yang pertama). Workflow gambar digunakan saat gambar referensi tersedia.",
       streaming: "Streaming",
       streamingDesc: "Stream respons untuk penyedia ini saat fitur mengizinkan",
       allowInvalidTls: "Izinkan TLS Tidak Valid",

@@ -3765,6 +3765,10 @@ export const enMessages = {
       baseUrl: "Base URL",
       apiKeyOptional: "API Key (optional)",
       apiKeyOptionalPlaceholder: "Bearer token for auth",
+      comfyTxt2imgWorkflow: "Text-to-Image Workflow (API JSON)",
+      comfyImg2imgWorkflow: "Image-to-Image Workflow (API JSON, optional)",
+      comfyWorkflowHelp:
+        "Paste API-format workflows exported from ComfyUI. Tokens: %PROMPT%, %NEGATIVE%, %WIDTH%, %HEIGHT%, %STEPS%, %CFG%, %SEED%, %SAMPLER%, %CKPT%, %DENOISE%, %IMAGE_COUNT%, and %IMAGE0%, %IMAGE1%, ... for reference images in order (%IMAGE% is the first). The image workflow is used when reference images are present.",
       streaming: "Streaming",
       streamingDesc: "Stream responses for this provider when a feature allows it",
       allowInvalidTls: "Allow Invalid TLS",

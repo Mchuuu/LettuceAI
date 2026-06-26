@@ -3769,6 +3769,10 @@ export const koMessages: DeepPartialMessageTree<LocaleMessages> = {
       baseUrl: "기본 URL",
       apiKeyOptional: "API 키 (선택)",
       apiKeyOptionalPlaceholder: "인증용 Bearer 토큰",
+      comfyTxt2imgWorkflow: "텍스트→이미지 워크플로 (API JSON)",
+      comfyImg2imgWorkflow: "이미지→이미지 워크플로 (API JSON, 선택 사항)",
+      comfyWorkflowHelp:
+        "ComfyUI에서 내보낸 API 형식 워크플로를 붙여넣으세요. 토큰: %PROMPT%, %NEGATIVE%, %WIDTH%, %HEIGHT%, %STEPS%, %CFG%, %SEED%, %SAMPLER%, %CKPT%, %DENOISE%, %IMAGE_COUNT% 및 순서대로 참조 이미지를 위한 %IMAGE0%, %IMAGE1%, ... (%IMAGE%가 첫 번째). 참조 이미지가 있을 때 이미지 워크플로가 사용됩니다.",
       streaming: "스트리밍",
       streamingDesc: "기능이 허용할 때 이 제공자의 응답을 스트리밍합니다",
       allowInvalidTls: "유효하지 않은 TLS 허용",

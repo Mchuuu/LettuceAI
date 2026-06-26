@@ -130,7 +130,10 @@ export function ProvidersPage() {
   const isHostProvider = !!editorProvider && editorProvider.providerId === "lettuce-host";
   const isLocalProvider =
     !!editorProvider &&
-    ["ollama", "lmstudio", "intenserp", "automatic1111"].includes(editorProvider.providerId);
+    ["ollama", "lmstudio", "intenserp", "automatic1111", "comfyui", "diffusers"].includes(
+      editorProvider.providerId,
+    );
+  const isComfyUiProvider = !!editorProvider && editorProvider.providerId === "comfyui";
   const isCustomProvider =
     !!editorProvider &&
     (editorProvider.providerId === "custom" || editorProvider.providerId === "custom-anthropic");
@@ -664,6 +667,47 @@ export function ProvidersPage() {
                     }}
                     placeholder={t("providers.editor.apiKeyOptionalPlaceholder")}
                   />
+                )}
+                {isComfyUiProvider && (
+                  <>
+                    <div>
+                      <label className="mb-1 block text-[11px] font-medium text-fg/70">
+                        {t("providers.editor.comfyTxt2imgWorkflow")}
+                      </label>
+                      <textarea
+                        value={(customConfig.txt2imgWorkflow as string | undefined) || ""}
+                        onChange={(e) =>
+                          updateEditorProvider({
+                            config: { ...editorProvider.config, txt2imgWorkflow: e.target.value },
+                          })
+                        }
+                        placeholder='{ "3": { "class_type": "KSampler", ... } }'
+                        rows={8}
+                        spellCheck={false}
+                        className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 font-mono text-xs text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[11px] font-medium text-fg/70">
+                        {t("providers.editor.comfyImg2imgWorkflow")}
+                      </label>
+                      <textarea
+                        value={(customConfig.img2imgWorkflow as string | undefined) || ""}
+                        onChange={(e) =>
+                          updateEditorProvider({
+                            config: { ...editorProvider.config, img2imgWorkflow: e.target.value },
+                          })
+                        }
+                        placeholder='{ "10": { "class_type": "LoadImage", ... } }'
+                        rows={8}
+                        spellCheck={false}
+                        className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 font-mono text-xs text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
+                      />
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-fg/50">
+                      {t("providers.editor.comfyWorkflowHelp")}
+                    </p>
+                  </>
                 )}
                 {showOfficialProviderStreamingToggle && (
                   <ToggleRow
