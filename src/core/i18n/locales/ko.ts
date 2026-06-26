@@ -6982,6 +6982,11 @@ export const koMessages: DeepPartialMessageTree<LocaleMessages> = {
       experiencedDesc: "설명을 건너뛰고 바로 설정으로 이동합니다.",
     },
     learn: {
+      welcome: {
+        tag: "환영합니다",
+        title: "LettuceAI에 오신 것을 환영합니다",
+        body: "이제 첫 AI 롤플레이를 설정합니다. 다음 몇 단계에서 기본 개념을 쉬운 말로 설명한 뒤, 모든 연결을 도와드립니다. 몇 분이면 됩니다.",
+      },
       fullGuide: "AI 기초 가이드 전체 읽기",
       done: "확인, 계속",
       plainLabel: "다시 말해",

@@ -6982,6 +6982,11 @@ export const frMessages: DeepPartialMessageTree<LocaleMessages> = {
       experiencedDesc: "Passer l'explication et aller directement à la configuration.",
     },
     learn: {
+      welcome: {
+        tag: "Bienvenue",
+        title: "Bienvenue sur LettuceAI",
+        body: "Vous allez configurer votre premier jeu de rôle avec une IA. Les prochaines étapes expliquent les bases en langage simple, puis nous vous aidons à tout connecter. Cela ne prend que quelques minutes.",
+      },
       fullGuide: "Lire le guide complet des bases de l'IA",
       done: "Compris, continuer",
       plainLabel: "Autrement dit",

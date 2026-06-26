@@ -6373,6 +6373,11 @@ export const idMessages: DeepPartialMessageTree<LocaleMessages> = {
       experiencedDesc: "Lewati penjelasan dan langsung ke pengaturan.",
     },
     learn: {
+      welcome: {
+        tag: "Selamat datang",
+        title: "Selamat datang di LettuceAI",
+        body: "Anda akan menyiapkan roleplay AI pertama Anda. Beberapa langkah berikut menjelaskan dasar-dasarnya dengan bahasa sederhana, lalu kami membantu Anda menghubungkan semuanya. Hanya butuh beberapa menit.",
+      },
       fullGuide: "Baca panduan lengkap Dasar-Dasar AI",
       done: "Mengerti, lanjutkan",
       plainLabel: "Dengan kata lain",

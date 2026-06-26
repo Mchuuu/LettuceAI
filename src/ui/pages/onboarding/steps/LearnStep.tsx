@@ -14,13 +14,15 @@ import type { LucideIcon } from "lucide-react";
 import { cn, typography } from "../../../design-tokens";
 import { useI18n, type TranslationKey } from "../../../../core/i18n/context";
 import { openDocs } from "../../../../core/utils/docs";
+import logoSvg from "../../../../assets/logo.svg";
 
 interface LearnStepProps {
   onDone: () => void;
   onExitBack: () => void;
 }
 
-const CARDS: Array<{ icon: LucideIcon; key: string }> = [
+const CARDS: Array<{ icon?: LucideIcon; key: string }> = [
+  { key: "welcome" },
   { icon: AppWindow, key: "app" },
   { icon: Building2, key: "provider" },
   { icon: KeyRound, key: "apiKey" },
@@ -61,9 +63,13 @@ export function LearnStep({ onDone, onExitBack }: LearnStepProps) {
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-400/30 bg-black/40 text-emerald-300 backdrop-blur-md">
-          <Icon size={30} strokeWidth={1.8} />
-        </div>
+        {card.key === "welcome" ? (
+          <img src={logoSvg} alt="" className="mb-5 h-24 w-24 drop-shadow-[0_2px_16px_rgba(0,0,0,0.6)]" />
+        ) : (
+          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-400/30 bg-black/40 text-emerald-300 backdrop-blur-md">
+            {Icon ? <Icon size={30} strokeWidth={1.8} /> : null}
+          </div>
+        )}
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-emerald-300/90 [text-shadow:0_1px_10px_rgba(0,0,0,0.8)]">
           {t(`onboarding.learn.${card.key}.tag` as TranslationKey)}
         </p>
@@ -80,23 +86,30 @@ export function LearnStep({ onDone, onExitBack }: LearnStepProps) {
           {t(`onboarding.learn.${card.key}.body` as TranslationKey)}
         </p>
 
-        <div className="mt-6 w-full max-w-md rounded-2xl border border-white/12 bg-black/60 p-4 text-left shadow-lg backdrop-blur-md">
-          <div className="mb-1.5 flex items-center gap-1.5 text-emerald-300/90">
-            <Lightbulb size={13} strokeWidth={2} />
-            <span className="text-[10px] font-semibold uppercase tracking-[0.18em]">
-              {t("onboarding.learn.plainLabel")}
-            </span>
+        {card.key !== "welcome" && (
+          <div className="mt-6 w-full max-w-md rounded-2xl border border-white/12 bg-black/60 p-4 text-left shadow-lg backdrop-blur-md">
+            <div className="mb-1.5 flex items-center gap-1.5 text-emerald-300/90">
+              <Lightbulb size={13} strokeWidth={2} />
+              <span className="text-[10px] font-semibold uppercase tracking-[0.18em]">
+                {t("onboarding.learn.plainLabel")}
+              </span>
+            </div>
+            <p className="text-[13px] leading-relaxed text-white/80">
+              {t(`onboarding.learn.${card.key}.plain` as TranslationKey)}
+            </p>
           </div>
-          <p className="text-[13px] leading-relaxed text-white/80">
-            {t(`onboarding.learn.${card.key}.plain` as TranslationKey)}
-          </p>
-        </div>
+        )}
 
         <button
           onClick={() => void openDocs("aiBasics")}
-          className="mt-5 inline-flex items-center gap-1.5 text-[12px] font-medium text-emerald-300/80 transition hover:text-emerald-200"
+          className={cn(
+            "mt-6 inline-flex items-center gap-2 rounded-full px-4 py-2",
+            "border border-emerald-400/30 bg-emerald-500/10 shadow-lg backdrop-blur-md",
+            "text-[12px] font-semibold text-emerald-200/90",
+            "transition hover:border-emerald-400/55 hover:bg-emerald-500/20 hover:text-emerald-100 active:scale-[0.98]",
+          )}
         >
-          <BookOpen size={13} strokeWidth={2} />
+          <BookOpen size={14} strokeWidth={2} />
           {t("onboarding.learn.fullGuide")}
         </button>
       </div>

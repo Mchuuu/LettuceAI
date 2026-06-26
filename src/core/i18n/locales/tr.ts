@@ -7177,6 +7177,11 @@ export const trMessages: DeepPartialMessageTree<LocaleMessages> = {
       experiencedDesc: "Açıklamaları geç ve doğrudan kuruluma git.",
     },
     learn: {
+      welcome: {
+        tag: "Hoş geldiniz",
+        title: "LettuceAI'ye hoş geldiniz",
+        body: "İlk yapay zeka rol yapma oyununu kurmak üzeresin. Sonraki birkaç adım temel bilgileri sade bir dille anlatıyor, ardından her şeyi bağlamana yardım ediyoruz. Yalnızca birkaç dakika sürer.",
+      },
       fullGuide: "Yapay zeka temelleri kılavuzunun tamamını okuyun",
       done: "Anladım, devam et",
       plainLabel: "Başka bir deyişle",

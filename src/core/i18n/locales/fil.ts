@@ -6982,6 +6982,11 @@ export const filMessages: DeepPartialMessageTree<LocaleMessages> = {
       experiencedDesc: "Laktawan ang paliwanag at dumiretso na sa setup.",
     },
     learn: {
+      welcome: {
+        tag: "Maligayang pagdating",
+        title: "Maligayang pagdating sa LettuceAI",
+        body: "Mase-set up mo na ang iyong unang AI roleplay. Ipapaliwanag ng susunod na mga hakbang ang mga pangunahing kaalaman sa simpleng wika, pagkatapos ay tutulungan ka naming ikonekta ang lahat. Ilang minuto lang ito.",
+      },
       fullGuide: "Basahin ang buong gabay sa AI Basics",
       done: "Nakuha ko na, ituloy",
       plainLabel: "Sa madaling salita",

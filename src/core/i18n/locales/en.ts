@@ -6777,6 +6777,11 @@ export const enMessages = {
       done: "Got it, continue",
       plainLabel: "In other words",
       fullGuide: "Read the full AI Basics guide",
+      welcome: {
+        tag: "Welcome",
+        title: "Welcome to LettuceAI",
+        body: "You are about to set up your first AI roleplay. The next few steps explain the basics in plain language, then we help you connect everything. It only takes a couple of minutes.",
+      },
       app: {
         tag: "How it works",
         title: "The app is the car, not the engine",

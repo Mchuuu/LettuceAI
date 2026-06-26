@@ -6982,6 +6982,11 @@ export const nlMessages: DeepPartialMessageTree<LocaleMessages> = {
       experiencedDesc: "Sla de uitleg over en ga direct naar de installatie.",
     },
     learn: {
+      welcome: {
+        tag: "Welkom",
+        title: "Welkom bij LettuceAI",
+        body: "Je gaat zo je eerste AI-roleplay instellen. De volgende stappen leggen de basis in gewone taal uit, daarna helpen we je alles te verbinden. Het duurt maar een paar minuten.",
+      },
       fullGuide: "Lees de volledige AI-basisgids",
       done: "Begrepen, ga verder",
       plainLabel: "Met andere woorden",

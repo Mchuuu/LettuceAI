@@ -6373,6 +6373,11 @@ export const viMessages: DeepPartialMessageTree<LocaleMessages> = {
       experiencedDesc: "Bỏ qua phần giải thích và đi thẳng đến phần thiết lập.",
     },
     learn: {
+      welcome: {
+        tag: "Chào mừng",
+        title: "Chào mừng đến với LettuceAI",
+        body: "Bạn sắp thiết lập phiên nhập vai AI đầu tiên của mình. Vài bước tiếp theo sẽ giải thích những điều cơ bản bằng ngôn ngữ đơn giản, sau đó chúng tôi giúp bạn kết nối mọi thứ. Chỉ mất vài phút.",
+      },
       fullGuide: "Đọc hướng dẫn đầy đủ về kiến thức cơ bản về AI",
       done: "Đã hiểu, tiếp tục",
       plainLabel: "Nói cách khác",

@@ -6373,6 +6373,11 @@ export const jaMessages: DeepPartialMessageTree<LocaleMessages> = {
       experiencedDesc: "説明をスキップして、すぐにセットアップに進みます。",
     },
     learn: {
+      welcome: {
+        tag: "ようこそ",
+        title: "LettuceAI へようこそ",
+        body: "これから初めてのAIロールプレイを設定します。次のいくつかのステップで基本をわかりやすく説明し、その後すべての接続をお手伝いします。ほんの数分で完了します。",
+      },
       fullGuide: "AIの基礎ガイドを読む",
       done: "了解しました、次へ",
       plainLabel: "言い換えると",

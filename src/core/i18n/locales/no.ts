@@ -6982,6 +6982,11 @@ export const noMessages: DeepPartialMessageTree<LocaleMessages> = {
       experiencedDesc: "Hopp over forklaringen og gå rett til oppsettet.",
     },
     learn: {
+      welcome: {
+        tag: "Velkommen",
+        title: "Velkommen til LettuceAI",
+        body: "Du skal til å sette opp ditt første AI-rollespill. De neste trinnene forklarer det grunnleggende på enkelt språk, og så hjelper vi deg å koble alt sammen. Det tar bare et par minutter.",
+      },
       fullGuide: "Les hele guiden til AI-grunnleggende",
       done: "Skjønner, fortsett",
       plainLabel: "Med andre ord",

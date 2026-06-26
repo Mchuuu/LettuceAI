@@ -6982,6 +6982,11 @@ export const zhHansMessages: DeepPartialMessageTree<LocaleMessages> = {
       experiencedDesc: "跳过解释，直接进入设置。",
     },
     learn: {
+      welcome: {
+        tag: "欢迎",
+        title: "欢迎使用 LettuceAI",
+        body: "你即将设置第一个 AI 角色扮演。接下来的几步会用通俗的语言讲解基础知识，然后我们会帮你连接好一切。只需几分钟。",
+      },
       fullGuide: "阅读完整的 AI 基础指南",
       done: "明白了，继续",
       plainLabel: "换句话说",

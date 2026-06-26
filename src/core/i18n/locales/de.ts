@@ -6982,6 +6982,11 @@ export const deMessages: DeepPartialMessageTree<LocaleMessages> = {
       experiencedDesc: "Erklärung überspringen und direkt zur Einrichtung gehen.",
     },
     learn: {
+      welcome: {
+        tag: "Willkommen",
+        title: "Willkommen bei LettuceAI",
+        body: "Du richtest gleich dein erstes KI-Rollenspiel ein. Die nächsten Schritte erklären die Grundlagen in einfacher Sprache, dann helfen wir dir, alles zu verbinden. Es dauert nur ein paar Minuten.",
+      },
       fullGuide: "Den vollständigen KI-Grundlagen-Leitfaden lesen",
       done: "Verstanden, weiter",
       plainLabel: "Anders gesagt",
