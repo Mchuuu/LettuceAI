@@ -345,6 +345,8 @@ macro_rules! invoke_handler {
             crate::llama_cpp::llamacpp_context_info,
             crate::llama_cpp::llamacpp_unload,
             crate::hf_browser::hf_search_models,
+            crate::hf_browser::hf_get_author_models,
+            crate::hf_browser::hf_get_author_overview,
             crate::host_api::host_api_get_status,
             crate::host_api::host_api_start,
             crate::host_api::host_api_stop,

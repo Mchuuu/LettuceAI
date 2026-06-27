@@ -25,7 +25,8 @@ import {
   HardDrive,
   ChevronDown,
   SlidersHorizontal,
-  Image as ImageIcon,
+  ChevronLeft,
+  Users,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -60,6 +61,22 @@ interface HfSearchResult {
   pipelineTag: string | null;
   lastModified: string | null;
   trendingScore: number | null;
+}
+
+interface HfAuthorOverview {
+  name: string;
+  fullname: string | null;
+  avatarUrl: string | null;
+  details: string | null;
+  kind: string | null;
+  isPro: boolean;
+  numModels: number;
+  numDatasets: number;
+  numSpaces: number;
+  numLikes: number;
+  numFollowers: number;
+  numFollowing: number;
+  createdAt: string | null;
 }
 
 interface HfModelFile {
@@ -673,7 +690,10 @@ type QueueDownloadMetadata = {
   variant?: string | null;
 };
 
-type ViewState = { kind: "search" } | { kind: "model"; modelId: string };
+type ViewState =
+  | { kind: "search" }
+  | { kind: "model"; modelId: string }
+  | { kind: "author"; author: string };
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -1269,51 +1289,13 @@ export function HuggingFaceBrowserPage() {
     return () => window.removeEventListener(SETTINGS_UPDATED_EVENT, handler);
   }, []);
 
-  const sdModeParam = searchParams.get("mode");
-  const isSdMode = false;
-  const HF_MODE_STORAGE_KEY = "hfBrowser:mode";
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (sdModeParam) {
-      window.localStorage.setItem(HF_MODE_STORAGE_KEY, sdModeParam);
-      return;
-    }
-    const stored = window.localStorage.getItem(HF_MODE_STORAGE_KEY);
-    if (stored === "sd") {
-      setSearchParams(
-        (current) => {
-          const next = new URLSearchParams(current);
-          next.set("mode", "sd");
-          return next;
-        },
-        { replace: true },
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sdModeParam]);
-
   // Helper to preserve returnTo across param changes
   const preserveParams = useCallback(
     (next: Record<string, string>) => {
       if (returnTo) next.returnTo = returnTo;
-      if (sdModeParam) next.mode = sdModeParam;
       return next;
     },
-    [returnTo, sdModeParam],
-  );
-
-  const setSdMode = useCallback(
-    (enabled: boolean) => {
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(HF_MODE_STORAGE_KEY, enabled ? "sd" : "llm");
-      }
-      const next: Record<string, string> = {};
-      if (returnTo) next.returnTo = returnTo;
-      if (enabled) next.mode = "sd";
-      setSearchParams(next, { replace: true });
-    },
-    [returnTo, setSearchParams],
+    [returnTo],
   );
 
   useEffect(() => {
@@ -1328,6 +1310,8 @@ export function HuggingFaceBrowserPage() {
     if (!defaultedToSearch) return { kind: "search" };
     const modelParam = searchParams.get("model");
     if (modelParam) return { kind: "model", modelId: modelParam };
+    const authorParam = searchParams.get("author");
+    if (authorParam) return { kind: "author", author: authorParam };
     return { kind: "search" };
   }, [defaultedToSearch, searchParams]);
 
@@ -1337,6 +1321,8 @@ export function HuggingFaceBrowserPage() {
         setSearchParams(preserveParams({}), { replace: true });
       } else if (v.kind === "model") {
         setSearchParams(preserveParams({ model: v.modelId }), { replace: false });
+      } else if (v.kind === "author") {
+        setSearchParams(preserveParams({ author: v.author }), { replace: false });
       }
     },
     [setSearchParams, preserveParams],
@@ -1351,13 +1337,21 @@ export function HuggingFaceBrowserPage() {
   const [filterPipelineTags, setFilterPipelineTags] = useState<Set<string>>(new Set());
   const [filterParamMin, setFilterParamMin] = useState<string>("");
   const [filterParamMax, setFilterParamMax] = useState<string>("");
+  const [filterAuthor, setFilterAuthor] = useState<string>("");
+  const [debouncedFilterAuthor, setDebouncedFilterAuthor] = useState<string>("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedFilterAuthor(filterAuthor.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [filterAuthor]);
 
   const filterParamMinNum = filterParamMin ? Number(filterParamMin) : null;
   const filterParamMaxNum = filterParamMax ? Number(filterParamMax) : null;
   const activeFilterCount =
     filterPipelineTags.size +
     (filterParamMinNum != null && !isNaN(filterParamMinNum) ? 1 : 0) +
-    (filterParamMaxNum != null && !isNaN(filterParamMaxNum) ? 1 : 0);
+    (filterParamMaxNum != null && !isNaN(filterParamMaxNum) ? 1 : 0) +
+    (filterAuthor.trim() ? 1 : 0);
 
   type HfBrowserViewMode = "list" | "grid" | "gallery";
   const HF_VIEW_STORAGE_KEY = "hfBrowser:viewMode";
@@ -1555,7 +1549,7 @@ export function HuggingFaceBrowserPage() {
         limit: isDirectLookup ? 5 : PAGE_SIZE,
         sort: sortField(sortMode),
         offset: 0,
-        mode: isSdMode ? "sd" : null,
+        author: debouncedFilterAuthor || null,
       });
       if (isDirectLookup) {
         const exact = data.filter((d) => d.modelId.toLowerCase() === debouncedQuery.toLowerCase());
@@ -1573,7 +1567,7 @@ export function HuggingFaceBrowserPage() {
       setSearching(false);
       setHasSearched(true);
     }
-  }, [debouncedQuery, sortMode, sortField, isDirectLookup, isSdMode]);
+  }, [debouncedQuery, sortMode, sortField, isDirectLookup, debouncedFilterAuthor]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
@@ -1584,7 +1578,7 @@ export function HuggingFaceBrowserPage() {
         limit: PAGE_SIZE,
         sort: sortField(sortMode),
         offset: results.length,
-        mode: isSdMode ? "sd" : null,
+        author: debouncedFilterAuthor || null,
       });
       if (data.length < PAGE_SIZE) setHasMore(false);
       if (data.length > 0) {
@@ -1594,7 +1588,7 @@ export function HuggingFaceBrowserPage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, debouncedQuery, sortMode, sortField, results.length, isSdMode]);
+  }, [loadingMore, hasMore, debouncedQuery, sortMode, sortField, results.length, debouncedFilterAuthor]);
 
   useEffect(() => {
     if (view.kind === "search") {
@@ -1631,8 +1625,8 @@ export function HuggingFaceBrowserPage() {
       setReadmeLoading(true);
       setRunabilityScores({});
       setRecData(null);
-      setRecLoading(!isOllamaMode && !isSdMode);
-      setFilesPanelTab(isOllamaMode || isSdMode ? "files" : "recommended");
+      setRecLoading(!isOllamaMode);
+      setFilesPanelTab(isOllamaMode ? "files" : "recommended");
       setCompareOpen(false);
       setCompareSelections([]);
       setRecImageSupport(false);
@@ -1640,7 +1634,6 @@ export function HuggingFaceBrowserPage() {
 
       const filesPromise = invoke<HfModelInfo>("hf_get_model_files", {
         modelId,
-        mode: isSdMode ? "sd" : null,
       })
         .then((info) => {
           setModelInfo(info);
@@ -1683,12 +1676,12 @@ export function HuggingFaceBrowserPage() {
 
       await Promise.allSettled([filesPromise, readmePromise]);
     },
-    [setView, isOllamaMode, isSdMode],
+    [setView, isOllamaMode],
   );
 
   useEffect(() => {
     if (view.kind !== "model" || !modelInfo) return;
-    if (isOllamaMode || isSdMode) {
+    if (isOllamaMode) {
       setRecLoading(false);
       setRecData(null);
       return;
@@ -1732,7 +1725,7 @@ export function HuggingFaceBrowserPage() {
     return () => {
       cancelled = true;
     };
-  }, [view.kind, modelInfo, isOllamaMode, isSdMode]);
+  }, [view.kind, modelInfo, isOllamaMode]);
 
   const filesWithSize = modelInfo?.files.filter((f) => f.size > 0) ?? [];
   const runnableFilesWithSize = useMemo(
@@ -2235,7 +2228,6 @@ export function HuggingFaceBrowserPage() {
     [
       gpuOptionsEnabled,
       isOllamaMode,
-      isSdMode,
       modelInfo,
       queueTrackedDownload,
       recContext,
@@ -2407,32 +2399,7 @@ export function HuggingFaceBrowserPage() {
                     )}
                   </button>
 
-                  {/* Destination picker (single-line, search-bar height) */}
-                  <div className="flex h-10 shrink-0 items-center gap-1 rounded-xl border border-fg/10 bg-fg/4 p-1">
-                    <button
-                      type="button"
-                      onClick={() => setSdMode(false)}
-                      className={cn(
-                        "flex h-full items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium transition-colors",
-                        !isSdMode ? "bg-accent/15 text-accent" : "text-fg/55 hover:text-fg/85",
-                      )}
-                    >
-                      <Cpu size={12} />
-                      {t("hfBrowser.modeLlm")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSdMode(true)}
-                      className={cn(
-                        "flex h-full items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium transition-colors",
-                        isSdMode ? "bg-accent/15 text-accent" : "text-fg/55 hover:text-fg/85",
-                      )}
-                    >
-                      <ImageIcon size={12} />
-                      {t("hfBrowser.modeImage")}
-                    </button>
-                  </div>
-                  {!isSdMode ? (
+                  {/* Destination picker */}
                   <button
                     onClick={() => setShowOllamaProviderMenu(true)}
                     className={cn(
@@ -2460,7 +2427,6 @@ export function HuggingFaceBrowserPage() {
                       className="shrink-0 opacity-50 transition group-hover:opacity-90"
                     />
                   </button>
-                  ) : null}
                 </div>
 
                 {/* Sort segmented bar with sliding indicator */}
@@ -2568,6 +2534,7 @@ export function HuggingFaceBrowserPage() {
                         setFilterPipelineTags(new Set());
                         setFilterParamMin("");
                         setFilterParamMax("");
+                        setFilterAuthor("");
                       }}
                       className="mt-1 rounded-full border border-fg/15 bg-fg/5 px-3 py-1 text-[11px] font-medium text-fg/70 transition hover:border-fg/30"
                     >
@@ -2814,6 +2781,23 @@ export function HuggingFaceBrowserPage() {
             </motion.div>
           )}
 
+          {view.kind === "author" && (
+            <motion.div
+              key="author"
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              transition={{ duration: 0.15 }}
+              className="flex flex-col px-4 py-4"
+            >
+              <AuthorView
+                author={view.author}
+                onBack={() => setView({ kind: "search" })}
+                onOpenModel={openModel}
+              />
+            </motion.div>
+          )}
+
           {view.kind === "model" && (
             <motion.div
               key="model"
@@ -2867,7 +2851,13 @@ export function HuggingFaceBrowserPage() {
                           HuggingFace
                         </a>
                       </div>
-                      <p className="mt-0.5 text-xs text-fg/45">{modelInfo.author}</p>
+                      <button
+                        type="button"
+                        onClick={() => setView({ kind: "author", author: modelInfo.author })}
+                        className="mt-0.5 block text-left text-xs text-fg/45 transition hover:text-accent"
+                      >
+                        {modelInfo.author}
+                      </button>
 
                       {/* Stats row */}
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -2956,10 +2946,6 @@ export function HuggingFaceBrowserPage() {
                                 {t("hfBrowser.files")} ({filesWithSize.length})
                               </div>
                             </>
-                          ) : isSdMode ? (
-                            <div className="rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-center text-[12px] font-medium text-fg/60">
-                              {t("hfBrowser.files")} ({filesWithSize.length})
-                            </div>
                           ) : (
                             <div className="grid grid-cols-2 gap-1 rounded-lg border border-fg/10 bg-fg/5 p-1">
                               <button
@@ -3975,6 +3961,29 @@ export function HuggingFaceBrowserPage() {
             {t("hfBrowser.filterSubtitle")}
           </p>
 
+          {/* Author */}
+          <div className="mb-2 flex items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-fg/40">
+              Author
+            </span>
+            <div className="h-px flex-1 bg-fg/8" />
+            {filterAuthor.trim() && (
+              <button
+                onClick={() => setFilterAuthor("")}
+                className="text-[10.5px] text-fg/45 hover:text-fg/75"
+              >
+                {t("hfBrowser.filterClear")}
+              </button>
+            )}
+          </div>
+          <input
+            type="text"
+            value={filterAuthor}
+            onChange={(e) => setFilterAuthor(e.target.value)}
+            placeholder="e.g. bartowski"
+            className="mb-5 h-9 w-full rounded-lg border border-fg/10 bg-fg/4 px-2.5 text-[13px] text-fg outline-none transition placeholder:text-fg/35 focus:border-accent/40 focus:ring-1 focus:ring-accent/20"
+          />
+
           {/* Pipeline tags */}
           <div className="mb-2 flex items-center gap-2">
             <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-fg/40">
@@ -4114,6 +4123,7 @@ export function HuggingFaceBrowserPage() {
                 setFilterPipelineTags(new Set());
                 setFilterParamMin("");
                 setFilterParamMax("");
+                setFilterAuthor("");
               }}
               className="mt-5 w-full rounded-lg border border-fg/10 bg-fg/4 py-2 text-[12px] font-medium text-fg/75 transition hover:border-fg/20 hover:text-fg"
             >
@@ -4273,6 +4283,276 @@ export function HuggingFaceBrowserPage() {
             {hasLocalModel ? t("hfBrowser.continueSetup") : t("hfBrowser.downloadToContinue")}
             <ArrowRight size={16} />
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AuthorView({
+  author,
+  onBack,
+  onOpenModel,
+}: {
+  author: string;
+  onBack: () => void;
+  onOpenModel: (modelId: string) => void;
+}) {
+  const [overview, setOverview] = useState<HfAuthorOverview | null>(null);
+  const [models, setModels] = useState<HfSearchResult[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setOverview(null);
+    invoke<HfAuthorOverview>("hf_get_author_overview", { author })
+      .then((ov) => {
+        if (!cancelled) setOverview(ov);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [author]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    invoke<HfSearchResult[]>("hf_get_author_models", {
+      author,
+      search: debouncedSearch || null,
+      limit: 60,
+    })
+      .then((md) => {
+        if (!cancelled) setModels(md);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : String(err));
+          setModels([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [author, debouncedSearch]);
+
+  const name = overview?.name ?? author;
+  const avatarUrl = overview?.avatarUrl ?? null;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <button
+        type="button"
+        onClick={onBack}
+        className="flex w-fit items-center gap-1 text-[12px] font-medium text-fg/55 transition hover:text-fg"
+      >
+        <ChevronLeft size={14} />
+        Back
+      </button>
+
+      <div className="rounded-xl border border-fg/10 bg-fg/[0.025] p-4">
+        <div className="flex items-start gap-3">
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={name}
+              className="h-12 w-12 shrink-0 rounded-xl object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <div
+              className={cn(
+                "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-[20px] font-bold text-fg/75",
+                authorColor(name),
+              )}
+            >
+              {name.charAt(0).toUpperCase()}
+            </div>
+          )}
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="truncate text-[15px] font-semibold text-fg">
+                {overview?.fullname || name}
+              </span>
+              <span className="text-[11px] text-fg/40">@{name}</span>
+              {overview?.isPro && (
+                <span className="rounded border border-amber-400/30 bg-amber-400/10 px-1 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-300">
+                  Pro
+                </span>
+              )}
+              {overview?.kind && (
+                <span className="rounded border border-fg/10 bg-fg/5 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-fg/45">
+                  {overview.kind}
+                </span>
+              )}
+            </div>
+
+            {overview?.details && (
+              <p className="mt-1 line-clamp-2 text-xs text-fg/55">{overview.details}</p>
+            )}
+
+            {overview && (
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] tabular-nums text-fg/50">
+                <span className="flex items-center gap-1">
+                  <Layers size={11} className="text-fg/35" />
+                  {formatNumber(overview.numModels)} models
+                </span>
+                <span className="flex items-center gap-1">
+                  <Heart size={11} className="text-fg/35" />
+                  {formatNumber(overview.numLikes)} likes
+                </span>
+                <span className="flex items-center gap-1">
+                  <Users size={11} className="text-fg/35" />
+                  {formatNumber(overview.numFollowers)} followers
+                </span>
+                {overview.createdAt && (
+                  <span className="text-fg/35">
+                    since {new Date(overview.createdAt).getFullYear()}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          <a
+            href={`https://huggingface.co/${name}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex shrink-0 items-center gap-1 text-[11px] text-accent/70 transition hover:text-accent"
+          >
+            <ExternalLink size={12} />
+            HuggingFace
+          </a>
+        </div>
+      </div>
+
+      <div className="relative">
+        <Search
+          size={14}
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg/40"
+        />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search this author's models…"
+          className="h-9 w-full rounded-lg border border-fg/10 bg-fg/4 pl-9 pr-8 text-[13px] text-fg placeholder-fg/35 outline-none transition focus:border-accent/40 focus:bg-fg/6 focus:ring-1 focus:ring-accent/20"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch("")}
+            className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-fg/40 transition hover:bg-fg/8 hover:text-fg/80"
+            aria-label="Clear"
+          >
+            <X size={12} />
+          </button>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between px-0.5">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-fg/35">
+          GGUF models
+        </span>
+        {models && <span className="text-[10px] tabular-nums text-fg/30">{models.length}</span>}
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center gap-2 py-16 text-fg/50">
+          <Loader size={16} className="animate-spin" />
+          <span className="text-sm">Loading…</span>
+        </div>
+      ) : error ? (
+        <div className="rounded-xl border border-danger/20 bg-danger/5 px-4 py-3">
+          <p className="text-xs leading-relaxed text-danger/80">{error}</p>
+        </div>
+      ) : models && models.length > 0 ? (
+        <div className="grid grid-cols-1 gap-1.5 md:grid-cols-2 xl:grid-cols-3">
+          {models.map((model) => {
+            const paramSize = extractParamSize(model.tags, model.modelId);
+            return (
+              <button
+                key={model.modelId}
+                onClick={() => onOpenModel(model.modelId)}
+                className={cn(
+                  "group flex items-center gap-2.5 rounded-lg border border-fg/8 bg-fg/[0.02] px-2.5 py-2 text-left transition",
+                  "hover:border-fg/20 hover:bg-fg/[0.05] active:scale-[0.99]",
+                )}
+              >
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={model.author}
+                    className="h-6 w-6 shrink-0 rounded-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div
+                    className={cn(
+                      "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-fg/75",
+                      authorColor(model.author),
+                    )}
+                  >
+                    {model.author.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[12.5px] font-medium text-fg">
+                    {model.modelId.split("/").pop()}
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-1 truncate text-[10.5px] text-fg/45">
+                    {model.pipelineTag && <span className="truncate">{model.pipelineTag}</span>}
+                    {paramSize && (
+                      <>
+                        <span className="text-fg/20">·</span>
+                        <span className="shrink-0">{paramSize}</span>
+                      </>
+                    )}
+                    {model.lastModified && (
+                      <>
+                        <span className="text-fg/20">·</span>
+                        <span className="shrink-0 truncate">
+                          {formatTimeAgo(model.lastModified)}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2.5 text-[10.5px] tabular-nums text-fg/50">
+                  <span className="flex items-center gap-1">
+                    <ArrowDownToLine size={10} className="text-fg/35" />
+                    {formatNumber(model.downloads)}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Heart size={10} className="text-fg/35" />
+                    {formatNumber(model.likes)}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-2 py-16 text-center">
+          <Server size={20} className="text-fg/25" />
+          <p className="text-sm text-fg/55">
+            {debouncedSearch
+              ? "No models match your search."
+              : "No GGUF models from this author."}
+          </p>
         </div>
       )}
     </div>

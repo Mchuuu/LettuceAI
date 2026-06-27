@@ -104,6 +104,55 @@ pub struct HfSearchResult {
     pub trending_score: Option<f64>,
 }
 
+#[derive(Debug, Deserialize, Default)]
+#[allow(dead_code)]
+struct HfOverviewResponse {
+    #[serde(default, alias = "user")]
+    name: Option<String>,
+    #[serde(default)]
+    fullname: Option<String>,
+    #[serde(default, rename = "avatarUrl")]
+    avatar_url: Option<String>,
+    #[serde(default)]
+    details: Option<String>,
+    #[serde(default, rename = "type")]
+    kind: Option<String>,
+    #[serde(default, rename = "isPro")]
+    is_pro: Option<bool>,
+    #[serde(default, rename = "numModels")]
+    num_models: Option<u64>,
+    #[serde(default, rename = "numDatasets")]
+    num_datasets: Option<u64>,
+    #[serde(default, rename = "numSpaces")]
+    num_spaces: Option<u64>,
+    #[serde(default, rename = "numLikes")]
+    num_likes: Option<u64>,
+    #[serde(default, rename = "numFollowers")]
+    num_followers: Option<u64>,
+    #[serde(default, rename = "numFollowing")]
+    num_following: Option<u64>,
+    #[serde(default, rename = "createdAt")]
+    created_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HfAuthorOverview {
+    pub name: String,
+    pub fullname: Option<String>,
+    pub avatar_url: Option<String>,
+    pub details: Option<String>,
+    pub kind: Option<String>,
+    pub is_pro: bool,
+    pub num_models: u64,
+    pub num_datasets: u64,
+    pub num_spaces: u64,
+    pub num_likes: u64,
+    pub num_followers: u64,
+    pub num_following: u64,
+    pub created_at: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HfModelFile {
@@ -1872,35 +1921,38 @@ pub async fn hf_search_models(
     limit: Option<u32>,
     sort: Option<String>,
     offset: Option<u32>,
-    mode: Option<String>,
+    author: Option<String>,
 ) -> Result<Vec<HfSearchResult>, String> {
     let limit = limit.unwrap_or(20).min(100);
     let sort_field = sort.unwrap_or_else(|| "trendingScore".to_string());
     let offset = offset.unwrap_or(0);
 
-    let direct_repo_query = query.trim().contains('/');
-    let filter = if mode.as_deref() == Some("sd") {
-        if direct_repo_query {
-            ""
-        } else {
-            "pipeline_tag=text-to-image"
-        }
-    } else {
-        "filter=gguf"
-    };
     let mut url = format!(
-        "https://huggingface.co/api/models?{}&limit={}&sort={}&offset={}",
-        filter, limit, sort_field, offset
+        "https://huggingface.co/api/models?filter=gguf&limit={}&sort={}&offset={}",
+        limit, sort_field, offset
     );
+    if let Some(author) = author.as_deref().map(str::trim).filter(|a| !a.is_empty()) {
+        url.push_str(&format!("&author={}", urlencoding::encode(author)));
+    }
     let trimmed = query.trim();
     if !trimmed.is_empty() {
         url.push_str(&format!("&search={}", urlencoding::encode(trimmed)));
     }
 
     log_info(&app, "hf_browser", format!("searching: {}", url));
+    let results = fetch_models_list(&url).await?;
+    log_info(
+        &app,
+        "hf_browser",
+        format!("search returned {} results", results.len()),
+    );
 
+    Ok(results)
+}
+
+async fn fetch_models_list(url: &str) -> Result<Vec<HfSearchResult>, String> {
     let client = build_client()?;
-    let response = client.get(&url).send().await.map_err(|e| {
+    let response = client.get(url).send().await.map_err(|e| {
         crate::utils::err_msg(
             module_path!(),
             line!(),
@@ -1949,22 +2001,128 @@ pub async fn hf_search_models(
         })
         .collect();
 
+    Ok(results)
+}
+
+#[tauri::command]
+pub async fn hf_get_author_models(
+    app: AppHandle,
+    author: String,
+    search: Option<String>,
+    limit: Option<u32>,
+    sort: Option<String>,
+    offset: Option<u32>,
+) -> Result<Vec<HfSearchResult>, String> {
+    let author = author.trim();
+    if author.is_empty() {
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            "author is empty",
+        ));
+    }
+    let limit = limit.unwrap_or(50).min(100);
+    let sort_field = sort.unwrap_or_else(|| "downloads".to_string());
+    let offset = offset.unwrap_or(0);
+    let mut url = format!(
+        "https://huggingface.co/api/models?author={}&filter=gguf&limit={}&sort={}&direction=-1&offset={}",
+        urlencoding::encode(author),
+        limit,
+        sort_field,
+        offset
+    );
+    if let Some(search) = search.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        url.push_str(&format!("&search={}", urlencoding::encode(search)));
+    }
+
+    log_info(&app, "hf_browser", format!("author models: {}", url));
+    let results = fetch_models_list(&url).await?;
     log_info(
         &app,
         "hf_browser",
-        format!("search returned {} results", results.len()),
+        format!("author {} returned {} models", author, results.len()),
     );
 
     Ok(results)
 }
 
 #[tauri::command]
+pub async fn hf_get_author_overview(
+    app: AppHandle,
+    author: String,
+) -> Result<HfAuthorOverview, String> {
+    let author = author.trim().to_string();
+    if author.is_empty() {
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            "author is empty",
+        ));
+    }
+    log_info(&app, "hf_browser", format!("author overview: {}", author));
+    let encoded = urlencoding::encode(&author);
+    let client = build_client()?;
+    // An author may be a user or an org; try user overview first, then org.
+    let urls = [
+        format!("https://huggingface.co/api/users/{}/overview", encoded),
+        format!(
+            "https://huggingface.co/api/organizations/{}/overview",
+            encoded
+        ),
+    ];
+
+    let mut last_err = String::new();
+    for url in urls {
+        let response = match client.get(&url).send().await {
+            Ok(resp) => resp,
+            Err(e) => {
+                last_err = e.to_string();
+                continue;
+            }
+        };
+        if !response.status().is_success() {
+            last_err = format!("{} -> {}", url, response.status());
+            continue;
+        }
+        let raw: HfOverviewResponse = match response.json().await {
+            Ok(value) => value,
+            Err(e) => {
+                last_err = e.to_string();
+                continue;
+            }
+        };
+        return Ok(HfAuthorOverview {
+            name: raw.name.unwrap_or_else(|| author.clone()),
+            fullname: raw.fullname,
+            avatar_url: raw.avatar_url,
+            details: raw.details,
+            kind: raw.kind,
+            is_pro: raw.is_pro.unwrap_or(false),
+            num_models: raw.num_models.unwrap_or(0),
+            num_datasets: raw.num_datasets.unwrap_or(0),
+            num_spaces: raw.num_spaces.unwrap_or(0),
+            num_likes: raw.num_likes.unwrap_or(0),
+            num_followers: raw.num_followers.unwrap_or(0),
+            num_following: raw.num_following.unwrap_or(0),
+            created_at: raw.created_at,
+        });
+    }
+
+    Err(crate::utils::err_msg(
+        module_path!(),
+        line!(),
+        format!(
+            "Failed to fetch author overview for {}: {}",
+            author, last_err
+        ),
+    ))
+}
+
+#[tauri::command]
 pub async fn hf_get_model_files(
     app: AppHandle,
     model_id: String,
-    mode: Option<String>,
 ) -> Result<HfModelInfo, String> {
-    let sd_mode = mode.as_deref() == Some("sd");
     log_info(
         &app,
         "hf_browser",
@@ -2034,12 +2192,7 @@ pub async fn hf_get_model_files(
             if lower.contains("imatrix") {
                 return false;
             }
-            if sd_mode {
-                !lower.contains('/')
-                    && (lower.ends_with(".gguf") || lower.ends_with(".safetensors"))
-            } else {
-                lower.ends_with(".gguf")
-            }
+            lower.ends_with(".gguf")
         })
         .map(|s| {
             let lower = s.rfilename.to_lowercase();
