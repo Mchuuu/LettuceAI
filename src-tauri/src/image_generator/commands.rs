@@ -16,6 +16,18 @@ use super::provider_adapter::{get_adapter, ImageRequestPayload, ImageResponseDat
 use super::storage::save_image;
 use super::types::{GeneratedImage, ImageGenerationRequest, ImageGenerationResponse};
 
+fn gemini_image_endpoint(base_url: &str, model: &str, api_key: &str) -> String {
+    let base = base_url.trim_end_matches('/');
+    let base = base
+        .strip_suffix("/v1beta")
+        .or_else(|| base.strip_suffix("/v1"))
+        .unwrap_or(base);
+    format!(
+        "{}/v1beta/models/{}:generateContent?key={}",
+        base, model, api_key
+    )
+}
+
 fn record_image_generation_usage(
     app: &AppHandle,
     request: &ImageGenerationRequest,
@@ -200,10 +212,7 @@ pub async fn generate_image(
         let base_url = resolve_base_url(&ProviderId(request.provider_id.clone()), base_url_opt);
 
         let url = if request.provider_id == "gemini" {
-            format!(
-                "{}/v1beta/models/{}:generateContent?key={}",
-                base_url, request.model, api_key
-            )
+            gemini_image_endpoint(&base_url, &request.model, &api_key)
         } else {
             adapter.endpoint(&base_url, &request)
         };
