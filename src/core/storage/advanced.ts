@@ -16,7 +16,6 @@ export interface AdvancedSettings {
   helpMeReplyConversationalPromptTemplateId?: string;
   manualModeContextWindow?: number;
   customLlmModelsDir?: string;
-  customSdModelsDir?: string;
   embeddingMaxTokens?: number; // 1024, 2048, or 4096
   embeddingModelVersion?: "v3" | "v4";
   embeddingDimensions?: number;
