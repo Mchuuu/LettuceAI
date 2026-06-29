@@ -18,7 +18,7 @@ use crate::utils::{log_error, log_info};
 const DISCOVERY_BASE_URL: &str = "https://character-tavern.com/api/homepage/cards";
 const CARD_DETAIL_BASE_URL: &str = "https://character-tavern.com/api/character";
 const CARD_SEARCH_BASE_URL: &str = "https://character-tavern.com/api/search/cards";
-const CARD_IMAGE_BASE_URL: &str = "https://cards.character-tavern.com/cdn-cgi/image";
+const CARD_IMAGE_BASE_URL: &str = "https://ct-cards.storage.character-tavern.com";
 const DISCOVERY_CACHE_TTL_SECS: i64 = 600;
 
 #[derive(Clone)]
@@ -495,8 +495,8 @@ pub fn get_card_image(
 
     let path = normalize_card_path(&path);
     Ok(format!(
-        "{}/format={},width={},quality={}/{}",
-        CARD_IMAGE_BASE_URL, format_value, width_value, quality_value, path
+        "{}/{}?width={}&quality={}&format={}",
+        CARD_IMAGE_BASE_URL, path, width_value, quality_value, format_value
     ))
 }
 
