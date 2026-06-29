@@ -2835,8 +2835,23 @@ export const ChatAppearanceSettingsSchema = z.object({
 });
 export type ChatAppearanceSettings = z.infer<typeof ChatAppearanceSettingsSchema>;
 
-export const ChatAppearanceOverrideSchema = ChatAppearanceSettingsSchema.partial();
-export type ChatAppearanceOverride = z.infer<typeof ChatAppearanceOverrideSchema>;
+function stripDefaultsToOptional(schema: z.ZodObject<z.ZodRawShape>) {
+  const shape = schema.shape;
+  const next: Record<string, z.ZodTypeAny> = {};
+  for (const key of Object.keys(shape)) {
+    let field = shape[key] as z.ZodTypeAny;
+    let def = field.def as { type: string; innerType?: z.ZodTypeAny };
+    while (def?.innerType && ["default", "optional", "nullable", "nullish"].includes(def.type)) {
+      field = def.innerType;
+      def = field.def as { type: string; innerType?: z.ZodTypeAny };
+    }
+    next[key] = field.optional();
+  }
+  return z.object(next);
+}
+
+export const ChatAppearanceOverrideSchema = stripDefaultsToOptional(ChatAppearanceSettingsSchema);
+export type ChatAppearanceOverride = Partial<ChatAppearanceSettings>;
 
 export function createDefaultChatAppearanceSettings(): ChatAppearanceSettings {
   return {
