@@ -1,11 +1,13 @@
+use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::AppHandle;
 use tokenizers::Tokenizer;
 
-static TOKENIZER: Mutex<Option<Tokenizer>> = Mutex::new(None);
+static TOKENIZER: Mutex<Option<(PathBuf, Tokenizer)>> = Mutex::new(None);
 
-/// Get or initialize the global tokenizer instance
 fn get_tokenizer(app: &AppHandle) -> Result<Tokenizer, String> {
+    let tokenizer_path = super::resolve_runtime_model(app)?.tokenizer_path;
+
     let mut tokenizer_lock = TOKENIZER.lock().map_err(|e| {
         crate::utils::err_msg(
             module_path!(),
@@ -14,10 +16,12 @@ fn get_tokenizer(app: &AppHandle) -> Result<Tokenizer, String> {
         )
     })?;
 
-    if tokenizer_lock.is_none() {
-        let model_dir = crate::embedding::embedding_model_dir(app)?;
-        let tokenizer_path = model_dir.join("tokenizer.json");
+    let needs_reload = match tokenizer_lock.as_ref() {
+        Some((cached_path, _)) => cached_path != &tokenizer_path,
+        None => true,
+    };
 
+    if needs_reload {
         if !tokenizer_path.exists() {
             return Err(crate::utils::err_msg(
                 module_path!(),
@@ -37,10 +41,10 @@ fn get_tokenizer(app: &AppHandle) -> Result<Tokenizer, String> {
             )
         })?;
 
-        *tokenizer_lock = Some(tokenizer);
+        *tokenizer_lock = Some((tokenizer_path, tokenizer));
     }
 
-    Ok(tokenizer_lock.as_ref().unwrap().clone())
+    Ok(tokenizer_lock.as_ref().unwrap().1.clone())
 }
 
 /// Count tokens in a text string using the embedding model's tokenizer
