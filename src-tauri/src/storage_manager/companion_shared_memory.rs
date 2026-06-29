@@ -42,19 +42,28 @@ fn companion_shared_memory_enabled_for_character(
     character_id: &str,
     mode: &str,
 ) -> Result<bool, String> {
-    if !mode.eq_ignore_ascii_case("companion") {
-        return Ok(false);
-    }
-
-    let companion_json = conn
+    let row: Option<(Option<String>, Option<String>)> = conn
         .query_row(
-            "SELECT companion FROM characters WHERE id = ?1",
+            "SELECT companion, mode FROM characters WHERE id = ?1",
             params![character_id],
-            |row| row.get::<_, Option<String>>(0),
+            |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()
-        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
-        .flatten();
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    let (companion_json, character_mode) = match row {
+        Some(value) => value,
+        None => return Ok(false),
+    };
+
+    let is_companion = mode.eq_ignore_ascii_case("companion")
+        || character_mode
+            .as_deref()
+            .map(|m| m.eq_ignore_ascii_case("companion"))
+            .unwrap_or(false);
+    if !is_companion {
+        return Ok(false);
+    }
 
     Ok(companion_json
         .as_deref()
