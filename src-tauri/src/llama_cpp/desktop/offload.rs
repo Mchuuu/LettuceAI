@@ -451,6 +451,7 @@ pub(super) fn plan_multi_gpu_distribution(
     device_free_vram: &[u64],
     total_layers: u32,
     bytes_per_layer: u64,
+    kv_bytes_per_layer: u64,
     smart_total_estimate: u32,
     manual: Option<&[u32]>,
     priority_limit_bytes: Option<u64>,
@@ -480,6 +481,7 @@ pub(super) fn plan_multi_gpu_distribution(
             }
         }
         "priority" => {
+            let effective_per_layer = bytes_per_layer.saturating_add(kv_bytes_per_layer);
             let mut remaining = auto_total;
             let mut per_device = vec![0u32; n];
             for (i, free) in device_free_vram.iter().enumerate() {
@@ -491,10 +493,10 @@ pub(super) fn plan_multi_gpu_distribution(
                 } else {
                     *free
                 };
-                let cap = if bytes_per_layer == 0 {
+                let cap = if effective_per_layer == 0 {
                     remaining
                 } else {
-                    u32::try_from(budget / bytes_per_layer).unwrap_or(remaining)
+                    u32::try_from(budget / effective_per_layer).unwrap_or(remaining)
                 };
                 let assigned = cap.min(remaining);
                 per_device[i] = assigned;

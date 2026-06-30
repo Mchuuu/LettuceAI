@@ -1182,6 +1182,7 @@ mod desktop {
                     u32::MAX,
                     0,
                     0,
+                    0,
                     Some(&manual_layers_aligned),
                     None,
                 );
@@ -1269,13 +1270,32 @@ mod desktop {
                 effective_gpu_layers = smart_offload_plan.candidate_gpu_layers.first().copied();
                 smart_gpu_layer_candidates = Some(smart_offload_plan.candidate_gpu_layers.clone());
                 if multi_gpu_active {
-                    // Auto strategy: fixed proportions valid across the shrinking
-                    // candidate ladder; only the total changes on fallback.
+                    let mut kv_adjusted_free = device_free_aligned.clone();
+                    let kv_bytes_per_layer = if kv_main_gpu.is_none() {
+                        smart_offload_plan
+                            .estimated_kv_bytes
+                            .checked_div(u64::from(smart_offload_plan.total_layers.max(1)))
+                            .unwrap_or(0)
+                    } else {
+                        0
+                    };
+                    if let Some(pinned) = kv_main_gpu {
+                        if pinned >= 0 {
+                            if let Some(pos) = llama_gpu_device_ids
+                                .iter()
+                                .position(|id| *id == pinned as usize)
+                            {
+                                kv_adjusted_free[pos] = kv_adjusted_free[pos]
+                                    .saturating_sub(smart_offload_plan.estimated_kv_bytes);
+                            }
+                        }
+                    }
                     multi_gpu_distribution = Some(offload::plan_multi_gpu_distribution(
                         &distribution_mode,
-                        &device_free_aligned,
+                        &kv_adjusted_free,
                         smart_offload_plan.total_layers,
                         smart_offload_plan.bytes_per_layer,
+                        kv_bytes_per_layer,
                         smart_offload_plan.estimated_gpu_layers,
                         None,
                         llama_priority_vram_limit_bytes,
@@ -1364,6 +1384,7 @@ mod desktop {
                     &distribution_mode,
                     &device_free_aligned,
                     u32::MAX,
+                    0,
                     0,
                     effective_gpu_layers.unwrap_or(0),
                     None,

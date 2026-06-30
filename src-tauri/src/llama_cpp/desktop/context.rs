@@ -792,6 +792,7 @@ pub(crate) async fn llamacpp_context_info(
                 metadata.layer_count.max(1),
                 0,
                 0,
+                0,
                 Some(&manual_aligned),
                 None,
             )
@@ -812,11 +813,19 @@ pub(crate) async fn llamacpp_context_info(
                 flash_attention_policy,
                 sidecar_vram_reserve_bytes,
             )?;
+            let kv_bytes_per_layer = if llama_kv_placement.as_deref() == Some("pin") {
+                0
+            } else {
+                plan.estimated_kv_bytes
+                    .checked_div(u64::from(plan.total_layers.max(1)))
+                    .unwrap_or(0)
+            };
             plan_multi_gpu_distribution(
                 dist_mode,
                 &device_free_aligned,
                 plan.total_layers,
                 plan.bytes_per_layer,
+                kv_bytes_per_layer,
                 plan.estimated_gpu_layers,
                 None,
                 llama_priority_vram_limit_bytes,
