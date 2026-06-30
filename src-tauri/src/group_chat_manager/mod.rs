@@ -2154,23 +2154,37 @@ fn dismiss_memory_vector_migration_toast(app: &AppHandle, toast_id: &str) {
     );
 }
 
-fn memory_embedding_requires_migration(
+fn memory_embedding_is_pending(memory: &MemoryEmbedding) -> bool {
+    memory.embedding.is_empty()
+}
+
+fn memory_embedding_is_stale(
     memory: &MemoryEmbedding,
     target_source_version: &str,
     target_dimensions: usize,
 ) -> bool {
-    if memory.embedding.is_empty() || memory.embedding.len() != target_dimensions {
+    if memory.embedding.is_empty() {
+        return false;
+    }
+    if memory.embedding.len() != target_dimensions {
         return true;
     }
-
     if memory.embedding_dimensions != Some(target_dimensions) {
         return true;
     }
-
     match memory.embedding_source_version.as_deref() {
         Some(version) => version != target_source_version,
         None => !(target_source_version == "v3" && target_dimensions == 512),
     }
+}
+
+fn memory_embedding_requires_embedding(
+    memory: &MemoryEmbedding,
+    target_source_version: &str,
+    target_dimensions: usize,
+) -> bool {
+    memory_embedding_is_pending(memory)
+        || memory_embedding_is_stale(memory, target_source_version, target_dimensions)
 }
 
 async fn migrate_group_memory_embeddings_if_needed(
@@ -2184,28 +2198,37 @@ async fn migrate_group_memory_embeddings_if_needed(
 
     let (target_source_version, target_dimensions) =
         embedding::resolve_active_embedding_signature(app)?;
-    let needs_migration = session.memory_embeddings.iter().any(|memory| {
-        memory_embedding_requires_migration(memory, &target_source_version, target_dimensions)
+    let needs_stale_migration = session.memory_embeddings.iter().any(|memory| {
+        memory_embedding_is_stale(memory, &target_source_version, target_dimensions)
     });
-    if !needs_migration {
+    let needs_pending_embed = session
+        .memory_embeddings
+        .iter()
+        .any(memory_embedding_is_pending);
+    if !needs_stale_migration && !needs_pending_embed {
         return Ok(());
     }
+    let show_toast = needs_stale_migration;
 
     let toast_id = format!("group-memory-vector-migration:{}", session.id);
     let total = session.memory_embeddings.len().max(1);
-    emit_memory_vector_migration_toast(
-        app,
-        &toast_id,
-        "Migrating memory vectors",
-        "Updating saved memories for the current memory model. Messages may be delayed briefly.",
-        0.0,
-    );
+    if show_toast {
+        emit_memory_vector_migration_toast(
+            app,
+            &toast_id,
+            "Migrating memory vectors",
+            "Updating saved memories for the current memory model. Messages may be delayed briefly.",
+            0.0,
+        );
+    }
 
     let migration_result: Result<(bool, usize), String> = async {
         let mut migrated_any = false;
         let mut failures = 0usize;
         for (idx, memory) in session.memory_embeddings.iter_mut().enumerate() {
-            if memory_embedding_requires_migration(
+            let was_stale =
+                memory_embedding_is_stale(memory, &target_source_version, target_dimensions);
+            if memory_embedding_requires_embedding(
                 memory,
                 &target_source_version,
                 target_dimensions,
@@ -2223,41 +2246,69 @@ async fn migrate_group_memory_embeddings_if_needed(
                         migrated_any = true;
                     }
                     Ok(Err(err)) => {
-                        failures += 1;
-                        log_warn(
-                            app,
-                            "group_memory_retrieval",
-                            format!(
-                                "failed to re-embed saved memory {}/{}: {}",
-                                idx + 1,
-                                total,
-                                err
-                            ),
-                        );
+                        if was_stale {
+                            failures += 1;
+                            log_warn(
+                                app,
+                                "group_memory_retrieval",
+                                format!(
+                                    "failed to re-embed saved memory {}/{}: {}",
+                                    idx + 1,
+                                    total,
+                                    err
+                                ),
+                            );
+                        } else {
+                            log_info(
+                                app,
+                                "group_memory_retrieval",
+                                format!(
+                                    "deferred pending embedding for memory {}/{} (will retry): {}",
+                                    idx + 1,
+                                    total,
+                                    err
+                                ),
+                            );
+                        }
                     }
                     Err(_) => {
-                        failures += 1;
-                        log_warn(
-                            app,
-                            "group_memory_retrieval",
-                            format!(
-                                "timed out after {}s while re-embedding saved memory {}/{}",
-                                MEMORY_MIGRATION_EMBED_TIMEOUT_SECS,
-                                idx + 1,
-                                total
-                            ),
-                        );
+                        if was_stale {
+                            failures += 1;
+                            log_warn(
+                                app,
+                                "group_memory_retrieval",
+                                format!(
+                                    "timed out after {}s while re-embedding saved memory {}/{}",
+                                    MEMORY_MIGRATION_EMBED_TIMEOUT_SECS,
+                                    idx + 1,
+                                    total
+                                ),
+                            );
+                        } else {
+                            log_info(
+                                app,
+                                "group_memory_retrieval",
+                                format!(
+                                    "timed out after {}s while embedding pending memory {}/{} (will retry)",
+                                    MEMORY_MIGRATION_EMBED_TIMEOUT_SECS,
+                                    idx + 1,
+                                    total
+                                ),
+                            );
+                        }
                     }
                 }
             }
 
-            emit_memory_vector_migration_toast(
-                app,
-                &toast_id,
-                "Migrating memory vectors",
-                &format!("Re-embedded {}/{} saved memories.", idx + 1, total),
-                (idx + 1) as f32 / total as f32,
-            );
+            if show_toast {
+                emit_memory_vector_migration_toast(
+                    app,
+                    &toast_id,
+                    "Migrating memory vectors",
+                    &format!("Re-embedded {}/{} saved memories.", idx + 1, total),
+                    (idx + 1) as f32 / total as f32,
+                );
+            }
         }
 
         if migrated_any {
@@ -2267,7 +2318,9 @@ async fn migrate_group_memory_embeddings_if_needed(
     }
     .await;
 
-    dismiss_memory_vector_migration_toast(app, &toast_id);
+    if show_toast {
+        dismiss_memory_vector_migration_toast(app, &toast_id);
+    }
 
     let (migrated_any, failures) = match migration_result {
         Ok(outcome) => outcome,
@@ -2284,7 +2337,7 @@ async fn migrate_group_memory_embeddings_if_needed(
         }
     };
 
-    if migrated_any && failures == 0 {
+    if show_toast && migrated_any && failures == 0 {
         let _ = app.emit(
             "app://toast",
             json!({
@@ -3926,7 +3979,14 @@ async fn run_group_memory_tool_update(
                         };
 
                         let (embedding_source_version, embedding_dimensions) =
-                            embedding::embedding_signature_for_result(app, embedding.as_ref());
+                            match embedding.as_ref() {
+                                Some(vector) if !vector.is_empty() => {
+                                    let (version, dimensions) =
+                                        embedding::embedding_signature_for_result(app, Some(vector));
+                                    (Some(version), Some(dimensions))
+                                }
+                                _ => (None, None),
+                            };
                         let _now = now_millis().unwrap_or_default();
                         session.memory_embeddings.push(MemoryEmbedding {
                             id: mem_id.clone(),
@@ -3942,8 +4002,8 @@ async fn run_group_memory_tool_update(
                             volatility: 0.4,
                             is_pinned,
                             access_count: 0,
-                            embedding_source_version: Some(embedding_source_version),
-                            embedding_dimensions: Some(embedding_dimensions),
+                            embedding_source_version,
+                            embedding_dimensions,
                             match_score: None,
                             category: Some(category),
                             observed_at: None,
@@ -4378,7 +4438,14 @@ async fn run_group_memory_tool_update(
                     let token_count =
                         crate::embedding::tokenizer::count_tokens(app, &text).unwrap_or(0);
                     let (embedding_source_version, embedding_dimensions) =
-                        embedding::embedding_signature_for_result(app, embedding.as_ref());
+                        match embedding.as_ref() {
+                            Some(vector) if !vector.is_empty() => {
+                                let (version, dimensions) =
+                                    embedding::embedding_signature_for_result(app, Some(vector));
+                                (Some(version), Some(dimensions))
+                            }
+                            _ => (None, None),
+                        };
                     let now = now_millis().unwrap_or_default();
                     session.memory_embeddings.push(MemoryEmbedding {
                         id: mem_id.clone(),
@@ -4394,8 +4461,8 @@ async fn run_group_memory_tool_update(
                         volatility: 0.4,
                         is_pinned,
                         access_count: 0,
-                        embedding_source_version: Some(embedding_source_version),
-                        embedding_dimensions: Some(embedding_dimensions),
+                        embedding_source_version,
+                        embedding_dimensions,
                         match_score: None,
                         category: Some(category.clone()),
                         observed_at: None,

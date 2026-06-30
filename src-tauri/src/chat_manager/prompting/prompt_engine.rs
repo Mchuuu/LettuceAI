@@ -3844,7 +3844,27 @@ pub fn render_with_context(
         session,
         settings,
         scheduled_notes_text_override,
+        None,
     )
+}
+
+pub fn resolve_lorebook_content(
+    app: &AppHandle,
+    character: &Character,
+    persona: Option<&Persona>,
+    session: &Session,
+) -> String {
+    match get_lorebook_content(app, &character.id, persona, session) {
+        Ok(content) => content,
+        Err(e) => {
+            utils::log_warn(
+                app,
+                "prompt_engine",
+                format!("Failed to get lorebook content: {}", e),
+            );
+            String::new()
+        }
+    }
 }
 
 fn edited_session_scene_content(session: &Session) -> Option<&str> {
@@ -3864,6 +3884,7 @@ pub fn render_with_context_internal(
     session: &Session,
     settings: &Settings,
     scheduled_notes_text_override: Option<&str>,
+    lorebook_text_override: Option<&str>,
 ) -> String {
     let char_name = &character.name;
     let raw_char_desc = character
@@ -4133,7 +4154,9 @@ pub fn render_with_context_internal(
     result = result.replace("{{key_memories}}", &key_memories_text);
 
     // Lorebook entries - get recent messages for keyword matching
-    let lorebook_text = if let Some(app) = app {
+    let lorebook_text = if let Some(override_text) = lorebook_text_override {
+        override_text.to_string()
+    } else if let Some(app) = app {
         match get_lorebook_content(app, &character.id, persona, session) {
             Ok(content) => content,
             Err(e) => {
