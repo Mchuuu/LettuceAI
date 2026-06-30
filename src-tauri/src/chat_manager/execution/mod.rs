@@ -1,7 +1,7 @@
 use serde_json::Value;
 use std::collections::HashMap;
 
-use super::types::{Model, Session, Settings};
+use super::types::{GpuLayerAssignment, Model, Session, Settings};
 
 const FALLBACK_MAX_OUTPUT_TOKENS: u32 = 4096;
 const DEFAULT_LLAMA_SAMPLER_PROFILE: &str = "balanced";
@@ -311,6 +311,165 @@ pub(super) fn resolve_llama_gpu_layers(
                 .and_then(|cfg| cfg.llama_gpu_layers)
         })
         .or(settings.advanced_model_settings.llama_gpu_layers)
+}
+
+pub(super) fn resolve_llama_multi_gpu_enabled(
+    session: &Session,
+    model: &Model,
+    settings: &Settings,
+) -> Option<bool> {
+    session
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|cfg| cfg.llama_multi_gpu_enabled)
+        .or_else(|| {
+            model
+                .advanced_model_settings
+                .as_ref()
+                .and_then(|cfg| cfg.llama_multi_gpu_enabled)
+        })
+        .or(settings.advanced_model_settings.llama_multi_gpu_enabled)
+}
+
+pub(super) fn resolve_llama_gpu_device_ids(
+    session: &Session,
+    model: &Model,
+    settings: &Settings,
+) -> Option<Vec<usize>> {
+    session
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|cfg| cfg.llama_gpu_device_ids.clone())
+        .or_else(|| {
+            model
+                .advanced_model_settings
+                .as_ref()
+                .and_then(|cfg| cfg.llama_gpu_device_ids.clone())
+        })
+        .or_else(|| {
+            settings
+                .advanced_model_settings
+                .llama_gpu_device_ids
+                .clone()
+        })
+        .map(|ids| {
+            let mut deduped = Vec::new();
+            for id in ids {
+                if !deduped.contains(&id) {
+                    deduped.push(id);
+                }
+            }
+            deduped
+        })
+        .filter(|ids| !ids.is_empty())
+}
+
+pub(super) fn resolve_llama_gpu_distribution_mode(
+    session: &Session,
+    model: &Model,
+    settings: &Settings,
+) -> Option<String> {
+    session
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|cfg| cfg.llama_gpu_distribution_mode.clone())
+        .or_else(|| {
+            model
+                .advanced_model_settings
+                .as_ref()
+                .and_then(|cfg| cfg.llama_gpu_distribution_mode.clone())
+        })
+        .or_else(|| {
+            settings
+                .advanced_model_settings
+                .llama_gpu_distribution_mode
+                .clone()
+        })
+        .map(|v| v.trim().to_ascii_lowercase())
+        .filter(|v| matches!(v.as_str(), "balanced" | "proportional" | "priority" | "manual"))
+}
+
+pub(super) fn resolve_llama_gpu_manual_layers(
+    session: &Session,
+    model: &Model,
+    settings: &Settings,
+) -> Option<Vec<GpuLayerAssignment>> {
+    session
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|cfg| cfg.llama_gpu_manual_layers.clone())
+        .or_else(|| {
+            model
+                .advanced_model_settings
+                .as_ref()
+                .and_then(|cfg| cfg.llama_gpu_manual_layers.clone())
+        })
+        .or_else(|| {
+            settings
+                .advanced_model_settings
+                .llama_gpu_manual_layers
+                .clone()
+        })
+        .filter(|layers| !layers.is_empty())
+}
+
+pub(super) fn resolve_llama_kv_placement(
+    session: &Session,
+    model: &Model,
+    settings: &Settings,
+) -> Option<String> {
+    session
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|cfg| cfg.llama_kv_placement.clone())
+        .or_else(|| {
+            model
+                .advanced_model_settings
+                .as_ref()
+                .and_then(|cfg| cfg.llama_kv_placement.clone())
+        })
+        .or_else(|| settings.advanced_model_settings.llama_kv_placement.clone())
+        .map(|v| v.trim().to_string())
+        .filter(|v| matches!(v.as_str(), "auto" | "split" | "systemRam" | "pin"))
+}
+
+pub(super) fn resolve_llama_main_gpu(
+    session: &Session,
+    model: &Model,
+    settings: &Settings,
+) -> Option<i32> {
+    session
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|cfg| cfg.llama_main_gpu)
+        .or_else(|| {
+            model
+                .advanced_model_settings
+                .as_ref()
+                .and_then(|cfg| cfg.llama_main_gpu)
+        })
+        .or(settings.advanced_model_settings.llama_main_gpu)
+}
+
+pub(super) fn resolve_llama_priority_vram_limit_bytes(
+    session: &Session,
+    model: &Model,
+    settings: &Settings,
+) -> Option<u64> {
+    session
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|cfg| cfg.llama_priority_vram_limit_bytes)
+        .or_else(|| {
+            model
+                .advanced_model_settings
+                .as_ref()
+                .and_then(|cfg| cfg.llama_priority_vram_limit_bytes)
+        })
+        .or(settings
+            .advanced_model_settings
+            .llama_priority_vram_limit_bytes)
+        .filter(|v| *v > 0)
 }
 
 pub(super) fn resolve_llama_threads(

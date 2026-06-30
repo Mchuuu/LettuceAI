@@ -335,6 +335,12 @@ export const LlamaLastRuntimeReportSchema = z.object({
   availableMemoryBytes: z.number().int().nonnegative().nullable().optional(),
   availableVramBytes: z.number().int().nonnegative().nullable().optional(),
   modelSizeBytes: z.number().int().nonnegative().nullable().optional(),
+  llamaMultiGpuEnabled: z.boolean().nullable().optional(),
+  selectedGpuDeviceIds: z.array(z.number().int().min(0)).nullable().optional(),
+  llamaGpuDistributionMode: z.string().trim().min(1).nullable().optional(),
+  llamaKvPlacement: z.string().trim().min(1).nullable().optional(),
+  llamaMainGpu: z.number().int().min(0).nullable().optional(),
+  gpuDeviceLayerPlacement: z.array(z.number().int().min(0)).nullable().optional(),
   promptTokens: z.number().int().nonnegative().nullable().optional(),
   promptPositions: z.number().int().nonnegative().nullable().optional(),
   targetNewTokens: z.number().int().nonnegative().nullable().optional(),
@@ -402,6 +408,20 @@ export const AdvancedModelSettingsSchema = z.object({
   sdPromptWriterInstructions: z.string().trim().min(1).nullable().optional(),
   // llama.cpp specific settings
   llamaGpuLayers: z.number().int().min(0).max(512).nullable().optional(),
+  llamaMultiGpuEnabled: z.boolean().nullable().optional(),
+  llamaGpuDeviceIds: z.array(z.number().int().min(0)).nullable().optional(),
+  llamaGpuDistributionMode: z
+    .enum(["balanced", "proportional", "priority", "manual"])
+    .nullable()
+    .optional(),
+  llamaGpuManualLayers: z
+    .array(z.object({ deviceId: z.number().int().min(0), layers: z.number().int().min(0).max(512) }))
+    .nullable()
+    .optional(),
+  llamaCpuLayers: z.number().int().min(0).max(512).nullable().optional(),
+  llamaKvPlacement: z.enum(["auto", "split", "systemRam", "pin"]).nullable().optional(),
+  llamaMainGpu: z.number().int().min(0).nullable().optional(),
+  llamaPriorityVramLimitBytes: z.number().int().nonnegative().nullable().optional(),
   llamaThreads: z.number().int().min(1).max(256).nullable().optional(),
   llamaThreadsBatch: z.number().int().min(1).max(256).nullable().optional(),
   llamaSeed: z.number().int().min(0).max(2_147_483_647).nullable().optional(),
@@ -1961,6 +1981,14 @@ export const PROVIDER_PARAMETER_SUPPORT = {
       presencePenalty: true,
       topK: true,
       llamaGpuLayers: true,
+      llamaMultiGpuEnabled: true,
+      llamaGpuDeviceIds: true,
+      llamaGpuDistributionMode: true,
+      llamaGpuManualLayers: true,
+      llamaCpuLayers: true,
+      llamaKvPlacement: true,
+      llamaMainGpu: true,
+      llamaPriorityVramLimitBytes: true,
       llamaThreads: true,
       llamaThreadsBatch: true,
       llamaSeed: true,
@@ -3044,6 +3072,7 @@ export const SettingsSchema = z.object({
       chatAppearance: ChatAppearanceSettingsSchema.optional(),
     })
     .optional(),
+  advancedModelSettings: AdvancedModelSettingsSchema.optional(),
   promptTemplateId: z.string().nullish().optional(),
   systemPrompt: z.string().nullish().optional(), // Deprecated
   migrationVersion: z.number().int().default(0),
@@ -3079,6 +3108,7 @@ export function createDefaultSettings(): Settings {
       },
       accessibility: createDefaultAccessibilitySettings(),
     },
+    advancedModelSettings: createDefaultAdvancedModelSettings(),
     promptTemplateId: null,
     systemPrompt: null,
     migrationVersion: 0,

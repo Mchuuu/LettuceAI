@@ -596,6 +596,86 @@ fn build_llama_extra_fields(model: &Model, settings: &Settings) -> Option<HashMa
     if let Some(v) = model
         .advanced_model_settings
         .as_ref()
+        .and_then(|a| a.llama_multi_gpu_enabled)
+        .or(settings.advanced_model_settings.llama_multi_gpu_enabled)
+    {
+        extra.insert("llamaMultiGpuEnabled".to_string(), json!(v));
+    }
+    if let Some(v) = model
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|a| a.llama_gpu_device_ids.clone())
+        .or_else(|| {
+            settings
+                .advanced_model_settings
+                .llama_gpu_device_ids
+                .clone()
+        })
+        .filter(|ids| !ids.is_empty())
+    {
+        extra.insert("llamaGpuDeviceIds".to_string(), json!(v));
+    }
+    if let Some(v) = model
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|a| a.llama_gpu_distribution_mode.clone())
+        .or_else(|| {
+            settings
+                .advanced_model_settings
+                .llama_gpu_distribution_mode
+                .clone()
+        })
+        .map(|v| v.trim().to_ascii_lowercase())
+        .filter(|v| matches!(v.as_str(), "balanced" | "proportional" | "priority" | "manual"))
+    {
+        extra.insert("llamaGpuDistributionMode".to_string(), json!(v));
+    }
+    if let Some(v) = model
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|a| a.llama_gpu_manual_layers.clone())
+        .or_else(|| {
+            settings
+                .advanced_model_settings
+                .llama_gpu_manual_layers
+                .clone()
+        })
+        .filter(|layers| !layers.is_empty())
+    {
+        extra.insert("llamaGpuManualLayers".to_string(), json!(v));
+    }
+    if let Some(v) = model
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|a| a.llama_kv_placement.clone())
+        .or_else(|| settings.advanced_model_settings.llama_kv_placement.clone())
+        .map(|v| v.trim().to_string())
+        .filter(|v| matches!(v.as_str(), "auto" | "split" | "systemRam" | "pin"))
+    {
+        extra.insert("llamaKvPlacement".to_string(), json!(v));
+    }
+    if let Some(v) = model
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|a| a.llama_main_gpu)
+        .or(settings.advanced_model_settings.llama_main_gpu)
+    {
+        extra.insert("llamaMainGpu".to_string(), json!(v));
+    }
+    if let Some(v) = model
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|a| a.llama_priority_vram_limit_bytes)
+        .or(settings
+            .advanced_model_settings
+            .llama_priority_vram_limit_bytes)
+        .filter(|v| *v > 0)
+    {
+        extra.insert("llamaPriorityVramLimitBytes".to_string(), json!(v));
+    }
+    if let Some(v) = model
+        .advanced_model_settings
+        .as_ref()
         .and_then(|a| a.llama_threads)
         .or(settings.advanced_model_settings.llama_threads)
     {

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Brain,
+  Check,
+  Cpu,
   FolderInput,
   FolderOpen,
   HardDrive,
@@ -13,16 +15,37 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 
 import { BottomMenu, MenuButton, MenuButtonGroup, MenuDivider } from "../../components/BottomMenu";
+import { Switch } from "../../components/Switch";
 
-import { readSettings, saveAdvancedSettings } from "../../../core/storage/repo";
+import {
+  readSettings,
+  saveAdvancedModelSettings,
+  saveAdvancedSettings,
+} from "../../../core/storage/repo";
 import { useI18n } from "../../../core/i18n/context";
-import { cn } from "../../design-tokens";
+import { cn, interactive } from "../../design-tokens";
 import { toast } from "../../components/toast";
 import { NumberInput } from "../../components/NumberInput";
 
 type RuntimeDefaults = {
   llamaDefaultContextLength: number | null;
   llamaDefaultKvCacheType: "auto" | "f16" | "q8_0" | "q4_0";
+  llamaMultiGpuEnabled: boolean | null;
+  llamaGpuDeviceIds: number[] | null;
+  llamaGpuDistributionMode: "balanced" | "proportional" | "priority" | "manual" | null;
+  llamaKvPlacement: "auto" | "split" | "systemRam" | "pin" | null;
+  llamaMainGpu: number | null;
+  llamaPriorityVramLimitBytes: number | null;
+};
+
+type LlamaGpuDevice = {
+  index: number;
+  name: string;
+  description: string;
+  backend: string;
+  memoryTotal: number;
+  memoryFree: number;
+  deviceType: string;
 };
 
 type ModelDirKind = "llm";
@@ -84,6 +107,7 @@ export function LocalRuntimeDefaultsPage() {
   const { t } = useI18n();
   const [defaults, setDefaults] = useState<RuntimeDefaults | null>(null);
   const [modelsDir, setModelsDir] = useState<LlmModelsDirInfo | null>(null);
+  const [gpuDevices, setGpuDevices] = useState<LlamaGpuDevice[]>([]);
   const [pending, setPending] = useState<{ kind: ModelDirKind; dir: string } | null>(null);
   const [movingDir, setMovingDir] = useState(false);
 
@@ -161,12 +185,22 @@ export function LocalRuntimeDefaultsPage() {
     readSettings()
       .then((settings) => {
         const advanced = settings.advancedSettings ?? {};
+        const advancedModel = settings.advancedModelSettings ?? {};
         setDefaults({
           llamaDefaultContextLength: advanced.llamaDefaultContextLength ?? null,
           llamaDefaultKvCacheType: advanced.llamaDefaultKvCacheType ?? "auto",
+          llamaMultiGpuEnabled: advancedModel.llamaMultiGpuEnabled ?? null,
+          llamaGpuDeviceIds: advancedModel.llamaGpuDeviceIds ?? null,
+          llamaGpuDistributionMode: advancedModel.llamaGpuDistributionMode ?? null,
+          llamaKvPlacement: advancedModel.llamaKvPlacement ?? null,
+          llamaMainGpu: advancedModel.llamaMainGpu ?? null,
+          llamaPriorityVramLimitBytes: advancedModel.llamaPriorityVramLimitBytes ?? null,
         });
       })
       .catch(() => {});
+    invoke<LlamaGpuDevice[]>("llamacpp_backend_devices")
+      .then(setGpuDevices)
+      .catch(() => setGpuDevices([]));
   }, [refreshModelsDir]);
 
   const persistDefaults = useCallback(
@@ -179,6 +213,18 @@ export function LocalRuntimeDefaultsPage() {
           llamaDefaultContextLength: next.llamaDefaultContextLength ?? undefined,
           llamaDefaultKvCacheType:
             next.llamaDefaultKvCacheType === "auto" ? undefined : next.llamaDefaultKvCacheType,
+        });
+        await saveAdvancedModelSettings({
+          ...(settings.advancedModelSettings ?? {}),
+          llamaMultiGpuEnabled: next.llamaMultiGpuEnabled === true ? true : undefined,
+          llamaGpuDeviceIds:
+            next.llamaGpuDeviceIds && next.llamaGpuDeviceIds.length > 0
+              ? next.llamaGpuDeviceIds
+              : undefined,
+          llamaGpuDistributionMode: next.llamaGpuDistributionMode ?? undefined,
+          llamaKvPlacement: next.llamaKvPlacement ?? undefined,
+          llamaMainGpu: next.llamaMainGpu ?? undefined,
+          llamaPriorityVramLimitBytes: next.llamaPriorityVramLimitBytes ?? undefined,
         });
       } catch (err) {
         toast.error(
@@ -249,6 +295,24 @@ export function LocalRuntimeDefaultsPage() {
     );
   }
 
+  const selectedGpuIds = defaults.llamaGpuDeviceIds ?? [];
+  const eligibleGpuDevices = gpuDevices.filter(
+    (device) => device.deviceType !== "IntegratedGpu",
+  );
+  const multiGpuAvailable = eligibleGpuDevices.length >= 2;
+  const selectedEligibleDevices = eligibleGpuDevices.filter((device) =>
+    selectedGpuIds.includes(device.index),
+  );
+  const toggleGpuDevice = (index: number) => {
+    const nextIds = selectedGpuIds.includes(index)
+      ? selectedGpuIds.filter((id) => id !== index)
+      : [...selectedGpuIds, index].sort((a, b) => a - b);
+    void persistDefaults({
+      ...defaults,
+      llamaGpuDeviceIds: nextIds.length > 0 ? nextIds : null,
+    });
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       <main className="flex-1 px-4 pb-24 pt-4">
@@ -313,6 +377,235 @@ export function LocalRuntimeDefaultsPage() {
                 <option value="q4_0">Q4_0</option>
               </select>
             </SettingRow>
+
+            <SettingRow
+              icon={<Cpu className="h-4 w-4 text-warning/80" />}
+              iconClassName="border-warning/30 bg-warning/10"
+              title={t("runtimeDefaults.llamaMultiGpuTitle")}
+              description={t("runtimeDefaults.llamaMultiGpuDescription")}
+            >
+              <Switch
+                checked={defaults.llamaMultiGpuEnabled === true && multiGpuAvailable}
+                disabled={!multiGpuAvailable}
+                onChange={(next) =>
+                  void persistDefaults({
+                    ...defaults,
+                    llamaMultiGpuEnabled: next ? true : null,
+                  })
+                }
+                aria-label={t("runtimeDefaults.llamaMultiGpuTitle")}
+              />
+            </SettingRow>
+
+            {!multiGpuAvailable && (
+              <p className="-mt-1 px-1 text-[11px] text-fg/45">
+                {t("runtimeDefaults.llamaMultiGpuRequiresTwo")}
+              </p>
+            )}
+
+            {defaults.llamaMultiGpuEnabled === true && multiGpuAvailable && (
+              <div className="rounded-xl border border-fg/10 bg-fg/5 px-4 py-3">
+                <div className="flex items-start gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="rounded-lg border border-warning/30 bg-warning/10 p-1.5">
+                      <Cpu className="h-4 w-4 text-warning/80" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-sm font-medium text-fg">
+                        {t("runtimeDefaults.llamaGpuDevicesTitle")}
+                      </span>
+                      <p className="text-[11px] text-fg/45">
+                        {t("runtimeDefaults.llamaGpuDevicesDescription")}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  {eligibleGpuDevices.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-fg/10 bg-fg/[0.03] px-3 py-4 text-center text-[13px] text-fg/45">
+                      {t("runtimeDefaults.llamaGpuNone")}
+                    </p>
+                  ) : (
+                    eligibleGpuDevices.map((device) => {
+                      const checked = selectedGpuIds.includes(device.index);
+                      return (
+                        <button
+                          key={device.index}
+                          type="button"
+                          role="checkbox"
+                          aria-checked={checked}
+                          onClick={() => toggleGpuDevice(device.index)}
+                          className={cn(
+                            "flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left",
+                            interactive.transition.default,
+                            checked
+                              ? "border-accent/40 bg-accent/10"
+                              : "border-fg/10 bg-fg/[0.04] hover:border-fg/20 hover:bg-fg/[0.07]",
+                          )}
+                        >
+                          <div className="min-w-0">
+                            <span className="block truncate text-sm font-medium text-fg/85">
+                              {device.description || device.name || `GPU ${device.index}`}
+                            </span>
+                            <span className="block font-mono text-[11px] text-fg/40">
+                              #{device.index} · {device.backend} ·{" "}
+                              {t("runtimeDefaults.llamaGpuMemory", {
+                                free: (device.memoryFree / 1024 ** 3).toFixed(1),
+                                total: (device.memoryTotal / 1024 ** 3).toFixed(1),
+                              })}
+                            </span>
+                          </div>
+                          <span
+                            className={cn(
+                              "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
+                              checked ? "border-accent bg-accent text-black" : "border-fg/15",
+                            )}
+                          >
+                            {checked && <Check className="h-3.5 w-3.5" />}
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+
+                {selectedGpuIds.length === 1 && (
+                  <p className="mt-3 text-[11px] text-warning/80">
+                    {t("runtimeDefaults.llamaGpuMinTwo")}
+                  </p>
+                )}
+
+                <div className="mt-4 space-y-3 border-t border-fg/10 pt-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className="block text-sm font-medium text-fg">
+                        {t("runtimeDefaults.llamaDistributionTitle")}
+                      </span>
+                      <p className="text-[11px] text-fg/45">
+                        {t("runtimeDefaults.llamaDistributionDescription")}
+                      </p>
+                    </div>
+                    <select
+                      value={defaults.llamaGpuDistributionMode ?? "balanced"}
+                      onChange={(event) =>
+                        void persistDefaults({
+                          ...defaults,
+                          llamaGpuDistributionMode: event.target
+                            .value as RuntimeDefaults["llamaGpuDistributionMode"],
+                        })
+                      }
+                      className={cn(controlClassName, "shrink-0")}
+                    >
+                      <option value="balanced">
+                        {t("runtimeDefaults.llamaDistBalanced")}
+                      </option>
+                      <option value="proportional">
+                        {t("runtimeDefaults.llamaDistProportional")}
+                      </option>
+                      <option value="priority">
+                        {t("runtimeDefaults.llamaDistPriority")}
+                      </option>
+                    </select>
+                  </div>
+
+                  {defaults.llamaGpuDistributionMode === "priority" && (
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <span className="block text-sm font-medium text-fg">
+                          {t("runtimeDefaults.llamaPriorityVramTitle")}
+                        </span>
+                        <p className="text-[11px] text-fg/45">
+                          {t("runtimeDefaults.llamaPriorityVramDescription")}
+                        </p>
+                      </div>
+                      <div className="w-28 shrink-0">
+                        <NumberInput
+                          min={0}
+                          max={1024}
+                          step={0.5}
+                          value={
+                            defaults.llamaPriorityVramLimitBytes != null
+                              ? Number(
+                                  (defaults.llamaPriorityVramLimitBytes / 1024 ** 3).toFixed(2),
+                                )
+                              : null
+                          }
+                          onChange={(next) =>
+                            void persistDefaults({
+                              ...defaults,
+                              llamaPriorityVramLimitBytes:
+                                next === null || next <= 0
+                                  ? null
+                                  : Math.round(next * 1024 ** 3),
+                            })
+                          }
+                          placeholder={t("common.labels.auto")}
+                          className={controlClassName}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className="block text-sm font-medium text-fg">
+                        {t("runtimeDefaults.llamaKvPlacementTitle")}
+                      </span>
+                      <p className="text-[11px] text-fg/45">
+                        {t("runtimeDefaults.llamaKvPlacementDescription")}
+                      </p>
+                    </div>
+                    <select
+                      value={defaults.llamaKvPlacement ?? "auto"}
+                      onChange={(event) =>
+                        void persistDefaults({
+                          ...defaults,
+                          llamaKvPlacement: event.target
+                            .value as RuntimeDefaults["llamaKvPlacement"],
+                        })
+                      }
+                      className={cn(controlClassName, "shrink-0")}
+                    >
+                      <option value="auto">{t("runtimeDefaults.llamaKvAuto")}</option>
+                      <option value="split">{t("runtimeDefaults.llamaKvSplit")}</option>
+                      <option value="systemRam">{t("runtimeDefaults.llamaKvSystemRam")}</option>
+                      <option value="pin">{t("runtimeDefaults.llamaKvPin")}</option>
+                    </select>
+                  </div>
+
+                  {defaults.llamaKvPlacement === "pin" && selectedEligibleDevices.length > 0 && (
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-sm font-medium text-fg">
+                        {t("runtimeDefaults.llamaPinnedGpu")}
+                      </span>
+                      <select
+                        value={String(
+                          defaults.llamaMainGpu ?? selectedEligibleDevices[0]?.index ?? 0,
+                        )}
+                        onChange={(event) =>
+                          void persistDefaults({
+                            ...defaults,
+                            llamaMainGpu: Number(event.target.value),
+                          })
+                        }
+                        className={cn(controlClassName, "shrink-0")}
+                      >
+                        {selectedEligibleDevices.map((device) => (
+                          <option key={device.index} value={String(device.index)}>
+                            {device.description || device.name || `GPU ${device.index}`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <p className="text-[11px] text-fg/40">
+                    {t("runtimeDefaults.llamaManualPerModelNote")}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>
