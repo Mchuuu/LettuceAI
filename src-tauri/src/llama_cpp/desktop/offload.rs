@@ -24,6 +24,7 @@ pub(super) struct SmartGpuOffloadPlan {
     pub(super) kqv_vram_reserved: bool,
     pub(super) planning_offload_kqv: Option<bool>,
     pub(super) estimated_kv_bytes: u64,
+    pub(super) kv_bytes_per_layer: u64,
     pub(super) estimated_sidecar_vram_reserve_bytes: u64,
     pub(super) estimated_runtime_reserve_bytes: u64,
     pub(super) effective_vram_budget_bytes: u64,
@@ -165,8 +166,10 @@ fn estimated_runtime_reserve_bytes(
     flash_attention_policy: llama_flash_attn_type,
 ) -> u64 {
     let floor = (available_vram_bytes / 20).max(COMPUTE_RESERVE_FLOOR_BYTES);
+    // AUTO (-1) means llama.cpp will use flash attention when the backend supports it
+    // (always true on CUDA). Only reserve the full attention matrix for the DISABLED case.
     let attention_reserve =
-        if flash_attention_policy == llama_cpp_sys_2::LLAMA_FLASH_ATTN_TYPE_ENABLED {
+        if flash_attention_policy != llama_cpp_sys_2::LLAMA_FLASH_ATTN_TYPE_DISABLED {
             0
         } else {
             u64::from(planned_context.max(1))
@@ -189,6 +192,11 @@ fn candidate_gpu_layers(total_layers: u32, estimated_gpu_layers: u32) -> Vec<u32
     }
 
     let mut candidates = Vec::new();
+    // If the estimate is within 10% of total, optimistically try all layers first.
+    // The smart fallback ladder will step down gracefully on OOM.
+    if estimate >= total_layers.saturating_mul(9) / 10 {
+        push_unique(&mut candidates, total_layers);
+    }
     push_unique(&mut candidates, estimate);
     push_unique(&mut candidates, estimate.saturating_mul(3) / 4);
     push_unique(&mut candidates, estimate / 2);
@@ -325,31 +333,40 @@ pub(super) fn plan_smart_gpu_offload(
         None => &[Some(false), Some(true), None],
     };
 
-    let mut selected_plan: Option<(Option<bool>, bool, u64, u32)> = None;
+    let mut selected_plan: Option<(Option<bool>, bool, u64, u64, u32)> = None;
     for planning_offload_kqv in planning_modes {
         let kqv_vram_reserved = *planning_offload_kqv == Some(true);
-        let estimated_kv_bytes = if kqv_vram_reserved {
-            kv_bytes_per_token.saturating_mul(u64::from(planned_context))
+        // When KV is GPU-resident, only the GPU-resident layers' KV goes to VRAM —
+        // not the full model's KV. Include KV cost in the per-layer price so the
+        // estimate self-corrects: more layers → more KV, fewer layers → less KV.
+        let kv_bytes_per_layer = if kqv_vram_reserved {
+            kv_bytes_per_token
+                .saturating_mul(u64::from(planned_context))
+                .checked_div(u64::from(total_layers.max(1)))
+                .unwrap_or(0)
         } else {
             0
         };
-        let available_for_layers = effective_vram_budget_bytes
+        let effective_bytes_per_layer = bytes_per_layer.saturating_add(kv_bytes_per_layer);
+        let available_base = effective_vram_budget_bytes
             .saturating_sub(estimated_runtime_reserve_bytes)
-            .saturating_sub(sidecar_vram_reserve_bytes)
-            .saturating_sub(estimated_kv_bytes);
-        let estimated_gpu_layers = if available_for_layers == 0 || bytes_per_layer == 0 {
+            .saturating_sub(sidecar_vram_reserve_bytes);
+        let estimated_gpu_layers = if available_base == 0 || effective_bytes_per_layer == 0 {
             0
         } else {
-            u32::try_from((available_for_layers / bytes_per_layer).min(u64::from(total_layers)))
+            u32::try_from((available_base / effective_bytes_per_layer).min(u64::from(total_layers)))
                 .unwrap_or(total_layers)
                 .min(total_layers)
         };
+        // Report the KV bytes that will actually land on GPU (scales with GPU layers).
+        let estimated_kv_bytes = kv_bytes_per_layer.saturating_mul(u64::from(estimated_gpu_layers));
 
         if selected_plan.is_none() {
             selected_plan = Some((
                 *planning_offload_kqv,
                 kqv_vram_reserved,
                 estimated_kv_bytes,
+                kv_bytes_per_layer,
                 estimated_gpu_layers,
             ));
         }
@@ -359,6 +376,7 @@ pub(super) fn plan_smart_gpu_offload(
                 *planning_offload_kqv,
                 kqv_vram_reserved,
                 estimated_kv_bytes,
+                kv_bytes_per_layer,
                 estimated_gpu_layers,
             ));
             if estimated_gpu_layers > 0 {
@@ -367,8 +385,13 @@ pub(super) fn plan_smart_gpu_offload(
         }
     }
 
-    let (planning_offload_kqv, kqv_vram_reserved, estimated_kv_bytes, estimated_gpu_layers) =
-        selected_plan.unwrap_or((Some(false), false, 0, 0));
+    let (
+        planning_offload_kqv,
+        kqv_vram_reserved,
+        estimated_kv_bytes,
+        kv_bytes_per_layer,
+        estimated_gpu_layers,
+    ) = selected_plan.unwrap_or((Some(false), false, 0, 0, 0));
 
     Ok(SmartGpuOffloadPlan {
         total_layers,
@@ -379,6 +402,7 @@ pub(super) fn plan_smart_gpu_offload(
         kqv_vram_reserved,
         planning_offload_kqv,
         estimated_kv_bytes,
+        kv_bytes_per_layer,
         estimated_sidecar_vram_reserve_bytes: sidecar_vram_reserve_bytes,
         estimated_runtime_reserve_bytes,
         effective_vram_budget_bytes,
@@ -489,7 +513,9 @@ pub(super) fn plan_multi_gpu_distribution(
                     break;
                 }
                 let budget = if i == 0 {
-                    priority_limit_bytes.map(|lim| lim.min(*free)).unwrap_or(*free)
+                    priority_limit_bytes
+                        .map(|lim| lim.min(*free))
+                        .unwrap_or(*free)
                 } else {
                     *free
                 };
@@ -521,12 +547,22 @@ pub(super) fn plan_multi_gpu_distribution(
             }
         }
         "proportional" => {
+            let effective_per_layer = bytes_per_layer.saturating_add(kv_bytes_per_layer);
+            let capped_total = if effective_per_layer == 0 {
+                auto_total
+            } else {
+                let feasible: u64 = device_free_vram
+                    .iter()
+                    .map(|free| free / effective_per_layer)
+                    .sum();
+                auto_total.min(u32::try_from(feasible).unwrap_or(auto_total))
+            };
             let weights: Vec<f32> = device_free_vram.iter().map(|f| *f as f32).collect();
             let split = normalize_weights(&weights);
             MultiGpuDistribution {
-                n_gpu_layers: auto_total,
-                per_device_layers: distribute_by_weights(auto_total, &split),
-                tensor_split: if auto_total > 0 { split } else { Vec::new() },
+                n_gpu_layers: capped_total,
+                per_device_layers: distribute_by_weights(capped_total, &split),
+                tensor_split: if capped_total > 0 { split } else { Vec::new() },
                 main_gpu: None,
             }
         }
@@ -540,5 +576,88 @@ pub(super) fn plan_multi_gpu_distribution(
                 main_gpu: None,
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        candidate_gpu_layers, estimated_runtime_reserve_bytes, plan_multi_gpu_distribution,
+        LlamaModelMetadata,
+    };
+
+    fn large_context_metadata() -> LlamaModelMetadata {
+        LlamaModelMetadata {
+            model_size_bytes: 16 * 1024 * 1024 * 1024,
+            layer_count: 60,
+            max_context_length: 262_144,
+            n_embd: 4096,
+            n_head: 32,
+            n_head_kv: 8,
+        }
+    }
+
+    #[test]
+    fn runtime_reserve_holds_attention_scratch_when_flash_attention_disabled() {
+        let available = 16_u64 * 1024 * 1024 * 1024;
+
+        let reserve = estimated_runtime_reserve_bytes(
+            &large_context_metadata(),
+            available,
+            32_768,
+            2048,
+            llama_cpp_sys_2::LLAMA_FLASH_ATTN_TYPE_DISABLED,
+        );
+
+        assert_eq!(reserve, available / 20 + 4_294_967_296);
+    }
+
+    #[test]
+    fn runtime_reserve_assumes_flash_attention_for_auto_policy_on_every_backend() {
+        let available = 16_u64 * 1024 * 1024 * 1024;
+
+        let auto_reserve = estimated_runtime_reserve_bytes(
+            &large_context_metadata(),
+            available,
+            32_768,
+            2048,
+            llama_cpp_sys_2::LLAMA_FLASH_ATTN_TYPE_AUTO,
+        );
+        let enabled_reserve = estimated_runtime_reserve_bytes(
+            &large_context_metadata(),
+            available,
+            32_768,
+            2048,
+            llama_cpp_sys_2::LLAMA_FLASH_ATTN_TYPE_ENABLED,
+        );
+
+        assert_eq!(auto_reserve, enabled_reserve);
+        assert_eq!(auto_reserve, available / 20);
+    }
+
+    #[test]
+    fn candidate_ladder_tries_full_offload_when_estimate_is_near_total() {
+        let candidates = candidate_gpu_layers(60, 55);
+
+        assert_eq!(candidates.first(), Some(&60));
+        assert!(candidates.contains(&55));
+        assert_eq!(candidates.last(), Some(&0));
+    }
+
+    #[test]
+    fn proportional_distribution_caps_total_to_per_device_free_capacity() {
+        let dist = plan_multi_gpu_distribution("proportional", &[8, 24], 60, 1, 0, 60, None, None);
+
+        assert_eq!(dist.n_gpu_layers, 32);
+        assert_eq!(dist.per_device_layers, vec![8, 24]);
+    }
+
+    #[test]
+    fn balanced_distribution_keeps_even_split_for_identical_cards() {
+        let dist = plan_multi_gpu_distribution("balanced", &[16, 16], 60, 1, 0, 32, None, None);
+
+        assert_eq!(dist.n_gpu_layers, 32);
+        assert_eq!(dist.per_device_layers, vec![16, 16]);
+        assert_eq!(dist.tensor_split, vec![1.0, 1.0]);
     }
 }

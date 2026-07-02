@@ -5913,7 +5913,8 @@ export const enMessages = {
     llamaDistributionTitle: "Distribution",
     llamaDistributionDescription: "Default way layers are spread across the selected GPUs.",
     llamaDistBalanced: "Balanced",
-    llamaDistBalancedDesc: "Even split across the selected GPUs. Best when the cards are identical.",
+    llamaDistBalancedDesc:
+      "Even split across the selected GPUs. Made for identical cards; pick Proportional when VRAM sizes differ.",
     llamaDistProportional: "Proportional to VRAM",
     llamaDistProportionalDesc:
       "Each GPU's share is weighted by its free VRAM. Best for mismatched cards.",
@@ -5933,9 +5934,14 @@ export const enMessages = {
     llamaKvSystemRam: "System RAM",
     llamaKvSystemRamDesc:
       "Keep the KV cache in system RAM to free VRAM for more layers. Slower attention.",
-    llamaKvPin: "Pin to one GPU",
-    llamaKvPinDesc: "Put the entire KV cache on one chosen GPU.",
-    llamaPinnedGpu: "Pinned GPU",
+    llamaKvPin: "Prefer main GPU",
+    llamaKvPinDesc:
+      "Route shared scratch buffers to one chosen main GPU. Each layer's KV cache stays on that layer's GPU.",
+    llamaPinnedGpu: "Main GPU",
+    llamaSingleGpuTitle: "GPU device",
+    llamaSingleGpuDescription: "Run this model on one specific GPU instead of the default device.",
+    llamaSingleGpuAuto: "Auto",
+    llamaSingleGpuAutoDesc: "Let llama.cpp pick the default GPU.",
     llamaManualPerModelNote: "Manual per-GPU layer counts are set per model in the model editor.",
     llamaMultiGpuInherit: "Inherit",
     llamaMultiGpuSplitHint:

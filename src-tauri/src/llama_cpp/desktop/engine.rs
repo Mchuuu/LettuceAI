@@ -208,6 +208,41 @@ pub(super) fn emit_model_load_failed(
     );
 }
 
+fn resolve_selected_gpu_device(
+    device_id: usize,
+) -> Result<llama_cpp_sys_2::ggml_backend_dev_t, String> {
+    let count = unsafe { ggml_backend_dev_count() };
+    if device_id >= count {
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            format!("Selected GPU device index {} is not available.", device_id),
+        ));
+    }
+    let dev = unsafe { ggml_backend_dev_get(device_id) };
+    if dev.is_null() {
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            format!("Selected GPU device index {} resolved to null.", device_id),
+        ));
+    }
+    let dev_type = unsafe { ggml_backend_dev_type(dev) };
+    let is_gpu_like =
+        dev_type == GGML_BACKEND_DEVICE_TYPE_GPU || dev_type == GGML_BACKEND_DEVICE_TYPE_ACCEL;
+    if !is_gpu_like {
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            format!(
+                "Selected device index {} is not a discrete GPU device.",
+                device_id
+            ),
+        ));
+    }
+    Ok(dev)
+}
+
 fn load_model_with_progress(
     app: Option<&AppHandle>,
     request_id: Option<&str>,
@@ -241,37 +276,8 @@ fn load_model_with_progress(
                 "Multi-GPU mode requires at least two selected GPU devices.",
             ));
         }
-        let count = unsafe { ggml_backend_dev_count() };
         for device_id in &gpu_config.device_ids {
-            if *device_id >= count {
-                return Err(crate::utils::err_msg(
-                    module_path!(),
-                    line!(),
-                    format!("Selected GPU device index {} is not available.", device_id),
-                ));
-            }
-            let dev = unsafe { ggml_backend_dev_get(*device_id) };
-            if dev.is_null() {
-                return Err(crate::utils::err_msg(
-                    module_path!(),
-                    line!(),
-                    format!("Selected GPU device index {} resolved to null.", device_id),
-                ));
-            }
-            let dev_type = unsafe { ggml_backend_dev_type(dev) };
-            let is_gpu_like = dev_type == GGML_BACKEND_DEVICE_TYPE_GPU
-                || dev_type == GGML_BACKEND_DEVICE_TYPE_ACCEL;
-            if !is_gpu_like {
-                return Err(crate::utils::err_msg(
-                    module_path!(),
-                    line!(),
-                    format!(
-                        "Selected device index {} is not a discrete GPU device.",
-                        device_id
-                    ),
-                ));
-            }
-            selected_devices.push(dev);
+            selected_devices.push(resolve_selected_gpu_device(*device_id)?);
         }
         selected_devices.push(std::ptr::null_mut());
         params.devices = selected_devices.as_mut_ptr();
@@ -283,6 +289,12 @@ fn load_model_with_progress(
         if let Some(main_gpu) = gpu_config.main_gpu {
             params.main_gpu = main_gpu;
         }
+    } else if let [device_id] = gpu_config.device_ids[..] {
+        // Single-GPU override: restrict llama.cpp to exactly this device.
+        selected_devices.push(resolve_selected_gpu_device(device_id)?);
+        selected_devices.push(std::ptr::null_mut());
+        params.devices = selected_devices.as_mut_ptr();
+        params.main_gpu = 0;
     }
 
     let progress_ctx = app.map(|app| {
@@ -383,6 +395,7 @@ pub(super) fn load_engine(
     strict_mode: bool,
     mmproj_path: Option<&str>,
     mtp_model_path: Option<&str>,
+    mtp_drafter_on_gpu: bool,
 ) -> Result<LoadedEngine, String> {
     let engine = ENGINE.get_or_init(|| {
         Mutex::new(LlamaState {
@@ -480,7 +493,10 @@ pub(super) fn load_engine(
             .map(|value| value.to_string())
             .collect::<Vec<_>>()
             .join(","),
-        gpu_config.distribution_mode.as_deref().unwrap_or("balanced"),
+        gpu_config
+            .distribution_mode
+            .as_deref()
+            .unwrap_or("balanced"),
         gpu_config
             .tensor_split
             .iter()
@@ -667,7 +683,9 @@ pub(super) fn load_engine(
                                 format!(
                                     "Smart GPU offload exhausted GPU layer candidates {:?}, falling back to CPU: {}",
                                     candidates,
-                                    gpu_attempt_error.as_deref().unwrap_or("unknown GPU load error")
+                                    gpu_attempt_error
+                                        .as_deref()
+                                        .unwrap_or("unknown GPU load error")
                                 ),
                             );
                             let _ = app.emit(
@@ -932,7 +950,14 @@ pub(super) fn load_engine(
                 ));
             }
 
-            let drafter_gpu_layers = if guard.backend_path_used.as_deref() == Some("gpu_offload") {
+            // Measured on the RTX 4060 (mtp_probe): a GPU-resident drafter
+            // attending CPU-resident KV forces ~345 MiB of cross-backend
+            // staging into its compute buffer; keeping the drafter beside the
+            // KV eliminates it. The drafter is ~227 MB, so CPU decode of the
+            // few draft tokens per round is negligible.
+            let drafter_gpu_layers = if mtp_drafter_on_gpu
+                && guard.backend_path_used.as_deref() == Some("gpu_offload")
+            {
                 Some(1000)
             } else {
                 Some(0)
@@ -1029,6 +1054,25 @@ pub(crate) fn unload_engine(app: &AppHandle) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+pub(crate) fn unload_engine_if_model_differs(
+    app: &AppHandle,
+    model_path: &str,
+) -> Result<bool, String> {
+    let loaded_path = ENGINE.get().and_then(|engine| {
+        engine
+            .lock()
+            .ok()
+            .and_then(|guard| guard.model_path.clone())
+    });
+    match loaded_path {
+        Some(loaded) if loaded != model_path => {
+            unload_engine(app)?;
+            Ok(true)
+        }
+        _ => Ok(false),
+    }
 }
 
 pub(crate) fn consume_kqv_fallback_toast(

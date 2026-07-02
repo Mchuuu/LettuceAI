@@ -24,6 +24,14 @@ fn supported_extra_body_keys(provider_id: &str) -> &'static [&'static str] {
     match provider_id {
         "llamacpp" => &[
             "llamaGpuLayers",
+            "llamaMultiGpuEnabled",
+            "llamaGpuDeviceIds",
+            "llamaGpuDistributionMode",
+            "llamaGpuManualLayers",
+            "llamaKvPlacement",
+            "llamaMainGpu",
+            "llamaSingleGpuDeviceId",
+            "llamaPriorityVramLimitBytes",
             "llamaThreads",
             "llamaThreadsBatch",
             "llamaSeed",
@@ -52,6 +60,8 @@ fn supported_extra_body_keys(provider_id: &str) -> &'static [&'static str] {
             "llamaDryAllowedLength",
             "llamaDryPenaltyLastN",
             "llamaDrySequenceBreakers",
+            "llamaXtcProbability",
+            "llamaXtcThreshold",
             "llamaDisableSamplerProfileDefaults",
             "min_p",
             "typical_p",
