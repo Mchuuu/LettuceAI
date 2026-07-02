@@ -11,7 +11,6 @@ import {
   Loader,
   RefreshCw,
   Search,
-  Server,
   Trash2,
 } from "lucide-react";
 
@@ -26,6 +25,8 @@ import {
   SETTINGS_UPDATED_EVENT,
 } from "../../../core/storage/repo";
 import type { ProviderCredential } from "../../../core/storage/schemas";
+import { getPlatform } from "../../../core/utils/platform";
+import OllamaIcon from "../../../assets/ollama_light.png";
 
 type InstalledGgufModel = {
   modelId: string;
@@ -127,7 +128,8 @@ function relativeTime(iso: string | null): string {
 
 export function InstalledModelsPage() {
   const { t } = useI18n();
-  const [tab, setTab] = useState<Tab>("local");
+  const isMobilePlatform = useMemo(() => getPlatform().type === "mobile", []);
+  const [tab, setTab] = useState<Tab>(isMobilePlatform ? "ollama" : "local");
   const [contentMode, setContentMode] = useState<ContentMode>("all");
 
   // ---- Local state ----
@@ -186,8 +188,9 @@ export function InstalledModelsPage() {
   }, []);
 
   useEffect(() => {
+    if (isMobilePlatform) return;
     void loadModels("initial");
-  }, [loadModels]);
+  }, [loadModels, isMobilePlatform]);
 
   // ---- Ollama: provider sync ----
   useEffect(() => {
@@ -234,7 +237,9 @@ export function InstalledModelsPage() {
         setOllamaModels(list);
         setOllamaError(null);
       } catch (err) {
-        setOllamaError(typeof err === "string" ? err : err instanceof Error ? err.message : String(err));
+        setOllamaError(
+          typeof err === "string" ? err : err instanceof Error ? err.message : String(err),
+        );
         setOllamaModels([]);
       } finally {
         setOllamaLoading(false);
@@ -304,10 +309,7 @@ export function InstalledModelsPage() {
     });
   }, [filteredModels, sortDirection, sortField]);
 
-  const totalSize = useMemo(
-    () => sortedModels.reduce((s, m) => s + m.size, 0),
-    [sortedModels],
-  );
+  const totalSize = useMemo(() => sortedModels.reduce((s, m) => s + m.size, 0), [sortedModels]);
 
   const filteredOllamaModels = useMemo(() => {
     const needle = ollamaQuery.trim().toLowerCase();
@@ -479,47 +481,52 @@ export function InstalledModelsPage() {
           <h1 className="text-[16px] font-semibold tracking-tight text-fg">
             {t("installedModels.title")}
           </h1>
-          <p className="mt-1 text-[12.5px] text-fg/50">
-            {t("installedModels.subtitle")}
-          </p>
+          <p className="mt-1 text-[12.5px] text-fg/50">{t("installedModels.subtitle")}</p>
         </div>
 
         {/* Tab pills (left-aligned, content-sized) */}
-        <div className="flex items-center gap-1 rounded-full border border-fg/8 bg-fg/[0.025] p-0.5">
-          {tabs.map(({ key, label, count }) => {
-            const active = tab === key;
-            return (
-              <button
-                key={key}
-                onClick={() => setTab(key)}
-                className={cn(
-                  "relative flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[12.5px] font-medium transition-colors",
-                  active ? "text-fg" : "text-fg/55 hover:text-fg/85",
-                )}
-              >
-                {active && (
-                  <motion.span
-                    layoutId="installedTabIndicator"
-                    className="absolute inset-0 rounded-full bg-fg/[0.09] ring-1 ring-inset ring-fg/15"
-                    transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.6 }}
-                  />
-                )}
-                <span className="relative z-10 flex items-center gap-2">
-                  {key === "local" ? <HardDrive size={12} /> : <Server size={12} />}
-                  {label}
-                  <span
-                    className={cn(
-                      "rounded px-1.5 text-[10px] tabular-nums leading-[1.4]",
-                      active ? "bg-fg/12 text-fg/75" : "bg-fg/5 text-fg/40",
+        {!isMobilePlatform && (
+          <div className="flex items-center gap-1 rounded-full border border-fg/8 bg-fg/[0.025] p-0.5">
+            {tabs.map(({ key, label, count }) => {
+              const active = tab === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => setTab(key)}
+                  className={cn(
+                    "relative flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[12.5px] font-medium transition-colors",
+                    active ? "text-fg" : "text-fg/55 hover:text-fg/85",
+                  )}
+                >
+                  {active && (
+                    <motion.span
+                      layoutId="installedTabIndicator"
+                      className="absolute inset-0 rounded-full bg-fg/[0.09] ring-1 ring-inset ring-fg/15"
+                      transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.6 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-2">
+                    {key === "local" ? (
+                      <HardDrive size={12} />
+                    ) : (
+                      <img src={OllamaIcon} alt="Ollama" className="h-3 w-3" />
                     )}
-                  >
-                    {count}
+                    {label}
+                    <span
+                      className={cn(
+                        "rounded px-1.5 text-[10px] tabular-nums leading-[1.4]",
+                        active ? "bg-fg/12 text-fg/75" : "bg-fg/5 text-fg/40",
+                      )}
+                    >
+                      {count}
+                    </span>
                   </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
       </header>
 
       {tab === "local" ? (
@@ -546,6 +553,7 @@ export function InstalledModelsPage() {
           providers={ollamaProviders}
           selectedProvider={selectedOllamaProvider}
           onPickProvider={() => setShowProviderPicker(true)}
+          hideProviderSelector={isMobilePlatform}
           query={ollamaQuery}
           setQuery={setOllamaQuery}
           loading={ollamaLoading}
@@ -572,7 +580,7 @@ export function InstalledModelsPage() {
           </p>
           {ollamaProviders.length === 0 ? (
             <div className="rounded-xl border border-dashed border-fg/10 bg-fg/2 px-4 py-6 text-center">
-              <Server size={18} className="mx-auto mb-2 text-fg/30" />
+              <img src={OllamaIcon} alt="Ollama" className="mx-auto mb-2 h-5 w-5 opacity-40" />
               <p className="text-[12px] leading-snug text-fg/55">
                 {t("installedModels.ollama.noProviders")}
               </p>
@@ -598,17 +606,19 @@ export function InstalledModelsPage() {
                     <span
                       className={cn(
                         "flex h-9 w-9 items-center justify-center rounded-lg",
-                        active ? "bg-emerald-500/15 text-emerald-300" : "bg-fg/8 text-fg/55",
+                        active ? "bg-emerald-500/15" : "bg-fg/8",
                       )}
                     >
-                      <Server size={15} />
+                      <img
+                        src={OllamaIcon}
+                        alt="Ollama"
+                        className={cn("h-5 w-5", !active && "opacity-60")}
+                      />
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[13px] font-medium text-fg">{p.label}</div>
                       {p.baseUrl && (
-                        <div className="truncate font-mono text-[11px] text-fg/45">
-                          {p.baseUrl}
-                        </div>
+                        <div className="truncate font-mono text-[11px] text-fg/45">{p.baseUrl}</div>
                       )}
                     </div>
                   </button>
@@ -754,9 +764,7 @@ function LocalView({
                       <div className="truncate text-[13px] font-medium text-fg">
                         {deriveDisplayName(model.filename)}
                       </div>
-                      <div className="mt-0.5 truncate text-[11px] text-fg/40">
-                        {model.modelId}
-                      </div>
+                      <div className="mt-0.5 truncate text-[11px] text-fg/40">{model.modelId}</div>
                       <div className="mt-2 flex flex-wrap items-center gap-1.5 lg:hidden">
                         <TypeBadge isMmproj={isMmproj} imageRole={model.imageRole} />
                         <Pill>{model.quantization}</Pill>
@@ -819,6 +827,7 @@ interface OllamaViewProps {
   providers: ProviderCredential[];
   selectedProvider: ProviderCredential | null;
   onPickProvider: () => void;
+  hideProviderSelector?: boolean;
   query: string;
   setQuery: (v: string) => void;
   loading: boolean;
@@ -837,6 +846,7 @@ function OllamaView({
   providers,
   selectedProvider,
   onPickProvider,
+  hideProviderSelector,
   query,
   setQuery,
   loading,
@@ -853,7 +863,7 @@ function OllamaView({
   if (providers.length === 0) {
     return (
       <EmptyState
-        icon={<Server size={18} className="text-fg/45" />}
+        icon={<img src={OllamaIcon} alt="Ollama" className="h-5 w-5 opacity-50" />}
         title={t("installedModels.ollama.noProviders")}
         description={t("installedModels.ollama.pickProviderHint")}
       />
@@ -870,6 +880,24 @@ function OllamaView({
             placeholder={t("installedModels.ollama.searchPlaceholder")}
           />
         }
+        extra={
+          hideProviderSelector ? (
+            <button
+              onClick={onPickProvider}
+              className="group flex h-9 min-w-0 max-w-full items-center gap-2 rounded-lg border border-fg/10 bg-fg/3 px-2.5 text-left transition hover:border-fg/20 hover:bg-fg/5"
+              aria-haspopup="menu"
+            >
+              <img src={OllamaIcon} alt="Ollama" className="h-4 w-4 shrink-0" />
+              <span className="min-w-0 truncate text-[12px] font-medium text-fg">
+                {selectedProvider?.label ?? "—"}
+              </span>
+              <ChevronDown
+                size={12}
+                className="shrink-0 text-fg/35 transition group-hover:text-fg/60"
+              />
+            </button>
+          ) : undefined
+        }
         meta={[
           { value: String(totalCount), unit: t("installedModels.units.models") },
           { value: formatBytes(totalSize), tone: "accent" },
@@ -880,28 +908,30 @@ function OllamaView({
       />
 
       {/* Provider selector strip */}
-      <button
-        onClick={onPickProvider}
-        className="group flex items-center gap-2.5 rounded-lg border border-fg/8 bg-fg/[0.02] px-3 py-2 text-left transition hover:border-fg/20 hover:bg-fg/[0.05]"
-      >
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-300">
-          <Server size={11} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[12px] font-medium text-fg">
-            {selectedProvider?.label ?? "—"}
-          </div>
-          {selectedProvider?.baseUrl && (
-            <div className="truncate font-mono text-[10.5px] text-fg/45">
-              {selectedProvider.baseUrl}
+      {!hideProviderSelector && (
+        <button
+          onClick={onPickProvider}
+          className="group flex items-center gap-2.5 rounded-lg border border-fg/8 bg-fg/[0.02] px-3 py-2 text-left transition hover:border-fg/20 hover:bg-fg/[0.05]"
+        >
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-500/15">
+            <img src={OllamaIcon} alt="Ollama" className="h-4 w-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[12px] font-medium text-fg">
+              {selectedProvider?.label ?? "—"}
             </div>
-          )}
-        </div>
-        <ChevronDown
-          size={13}
-          className="shrink-0 text-fg/30 transition group-hover:text-fg/60"
-        />
-      </button>
+            {selectedProvider?.baseUrl && (
+              <div className="truncate font-mono text-[10.5px] text-fg/45">
+                {selectedProvider.baseUrl}
+              </div>
+            )}
+          </div>
+          <ChevronDown
+            size={13}
+            className="shrink-0 text-fg/30 transition group-hover:text-fg/60"
+          />
+        </button>
+      )}
 
       {loading ? (
         <SkeletonList />
@@ -909,7 +939,7 @@ function OllamaView({
         <ErrorBox message={error} />
       ) : models.length === 0 ? (
         <EmptyState
-          icon={<Server size={18} className="text-fg/45" />}
+          icon={<img src={OllamaIcon} alt="Ollama" className="h-5 w-5 opacity-50" />}
           title={t("installedModels.ollama.empty.title")}
           description={t("installedModels.ollama.empty.description")}
         />
@@ -932,12 +962,25 @@ function OllamaView({
               >
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_92px_80px_90px_92px_104px_120px] lg:items-center">
                   <div className="min-w-0">
-                    <div className="truncate text-[13px] font-medium text-fg">{model.name}</div>
-                    {model.digest && (
-                      <div className="mt-0.5 truncate font-mono text-[10.5px] text-fg/35">
-                        {model.digest.slice(0, 12)}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[13px] font-medium text-fg">{model.name}</div>
+                        {model.digest && (
+                          <div className="mt-0.5 truncate font-mono text-[10.5px] text-fg/35">
+                            {model.digest.slice(0, 12)}
+                          </div>
+                        )}
                       </div>
-                    )}
+                      <div className="shrink-0 lg:hidden">
+                        <RowAction
+                          icon={<Trash2 size={12} />}
+                          label={t("common.buttons.delete")}
+                          onClick={() => void onDelete(model)}
+                          disabled={deletingName === model.name}
+                          destructive
+                        />
+                      </div>
+                    </div>
                     <div className="mt-2 flex flex-wrap items-center gap-1.5 lg:hidden">
                       {model.family && <Pill>{model.family.toUpperCase()}</Pill>}
                       {model.parameter_size && <Pill>{model.parameter_size}</Pill>}
@@ -967,7 +1010,7 @@ function OllamaView({
                   <div className="hidden text-[11.5px] text-fg/55 lg:block">
                     {relativeTime(model.modified_at)}
                   </div>
-                  <div className="flex items-center justify-end gap-1">
+                  <div className="hidden items-center justify-end gap-1 lg:flex">
                     <RowAction
                       icon={<Trash2 size={12} />}
                       label={t("common.buttons.delete")}
@@ -992,43 +1035,48 @@ function OllamaView({
 
 function Toolbar({
   leading,
+  extra,
   meta,
   onRefresh,
   refreshing,
   refreshLabel,
 }: {
   leading: React.ReactNode;
+  extra?: React.ReactNode;
   meta: Array<{ value: string; unit?: string; tone?: "accent" }>;
   onRefresh: () => void;
   refreshing: boolean;
   refreshLabel: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <div className="min-w-0 flex-1">{leading}</div>
-      <div className="flex items-center gap-1 text-[12px] text-fg/55">
-        {meta.map((m, idx) => (
-          <span key={idx} className="flex items-center gap-1">
-            <span
-              className={cn(
-                "tabular-nums",
-                m.tone === "accent" ? "font-medium text-accent" : "text-fg/75",
-              )}
-            >
-              {m.value}
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+      <div className="min-w-0 sm:flex-1">{leading}</div>
+      <div className="flex min-w-0 items-center justify-between gap-3 sm:justify-start">
+        {extra && <div className="min-w-0 flex-1 sm:flex-none">{extra}</div>}
+        <div className="flex shrink-0 items-center gap-1 text-[12px] text-fg/55">
+          {meta.map((m, idx) => (
+            <span key={idx} className="flex items-center gap-1">
+              <span
+                className={cn(
+                  "tabular-nums",
+                  m.tone === "accent" ? "font-medium text-accent" : "text-fg/75",
+                )}
+              >
+                {m.value}
+              </span>
+              {m.unit && <span className="text-fg/40">{m.unit}</span>}
+              {idx < meta.length - 1 && <span className="px-0.5 text-fg/25">·</span>}
             </span>
-            {m.unit && <span className="text-fg/40">{m.unit}</span>}
-            {idx < meta.length - 1 && <span className="px-0.5 text-fg/25">·</span>}
-          </span>
-        ))}
+          ))}
+        </div>
+        <button
+          onClick={onRefresh}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-[12px] font-medium text-fg/65 transition hover:bg-fg/6 hover:text-fg"
+        >
+          <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} />
+          {refreshLabel}
+        </button>
       </div>
-      <button
-        onClick={onRefresh}
-        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[12px] font-medium text-fg/65 transition hover:bg-fg/6 hover:text-fg"
-      >
-        <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} />
-        {refreshLabel}
-      </button>
     </div>
   );
 }
@@ -1108,7 +1156,11 @@ function TypeBadge({ isMmproj, imageRole }: { isMmproj: boolean; imageRole?: str
             : "bg-emerald-400/12 text-emerald-300 ring-1 ring-inset ring-emerald-400/20",
       )}
     >
-      {imageRole ? (IMAGE_ROLE_LABELS[imageRole] ?? imageRole.toUpperCase()) : isMmproj ? "MMPROJ" : "LLM"}
+      {imageRole
+        ? (IMAGE_ROLE_LABELS[imageRole] ?? imageRole.toUpperCase())
+        : isMmproj
+          ? "MMPROJ"
+          : "LLM"}
     </span>
   );
 }
