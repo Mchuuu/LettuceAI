@@ -6,6 +6,7 @@ struct ApprovalState {
     prompted_at: Option<usize>,
     pending: bool,
     pending_count: usize,
+    skipped: bool,
 }
 
 #[derive(Clone, Default)]
@@ -41,6 +42,7 @@ impl DynamicMemoryApprovalManager {
         if let Ok(mut map) = self.inner.lock() {
             if let Some(state) = map.get_mut(session_id) {
                 state.pending = false;
+                state.skipped = true;
             }
         }
     }
@@ -50,6 +52,14 @@ impl DynamicMemoryApprovalManager {
         map.get(session_id)
             .filter(|state| state.pending)
             .map(|state| state.pending_count)
+    }
+
+    pub fn was_skipped(&self, session_id: &str) -> bool {
+        self.inner
+            .lock()
+            .ok()
+            .and_then(|map| map.get(session_id).map(|state| state.skipped))
+            .unwrap_or(false)
     }
 
     pub fn clear(&self, session_id: &str) {

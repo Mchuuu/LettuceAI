@@ -438,11 +438,37 @@ fn read_group_session(conn: &Connection, id: &str) -> Result<Option<GroupSession
             memory_error,
             memory_progress_step,
             speaker_selection_method,
-            memory_type,
+            memory_type: effective_session_memory_type(conn, row.get(1).ok(), memory_type)?,
             author_note,
         }))
     } else {
         Ok(None)
+    }
+}
+
+fn effective_session_memory_type(
+    conn: &Connection,
+    group_character_id: Option<String>,
+    session_memory_type: String,
+) -> Result<String, String> {
+    if session_memory_type == "dynamic" {
+        return Ok(session_memory_type);
+    }
+    let Some(group_id) = group_character_id else {
+        return Ok(session_memory_type);
+    };
+    let group_memory_type: Option<String> = conn
+        .query_row(
+            "SELECT memory_type FROM group_characters WHERE id = ?1",
+            params![group_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    if group_memory_type.as_deref() == Some("dynamic") {
+        Ok("dynamic".to_string())
+    } else {
+        Ok(session_memory_type)
     }
 }
 
@@ -1961,6 +1987,12 @@ pub fn group_session_update_memory_type(
     )
     .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
+    conn.execute(
+        "UPDATE group_characters SET memory_type = ?1, updated_at = ?2 WHERE id = (SELECT group_character_id FROM group_sessions WHERE id = ?3)",
+        params![memory_type, now, session_id],
+    )
+    .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
     match read_group_session(&conn, &session_id)? {
         Some(session) => serde_json::to_string(&session)
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e)),
@@ -2652,11 +2684,12 @@ pub async fn group_session_add_memory(
     memories.push(memory.clone());
 
     // Compute embedding (best-effort)
-    let embedding: Vec<f32> =
-        match crate::embedding::compute_embedding(app.clone(), memory.clone()).await {
-            Ok(vec) => vec,
-            Err(err) => {
-                crate::utils::log_warn(
+    let embedding: Vec<f32> = match crate::embedding::compute_embedding(app.clone(), memory.clone())
+        .await
+    {
+        Ok(vec) => vec,
+        Err(err) => {
+            crate::utils::log_warn(
                     &app,
                     "group_session_add_memory",
                     format!(
@@ -2664,9 +2697,9 @@ pub async fn group_session_add_memory(
                         err
                     ),
                 );
-                Vec::new()
-            }
-        };
+            Vec::new()
+        }
+    };
 
     // Count tokens (best-effort)
     let token_count = match crate::embedding::tokenizer::count_tokens(&app, &memory) {
@@ -2833,11 +2866,12 @@ pub async fn group_session_update_memory(
 
     if memory_index < memory_embeddings.len() {
         // Recompute embedding
-        let embedding =
-            match crate::embedding::compute_embedding(app.clone(), new_memory.clone()).await {
-                Ok(vec) => vec,
-                Err(err) => {
-                    crate::utils::log_warn(
+        let embedding = match crate::embedding::compute_embedding(app.clone(), new_memory.clone())
+            .await
+        {
+            Ok(vec) => vec,
+            Err(err) => {
+                crate::utils::log_warn(
                         &app,
                         "group_session_update_memory",
                         format!(
@@ -2845,9 +2879,9 @@ pub async fn group_session_update_memory(
                             err
                         ),
                     );
-                    memory_embeddings[memory_index].embedding.clone()
-                }
-            };
+                memory_embeddings[memory_index].embedding.clone()
+            }
+        };
 
         let token_count = match crate::embedding::tokenizer::count_tokens(&app, &new_memory) {
             Ok(count) => count,

@@ -20,6 +20,7 @@ import {
   summarizeRevertImpact,
 } from "../../../../core/storage/memoryToolEvents";
 import { confirmBottomMenu } from "../../../components/ConfirmBottomMenu";
+import type { DynamicMemoryCycleStatus } from "../../../components/MemoryCycleHub";
 import { initUi, uiReducer } from "../reducers/groupChatMemoriesReducer";
 
 type MemoryItem = {
@@ -66,13 +67,13 @@ function useGroupSessionData(sessionId?: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!sessionId) {
       setError("Missing sessionId");
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!options?.silent) setLoading(true);
     setError(null);
     try {
       const [targetSession, pinned] = await Promise.all([
@@ -100,7 +101,7 @@ function useGroupSessionData(sessionId?: string) {
 
   useEffect(() => {
     const handleSessionUpdated = () => {
-      void load();
+      void load({ silent: true });
     };
 
     window.addEventListener(SESSION_UPDATED_EVENT, handleSessionUpdated);
@@ -109,7 +110,9 @@ function useGroupSessionData(sessionId?: string) {
     };
   }, [load]);
 
-  return { session, setSession, pinnedMessages, setPinnedMessages, loading, error, reload: load };
+  const reload = useCallback(() => load({ silent: true }), [load]);
+
+  return { session, setSession, pinnedMessages, setPinnedMessages, loading, error, reload };
 }
 
 function useGroupMemoryActions(
@@ -180,6 +183,31 @@ export function useGroupChatMemoriesController(groupSessionId?: string) {
   );
   const [ui, dispatch] = useReducer(uiReducer, undefined, initUi);
   const [revertingEventId, setRevertingEventId] = useState<string | null>(null);
+  const [cycleStatus, setCycleStatus] = useState<DynamicMemoryCycleStatus | null>(null);
+
+  useEffect(() => {
+    if (!session?.id || session.memoryType !== "dynamic") {
+      setCycleStatus(null);
+      return;
+    }
+    let cancelled = false;
+    storageBridge
+      .groupChatDynamicMemoryCycleStatus(session.id)
+      .then((status) => {
+        if (!cancelled) setCycleStatus(status);
+      })
+      .catch(() => {
+        if (!cancelled) setCycleStatus(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    session?.id,
+    session?.memoryType,
+    session?.memoryStatus,
+    session?.memoryToolEvents?.length,
+  ]);
 
   const getLatestSessionSnapshot = useCallback(async (): Promise<GroupSession> => {
     if (!session?.id) {
@@ -616,5 +644,6 @@ export function useGroupChatMemoriesController(groupSessionId?: string) {
     handleTogglePinnedMessage,
     handleSaveSummaryClick,
     revertingEventId,
+    cycleStatus,
   } as const;
 }

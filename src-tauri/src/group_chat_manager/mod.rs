@@ -7231,6 +7231,48 @@ pub fn group_chat_dynamic_memory_pending_approval(
 }
 
 #[tauri::command]
+pub fn group_chat_dynamic_memory_cycle_status(
+    app: AppHandle,
+    session_id: String,
+    pool: State<'_, SwappablePool>,
+) -> Result<crate::chat_manager::memory::flow::DynamicMemoryCycleStatus, String> {
+    let settings = load_settings(&app)?;
+    let conn = pool.get_connection()?;
+    let session = group_sessions::group_session_get_internal_typed(&conn, &session_id)?;
+    if session.memory_type != "dynamic" {
+        return Err("Session does not use dynamic memory".to_string());
+    }
+    let dynamic = effective_group_dynamic_memory_settings(&settings);
+    let interval = dynamic.summary_message_interval.max(1) as usize;
+    let total = conn
+        .query_row(
+            "SELECT COUNT(1) FROM group_messages WHERE session_id = ?1 AND (role = 'user' OR role = 'assistant')",
+            rusqlite::params![&session_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+        .max(0) as usize;
+    let (last_window_end, _) = resolve_last_valid_group_window_end(&conn, &session)?;
+    let since = total.saturating_sub(last_window_end);
+    let approval = app.state::<crate::dynamic_memory_approval::DynamicMemoryApprovalManager>();
+
+    Ok(crate::chat_manager::memory::flow::DynamicMemoryCycleStatus {
+        run_mode: dynamic.run_mode.clone(),
+        interval,
+        messages_since_last_cycle: since,
+        messages_until_next_cycle: interval.saturating_sub(since),
+        total_conversation_messages: total,
+        pending_approval_count: approval.pending(&session_id),
+        skipped: approval.was_skipped(&session_id),
+        latest_cycle_status: session
+            .memory_tool_events
+            .last()
+            .and_then(|event| event.get("status").and_then(Value::as_str))
+            .map(str::to_string),
+    })
+}
+
+#[tauri::command]
 pub async fn group_chat_regenerate(
     app: AppHandle,
     session_id: String,

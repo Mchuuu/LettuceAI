@@ -20,7 +20,6 @@ import {
   RefreshCw,
   Snowflake,
   Flame,
-  Cpu,
   EllipsisVertical,
   PinOff,
 } from "lucide-react";
@@ -28,6 +27,7 @@ import {
 import { typography, radius, cn, interactive, colors, components } from "../../design-tokens";
 import { Routes, useNavigationManager } from "../../navigation";
 import { BottomMenu } from "../../components/BottomMenu";
+import { MemoryCycleHub } from "../../components/MemoryCycleHub";
 import { useI18n } from "../../../core/i18n/context";
 import { ToolLog } from "./components/memories/ToolLog";
 import { useGroupChatMemoriesController } from "./hooks/useGroupChatMemoriesController";
@@ -72,14 +72,6 @@ function MemoryActionRow({
   );
 }
 
-const MEMORY_PROGRESS_TOTAL = 4;
-const MEMORY_STEP_LABELS: Record<number, string> = {
-  1: "Summarizing conversation", // Will be migrated in next phase
-  2: "Analyzing memories",
-  3: "Applying changes",
-  4: "Organizing memories",
-};
-
 export function GroupChatMemoriesPage() {
   const { backOrReplace } = useNavigationManager();
   const { t } = useI18n();
@@ -110,10 +102,16 @@ export function GroupChatMemoriesPage() {
     handleTogglePinnedMessage,
     handleSaveSummaryClick,
     revertingEventId,
+    cycleStatus,
   } = useGroupChatMemoriesController(groupSessionId);
 
   const [showAddMemoryMenu, setShowAddMemoryMenu] = useState(false);
   const [showSummaryEditor, setShowSummaryEditor] = useState(false);
+
+  const isMemoryCycleActive =
+    session?.memoryStatus === "processing" || ui.retryStatus === "retrying";
+  const cycleErrorMessage =
+    session?.memoryError ?? (ui.memoryStatus === "failed" ? ui.actionError : null) ?? null;
 
   const handleSaveEdit = useCallback(
     async (index: number) => {
@@ -215,23 +213,6 @@ export function GroupChatMemoriesPage() {
               </span>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2 ml-auto">
-            {(ui.retryStatus === "retrying" || session.memoryStatus === "processing") && (
-              <div
-                className={cn(
-                  radius.full,
-                  "border px-2 py-1",
-                  typography.overline.size,
-                  typography.overline.weight,
-                  typography.overline.tracking,
-                  typography.overline.transform,
-                  "border-info/30 bg-info/15 text-info",
-                )}
-              >
-                {t("common.labels.processing")}
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Segmented Tab Control */}
@@ -261,94 +242,45 @@ export function GroupChatMemoriesPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+16px)]">
-        {/* Error / Status Banners */}
-        {(ui.actionError ||
-          session.memoryError ||
-          ui.retryStatus !== "idle" ||
-          session.memoryStatus === "processing") && (
+        {session.memoryType === "dynamic" &&
+          (cycleStatus ||
+            isMemoryCycleActive ||
+            cycleErrorMessage ||
+            ui.retryStatus === "success") && (
+            <MemoryCycleHub
+              status={cycleStatus}
+              running={isMemoryCycleActive}
+              retrying={ui.retryStatus === "retrying"}
+              retrySuccess={ui.retryStatus === "success"}
+              errorMessage={cycleErrorMessage}
+              step={ui.memoryProgressStep ?? session.memoryProgressStep ?? null}
+              onRun={handleRunMemoryCycle}
+              onCancel={handleAbortMemoryCycle}
+              onRetry={handleRunMemoryCycle}
+              onDismissError={handleDismissError}
+              onDismissSuccess={() => dispatch({ type: "SET_RETRY_STATUS", value: "idle" })}
+            />
+          )}
+        {ui.actionError && !isMemoryCycleActive && ui.actionError !== cycleErrorMessage && (
           <div className="px-3 pt-3">
-            {ui.retryStatus === "retrying" || session.memoryStatus === "processing" ? (
-              <div
-                className={cn(
-                  radius.md,
-                  "bg-info/10 border border-info/20 p-3 space-y-2",
-                )}
-              >
-                {(() => {
-                  const step = ui.memoryProgressStep ?? session.memoryProgressStep ?? null;
-                  const label = step ? MEMORY_STEP_LABELS[step] : null;
-                  return (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <RefreshCw className="h-4 w-4 text-info shrink-0 animate-spin" />
-                          <span className={cn(typography.body.size, "font-semibold text-info")}>
-                            {label ??
-                              (ui.retryStatus === "retrying"
-                                ? t("groupChats.memoriesPageExtra.retryingMemoryCycle")
-                                : t("groupChats.memoriesPageExtra.processingMemories"))}
-                          </span>
-                        </div>
-                        {step && (
-                          <span className="text-[12px] text-info/60 tabular-nums">
-                            {step}/{MEMORY_PROGRESS_TOTAL}
-                          </span>
-                        )}
-                      </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-info/15">
-                        {step ? (
-                          <div
-                            className="h-full rounded-full bg-info/70 transition-all duration-500 ease-out"
-                            style={{
-                              width: `${(step / MEMORY_PROGRESS_TOTAL) * 100}%`,
-                            }}
-                          />
-                        ) : (
-                          <div className="h-full w-1/3 rounded-full bg-info/70 animate-[indeterminate_1.5s_ease-in-out_infinite]" />
-                        )}
-                      </div>
-                    </>
-                  );
-                })()}
+            <div
+              className={cn(
+                radius.md,
+                "bg-danger/10 border border-danger/20 p-3 flex items-start gap-3",
+              )}
+            >
+              <AlertTriangle className="h-5 w-5 text-danger shrink-0" />
+              <div className={cn("flex-1", typography.body.size, "text-danger")}>
+                <p className="font-semibold mb-1">{t("groupChats.memoriesPageExtra.memorySystemError")}</p>
+                <p className="opacity-90">{ui.actionError}</p>
               </div>
-            ) : ui.retryStatus === "success" ? (
-              <div
-                className={cn(
-                  radius.md,
-                  "bg-accent/10 border border-accent/20 p-3 flex items-center gap-3",
-                )}
+              <button
+                onClick={() => dispatch({ type: "SET_ACTION_ERROR", value: null })}
+                className="text-danger/70 hover:text-danger"
               >
-                <Check className="h-5 w-5 text-accent shrink-0" />
-                <div className={cn("flex-1", typography.body.size, "text-accent/80")}>
-                  <p className="font-semibold">{t("groupChats.memoriesPageExtra.memoryCycleSuccess")}</p>
-                </div>
-                <button
-                  onClick={() => dispatch({ type: "SET_RETRY_STATUS", value: "idle" })}
-                  className="text-accent hover:text-accent/80"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            ) : ui.actionError || session.memoryError ? (
-              <div
-                className={cn(
-                  radius.md,
-                  "bg-danger/10 border border-danger/20 p-3 flex items-start gap-3",
-                )}
-              >
-                <AlertTriangle className="h-5 w-5 text-danger shrink-0" />
-                <div className={cn("flex-1", typography.body.size, "text-danger")}>
-                  <p className="font-semibold mb-1">{t("groupChats.memoriesPageExtra.memorySystemError")}</p>
-                  <p className="opacity-90">{ui.actionError || session.memoryError}</p>
-                </div>
-                <button
-                  onClick={() => void handleDismissError()}
-                  className="text-danger hover:text-danger"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            ) : null}
+                <X size={16} />
+              </button>
+            </div>
           </div>
         )}
 
@@ -729,25 +661,6 @@ export function GroupChatMemoriesPage() {
                 <span className="text-[10px] text-fg/20 ml-auto">
                   {(session.memoryToolEvents?.length ?? 0).toLocaleString()} events
                 </span>
-                <button
-                  onClick={
-                    session.memoryStatus !== "idle" ? handleAbortMemoryCycle : handleRunMemoryCycle
-                  }
-                  className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg",
-                    "border border-fg/10 bg-fg/5",
-                    "text-[11px] font-semibold text-fg/50",
-                    "hover:bg-fg/8 hover:text-fg/70",
-                    "transition-all active:scale-95",
-                  )}
-                >
-                  {session.memoryStatus !== "idle" ? (
-                    <X size={12} className="animate-pulse" />
-                  ) : (
-                    <Cpu size={12} />
-                  )}
-                  {session.memoryStatus !== "idle" ? t("common.buttons.cancel") : "Run"}
-                </button>
               </div>
               <ToolLog
                 events={session.memoryToolEvents || []}

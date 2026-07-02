@@ -1084,6 +1084,14 @@ pub fn dynamic_memory_pending_approval(app: AppHandle, session_id: String) -> Op
 }
 
 #[tauri::command]
+pub fn dynamic_memory_cycle_status(
+    app: AppHandle,
+    session_id: String,
+) -> Result<super::memory::flow::DynamicMemoryCycleStatus, String> {
+    super::memory::flow::dynamic_memory_cycle_status(app, session_id)
+}
+
+#[tauri::command]
 pub async fn chat_add_message_attachment(
     app: AppHandle,
     args: ChatAddMessageAttachmentArgs,

@@ -26,7 +26,6 @@ import {
   Cpu,
   EllipsisVertical,
   PinOff,
-  ScrollText,
 } from "lucide-react";
 import type { Character, Session, StoredMessage, Model } from "../../../core/storage/schemas";
 import {
@@ -63,6 +62,7 @@ import {
 import { Routes, useNavigationManager } from "../../navigation";
 import { BottomMenu } from "../../components/BottomMenu";
 import { useChatLayoutContext } from "./ChatLayout";
+import { MemoryCycleHub } from "../../components/MemoryCycleHub";
 import { ModelSelectionBottomMenu } from "../../components/ModelSelectionBottomMenu";
 import { useI18n } from "../../../core/i18n/context";
 import type { TranslationKey } from "../../../core/i18n/context";
@@ -100,17 +100,12 @@ const formatMemoryCategoryLabel = (
     ? t(MEMORY_CATEGORY_LABEL_KEYS[category])
     : category.replace(/_/g, " ");
 
-const MEMORY_PROGRESS_TOTAL = 4;
-const MEMORY_STEP_LABELS: Record<number, TranslationKey> = {
-  1: "chats.memories.stepSummarizing",
-  2: "chats.memories.stepAnalyzing",
-  3: "chats.memories.stepApplying",
-  4: "chats.memories.stepOrganizing",
-};
-
 type MemoriesTab = "memories" | "tools" | "pinned";
 type RetryStatus = "idle" | "retrying" | "success";
 type MemoryStatus = "idle" | "processing" | "failed";
+type DynamicMemoryCycleStatus = Awaited<
+  ReturnType<typeof storageBridge.dynamicMemoryCycleStatus>
+>;
 
 const isAbortError = (value: unknown) => {
   const message =
@@ -422,13 +417,13 @@ function useSessionData(characterId?: string, requestedSessionId?: string | null
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!characterId) {
       setError("Missing characterId");
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!options?.silent) setLoading(true);
     setError(null);
     try {
       const chars = await listCharacters();
@@ -472,6 +467,8 @@ function useSessionData(characterId?: string, requestedSessionId?: string | null
     void load();
   }, [load]);
 
+  const reload = useCallback(() => load({ silent: true }), [load]);
+
   return {
     session,
     setSession,
@@ -480,7 +477,7 @@ function useSessionData(characterId?: string, requestedSessionId?: string | null
     character,
     loading,
     error,
-    reload: load,
+    reload,
   };
 }
 
@@ -1033,6 +1030,9 @@ export function ChatMemoriesPage() {
   const { backgroundImageData } = useChatLayoutContext();
   const isMemoryCycleActive =
     isDynamic && (session?.memoryStatus === "processing" || ui.retryStatus === "retrying");
+  const cycleErrorMessage = isDynamic
+    ? (session?.memoryError ?? (ui.memoryStatus === "failed" ? ui.actionError : null) ?? null)
+    : null;
   const [nowTick, setNowTick] = useState(0);
   useEffect(() => {
     if (!isMemoryCycleActive) return;
@@ -1053,6 +1053,26 @@ export function ChatMemoriesPage() {
     if (el && showLiveOutput) el.scrollTop = el.scrollHeight;
   }, [ui.generationRecentText, showLiveOutput]);
   const [revertingEventId, setRevertingEventId] = useState<string | null>(null);
+  const [cycleStatus, setCycleStatus] = useState<DynamicMemoryCycleStatus | null>(null);
+
+  useEffect(() => {
+    if (!isDynamic || !session?.id) {
+      setCycleStatus(null);
+      return;
+    }
+    let cancelled = false;
+    storageBridge
+      .dynamicMemoryCycleStatus(session.id)
+      .then((status) => {
+        if (!cancelled) setCycleStatus(status);
+      })
+      .catch(() => {
+        if (!cancelled) setCycleStatus(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isDynamic, session?.id, session?.memoryStatus, session?.memoryToolEvents?.length]);
 
   const handleSetColdState = useCallback(
     async (memoryIndex: number, isCold: boolean) => {
@@ -1443,6 +1463,7 @@ export function ChatMemoriesPage() {
       );
       void reload();
       dispatch({ type: "SET_ACTION_ERROR", value: null });
+      dispatch({ type: "SET_MEMORY_STATUS", value: "idle" });
     } catch (err) {
       console.error("Failed to dismiss error:", err);
     }
@@ -1645,23 +1666,6 @@ export function ChatMemoriesPage() {
               </p>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {isDynamic && session.memoryStatus === "processing" && (
-              <div
-                className={cn(
-                  radius.full,
-                  "border px-2 py-1",
-                  typography.overline.size,
-                  typography.overline.weight,
-                  typography.overline.tracking,
-                  typography.overline.transform,
-                  "border-blue-500/30 bg-blue-500/15 text-blue-200",
-                )}
-              >
-                {t("groupChats.memories.processing")}
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Segmented Tab Control */}
@@ -1693,170 +1697,52 @@ export function ChatMemoriesPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+16px)]">
-        {/* Error Banner */}
-        {(ui.actionError ||
-          (isDynamic &&
-            (session.memoryError ||
-              ui.retryStatus !== "idle" ||
-              session.memoryStatus === "processing"))) && (
+        {isDynamic &&
+          (cycleStatus ||
+            isMemoryCycleActive ||
+            cycleErrorMessage ||
+            ui.retryStatus === "success") && (
+            <MemoryCycleHub
+              status={cycleStatus}
+              running={isMemoryCycleActive}
+              retrying={ui.retryStatus === "retrying"}
+              retrySuccess={ui.retryStatus === "success"}
+              errorMessage={cycleErrorMessage}
+              step={ui.memoryProgressStep ?? session.memoryProgressStep ?? null}
+              generationTokens={ui.generationTokens}
+              generationTps={ui.generationTps}
+              generationStalled={generationStalled}
+              generationStalledSeconds={Math.round((generationStalledMs ?? 0) / 1000)}
+              liveOutputAvailable={developerMode && ui.generationRecentText != null}
+              onRun={handleTriggerManual}
+              onCancel={handleAbortMemoryCycle}
+              onRetry={handleRetry}
+              onPickModel={() => setShowModelSelector(true)}
+              onDismissError={handleDismissError}
+              onDismissSuccess={() => dispatch({ type: "SET_RETRY_STATUS", value: "idle" })}
+              onShowLiveOutput={() => setShowLiveOutput(true)}
+            />
+          )}
+        {ui.actionError && !isMemoryCycleActive && ui.actionError !== cycleErrorMessage && (
           <div className="px-3 pt-3">
-            {isDynamic &&
-            (ui.retryStatus === "retrying" || session.memoryStatus === "processing") ? (
-              <div
-                className={cn(radius.md, "bg-blue-500/10 border border-blue-500/20 p-3 space-y-2")}
-              >
-                {(() => {
-                  const step = ui.memoryProgressStep ?? session.memoryProgressStep ?? null;
-                  const label = step ? MEMORY_STEP_LABELS[step] : null;
-                  return (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <RefreshCw className="h-4 w-4 text-blue-400 shrink-0 animate-spin" />
-                          <span className={cn(typography.body.size, "font-semibold text-blue-200")}>
-                            {(label ? t(label) : null) ??
-                              (ui.retryStatus === "retrying"
-                                ? t("chats.memories.retryingCycle")
-                                : t("chats.memories.processingMemories"))}
-                          </span>
-                        </div>
-                        {step && (
-                          <span className="text-[12px] text-blue-300/60 tabular-nums">
-                            {step}/{MEMORY_PROGRESS_TOTAL}
-                          </span>
-                        )}
-                      </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-500/15">
-                        {step ? (
-                          <div
-                            className="h-full rounded-full bg-blue-400/70 transition-all duration-500 ease-out"
-                            style={{
-                              width: `${(step / MEMORY_PROGRESS_TOTAL) * 100}%`,
-                            }}
-                          />
-                        ) : (
-                          <div className="h-full w-1/3 rounded-full bg-blue-400/70 animate-[indeterminate_1.5s_ease-in-out_infinite]" />
-                        )}
-                      </div>
-                      {ui.generationTokens != null &&
-                        (generationStalled ? (
-                          <p className="flex items-center gap-1.5 text-[11px] text-amber-300/80 tabular-nums">
-                            <AlertTriangle size={11} className="shrink-0" />
-                            {t("chats.memories.generationStalled", {
-                              seconds: Math.round((generationStalledMs ?? 0) / 1000),
-                            })}
-                          </p>
-                        ) : (
-                          <p className="text-[11px] text-blue-300/60 tabular-nums">
-                            {t("chats.memories.generatingTokens", { tokens: ui.generationTokens })}
-                            {ui.generationTps && ui.generationTps > 0
-                              ? ` · ${ui.generationTps.toFixed(1)} tok/s`
-                              : ""}
-                          </p>
-                        ))}
-                      {developerMode && ui.generationRecentText != null && (
-                        <button
-                          type="button"
-                          onClick={() => setShowLiveOutput(true)}
-                          className="mt-1 inline-flex items-center gap-1.5 self-start rounded-md border border-blue-500/25 bg-blue-500/10 px-2 py-1 text-[11px] font-medium text-blue-200/80 transition hover:bg-blue-500/20"
-                        >
-                          <ScrollText size={12} />
-                          {t("chats.memories.viewLiveOutput")}
-                        </button>
-                      )}
-                    </>
-                  );
-                })()}
+            <div
+              className={cn(
+                radius.md,
+                "bg-danger/10 border border-danger/20 p-3 flex items-start gap-3",
+              )}
+            >
+              <AlertTriangle className="h-5 w-5 text-danger shrink-0" />
+              <div className={cn("flex-1", typography.body.size, "text-danger")}>
+                <p className="font-semibold mb-1">{t("chats.memories.errorTitle")}</p>
+                <p className="opacity-90">{ui.actionError}</p>
               </div>
-            ) : isDynamic && ui.retryStatus === "success" ? (
-              <div
-                className={cn(
-                  radius.md,
-                  "bg-emerald-500/10 border border-emerald-500/20 p-3 flex items-center gap-3",
-                )}
+              <button
+                onClick={() => dispatch({ type: "SET_ACTION_ERROR", value: null })}
+                className="text-danger/70 hover:text-danger"
               >
-                <Check className="h-5 w-5 text-emerald-400 shrink-0" />
-                <div className={cn("flex-1", typography.body.size, "text-emerald-200")}>
-                  <p className="font-semibold">{t("chats.memories.cycleProcessedSuccess")}</p>
-                </div>
-                <button
-                  onClick={() => dispatch({ type: "SET_RETRY_STATUS", value: "idle" })}
-                  className="text-emerald-400 hover:text-emerald-300"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            ) : ui.actionError || (isDynamic && session.memoryError) ? (
-              <div
-                className={cn(
-                  radius.md,
-                  "bg-red-500/10 border border-red-500/20 p-3 flex items-start gap-3",
-                )}
-              >
-                <AlertTriangle className="h-5 w-5 text-red-400 shrink-0" />
-                <div className={cn("flex-1", typography.body.size, "text-red-200")}>
-                  <div className="flex items-start justify-between">
-                    <p className="font-semibold mb-1">
-                      {isDynamic ? t("chats.memories.memorySystemError") : t("chats.memories.errorTitle")}
-                    </p>
-                    {isDynamic && (
-                      <button
-                        onClick={handleDismissError}
-                        className="text-red-400/60 hover:text-red-400 transition-colors"
-                        title={t("groupChats.footer.dismissError")}
-                      >
-                        <X size={16} />
-                      </button>
-                    )}
-                  </div>
-                  <p className="opacity-90">
-                    {ui.actionError || (isDynamic ? session.memoryError : null)}
-                  </p>
-                  {isDynamic && (ui.actionError || session.memoryError) && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <button
-                        onClick={handleRetry}
-                        className={cn(
-                          "flex items-center gap-1.5 px-2.5 py-1.5",
-                          radius.md,
-                          typography.bodySmall.size,
-                          "font-semibold bg-red-500/20 text-red-200",
-                          interactive.transition.fast,
-                          "hover:bg-red-500/30",
-                          interactive.active.scale,
-                        )}
-                      >
-                        <RefreshCw size={12} />
-                        {t("chats.memories.tryAgain")}
-                      </button>
-                      <button
-                        onClick={() => setShowModelSelector(true)}
-                        className={cn(
-                          "flex items-center gap-1.5 px-2.5 py-1.5",
-                          radius.md,
-                          typography.bodySmall.size,
-                          "font-semibold bg-blue-500/20 text-blue-200",
-                          interactive.transition.fast,
-                          "hover:bg-blue-500/30",
-                          interactive.active.scale,
-                        )}
-                      >
-                        <Cpu size={12} />
-                        {t("chats.memories.tryDifferentModel")}
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {!isDynamic && (
-                  <button
-                    onClick={() => dispatch({ type: "SET_ACTION_ERROR", value: null })}
-                    className="text-red-400 hover:text-red-300"
-                  >
-                    <X size={16} />
-                  </button>
-                )}
-              </div>
-            ) : null}
+                <X size={16} />
+              </button>
+            </div>
           </div>
         )}
 
@@ -2207,23 +2093,6 @@ export function ChatMemoriesPage() {
                 <span className="ml-auto text-[10px] text-fg/20">
                   {(session.memoryToolEvents?.length ?? 0).toLocaleString()} {t("groupChats.memories.events")}
                 </span>
-                <button
-                  onClick={isMemoryCycleActive ? handleAbortMemoryCycle : handleTriggerManual}
-                  className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg",
-                    "border border-fg/10 bg-fg/5",
-                    "text-[11px] font-semibold text-fg/50",
-                    "hover:bg-fg/8 hover:text-fg/70",
-                    "transition-all active:scale-95",
-                  )}
-                >
-                  {isMemoryCycleActive ? (
-                    <X size={12} className="animate-pulse" />
-                  ) : (
-                    <Cpu size={12} />
-                  )}
-                  {isMemoryCycleActive ? t("common.buttons.cancel") : t("groupChats.memories.run")}
-                </button>
               </div>
               <ToolLog
                 events={(session.memoryToolEvents as MemoryToolEvent[]) || []}

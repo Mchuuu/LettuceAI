@@ -585,6 +585,11 @@ pub fn group_update_memory_type(
         params![memory_type, now, id],
     )
     .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    conn.execute(
+        "UPDATE group_sessions SET memory_type = ?1, updated_at = ?2 WHERE group_character_id = ?3",
+        params![memory_type, now, id],
+    )
+    .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     Ok(())
 }
 

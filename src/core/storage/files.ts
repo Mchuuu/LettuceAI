@@ -488,6 +488,17 @@ export const storageBridge = {
     invoke("skip_dynamic_memory_cycle", { sessionId }) as Promise<void>,
   dynamicMemoryPendingApproval: (sessionId: string) =>
     invoke("dynamic_memory_pending_approval", { sessionId }) as Promise<number | null>,
+  dynamicMemoryCycleStatus: (sessionId: string) =>
+    invoke<{
+      runMode: "auto" | "askFirst" | "manual";
+      interval: number;
+      messagesSinceLastCycle: number;
+      messagesUntilNextCycle: number;
+      totalConversationMessages: number;
+      pendingApprovalCount: number | null;
+      skipped: boolean;
+      latestCycleStatus: string | null;
+    }>("dynamic_memory_cycle_status", { sessionId }),
   usageSummary: () =>
     invoke("storage_usage_summary") as Promise<{
       fileCount: number;
@@ -922,6 +933,17 @@ export const storageBridge = {
     invoke("group_chat_skip_dynamic_memory", { sessionId }) as Promise<void>,
   groupChatDynamicMemoryPendingApproval: (sessionId: string) =>
     invoke("group_chat_dynamic_memory_pending_approval", { sessionId }) as Promise<number | null>,
+  groupChatDynamicMemoryCycleStatus: (sessionId: string) =>
+    invoke<{
+      runMode: "auto" | "askFirst" | "manual";
+      interval: number;
+      messagesSinceLastCycle: number;
+      messagesUntilNextCycle: number;
+      totalConversationMessages: number;
+      pendingApprovalCount: number | null;
+      skipped: boolean;
+      latestCycleStatus: string | null;
+    }>("group_chat_dynamic_memory_cycle_status", { sessionId }),
 
   // Group Session Memory Operations
   groupSessionUpdateMemories: (

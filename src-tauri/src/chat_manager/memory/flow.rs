@@ -1,3 +1,4 @@
+use serde::Serialize;
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
@@ -839,9 +840,10 @@ async fn migrate_session_memory_embeddings_if_needed(
 
     let (target_source_version, target_dimensions) =
         embedding::resolve_active_embedding_signature(app)?;
-    let needs_stale_migration = session.memory_embeddings.iter().any(|memory| {
-        memory_embedding_is_stale(memory, &target_source_version, target_dimensions)
-    });
+    let needs_stale_migration = session
+        .memory_embeddings
+        .iter()
+        .any(|memory| memory_embedding_is_stale(memory, &target_source_version, target_dimensions));
     let needs_pending_embed = session
         .memory_embeddings
         .iter()
@@ -1661,6 +1663,55 @@ pub fn dynamic_memory_pending_approval(app: AppHandle, session_id: String) -> Op
     app.state::<crate::dynamic_memory_approval::DynamicMemoryApprovalManager>()
         .pending(&session_id)
         .map(|count| count as u32)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DynamicMemoryCycleStatus {
+    pub run_mode: String,
+    pub interval: usize,
+    pub messages_since_last_cycle: usize,
+    pub messages_until_next_cycle: usize,
+    pub total_conversation_messages: usize,
+    pub pending_approval_count: Option<usize>,
+    pub skipped: bool,
+    pub latest_cycle_status: Option<String>,
+}
+
+pub fn dynamic_memory_cycle_status(
+    app: AppHandle,
+    session_id: String,
+) -> Result<DynamicMemoryCycleStatus, String> {
+    let context = ChatContext::initialize(app.clone())?;
+    let session = context
+        .load_session(&session_id)?
+        .ok_or_else(|| "Session not found".to_string())?;
+    let dynamic = context
+        .settings
+        .advanced_settings
+        .as_ref()
+        .and_then(|advanced| advanced.dynamic_memory.as_ref())
+        .ok_or_else(|| "Dynamic memory is not configured".to_string())?;
+    let interval = dynamic.summary_message_interval.max(1) as usize;
+    let total = session_conversation_count(app.clone(), session.id.clone())?.max(0) as usize;
+    let (last_window_end, _) = resolve_last_valid_window_end(&app, &session)?;
+    let since = total.saturating_sub(last_window_end);
+    let approval = app.state::<crate::dynamic_memory_approval::DynamicMemoryApprovalManager>();
+
+    Ok(DynamicMemoryCycleStatus {
+        run_mode: dynamic.run_mode.clone(),
+        interval,
+        messages_since_last_cycle: since,
+        messages_until_next_cycle: interval.saturating_sub(since),
+        total_conversation_messages: total,
+        pending_approval_count: approval.pending(&session_id),
+        skipped: approval.was_skipped(&session_id),
+        latest_cycle_status: session
+            .memory_tool_events
+            .last()
+            .and_then(|event| event.get("status").and_then(Value::as_str))
+            .map(str::to_string),
+    })
 }
 
 pub fn enqueue_post_turn_dynamic_memory(
@@ -3775,15 +3826,16 @@ async fn run_memory_tool_update(
                             } else {
                                 (None, None, None)
                             };
-                        let (embedding_source_version, embedding_dimensions) =
-                            match embedding.as_ref() {
-                                Some(vector) if !vector.is_empty() => {
-                                    let (version, dimensions) =
-                                        embedding::embedding_signature_for_result(app, Some(vector));
-                                    (Some(version), Some(dimensions))
-                                }
-                                _ => (None, None),
-                            };
+                        let (embedding_source_version, embedding_dimensions) = match embedding
+                            .as_ref()
+                        {
+                            Some(vector) if !vector.is_empty() => {
+                                let (version, dimensions) =
+                                    embedding::embedding_signature_for_result(app, Some(vector));
+                                (Some(version), Some(dimensions))
+                            }
+                            _ => (None, None),
+                        };
                         let supersede_ids: Vec<String> = if memory_supersede_enabled {
                             call.arguments
                                 .get("supersedes")
@@ -4282,15 +4334,15 @@ async fn run_memory_tool_update(
                         } else {
                             (None, None, None)
                         };
-                    let (embedding_source_version, embedding_dimensions) =
-                        match embedding.as_ref() {
-                            Some(vector) if !vector.is_empty() => {
-                                let (version, dimensions) =
-                                    embedding::embedding_signature_for_result(app, Some(vector));
-                                (Some(version), Some(dimensions))
-                            }
-                            _ => (None, None),
-                        };
+                    let (embedding_source_version, embedding_dimensions) = match embedding.as_ref()
+                    {
+                        Some(vector) if !vector.is_empty() => {
+                            let (version, dimensions) =
+                                embedding::embedding_signature_for_result(app, Some(vector));
+                            (Some(version), Some(dimensions))
+                        }
+                        _ => (None, None),
+                    };
                     session.memory_embeddings.push(MemoryEmbedding {
                         id: mem_id.clone(),
                         text: text.clone(),
