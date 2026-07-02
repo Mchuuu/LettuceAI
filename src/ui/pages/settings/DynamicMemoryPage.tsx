@@ -408,11 +408,7 @@ export function DynamicMemoryPage() {
           settings.advancedSettings?.summarisationModelId,
         );
         setDefaultModelId(defaultModelIdValue);
-        setSummarisationModelId(
-          defaultModelIdValue && summarisationModelValue === defaultModelIdValue
-            ? null
-            : summarisationModelValue,
-        );
+        setSummarisationModelId(summarisationModelValue);
         setSelectedSummaryPromptTemplateId(
           settings.advancedSettings?.dynamicMemorySummarizerPromptTemplateId ?? null,
         );
@@ -552,7 +548,7 @@ export function DynamicMemoryPage() {
       if (modelId) {
         advanced.summarisationModelId = modelId;
       } else {
-        advanced.summarisationModelId = defaultModelId ?? undefined;
+        delete advanced.summarisationModelId;
       }
     }, "Failed to save summarisation model:");
   };
