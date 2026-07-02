@@ -1112,6 +1112,10 @@ fn resolve_conversation_index_by_message_id(
 /// Resolve the last valid cursor (windowEnd) from memory tool events by anchoring on message IDs.
 /// This self-heals when messages are deleted (counts shrink) or the conversation is rewound.
 /// Returns (window_end_index, cursor_rewound).
+fn memory_event_advances_cursor(event: &Value) -> bool {
+    !matches!(event.get("status").and_then(Value::as_str), Some("error"))
+}
+
 fn resolve_last_valid_window_end(
     app: &AppHandle,
     session: &Session,
@@ -1121,7 +1125,13 @@ fn resolve_last_valid_window_end(
     }
 
     // Walk backwards to find the newest event whose last summarized message still exists.
-    for (rev_idx, event) in session.memory_tool_events.iter().rev().enumerate() {
+    for (rev_idx, event) in session
+        .memory_tool_events
+        .iter()
+        .rev()
+        .filter(|event| memory_event_advances_cursor(event))
+        .enumerate()
+    {
         let end_id = event
             .get("windowMessageIds")
             .and_then(|v| v.as_array())
@@ -1142,6 +1152,27 @@ fn resolve_last_valid_window_end(
 
     // No event could be anchored; treat as rewind (cursor reset).
     Ok((0, true))
+}
+
+#[cfg(test)]
+mod memory_cursor_tests {
+    use super::memory_event_advances_cursor;
+    use serde_json::json;
+
+    #[test]
+    fn failed_memory_event_does_not_advance_cursor() {
+        assert!(!memory_event_advances_cursor(&json!({
+            "status": "error",
+            "windowEnd": 346
+        })));
+    }
+
+    #[test]
+    fn successful_legacy_memory_event_advances_cursor() {
+        assert!(memory_event_advances_cursor(&json!({
+            "windowEnd": 288
+        })));
+    }
 }
 
 fn cancel_dynamic_memory_cycle(

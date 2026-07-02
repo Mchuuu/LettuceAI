@@ -1352,6 +1352,10 @@ fn resolve_group_conversation_index_by_message_id(
 
 /// Resolve the last valid cursor (windowEnd) from memory tool events by anchoring on message IDs.
 /// Returns (window_end_index, cursor_rewound).
+fn group_memory_event_advances_cursor(event: &Value) -> bool {
+    !matches!(event.get("status").and_then(Value::as_str), Some("error"))
+}
+
 fn resolve_last_valid_group_window_end(
     conn: &rusqlite::Connection,
     session: &GroupSession,
@@ -1360,7 +1364,13 @@ fn resolve_last_valid_group_window_end(
         return Ok((0, false));
     }
 
-    for (rev_idx, event) in session.memory_tool_events.iter().rev().enumerate() {
+    for (rev_idx, event) in session
+        .memory_tool_events
+        .iter()
+        .rev()
+        .filter(|event| group_memory_event_advances_cursor(event))
+        .enumerate()
+    {
         let end_id = event
             .get("windowMessageIds")
             .and_then(|v| v.as_array())
@@ -1379,6 +1389,31 @@ fn resolve_last_valid_group_window_end(
     }
 
     Ok((0, true))
+}
+
+#[cfg(test)]
+mod group_memory_cursor_tests {
+    use super::group_memory_event_advances_cursor;
+    use serde_json::json;
+
+    #[test]
+    fn failed_memory_event_does_not_advance_cursor() {
+        assert!(!group_memory_event_advances_cursor(&json!({
+            "status": "error",
+            "windowEnd": 346
+        })));
+    }
+
+    #[test]
+    fn complete_and_legacy_memory_events_advance_cursor() {
+        assert!(group_memory_event_advances_cursor(&json!({
+            "status": "complete",
+            "windowEnd": 288
+        })));
+        assert!(group_memory_event_advances_cursor(&json!({
+            "windowEnd": 288
+        })));
+    }
 }
 
 fn cancel_group_dynamic_memory_cycle(
