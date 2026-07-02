@@ -73,9 +73,24 @@ export const changelog: ChangelogEntry[] = [
           "Shared memory cycle hub: a single unified memory-cycle panel across both chat and group memory pages.",
       },
       {
+        type: "feature",
+        description:
+          "Mobile model browser: the HuggingFace browser now works properly on phones. It pairs with a remote Ollama provider (auto-selected when you have one) and pulls GGUF models straight to your host, with files and recommended settings in a slide-in drawer.",
+      },
+      {
         type: "improvement",
         description:
           "Multi-GPU distribution and KV modes are explained inline with bottom-menu pickers, fully localized in the model editor.",
+      },
+      {
+        type: "improvement",
+        description:
+          "Installed models on mobile now focuses on Ollama, with a reorganized toolbar, an inline provider selector, and cleaner model rows.",
+      },
+      {
+        type: "improvement",
+        description:
+          "The download destination picker was redesigned as a grouped list, your destination choice now persists while you browse, and the real Ollama logo shows across Ollama surfaces on desktop and mobile.",
       },
       {
         type: "improvement",
