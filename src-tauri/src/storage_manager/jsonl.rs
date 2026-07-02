@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
+use chrono::{DateTime, NaiveDateTime, SecondsFormat, TimeZone, Utc};
 use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
@@ -67,8 +67,7 @@ fn send_date(created_at_ms: i64) -> String {
     Utc.timestamp_millis_opt(created_at_ms)
         .single()
         .unwrap_or_else(Utc::now)
-        .format("%Y-%m-%dT%H:%M:%S%.3f")
-        .to_string()
+        .to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
 fn parse_created_at(value: Option<&JsonValue>) -> Option<i64> {
@@ -119,6 +118,72 @@ fn pick_message_content(message: &JsonValue) -> String {
         }
     }
     String::new()
+}
+
+/// Converts Lettuce message variants to SillyTavern's swipe representation.
+/// Returns `None` when the message has no usable alternatives.
+fn message_swipes(message: &JsonValue) -> Option<(Vec<String>, usize)> {
+    let variants = message.get("variants")?.as_array()?;
+    let mut swipe_variants: Vec<(&str, Option<&str>)> = variants
+        .iter()
+        .filter_map(|variant| {
+            variant
+                .get("content")
+                .and_then(JsonValue::as_str)
+                .map(|content| {
+                    (
+                        content,
+                        variant.get("id").and_then(JsonValue::as_str),
+                    )
+                })
+        })
+        .collect();
+    let current = pick_message_content(message);
+    if swipe_variants.is_empty() {
+        return None;
+    }
+
+    let selected_id = message.get("selectedVariantId").and_then(JsonValue::as_str);
+    let selected = selected_id
+        .and_then(|id| swipe_variants.iter().position(|(_, variant_id)| *variant_id == Some(id)))
+        .or_else(|| {
+            swipe_variants
+                .iter()
+                .position(|(content, _)| *content == current)
+        })
+        .unwrap_or_else(|| {
+            swipe_variants.insert(0, (&current, None));
+            0
+        });
+    let swipes = swipe_variants
+        .into_iter()
+        .map(|(content, _)| content.to_owned())
+        .collect();
+    Some((swipes, selected))
+}
+
+fn sillytavern_message(
+    name: &str,
+    is_user: bool,
+    is_system: bool,
+    created_at: i64,
+    content: String,
+    swipes: Option<(Vec<String>, usize)>,
+) -> JsonValue {
+    let mut line = json!({
+        "name": name,
+        "is_user": is_user,
+        "is_system": is_system,
+        "send_date": send_date(created_at),
+        "mes": content,
+        "extra": {},
+        "original_avatar": "",
+    });
+    if let Some((swipes, selected)) = swipes {
+        line["swipe_id"] = json!(selected);
+        line["swipes"] = json!(swipes);
+    }
+    line
 }
 
 // ------------------- Export: single chat -------------------
@@ -205,15 +270,8 @@ pub fn jsonl_export_single_chat(
             "system" => ("System", false, true),
             _ => (character_name.as_str(), false, false),
         };
-        let line = json!({
-            "name": name,
-            "is_user": is_user,
-            "is_system": is_system,
-            "send_date": send_date(created_at),
-            "mes": content,
-            "extra": {},
-            "original_avatar": "",
-        });
+        let swipes = message_swipes(&message);
+        let line = sillytavern_message(name, is_user, is_system, created_at, content, swipes);
         lines.push(serde_json::to_string(&line).unwrap());
     }
 
@@ -273,7 +331,7 @@ pub fn jsonl_export_group_chat(
 
     let mut msg_stmt = conn
         .prepare(
-            "SELECT role, content, speaker_character_id, created_at, selected_variant_id
+            "SELECT id, role, content, speaker_character_id, created_at, selected_variant_id
              FROM group_messages WHERE session_id = ?1 ORDER BY created_at ASC",
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -283,21 +341,23 @@ pub fn jsonl_export_group_chat(
             Ok((
                 r.get::<_, String>(0)?,
                 r.get::<_, String>(1)?,
-                r.get::<_, Option<String>>(2)?,
-                r.get::<_, i64>(3)?,
-                r.get::<_, Option<String>>(4)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, Option<String>>(3)?,
+                r.get::<_, i64>(4)?,
+                r.get::<_, Option<String>>(5)?,
             ))
         })
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
-    let mut messages: Vec<(String, String, Option<String>, i64, Option<String>)> = Vec::new();
+    let mut messages: Vec<(String, String, String, Option<String>, i64, Option<String>)> =
+        Vec::new();
     for row in msg_rows {
         messages.push(row.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?);
     }
 
     let first_created_at = messages
         .first()
-        .map(|m| m.3)
+        .map(|m| m.4)
         .unwrap_or_else(|| now_ms() as i64);
 
     let mut lines: Vec<String> = Vec::with_capacity(messages.len() + 1);
@@ -309,20 +369,37 @@ pub fn jsonl_export_group_chat(
     });
     lines.push(serde_json::to_string(&metadata).unwrap());
 
-    for (role, content_db, speaker_character_id, created_at, selected_variant_id) in messages {
-        // Resolve content: prefer selected variant.
-        let content = if let Some(vid) = selected_variant_id.as_deref() {
-            conn.query_row(
-                "SELECT content FROM group_message_variants WHERE id = ?1",
-                params![vid],
-                |r| r.get::<_, String>(0),
+    for (message_id, role, content_db, speaker_character_id, created_at, selected_variant_id) in
+        messages
+    {
+        let mut variant_stmt = conn
+            .prepare(
+                "SELECT id, content FROM group_message_variants
+                 WHERE message_id = ?1 ORDER BY created_at ASC",
             )
-            .optional()
-            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
-            .unwrap_or(content_db)
-        } else {
-            content_db
-        };
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let variant_rows = variant_stmt
+            .query_map(params![&message_id], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+            })
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let variants: Vec<(String, String)> = variant_rows
+            .collect::<Result<_, _>>()
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let selected = selected_variant_id
+            .as_deref()
+            .and_then(|id| variants.iter().position(|(variant_id, _)| variant_id == id))
+            .unwrap_or(0);
+        let content = variants
+            .get(selected)
+            .map(|(_, content)| content.clone())
+            .unwrap_or(content_db);
+        let swipes = (!variants.is_empty()).then(|| {
+            (
+                variants.into_iter().map(|(_, content)| content).collect(),
+                selected,
+            )
+        });
 
         if content.trim().is_empty() {
             continue;
@@ -340,15 +417,7 @@ pub fn jsonl_export_group_chat(
             }
         };
 
-        let line = json!({
-            "name": name,
-            "is_user": is_user,
-            "is_system": is_system,
-            "send_date": send_date(created_at),
-            "mes": content,
-            "extra": {},
-            "original_avatar": "",
-        });
+        let line = sillytavern_message(&name, is_user, is_system, created_at, content, swipes);
         lines.push(serde_json::to_string(&line).unwrap());
     }
 
@@ -366,9 +435,52 @@ pub fn jsonl_export_group_chat(
 
 // ------------------- Read / parse -------------------
 
+#[derive(Debug)]
 struct ParsedJsonl {
     metadata: Option<JsonValue>,
     messages: Vec<JsonValue>,
+}
+
+fn parse_jsonl(raw: &str) -> Result<ParsedJsonl, String> {
+    let mut entries: Vec<JsonValue> = Vec::new();
+    for line in raw.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let parsed: JsonValue = serde_json::from_str(trimmed)
+            .map_err(|_| crate::utils::err_msg(module_path!(), line!(), "JSONL_INVALID_LINE"))?;
+        if !parsed.is_object() {
+            return Err(crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                "JSONL_INVALID_ENTRY",
+            ));
+        }
+        entries.push(parsed);
+    }
+    if entries.is_empty() {
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            "JSONL_EMPTY",
+        ));
+    }
+
+    // SillyTavern chat headers are identified by chat_metadata. Keep the older
+    // name markers as a compatibility fallback for third-party ST exporters.
+    let first_is_metadata = {
+        let first = &entries[0];
+        first.get("mes").is_none()
+            && (first.get("chat_metadata").is_some()
+                || first.get("user_name").is_some()
+                || first.get("character_name").is_some())
+    };
+    let metadata = first_is_metadata.then(|| entries.remove(0));
+    Ok(ParsedJsonl {
+        metadata,
+        messages: entries,
+    })
 }
 
 fn read_jsonl_file(_app: &tauri::AppHandle, path: &str) -> Result<String, String> {
@@ -403,41 +515,39 @@ fn read_jsonl_file(_app: &tauri::AppHandle, path: &str) -> Result<String, String
 
 fn read_jsonl(app: &tauri::AppHandle, path: &str) -> Result<ParsedJsonl, String> {
     let raw = read_jsonl_file(app, path)?;
-    let mut entries: Vec<JsonValue> = Vec::new();
-    for line in raw.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        let parsed: JsonValue = serde_json::from_str(trimmed)
-            .map_err(|_| crate::utils::err_msg(module_path!(), line!(), "JSONL_INVALID_LINE"))?;
-        entries.push(parsed);
-    }
-    if entries.is_empty() {
-        return Err(crate::utils::err_msg(
-            module_path!(),
-            line!(),
-            "JSONL_EMPTY",
-        ));
-    }
+    parse_jsonl(&raw)
+}
 
-    // First entry is metadata iff it has no `mes` and has user/character markers.
-    let first_is_metadata = {
-        let first = &entries[0];
-        first.get("mes").is_none()
-            && (first.get("user_name").is_some()
-                || first.get("character_name").is_some()
-                || first.get("chat_metadata").is_some())
+fn imported_variants(entry: &JsonValue, created_at: i64) -> (Vec<JsonValue>, Option<String>) {
+    let Some(swipes) = entry.get("swipes").and_then(JsonValue::as_array) else {
+        return (Vec::new(), None);
     };
-
-    let (metadata, messages) = if first_is_metadata {
-        let metadata = Some(entries.remove(0));
-        (metadata, entries)
-    } else {
-        (None, entries)
-    };
-
-    Ok(ParsedJsonl { metadata, messages })
+    let variants: Vec<JsonValue> = swipes
+        .iter()
+        .filter_map(JsonValue::as_str)
+        .map(|content| {
+            json!({
+                "id": Uuid::new_v4().to_string(),
+                "content": content,
+                "createdAt": created_at,
+            })
+        })
+        .collect();
+    let selected = entry
+        .get("swipe_id")
+        .and_then(JsonValue::as_u64)
+        .and_then(|index| variants.get(index as usize))
+        .and_then(|variant| variant.get("id"))
+        .and_then(JsonValue::as_str)
+        .map(str::to_owned)
+        .or_else(|| {
+            variants
+                .first()
+                .and_then(|variant| variant.get("id"))
+                .and_then(JsonValue::as_str)
+                .map(str::to_owned)
+        });
+    (variants, selected)
 }
 
 fn message_role(entry: &JsonValue) -> &'static str {
@@ -620,13 +730,19 @@ fn import_single(
         };
         let role = message_role(entry);
         let created_at = message_created_at(entry);
-        messages.push(json!({
+        let (variants, selected_variant_id) = imported_variants(entry, created_at);
+        let mut message = json!({
             "id": Uuid::new_v4().to_string(),
             "role": role,
             "content": content,
             "createdAt": created_at,
             "attachments": [],
-        }));
+        });
+        if !variants.is_empty() {
+            message["variants"] = json!(variants);
+            message["selectedVariantId"] = json!(selected_variant_id);
+        }
+        messages.push(message);
     }
 
     super::sessions::messages_upsert_batch(
@@ -764,24 +880,45 @@ fn import_group(
         } else {
             None
         };
+        let message_id = Uuid::new_v4().to_string();
+        let (variants, selected_variant_id) = imported_variants(entry, created_at);
 
         turn_number += 1;
         conn.execute(
             "INSERT INTO group_messages (id, session_id, role, content, speaker_character_id, turn_number,
              created_at, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned,
              attachments, used_lorebook_entries, reasoning, selection_reasoning, model_id)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, NULL, NULL, NULL, NULL, 0, ?7, '[]', NULL, NULL, NULL)",
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL, NULL, NULL, ?8, 0, '[]', '[]', NULL, NULL, NULL)",
             params![
-                Uuid::new_v4().to_string(),
+                &message_id,
                 &new_session_id,
                 role,
                 content,
-                speaker_char_id,
+                &speaker_char_id,
                 turn_number,
                 created_at,
+                &selected_variant_id,
             ],
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+        for variant in variants {
+            conn.execute(
+                "INSERT INTO group_message_variants
+                 (id, message_id, content, speaker_character_id, created_at,
+                  prompt_tokens, completion_tokens, total_tokens, reasoning, selection_reasoning,
+                  first_token_ms, tokens_per_second, mtp_stats)
+                 VALUES (?1, ?2, ?3, ?4, ?5, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)",
+                params![
+                    variant.get("id").and_then(JsonValue::as_str),
+                    &message_id,
+                    variant.get("content").and_then(JsonValue::as_str),
+                    &speaker_char_id,
+                    created_at,
+                ],
+            )
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        }
     }
 
     let out = json!({
@@ -789,4 +926,54 @@ fn import_group(
         "sessionId": new_session_id,
     });
     serde_json::to_string(&out).map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn timestamp_matches_sillytavern_iso_utc_format() {
+        assert_eq!(send_date(0), "1970-01-01T00:00:00.000Z");
+        assert_eq!(parse_created_at(Some(&json!(send_date(0)))), Some(0));
+    }
+
+    #[test]
+    fn parses_sillytavern_header_and_messages() {
+        let raw = concat!(
+            "{\"user_name\":\"unused\",\"character_name\":\"unused\",\"chat_metadata\":{}}\n",
+            "{\"name\":\"User\",\"is_user\":true,\"is_system\":false,\"send_date\":\"2026-01-02T03:04:05.000Z\",\"mes\":\"Hi\",\"extra\":{}}\n"
+        );
+        let parsed = parse_jsonl(raw).unwrap();
+        assert!(parsed.metadata.is_some());
+        assert_eq!(parsed.messages.len(), 1);
+        assert_eq!(message_role(&parsed.messages[0]), "user");
+        assert_eq!(message_text(&parsed.messages[0]).as_deref(), Some("Hi"));
+    }
+
+    #[test]
+    fn round_trips_variants_as_sillytavern_swipes() {
+        let message = json!({
+            "selectedVariantId": "b",
+            "variants": [
+                {"id": "a", "content": "First"},
+                {"id": "b", "content": "Second"}
+            ]
+        });
+        let swipes = message_swipes(&message).unwrap();
+        assert_eq!(swipes, (vec!["First".to_string(), "Second".to_string()], 1));
+
+        let entry =
+            sillytavern_message("Character", false, false, 0, "Second".into(), Some(swipes));
+        let (variants, selected) = imported_variants(&entry, 0);
+        assert_eq!(variants.len(), 2);
+        assert_eq!(selected, variants[1]["id"].as_str().map(str::to_owned));
+    }
+
+    #[test]
+    fn rejects_non_object_jsonl_entries() {
+        assert!(parse_jsonl("[]\n")
+            .unwrap_err()
+            .contains("JSONL_INVALID_ENTRY"));
+    }
 }
