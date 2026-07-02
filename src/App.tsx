@@ -1041,7 +1041,7 @@ function AppContent() {
                   ? () => navigate("/", { replace: true })
                   : isSettingRoute &&
                       (location.pathname === "/settings" ||
-                        (isLgViewport && location.pathname === "/settings/about"))
+                        (isLgViewport && /^\/settings\/[^/]+$/.test(location.pathname)))
                     ? () => {
                         const target = preSettingsPathRef.current || "/";
                         navigate(target.startsWith("/settings") ? "/" : target);
