@@ -1,5 +1,7 @@
 use serde::Deserialize;
 
+const SUPPORTED_SCHEMA_VERSION: u32 = 1;
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SproutGpu {
@@ -12,6 +14,7 @@ struct SproutGpu {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SproutSpecs {
+    schema_version: u32,
     #[serde(default)]
     available_memory_bytes: u64,
     #[serde(default)]
@@ -20,6 +23,7 @@ struct SproutSpecs {
     gpus: Vec<SproutGpu>,
 }
 
+#[derive(Debug)]
 pub(super) struct SproutHardware {
     pub available_ram: u64,
     pub available_vram: Option<u64>,
@@ -56,10 +60,17 @@ pub(super) async fn fetch_sprout_hardware(
         .await
         .map_err(|e| format!("Invalid Sprout response from {endpoint}: {e}"))?;
 
-    Ok(derive_hardware(&specs))
+    derive_hardware(&specs)
 }
 
-fn derive_hardware(specs: &SproutSpecs) -> SproutHardware {
+fn derive_hardware(specs: &SproutSpecs) -> Result<SproutHardware, String> {
+    if specs.schema_version != SUPPORTED_SCHEMA_VERSION {
+        return Err(format!(
+            "Unsupported Sprout schema version {}; expected {}",
+            specs.schema_version, SUPPORTED_SCHEMA_VERSION
+        ));
+    }
+
     let discrete_vram = specs
         .gpus
         .iter()
@@ -74,10 +85,40 @@ fn derive_hardware(specs: &SproutSpecs) -> SproutHardware {
         None => (None, false),
     };
 
-    SproutHardware {
+    Ok(SproutHardware {
         available_ram: specs.available_memory_bytes,
         available_vram,
         supports_gpu_offload,
         unified: specs.unified_memory || all_integrated,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn specs(schema_version: u32) -> SproutSpecs {
+        SproutSpecs {
+            schema_version,
+            available_memory_bytes: 8 * 1024 * 1024 * 1024,
+            unified_memory: false,
+            gpus: vec![SproutGpu {
+                memory_free: 4 * 1024 * 1024 * 1024,
+                device_type: "Gpu".to_string(),
+            }],
+        }
+    }
+
+    #[test]
+    fn accepts_supported_schema() {
+        let hardware = derive_hardware(&specs(SUPPORTED_SCHEMA_VERSION)).unwrap();
+        assert_eq!(hardware.available_vram, Some(4 * 1024 * 1024 * 1024));
+        assert!(hardware.supports_gpu_offload);
+    }
+
+    #[test]
+    fn rejects_unsupported_schema() {
+        let error = derive_hardware(&specs(SUPPORTED_SCHEMA_VERSION + 1)).unwrap_err();
+        assert!(error.contains("Unsupported Sprout schema version"));
     }
 }
