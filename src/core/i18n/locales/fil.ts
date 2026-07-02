@@ -4646,6 +4646,8 @@ export const filMessages: DeepPartialMessageTree<LocaleMessages> = {
     destinationPickerTitle: "Saan dapat pumunta ang mga model?",
     destinationPickerSubtitle: "Piliin kung saan ipapadala ang susunod na download. Maaari mong baguhin ito anumang oras.",
     destinationNoOllama: "Walang naka-configure na Ollama provider. Magdagdag ng isa sa Settings → Providers para mag-pull ng model sa remote instance.",
+    mobileOllamaTitle: "Ikonekta ang isang Ollama provider",
+    mobileOllamaCta: "Magdagdag ng Ollama Provider",
     ollamaModeNoticeTitle: "Hindi available ang mga rekomendasyon",
     ollamaModeNoticeBody: "Tumatakbo ang model na ito sa remote host, kaya hindi matatantya ng app ang runnability nang mag-isa. I-enable ang Sprout para sa Ollama provider na ito upang suriin ang GPU at memory ng host, at ang mga rekomendasyon ay magpapakita ng makinang iyon.",
     getSprout: "Kunin ang Sprout",

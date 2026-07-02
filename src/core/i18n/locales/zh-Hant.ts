@@ -4646,6 +4646,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     destinationPickerTitle: "模型應該存放在哪裡？",
     destinationPickerSubtitle: "選擇下次下載的發送位置。您可以隨時更改此設定。",
     destinationNoOllama: "尚未配置 Ollama 提供者。請在「設定」→「提供者」中添加一個，以便將模型拉取到遠端實例。",
+    mobileOllamaTitle: "連接 Ollama 提供者",
+    mobileOllamaCta: "新增 Ollama 提供者",
     ollamaModeNoticeTitle: "無法提供建議",
     ollamaModeNoticeBody: "此模型在遠端主機上運行，因此應用程式無法自行估算可運行性。為此 Ollama 提供者啟用 Sprout 以探測主機的 GPU 和記憶體，推薦結果將反映該機器。",
     getSprout: "取得 Sprout",

@@ -4111,6 +4111,8 @@ export const nlMessages: DeepPartialMessageTree<LocaleMessages> = {
     destinationPickerTitle: "Waar moeten modellen heen?",
     destinationPickerSubtitle: "Kies waarheen de volgende download moet. Je kunt dit altijd wijzigen.",
     destinationNoOllama: "Geen Ollama-providers geconfigureerd. Voeg er een toe bij Instellingen → Providers om modellen naar een externe instantie op te halen.",
+    mobileOllamaTitle: "Verbind een Ollama-provider",
+    mobileOllamaCta: "Ollama-provider toevoegen",
     ollamaModeNoticeTitle: "Aanbevelingen niet beschikbaar",
     ollamaModeNoticeBody: "Dit model draait op de externe host, dus de app kan de uitvoerbaarheid niet zelf inschatten. Schakel Sprout in voor deze Ollama-provider om de GPU en het geheugen van de host te onderzoeken, waarna de aanbevelingen die machine weerspiegelen.",
     getSprout: "Sprout ophalen",

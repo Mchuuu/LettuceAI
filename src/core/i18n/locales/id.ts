@@ -4025,6 +4025,8 @@ export const idMessages: DeepPartialMessageTree<LocaleMessages> = {
     destinationPickerTitle: "Ke mana model harus pergi?",
     destinationPickerSubtitle: "Pilih ke mana mengirim unduhan berikutnya. Anda dapat mengubah ini kapan saja.",
     destinationNoOllama: "Tidak ada penyedia Ollama dikonfigurasi. Tambah satu di Pengaturan → Penyedia untuk menarik model ke instance jarak jauh.",
+    mobileOllamaTitle: "Hubungkan penyedia Ollama",
+    mobileOllamaCta: "Tambah Penyedia Ollama",
     ollamaModeNoticeTitle: "Rekomendasi tidak tersedia",
     ollamaModeNoticeBody: "Model ini berjalan di host jarak jauh, sehingga aplikasi tidak dapat memperkirakan kemampuan jalan sendiri. Aktifkan Sprout untuk penyedia Ollama ini guna menyelidiki GPU dan memori host, dan rekomendasi akan mencerminkan mesin tersebut.",
     getSprout: "Dapatkan Sprout",

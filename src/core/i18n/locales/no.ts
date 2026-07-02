@@ -4646,6 +4646,8 @@ export const noMessages: DeepPartialMessageTree<LocaleMessages> = {
     destinationPickerTitle: "Hvor skal modellene gå?",
     destinationPickerSubtitle: "Velg hvor du vil sende den neste nedlastingen. Du kan endre dette når som helst.",
     destinationNoOllama: "Ingen Ollama-leverandører konfigurert. Legg til en i Innstillinger → Leverandører for å hente modeller til en ekstern instans.",
+    mobileOllamaTitle: "Koble til en Ollama-leverandør",
+    mobileOllamaCta: "Legg til Ollama-leverandør",
     ollamaModeNoticeTitle: "Anbefalinger utilgjengelige",
     ollamaModeNoticeBody: "Denne modellen kjører på den eksterne verten, så appen kan ikke anslå kjørbarhet på egen hånd. Aktiver Sprout for denne Ollama-leverandøren for å undersøke vertens GPU og minne, og anbefalingene vil gjenspeile den maskinen.",
     getSprout: "Hent Sprout",

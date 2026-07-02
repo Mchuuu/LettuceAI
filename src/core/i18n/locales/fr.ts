@@ -4646,6 +4646,8 @@ export const frMessages: DeepPartialMessageTree<LocaleMessages> = {
     destinationPickerTitle: "Où placer les modèles ?",
     destinationPickerSubtitle: "Choisissez où envoyer le prochain téléchargement. Vous pouvez changer cela à tout moment.",
     destinationNoOllama: "Aucun fournisseur Ollama configuré. Ajoutez-en un dans Paramètres → Fournisseurs pour récupérer des modèles vers une instance distante.",
+    mobileOllamaTitle: "Connecter un fournisseur Ollama",
+    mobileOllamaCta: "Ajouter un fournisseur Ollama",
     ollamaModeNoticeTitle: "Recommandations indisponibles",
     ollamaModeNoticeBody: "Ce modèle s'exécute sur l'hôte distant, donc l'application ne peut pas estimer la capacité d'exécution par elle-même. Activez Sprout pour ce fournisseur Ollama afin de sonder le GPU et la mémoire de l'hôte, et les recommandations refléteront cette machine.",
     getSprout: "Obtenir Sprout",

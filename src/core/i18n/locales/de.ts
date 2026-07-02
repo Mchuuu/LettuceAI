@@ -4646,6 +4646,8 @@ export const deMessages: DeepPartialMessageTree<LocaleMessages> = {
     destinationPickerTitle: "Wohin sollen Modelle gehen?",
     destinationPickerSubtitle: "Wähle, wohin der nächste Download gesendet wird. Du kannst dies jederzeit ändern.",
     destinationNoOllama: "Keine Ollama-Anbieter konfiguriert. Füge einen unter Einstellungen → Anbieter hinzu, um Modelle auf eine entfernte Instanz zu ziehen.",
+    mobileOllamaTitle: "Ollama-Anbieter verbinden",
+    mobileOllamaCta: "Ollama-Anbieter hinzufügen",
     ollamaModeNoticeTitle: "Empfehlungen nicht verfügbar",
     ollamaModeNoticeBody: "Dieses Modell läuft auf dem entfernten Host, daher kann die App die Lauffähigkeit nicht selbst abschätzen. Aktivieren Sie Sprout für diesen Ollama-Anbieter, um GPU und Speicher des Hosts zu prüfen, damit die Empfehlungen diese Maschine widerspiegeln.",
     getSprout: "Sprout holen",

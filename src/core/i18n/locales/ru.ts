@@ -4646,6 +4646,8 @@ export const ruMessages: DeepPartialMessageTree<LocaleMessages> = {
     destinationPickerTitle: "Куда отправлять модели?",
     destinationPickerSubtitle: "Выберите, куда отправить следующее скачивание. Вы можете изменить это в любой момент.",
     destinationNoOllama: "Провайдеры Ollama не настроены. Добавьте один в Настройках → Провайдеры, чтобы загружать модели на удалённый экземпляр.",
+    mobileOllamaTitle: "Подключите провайдера Ollama",
+    mobileOllamaCta: "Добавить провайдера Ollama",
     ollamaModeNoticeTitle: "Рекомендации недоступны",
     ollamaModeNoticeBody: "Эта модель работает на удалённом хосте, поэтому приложение не может самостоятельно оценить запускаемость. Включите Sprout для этого провайдера Ollama, чтобы проверить GPU и память хоста, и рекомендации будут отражать эту машину.",
     getSprout: "Получить Sprout",

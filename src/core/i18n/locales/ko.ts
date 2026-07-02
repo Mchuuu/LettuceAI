@@ -4646,6 +4646,8 @@ export const koMessages: DeepPartialMessageTree<LocaleMessages> = {
     destinationPickerTitle: "모델을 어디로 보낼까요?",
     destinationPickerSubtitle: "다음 다운로드를 보낼 위치를 선택하세요. 언제든지 변경할 수 있습니다.",
     destinationNoOllama: "구성된 Ollama 제공자가 없습니다. 원격 인스턴스로 모델을 가져오려면 설정 → 제공자에서 추가하세요.",
+    mobileOllamaTitle: "Ollama 제공자 연결",
+    mobileOllamaCta: "Ollama 제공자 추가",
     ollamaModeNoticeTitle: "추천을 사용할 수 없음",
     ollamaModeNoticeBody: "이 모델은 원격 호스트에서 실행되므로 앱이 자체적으로 실행 가능성을 추정할 수 없습니다. 이 Ollama 제공자에 대해 Sprout를 활성화하여 호스트의 GPU와 메모리를 조사하면 추천이 해당 컴퓨터를 반영합니다.",
     getSprout: "Sprout 받기",

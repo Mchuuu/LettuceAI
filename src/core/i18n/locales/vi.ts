@@ -4025,6 +4025,8 @@ export const viMessages: DeepPartialMessageTree<LocaleMessages> = {
     destinationPickerTitle: "Mô hình nên đi đâu?",
     destinationPickerSubtitle: "Chọn nơi gửi lần tải tiếp theo. Bạn có thể thay đổi bất cứ lúc nào.",
     destinationNoOllama: "Chưa cấu hình nhà cung cấp Ollama nào. Thêm một nhà cung cấp trong Cài đặt → Nhà cung cấp để kéo mô hình về phiên bản từ xa.",
+    mobileOllamaTitle: "Kết nối nhà cung cấp Ollama",
+    mobileOllamaCta: "Thêm nhà cung cấp Ollama",
     ollamaModeNoticeTitle: "Khuyến nghị không khả dụng",
     ollamaModeNoticeBody: "Mô hình này chạy trên máy chủ từ xa, vì vậy ứng dụng không thể tự ước tính khả năng chạy. Bật Sprout cho nhà cung cấp Ollama này để dò GPU và bộ nhớ của máy chủ, và các đề xuất sẽ phản ánh máy đó.",
     getSprout: "Tải Sprout",

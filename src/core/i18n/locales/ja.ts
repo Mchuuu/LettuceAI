@@ -4025,6 +4025,8 @@ export const jaMessages: DeepPartialMessageTree<LocaleMessages> = {
     destinationPickerTitle: "モデルの保存先は?",
     destinationPickerSubtitle: "次のダウンロードの送り先を選んでください。いつでも変更できます。",
     destinationNoOllama: "設定済みのOllamaプロバイダーがありません。リモートインスタンスにモデルをプルするには、「設定」→「プロバイダー」で追加してください。",
+    mobileOllamaTitle: "Ollamaプロバイダーを接続",
+    mobileOllamaCta: "Ollamaプロバイダーを追加",
     ollamaModeNoticeTitle: "推奨は利用できません",
     ollamaModeNoticeBody: "このモデルはリモートホスト上で実行されるため、アプリは単独で実行可能性を見積もることができません。このOllamaプロバイダーでSproutを有効にしてホストのGPUとメモリを調べると、推奨事項にそのマシンが反映されます。",
     getSprout: "Sprout を入手",

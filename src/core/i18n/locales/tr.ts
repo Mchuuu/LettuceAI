@@ -4645,6 +4645,8 @@ export const trMessages: DeepPartialMessageTree<LocaleMessages> = {
     destinationPickerTitle: "Modeller nereye kaydedilsin?",
     destinationPickerSubtitle: "Sıradaki indirmeyi nereye göndereceğinizi seçin. Bunu istediğiniz zaman değiştirebilirsiniz.",
     destinationNoOllama: "Yapılandırılmış Ollama sağlayıcısı yok. Modelleri uzak bir örneğe çekmek için Ayarlar → Sağlayıcılar kısmından bir tane ekleyin.",
+    mobileOllamaTitle: "Bir Ollama sağlayıcısı bağlayın",
+    mobileOllamaCta: "Ollama Sağlayıcısı Ekle",
     ollamaModeNoticeTitle: "Öneriler kullanılamıyor",
     ollamaModeNoticeBody: "Bu model uzak ana makinede çalışır, bu nedenle uygulama çalıştırılabilirliği kendi başına tahmin edemez. Ana makinenin GPU ve belleğini incelemek için bu Ollama sağlayıcısı için Sprout'u etkinleştirin, öneriler o makineyi yansıtacaktır.",
     getSprout: "Sprout'u edinin",

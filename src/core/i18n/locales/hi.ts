@@ -4025,6 +4025,8 @@ export const hiMessages: DeepPartialMessageTree<LocaleMessages> = {
     destinationPickerTitle: "मॉडल कहाँ जाने चाहिए?",
     destinationPickerSubtitle: "चुनें कि अगले डाउनलोड को कहाँ भेजना है। आप इसे किसी भी समय बदल सकते हैं।",
     destinationNoOllama: "कोई Ollama प्रदाता कॉन्फ़िगर नहीं किया गया है। रिमोट इंस्टेंस पर मॉडल पुल करने के लिए Settings → Providers में एक जोड़ें।",
+    mobileOllamaTitle: "एक Ollama प्रदाता कनेक्ट करें",
+    mobileOllamaCta: "Ollama प्रदाता जोड़ें",
     ollamaModeNoticeTitle: "सिफारिशें अनुपलब्ध हैं",
     ollamaModeNoticeBody: "यह मॉडल रिमोट होस्ट पर चलता है, इसलिए ऐप स्वयं रनैबिलिटी का अनुमान नहीं लगा सकती। होस्ट के GPU और मेमोरी की जांच करने के लिए इस Ollama प्रदाता के लिए Sprout सक्षम करें, और अनुशंसाएं उस मशीन को दर्शाएंगी।",
     getSprout: "Sprout प्राप्त करें",
