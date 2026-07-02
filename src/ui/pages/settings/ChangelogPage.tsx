@@ -26,6 +26,125 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "2.1.0 / 2.1.0",
+    date: "2026-07-02",
+    title: "2.1 — Multi-GPU Local Models, Performance Metrics & Smarter Providers",
+    description:
+      "Run local models across every GPU in your machine with automatic layer distribution and KV cache placement, and watch a new performance dashboard track tokens per second on every generation. Pin OpenRouter to a specific provider endpoint, probe remote Ollama hardware for real runnability, and export chats in SillyTavern's own jsonl format. Plus a shared memory cycle hub across chat and group pages, and a long wave of memory, embedding, and backup reliability work.",
+    changes: [
+      {
+        type: "feature",
+        description:
+          "Multi-GPU local models: llama.cpp now distributes a model's layers across every selected GPU, with automatic or manual splits, KV cache placement modes, a main-GPU pin, and per-GPU VRAM reservation so nothing overflows.",
+      },
+      {
+        type: "feature",
+        description:
+          "Added a per-model single-GPU device override for choosing exactly which GPU runs a model.",
+      },
+      {
+        type: "feature",
+        description:
+          "Performance metrics: a new local-LLM performance page graphs tokens per second and prompt/generation timing per run and across runs, with a per-message action to see exactly how any reply was produced (including in group chats).",
+      },
+      {
+        type: "feature",
+        description:
+          "Per-message MTP stats: speculative-decoding acceptance and draft stats are now persisted and shown on each message.",
+      },
+      {
+        type: "feature",
+        description:
+          "OpenRouter provider pinning: pick a specific provider endpoint per model, with live pricing, cache rates, uptime, and provider logos, and route every request exclusively through it.",
+      },
+      {
+        type: "feature",
+        description:
+          "Sprout hardware probe: remote Ollama runnability is now judged against the real hardware behind the endpoint instead of a guess.",
+      },
+      {
+        type: "feature",
+        description:
+          "SillyTavern-compatible export: chat export and import now speak the official SillyTavern jsonl format, so histories move cleanly in and out.",
+      },
+      {
+        type: "feature",
+        description:
+          "Shared memory cycle hub: a single unified memory-cycle panel across both chat and group memory pages.",
+      },
+      {
+        type: "improvement",
+        description:
+          "Multi-GPU distribution and KV modes are explained inline with bottom-menu pickers, fully localized in the model editor.",
+      },
+      {
+        type: "improvement",
+        description:
+          "Added a warning when a manual layer split exceeds a device's reported VRAM before loading, and a notice when vision disables MTP.",
+      },
+      {
+        type: "improvement",
+        description:
+          "OpenRouter requests now send the roleplay category and current app-attribution headers.",
+      },
+      {
+        type: "improvement",
+        description:
+          "Backup and sync now preserve current data instead of overwriting it, and companion mode data is preserved in export and config settings.",
+      },
+      {
+        type: "improvement",
+        description:
+          "Explicit dynamic-memory model selection is preserved instead of falling back to a default, and shared-memory owner resolution honors companion character mode.",
+      },
+      {
+        type: "improvement",
+        description:
+          "ONNX Runtime is now bundled on Windows, with Kokoro routed through a shared runtime init.",
+      },
+      {
+        type: "bugfix",
+        description:
+          "A large multi-GPU planning fix pass (found while testing a 31B model across an RTX 3080 Ti and RTX 5060 Ti): Blackwell/CUDA 13 GPUs reporting zero total VRAM are now visible to planning, KV cost is priced per GPU-resident layer, flash-attention AUTO is treated as enabled, and stale caches are rejected, lifting the test system from 27 to 59 of 60 GPU layers.",
+      },
+      {
+        type: "bugfix",
+        description:
+          "Per-GPU KV cache VRAM is reserved when distributing layers, and immediate aborts skip model load by checking the abort signal before the engine starts.",
+      },
+      {
+        type: "bugfix",
+        description:
+          "Fixed a re-embedding loop, de-duplicated lorebook scans and embedding-preference reads, and stamped embedding signatures from the actual vector to stop spurious vector migrations.",
+      },
+      {
+        type: "bugfix",
+        description:
+          "Embedding migration markers now survive the session schema round-trip, and the embedding tokenizer is resolved from the version-specific file instead of a hardcoded one.",
+      },
+      {
+        type: "bugfix",
+        description:
+          "Upgrading from 2.0.0 silently installs the v4 embedding tokenizer once if the model was present without it, so token counting resolves after the update.",
+      },
+      {
+        type: "bugfix",
+        description:
+          "Windows are retried after a dynamic-memory failure instead of being skipped.",
+      },
+      {
+        type: "bugfix",
+        description:
+          "macOS keeps native decorations and an opaque window so the traffic lights and rounded corners render correctly.",
+      },
+      {
+        type: "bugfix",
+        description:
+          "A per-conversation chat appearance override no longer injects defaults that clobber global settings, and Discovery card images load from the new ct-cards storage host.",
+      },
+    ],
+  },
+  {
     version: "2.0.0 / 2.0.0",
     date: "2026-06-27",
     title: "2.0 — Living Companion Souls, Director Group Chats, Time Awareness & a Reinvented Desktop",
