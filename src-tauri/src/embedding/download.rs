@@ -10,6 +10,59 @@ use tauri::Emitter;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex as TokioMutex;
 
+pub fn repair_v4_tokenizer(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        match repair_v4_tokenizer_inner(&app).await {
+            Ok(true) => log_info(&app, "embedding_migration", "installed missing v4 tokenizer"),
+            Ok(false) => {}
+            Err(e) => log_warn(
+                &app,
+                "embedding_migration",
+                format!("v4 tokenizer repair skipped: {}", e),
+            ),
+        }
+    });
+}
+
+async fn repair_v4_tokenizer_inner(app: &AppHandle) -> Result<bool, String> {
+    let model_dir = embedding_model_dir(app)?;
+    let model_path = model_dir.join(MODEL_FILES_V4_LOCAL[0]);
+    let tokenizer_path = model_dir.join(MODEL_FILES_V4_LOCAL[1]);
+
+    if !model_path.exists() || tokenizer_path.exists() {
+        return Ok(false);
+    }
+
+    let url = format!("{}/{}", HUGGINGFACE_BASE_V4, MODEL_FILES_V4_REMOTE[1]);
+    let response = reqwest::Client::new()
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    if !response.status().is_success() {
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            format!("tokenizer fetch failed with status {}", response.status()),
+        ));
+    }
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    let temp_path = tokenizer_path.with_extension("tmp");
+    tokio::fs::write(&temp_path, bytes.as_ref())
+        .await
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    tokio::fs::rename(&temp_path, &tokenizer_path)
+        .await
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    Ok(true)
+}
+
 pub async fn reset_download_state() {
     let mut state = DOWNLOAD_STATE.lock().await;
     state.is_downloading = false;
