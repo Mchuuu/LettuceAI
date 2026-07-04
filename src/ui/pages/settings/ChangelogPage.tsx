@@ -26,6 +26,85 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "2.1.1 / 2.1.1",
+    date: "2026-07-04",
+    title: "2.1.1 — Device Sync Rebuilt, Multi-GPU Clarity & Guided Tours",
+    description:
+      "Device sync got a ground-up reliability rebuild: conflicts resolve the right way, settings and memories arrive intact, transfers have no size ceiling, and failures say so instead of pretending everything worked. Multi-GPU stopped being a guessing game, five new guided tours walk you through the trickiest parts of the app, and ASR learning data joins sync and backups.",
+    changes: [
+      {
+        type: "bugfix",
+        description:
+          "Sync conflict resolution now keeps the newest data instead of the oldest. Previously a fresh install could silently overwrite the host device's real settings, advanced settings, and prompt templates with its own defaults.",
+      },
+      {
+        type: "bugfix",
+        description:
+          "Memory metadata survives sync: importance, categories, timestamps, and embedding versions arrive intact instead of being stripped to bare text.",
+      },
+      {
+        type: "improvement",
+        description:
+          "Large libraries sync in chunks with no more transfer size ceiling, and each data domain is applied and finalized as it completes.",
+      },
+      {
+        type: "bugfix",
+        description:
+          "A sync that fails or loses connection mid-transfer now reports a real error instead of completing silently with partial data.",
+      },
+      {
+        type: "feature",
+        description:
+          "Companion data, creation helper drafts, and ASR learning data (custom vocabulary, corrections, dismissed suggestions) now sync between devices. ASR learning data is also included in backups.",
+      },
+      {
+        type: "improvement",
+        description:
+          "The post-sync embedding model prompt now also triggers when the synced data itself contains memories, even if settings arrive misconfigured.",
+      },
+      {
+        type: "bugfix",
+        description:
+          "A leftover single-GPU pin can no longer silently disable multi-GPU. Enabling multi-GPU at the same or broader level takes precedence, while a deliberate per-model pin still wins where intended.",
+      },
+      {
+        type: "improvement",
+        description:
+          "The model editor shows the effective multi-GPU state: distribution controls appear for models inheriting the global default, single-GPU controls hide when they do not apply, and models still pinned to one GPU get a notice with a one-tap Remove pin.",
+      },
+      {
+        type: "improvement",
+        description:
+          "Model browser installs persist your offload intent (auto, CPU, GPU, mixed) instead of a hardware-specific layer count, so VRAM you add later is actually used.",
+      },
+      {
+        type: "improvement",
+        description:
+          "Deleting a model file from Installed Models warns when a configured model, vision adapter, MTP draft, or global default still references it, listing exactly what would break, without blocking the delete.",
+      },
+      {
+        type: "feature",
+        description:
+          "Five new guided tours: the local model editor, runtime defaults, the model browser's recommendation panel, group chats, and dynamic memory now walk you through themselves on first visit, in every supported language.",
+      },
+      {
+        type: "improvement",
+        description:
+          "The tour engine scrolls partially visible targets into view, top-aligns targets taller than the screen, and places its card beside full-height panels instead of on top of them.",
+      },
+      {
+        type: "improvement",
+        description:
+          "Model loading shows a single toast with per-GPU progress bars, and toggling global multi-GPU offers to reconfigure existing models in one step.",
+      },
+      {
+        type: "bugfix",
+        description:
+          "Desktop back navigation no longer strands you on the settings root, the mobile settings back flow was corrected, and Sprout hardware reports are validated before scoring runnability.",
+      },
+    ],
+  },
+  {
     version: "2.1.0 / 2.1.0",
     date: "2026-07-02",
     title: "2.1 — Multi-GPU Local Models, Performance Metrics & Smarter Providers",
