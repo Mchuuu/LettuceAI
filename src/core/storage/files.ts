@@ -87,6 +87,7 @@ export const storageBridge = {
 
   // Embedding model download
   checkEmbeddingModel: () => invoke<boolean>("check_embedding_model"),
+  memoryEmbeddingsExist: () => invoke<boolean>("memory_embeddings_exist"),
   getEmbeddingModelInfo: () =>
     invoke<{
       installed: boolean;

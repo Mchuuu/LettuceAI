@@ -656,6 +656,16 @@ pub fn delete_all_for_session_app(
     delete_all_for_session(&conn, session_id, kind)
 }
 
+#[tauri::command]
+pub fn memory_embeddings_exist(app: AppHandle) -> Result<bool, String> {
+    let conn = open_db(&app)?;
+    conn.query_row("SELECT EXISTS(SELECT 1 FROM memory_embeddings)", [], |r| {
+        r.get::<_, i64>(0)
+    })
+    .map(|value| value != 0)
+    .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
+}
+
 #[allow(dead_code)]
 pub fn count_for_session_app(
     app: &AppHandle,

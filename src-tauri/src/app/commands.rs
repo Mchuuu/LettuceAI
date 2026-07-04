@@ -46,6 +46,7 @@ macro_rules! invoke_handler {
             crate::storage_manager::settings::settings_set_defaults,
             crate::storage_manager::settings::analytics_is_available,
             crate::storage_manager::db::storage_db_size,
+            crate::storage_manager::memory_embeddings::memory_embeddings_exist,
             crate::storage_manager::providers::provider_upsert,
             crate::storage_manager::providers::provider_delete,
             crate::storage_manager::models::model_upsert,

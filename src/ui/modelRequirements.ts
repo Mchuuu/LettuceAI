@@ -1,6 +1,7 @@
 import { Cpu, Heart, Tag, Waypoints, type LucideIcon } from "lucide-react";
 
 import { readAdvancedSettings, type AdvancedSettings } from "../core/storage/advanced";
+import { storageBridge } from "../core/storage/files";
 import { getEmbeddingModelInfo, listCharacters } from "../core/storage/repo";
 import type { Character } from "../core/storage/schemas";
 
@@ -60,9 +61,13 @@ export function hasCompanionCharacters(characters: Pick<Character, "mode">[]): b
 }
 
 export async function getPostSyncRequirementPolicy(): Promise<ModelRequirementPolicy> {
-  const [advanced, characters] = await Promise.all([readAdvancedSettings(), listCharacters()]);
+  const [advanced, characters, hasMemories] = await Promise.all([
+    readAdvancedSettings(),
+    listCharacters(),
+    storageBridge.memoryEmbeddingsExist().catch(() => false),
+  ]);
   return {
-    requireEmbedding: requiresDynamicMemoryModels(advanced),
+    requireEmbedding: requiresDynamicMemoryModels(advanced) || hasMemories,
     requireCompanion: hasCompanionCharacters(characters),
   };
 }
