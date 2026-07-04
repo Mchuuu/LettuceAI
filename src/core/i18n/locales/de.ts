@@ -7589,6 +7589,102 @@ export const deMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
   },
   tour: {
+    editModelLlama: {
+      context: {
+        title: "Wähle, wie viel Kontext du nutzt",
+        body: "Mehr Kontext bedeutet längeres Gedächtnis im Gespräch, frisst aber schnell VRAM. Auto richtet sich nach deiner Hardware, und du kannst jederzeit selbst nachjustieren.",
+      },
+      presets: {
+        title: "Presets übernehmen das Tuning",
+        body: "Ausgewogen, Durchsatz, VRAM-Sparer, CPU + RAM. Ein Tipp setzt sinnvolle Werte für alles hier unten, und du kannst danach trotzdem noch feilen.",
+      },
+      gpu: {
+        title: "Hier wohnt das GPU-Offloading",
+        body: "Auto plant die Layer anhand deines freien VRAM. Mit mehr als einer GPU kannst du das Modell hier auf mehrere Karten aufteilen oder dem globalen Standard aus den Einstellungen folgen.",
+      },
+      report: {
+        title: "Sieh, was wirklich passiert ist",
+        body: "Nach jedem Laden zeigt dieser Bericht, was tatsächlich lief: Layer auf der GPU, genutzter Kontext, eventuelle Fallbacks. Wenn sich etwas langsam anfühlt, schau zuerst hier nach.",
+      },
+    },
+    runtimeDefaults: {
+      storage: {
+        title: "Hier leben deine Modelle",
+        body: "Dieser Ordner enthält jede heruntergeladene Modelldatei. Du kannst ihn jederzeit auf ein anderes Laufwerk verschieben, wenn der Platz knapp wird.",
+      },
+      llama: {
+        title: "Standards für jedes lokale Modell",
+        body: "Kontext, KV cache und GPU-Verhalten, die du hier setzt, gelten für alle lokalen Modelle. Jedes Modell kann sie in seinem eigenen Editor überschreiben.",
+      },
+      multiGpu: {
+        title: "Modelle auf mehrere GPUs verteilen",
+        body: "Mit zwei oder mehr Grafikkarten schaltest du das hier ein, um die Layer auf sie zu verteilen. Modelle auf \"Erben\" folgen diesem Schalter automatisch.",
+      },
+    },
+    hfBrowser: {
+      panel: {
+        title: "Dein persönlicher Eignungsbericht",
+        body:
+          "Alles hier ist auf diesen Rechner zugeschnitten: das Urteil oben sagt dir, ob das Modell läuft und wie flüssig. Ändere eine Einstellung und das Urteil aktualisiert sich sofort.",
+      },
+      tabs: {
+        title: "Zwei Wege zum Stöbern",
+        body:
+          "Empfohlene Einstellungen wählt und optimiert eine Datei für dich. Verfügbare Dateien listet alle Downloads des Repos auf, wenn du lieber selbst auswählst.",
+      },
+      quant: {
+        title: "Wähle eine Quantisierung",
+        body: "Kleinere Quants brauchen weniger Speicher, verlieren aber etwas Qualität. Die Punktzahl neben jeder Datei zeigt dir, wie gut sie zu deiner Hardware passt.",
+      },
+      context: {
+        title: "Kontext kostet auch Speicher",
+        body: "Die Modelldatei ist nicht die ganze Geschichte: Jedes Token Kontext braucht ebenfalls Platz. Dieser Regler zeigt, wie weit du auf deinem Rechner gehen kannst.",
+      },
+      offload: {
+        title: "Wo soll das Modell laufen?",
+        body: "Auto entscheidet für dich. GPU ist am schnellsten, wenn es passt, CPU ist der langsame, aber sichere Weg, und Gemischt liegt dazwischen. Du kannst das später im Modell-Editor ändern.",
+      },
+      kvLocation: {
+        title: "Wo der Gesprächs-Cache wohnt",
+        body: "Den KV cache im VRAM zu halten ist am schnellsten. Ihn ins RAM auszulagern gibt deiner GPU Platz für mehr Layer, wenn es eng wird.",
+      },
+    },
+    groupChatDetail: {
+      title: {
+        title: "Gruppeneinstellungen stecken hinter dem Namen",
+        body: "Tippe auf den Gruppennamen, um Teilnehmer zu verwalten, festzulegen, wie der nächste Sprecher gewählt wird, und Charaktere stummzuschalten, die aussetzen sollen.",
+      },
+      participants: {
+        title: "Alle im Raum",
+        body: "Das sind die Charaktere in dieser Gruppe. Tippe, um hinzuzufügen, zu entfernen oder neu zu ordnen, wer Teil des Gesprächs ist.",
+      },
+      memory: {
+        title: "Die Gruppe erinnert sich gemeinsam",
+        body: "Gruppenerinnerungen gelten für das ganze Gespräch. Tippe auf das Gehirn, um zu sehen, anzupinnen oder aufzuräumen, was die Gruppe weiß.",
+      },
+      composer: {
+        title: "Sag etwas",
+        body: "Tippe deine Nachricht hier ein. Wer als Nächstes antwortet, hängt von der Sprecherauswahl ab, die du in den Gruppeneinstellungen gewählt hast.",
+      },
+    },
+    dynamicMemory: {
+      enable: {
+        title: "Dynamisches Gedächtnis einschalten",
+        body: "Wenn aktiviert, zieht die App still wichtige Fakten aus deinen Chats und ruft sie später wieder ab, damit Charaktere sich merken, was zählt.",
+      },
+      mode: {
+        title: "Wähle, wie viel Kontrolle du willst",
+        body: "Automatisch führt Speicheraktualisierungen im Hintergrund aus, Erst fragen fragt vor dem Speichern bei dir nach, und Manuell überlässt alles dir.",
+      },
+      preset: {
+        title: "Profile übernehmen das Tuning",
+        body: "Wähle ein Profil, um Zerfall, Budgets und Schwellenwerte in einem Rutsch zu setzen. Unter den erweiterten Einstellungen kannst du alles feinjustieren.",
+      },
+      embedding: {
+        title: "Angetrieben von einem kleinen lokalen Modell",
+        body: "Der Abruf funktioniert über Embeddings, die auf deinem Gerät berechnet werden. Dieser Abschnitt verwaltet die Version des Embedding-Modells und seine Einstellungen.",
+      },
+    },
     stepCounter: "Schritt {{current}} von {{total}}",
     skipTour: "Tour überspringen",
     next: "Weiter",

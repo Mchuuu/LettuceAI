@@ -42,6 +42,7 @@ import {
   ADVANCED_OLLAMA_SEED_RANGE,
 } from "../../components/AdvancedModelSettingsForm";
 import { BottomMenu, MenuButton, MenuSection } from "../../components/BottomMenu";
+import { GuidedTour, useGuidedTour } from "../../components/GuidedTour";
 import { ModelSelectionBottomMenu } from "../../components/ModelSelectionBottomMenu";
 import { NumberInput } from "../../components/NumberInput";
 import {
@@ -474,6 +475,8 @@ export function EditModelPage() {
       cancelled = true;
     };
   }, []);
+  const { shouldShow: showEditModelTour, dismiss: dismissEditModelTour } =
+    useGuidedTour("editModelLlama");
   const [showLocalModelPicker, setShowLocalModelPicker] = useState(false);
   const [localLibraryPickerMode, setLocalLibraryPickerMode] =
     useState<LocalLibraryPickerMode>("model");
@@ -2199,6 +2202,7 @@ export function EditModelPage() {
                     <button
                       type="button"
                       onClick={() => setShowLlamaRuntimeReport(true)}
+                      data-tour-id="model-runtime-report"
                       className="flex w-full items-center justify-between gap-4 rounded-lg border border-fg/10 bg-surface-el/20 px-4 py-3 text-left transition hover:bg-surface-el/30"
                     >
                       <div className="flex min-w-0 items-center gap-3">
@@ -3671,7 +3675,7 @@ export function EditModelPage() {
                                 </div>
 
                                 {/* Context Length */}
-                                <div className="space-y-4">
+                                <div className="space-y-4" data-tour-id="model-runtime-context">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                       <div className="space-y-0.5">
@@ -4155,7 +4159,7 @@ export function EditModelPage() {
                                     </div>
                                   </div>
 
-                                  <div className="space-y-3">
+                                  <div className="space-y-3" data-tour-id="model-runtime-presets">
                                     <span className="block text-[13px] font-medium text-fg/70">
                                       {t("editModel.layerPlacement.quickPresets")}
                                     </span>
@@ -4327,7 +4331,10 @@ export function EditModelPage() {
                                   </div>
                                   )}
 
-                                  <div className="space-y-4 border-t border-fg/8 pt-4">
+                                  <div
+                                    className="space-y-4 border-t border-fg/8 pt-4"
+                                    data-tour-id="model-runtime-gpu"
+                                  >
                                     <div className="flex items-center justify-between gap-4">
                                       <div className="space-y-0.5">
                                         <span className="block text-[13px] font-medium text-fg/70">
@@ -6673,6 +6680,10 @@ export function EditModelPage() {
           </div>
         );
       })()}
+
+      {showEditModelTour && isLocalModel && activeDetailPanel === "runtime" && (
+        <GuidedTour tour="editModelLlama" onDismiss={dismissEditModelTour} />
+      )}
     </div>
   );
 }

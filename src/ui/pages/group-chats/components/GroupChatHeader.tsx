@@ -141,6 +141,7 @@ export function GroupChatHeader({
 
         <button
           onClick={onSettings}
+          data-tour-id="group-chat-title"
           className="min-w-0 flex-1 truncate text-left text-xl font-bold text-fg/90 transition-opacity hover:opacity-80"
           aria-label={t("groupChats.header.settings")}
         >
@@ -151,6 +152,7 @@ export function GroupChatHeader({
           {/* Memory Button */}
           <button
             onClick={onMemories}
+            data-tour-id="group-chat-memory"
             className="relative flex h-10 w-10 items-center justify-center px-[0.6em] py-[0.3em] text-fg/75 transition hover:text-fg"
             aria-label={t("groupChats.header.memories")}
           >
@@ -209,6 +211,7 @@ export function GroupChatHeader({
           {/* Stacked character avatars */}
           <button
             onClick={onSettings}
+            data-tour-id="group-chat-participants"
             className="ml-1 flex shrink-0 items-center -space-x-2.5 transition hover:opacity-80 active:scale-95"
             aria-label={t("groupChats.header.settings")}
           >

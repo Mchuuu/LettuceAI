@@ -7589,6 +7589,102 @@ export const nlMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
   },
   tour: {
+    editModelLlama: {
+      context: {
+        title: "Kies hoeveel context je gebruikt",
+        body: "Meer context betekent een langer geheugen in het gesprek, maar het vreet VRAM. Auto bepaalt de grootte op basis van je hardware, en je kunt het altijd zelf bijstellen.",
+      },
+      presets: {
+        title: "Presets doen het afstellen voor je",
+        body: "Gebalanceerd, Doorvoer, VRAM-besparing, CPU + RAM. Eén tik zet verstandige waarden voor alles hieronder, en je kunt daarna nog steeds bijsturen.",
+      },
+      gpu: {
+        title: "Hier woont GPU-offload",
+        body: "Auto plant lagen op basis van je vrije VRAM. Met meer dan één GPU kun je het model hier over kaarten verdelen, of de globale standaard uit de instellingen volgen.",
+      },
+      report: {
+        title: "Zie wat er echt gebeurde",
+        body: "Na elke keer laden toont dit rapport wat er werkelijk draaide: lagen op de GPU, gebruikte context, eventuele fallbacks. Voelt iets traag, kijk dan eerst hier.",
+      },
+    },
+    runtimeDefaults: {
+      storage: {
+        title: "Je modellen wonen hier",
+        body: "Deze map bevat elk gedownload modelbestand. Je kunt hem naar een andere schijf verplaatsen wanneer je ruimte tekortkomt.",
+      },
+      llama: {
+        title: "Standaarden voor elk lokaal model",
+        body: "Context, KV cache en GPU-gedrag die je hier instelt gelden voor alle lokale modellen. Elk model kan ze overschrijven vanuit zijn eigen editor.",
+      },
+      multiGpu: {
+        title: "Verdeel modellen over GPU's",
+        body: "Met twee of meer videokaarten zet je dit aan om lagen over ze te verspreiden. Modellen die op Overnemen staan volgen deze schakelaar automatisch.",
+      },
+    },
+    hfBrowser: {
+      panel: {
+        title: "Jouw persoonlijke geschiktheidsrapport",
+        body:
+          "Alles hier is afgestemd op deze machine: het oordeel bovenaan zegt of het model draait en hoe soepel. Pas een instelling aan en het oordeel wordt direct bijgewerkt.",
+      },
+      tabs: {
+        title: "Twee manieren om te bladeren",
+        body:
+          "Aanbevolen instellingen kiest en stemt een bestand voor je af. Beschikbare bestanden toont alle downloads in de repo als je liever zelf kiest.",
+      },
+      quant: {
+        title: "Kies een kwantisatie",
+        body: "Kleinere quants gebruiken minder geheugen maar leveren wat kwaliteit in. De score naast elk bestand vertelt je hoe goed het bij je hardware past.",
+      },
+      context: {
+        title: "Context kost ook geheugen",
+        body: "Het modelbestand is niet het hele verhaal: elke token context heeft ook ruimte nodig. Deze schuif laat zien hoe ver je kunt gaan op jouw machine.",
+      },
+      offload: {
+        title: "Waar moet het model draaien?",
+        body: "Auto kiest voor je. GPU is het snelst als het past, CPU is de langzame-maar-veilige route, en Gemengd zit ertussenin. Je kunt dit later wijzigen in de modeleditor.",
+      },
+      kvLocation: {
+        title: "Waar de gesprekscache woont",
+        body: "De KV cache in VRAM houden is het snelst. Naar RAM verplaatsen geeft je GPU ruimte voor meer lagen als het krap wordt.",
+      },
+    },
+    groupChatDetail: {
+      title: {
+        title: "Groepsinstellingen zitten achter de naam",
+        body: "Tik op de groepsnaam om deelnemers te beheren, te kiezen hoe de volgende spreker wordt gekozen, en karakters te dempen die je even wilt laten toekijken.",
+      },
+      participants: {
+        title: "Iedereen in de kamer",
+        body: "Dit zijn de karakters in deze groep. Tik om toe te voegen, te verwijderen of te herschikken wie meedoet aan het gesprek.",
+      },
+      memory: {
+        title: "De groep onthoudt samen",
+        body: "Groepsherinneringen worden gedeeld over het hele gesprek. Tik op het brein om te bekijken, vast te pinnen of op te ruimen wat de groep weet.",
+      },
+      composer: {
+        title: "Zeg iets",
+        body: "Typ hier je bericht. Wie er als volgende antwoordt hangt af van de sprekerselectie die je in de groepsinstellingen hebt gekozen.",
+      },
+    },
+    dynamicMemory: {
+      enable: {
+        title: "Zet dynamisch geheugen aan",
+        body: "Indien ingeschakeld haalt de app stilletjes belangrijke feiten uit je chats en roept ze later op, zodat karakters onthouden wat ertoe doet.",
+      },
+      mode: {
+        title: "Kies hoeveel controle je wilt",
+        body: "Automatisch draait geheugenupdates op de achtergrond, Eerst vragen checkt bij je voordat er wordt opgeslagen, en Handmatig laat alles aan jou over.",
+      },
+      preset: {
+        title: "Profielen regelen de afstelling",
+        body: "Kies een profiel om verval, budgetten en drempels in één keer in te stellen. Onder geavanceerde instellingen kun je alles fijn afstellen.",
+      },
+      embedding: {
+        title: "Aangedreven door een klein lokaal model",
+        body: "Herinneringen ophalen werkt via embeddings die op je apparaat worden berekend. Deze sectie beheert de versie van het embeddingmodel en zijn instellingen.",
+      },
+    },
     stepCounter: "Stap {{current}} van {{total}}",
     skipTour: "Rondleiding overslaan",
     next: "Volgende",

@@ -23,6 +23,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 
 import { BottomMenu, MenuButton, MenuButtonGroup, MenuDivider } from "../../components/BottomMenu";
+import { GuidedTour, useGuidedTour } from "../../components/GuidedTour";
 import { Switch } from "../../components/Switch";
 
 import {
@@ -148,6 +149,7 @@ export function LocalRuntimeDefaultsPage() {
   const [reconfigureKind, setReconfigureKind] = useState<"multi" | "single" | null>(null);
   const [reconfigureCount, setReconfigureCount] = useState(0);
   const [reconfiguring, setReconfiguring] = useState(false);
+  const { shouldShow: showTour, dismiss: dismissTour } = useGuidedTour("runtimeDefaults");
 
   const refreshModelsDir = useCallback(async () => {
     try {
@@ -469,7 +471,7 @@ export function LocalRuntimeDefaultsPage() {
     <div className="flex min-h-screen flex-col">
       <main className="flex-1 px-4 pb-24 pt-4">
         <div className="mx-auto w-full max-w-5xl space-y-6">
-          <div className="space-y-4">
+          <div className="space-y-4" data-tour-id="runtime-defaults-storage">
             <SectionHeading label={t("runtimeDefaults.storageSection")} />
             <p className="px-1 text-xs text-fg/50">{t("runtimeDefaults.storageDescription")}</p>
 
@@ -478,7 +480,7 @@ export function LocalRuntimeDefaultsPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4" data-tour-id="runtime-defaults-llama">
             <SectionHeading label={t("runtimeDefaults.llamaSection")} />
             <p className="px-1 text-xs text-fg/50">{t("runtimeDefaults.llamaDescription")}</p>
 
@@ -530,6 +532,7 @@ export function LocalRuntimeDefaultsPage() {
               </select>
             </SettingRow>
 
+            <div data-tour-id="runtime-defaults-multigpu">
             <SettingRow
               icon={<Cpu className="h-4 w-4 text-warning/80" />}
               iconClassName="border-warning/30 bg-warning/10"
@@ -549,6 +552,7 @@ export function LocalRuntimeDefaultsPage() {
                 aria-label={t("runtimeDefaults.llamaMultiGpuTitle")}
               />
             </SettingRow>
+            </div>
 
             {!multiGpuAvailable && (
               <p className="-mt-1 px-1 text-[11px] text-fg/45">
@@ -886,6 +890,8 @@ export function LocalRuntimeDefaultsPage() {
           </button>
         </div>
       </BottomMenu>
+
+      {showTour && <GuidedTour tour="runtimeDefaults" onDismiss={dismissTour} />}
     </div>
   );
 }

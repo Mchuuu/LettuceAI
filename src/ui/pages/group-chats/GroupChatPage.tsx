@@ -69,6 +69,7 @@ import {
   GroupChatMessageActionsBottomSheet,
   type VariantState,
 } from "./components";
+import { GuidedTour, useGuidedTour } from "../../components/GuidedTour";
 
 const MESSAGES_PAGE_SIZE = 50;
 const STICKY_BOTTOM_THRESHOLD_PX = 80;
@@ -100,6 +101,8 @@ export function GroupChatPage() {
   useBeetrootEasterEgg({ messages, fire: beetrootRain.fire });
   const [_participationStats, setParticipationStats] = useState<GroupParticipation[]>([]);
   const [loading, setLoading] = useState(true);
+  const { shouldShow: showGroupTour, dismiss: dismissGroupTour } =
+    useGuidedTour("groupChatDetail");
   const [sending, setSending] = useState(false);
   const [sendingStatus, setSendingStatus] = useState<"selecting" | "generating" | null>(null);
   const [_selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
@@ -2449,6 +2452,10 @@ export function GroupChatPage() {
           onClose={() => setSettingsDrawerOpen(false)}
           groupSessionId={session.id}
         />
+      )}
+
+      {showGroupTour && !loading && session && (
+        <GuidedTour tour="groupChatDetail" onDismiss={dismissGroupTour} />
       )}
     </div>
   );

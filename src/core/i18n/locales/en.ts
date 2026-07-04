@@ -8228,6 +8228,102 @@ export const enMessages = {
     },
   },
   tour: {
+    editModelLlama: {
+      context: {
+        title: "Pick how much context to use",
+        body: "Bigger context means longer memory in the conversation, but it eats VRAM fast. Auto sizes it from your hardware, and you can always dial it in yourself.",
+      },
+      presets: {
+        title: "Presets do the tuning for you",
+        body: "Balanced, Throughput, VRAM Saver, CPU + RAM. One tap sets sensible values for everything below, and you can still tweak afterwards.",
+      },
+      gpu: {
+        title: "This is where GPU offload lives",
+        body: "Auto plans layers from your free VRAM. With more than one GPU you can split the model across cards here, or follow the global default from settings.",
+      },
+      report: {
+        title: "See what actually happened",
+        body: "After each load, this report shows what really ran: layers on GPU, context used, any fallbacks. When something feels slow, look here first.",
+      },
+    },
+    runtimeDefaults: {
+      storage: {
+        title: "Your models live here",
+        body: "This folder holds every downloaded model file. You can move it to another drive whenever you're running out of space.",
+      },
+      llama: {
+        title: "Defaults for every local model",
+        body: "Context, KV cache, and GPU behavior set here apply to all local models. Any model can override them from its own editor.",
+      },
+      multiGpu: {
+        title: "Split models across GPUs",
+        body: "With two or more graphics cards, turn this on to spread layers across them. Models set to Inherit follow this switch automatically.",
+      },
+    },
+    hfBrowser: {
+      panel: {
+        title: "Your personal fit report",
+        body:
+          "Everything here is sized to this machine: the verdict up top says whether the model will run, and how comfortably. Change any setting and the verdict updates live.",
+      },
+      tabs: {
+        title: "Two ways to browse",
+        body:
+          "Recommended Settings picks and tunes a file for you. Available Files lists every download in the repo when you'd rather choose by hand.",
+      },
+      quant: {
+        title: "Pick a quantization",
+        body: "Smaller quants use less memory but lose a little quality. The score next to each file tells you how well it fits your hardware.",
+      },
+      context: {
+        title: "Context costs memory too",
+        body: "The model file isn't the whole story: every token of context needs room as well. This slider shows how far you can push it on your machine.",
+      },
+      offload: {
+        title: "Where should the model run?",
+        body: "Auto picks for you. GPU is fastest if it fits, CPU is the slow-but-safe route, and Mixed splits the difference. You can change this later in the model editor.",
+      },
+      kvLocation: {
+        title: "Where the conversation cache lives",
+        body: "Keeping the KV cache in VRAM is fastest. Pushing it to RAM frees your GPU for more layers when things get tight.",
+      },
+    },
+    groupChatDetail: {
+      title: {
+        title: "Group settings live behind the name",
+        body: "Tap the group name to manage participants, choose how the next speaker is picked, and mute characters you want to sit out.",
+      },
+      participants: {
+        title: "Everyone in the room",
+        body: "These are the characters in this group. Tap to add, remove, or reorder who's part of the conversation.",
+      },
+      memory: {
+        title: "The group remembers together",
+        body: "Group memories are shared across the whole conversation. Tap the brain to see, pin, or clean up what the group knows.",
+      },
+      composer: {
+        title: "Say something",
+        body: "Type your message here. Who answers next depends on the speaker selection you picked in group settings.",
+      },
+    },
+    dynamicMemory: {
+      enable: {
+        title: "Turn on dynamic memory",
+        body: "When enabled, the app quietly extracts important facts from your chats and recalls them later, so characters remember what matters.",
+      },
+      mode: {
+        title: "Choose how much control you want",
+        body: "Auto runs memory updates in the background, Ask First checks with you before saving, and Manual leaves it all to you.",
+      },
+      preset: {
+        title: "Profiles set the tuning",
+        body: "Pick a profile to set decay, budgets, and thresholds in one go. You can fine-tune everything under advanced settings.",
+      },
+      embedding: {
+        title: "Powered by a small local model",
+        body: "Recall works through embeddings computed on your device. This section manages the embedding model version and its settings.",
+      },
+    },
     stepCounter: "Step {{current}} of {{total}}",
     skipTour: "Skip tour",
     next: "Next",

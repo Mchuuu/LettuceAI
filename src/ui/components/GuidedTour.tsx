@@ -31,7 +31,12 @@ export type TourId =
   | "appShell"
   | "chatDetail"
   | "postFirstMessage"
-  | "speechRecognition";
+  | "speechRecognition"
+  | "editModelLlama"
+  | "runtimeDefaults"
+  | "hfBrowser"
+  | "groupChatDetail"
+  | "dynamicMemory";
 
 const TOURS: Record<TourId, TourConfig> = {
   appShell: {
@@ -161,6 +166,162 @@ const TOURS: Record<TourId, TourConfig> = {
     ],
   },
 
+  editModelLlama: {
+    storageKey: "edit_model_llama_tour_v1",
+    steps: [
+      {
+        id: "model-runtime-context",
+        targetAttr: "model-runtime-context",
+        titleKey: "tour.editModelLlama.context.title",
+        bodyKey: "tour.editModelLlama.context.body",
+      },
+      {
+        id: "model-runtime-presets",
+        targetAttr: "model-runtime-presets",
+        titleKey: "tour.editModelLlama.presets.title",
+        bodyKey: "tour.editModelLlama.presets.body",
+      },
+      {
+        id: "model-runtime-gpu",
+        targetAttr: "model-runtime-gpu",
+        titleKey: "tour.editModelLlama.gpu.title",
+        bodyKey: "tour.editModelLlama.gpu.body",
+      },
+      {
+        id: "model-runtime-report",
+        targetAttr: "model-runtime-report",
+        titleKey: "tour.editModelLlama.report.title",
+        bodyKey: "tour.editModelLlama.report.body",
+      },
+    ],
+  },
+
+  runtimeDefaults: {
+    storageKey: "runtime_defaults_tour_v1",
+    steps: [
+      {
+        id: "runtime-defaults-storage",
+        targetAttr: "runtime-defaults-storage",
+        titleKey: "tour.runtimeDefaults.storage.title",
+        bodyKey: "tour.runtimeDefaults.storage.body",
+      },
+      {
+        id: "runtime-defaults-llama",
+        targetAttr: "runtime-defaults-llama",
+        titleKey: "tour.runtimeDefaults.llama.title",
+        bodyKey: "tour.runtimeDefaults.llama.body",
+      },
+      {
+        id: "runtime-defaults-multigpu",
+        targetAttr: "runtime-defaults-multigpu",
+        titleKey: "tour.runtimeDefaults.multiGpu.title",
+        bodyKey: "tour.runtimeDefaults.multiGpu.body",
+      },
+    ],
+  },
+
+  hfBrowser: {
+    storageKey: "hf_browser_tour_v1",
+    steps: [
+      {
+        id: "hf-rec-panel",
+        targetAttr: "hf-rec-panel",
+        titleKey: "tour.hfBrowser.panel.title",
+        bodyKey: "tour.hfBrowser.panel.body",
+      },
+      {
+        id: "hf-rec-quant",
+        targetAttr: "hf-rec-quant",
+        titleKey: "tour.hfBrowser.quant.title",
+        bodyKey: "tour.hfBrowser.quant.body",
+      },
+      {
+        id: "hf-rec-context",
+        targetAttr: "hf-rec-context",
+        titleKey: "tour.hfBrowser.context.title",
+        bodyKey: "tour.hfBrowser.context.body",
+      },
+      {
+        id: "hf-rec-offload",
+        targetAttr: "hf-rec-offload",
+        titleKey: "tour.hfBrowser.offload.title",
+        bodyKey: "tour.hfBrowser.offload.body",
+      },
+      {
+        id: "hf-rec-kv-location",
+        targetAttr: "hf-rec-kv-location",
+        titleKey: "tour.hfBrowser.kvLocation.title",
+        bodyKey: "tour.hfBrowser.kvLocation.body",
+      },
+      {
+        id: "hf-rec-tabs",
+        targetAttr: "hf-rec-tabs",
+        titleKey: "tour.hfBrowser.tabs.title",
+        bodyKey: "tour.hfBrowser.tabs.body",
+      },
+    ],
+  },
+
+  groupChatDetail: {
+    storageKey: "group_chat_detail_tour_v1",
+    steps: [
+      {
+        id: "group-chat-title",
+        targetAttr: "group-chat-title",
+        titleKey: "tour.groupChatDetail.title.title",
+        bodyKey: "tour.groupChatDetail.title.body",
+      },
+      {
+        id: "group-chat-participants",
+        targetAttr: "group-chat-participants",
+        titleKey: "tour.groupChatDetail.participants.title",
+        bodyKey: "tour.groupChatDetail.participants.body",
+      },
+      {
+        id: "group-chat-memory",
+        targetAttr: "group-chat-memory",
+        titleKey: "tour.groupChatDetail.memory.title",
+        bodyKey: "tour.groupChatDetail.memory.body",
+      },
+      {
+        id: "group-chat-composer",
+        targetAttr: "group-chat-composer",
+        titleKey: "tour.groupChatDetail.composer.title",
+        bodyKey: "tour.groupChatDetail.composer.body",
+      },
+    ],
+  },
+
+  dynamicMemory: {
+    storageKey: "dynamic_memory_tour_v1",
+    steps: [
+      {
+        id: "dynmem-enable",
+        targetAttr: "dynmem-enable",
+        titleKey: "tour.dynamicMemory.enable.title",
+        bodyKey: "tour.dynamicMemory.enable.body",
+      },
+      {
+        id: "dynmem-mode",
+        targetAttr: "dynmem-mode",
+        titleKey: "tour.dynamicMemory.mode.title",
+        bodyKey: "tour.dynamicMemory.mode.body",
+      },
+      {
+        id: "dynmem-preset",
+        targetAttr: "dynmem-preset",
+        titleKey: "tour.dynamicMemory.preset.title",
+        bodyKey: "tour.dynamicMemory.preset.body",
+      },
+      {
+        id: "dynmem-embedding",
+        targetAttr: "dynmem-embedding",
+        titleKey: "tour.dynamicMemory.embedding.title",
+        bodyKey: "tour.dynamicMemory.embedding.body",
+      },
+    ],
+  },
+
   postFirstMessage: {
     storageKey: "post_first_message_tour_v1",
     steps: [
@@ -283,9 +444,17 @@ export function GuidedTour({
       const r = el.getBoundingClientRect();
       const vh = window.innerHeight;
       const margin = 80;
-      const offscreen = r.bottom < margin || r.top > vh - margin;
-      if (offscreen) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      const fitsInViewport = r.height <= vh - margin * 2;
+      if (fitsInViewport) {
+        const fullyVisible = r.top >= margin && r.bottom <= vh - margin;
+        if (!fullyVisible) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      } else {
+        const topInView = r.top >= 0 && r.top <= margin * 2;
+        if (!topInView) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
       }
     };
 
@@ -338,22 +507,58 @@ export function GuidedTour({
   };
 
   const targetCenterY = rect.top + rect.height / 2;
-  const placeAbove = targetCenterY > viewport.h / 2;
 
-  const desiredCenterX = rect.left + rect.width / 2;
-  const halfW = cardSize.width / 2;
-  const minCenterX = EDGE_PAD + halfW;
-  const maxCenterX = Math.max(minCenterX, viewport.w - EDGE_PAD - halfW);
-  const clampedCenterX = Math.min(maxCenterX, Math.max(minCenterX, desiredCenterX));
-  const cardLeft = clampedCenterX - halfW;
+  const spaceAbove = hole.y;
+  const spaceBelow = viewport.h - (hole.y + hole.h);
+  const neededVertical = cardSize.height + CARD_GAP + EDGE_PAD;
+  const fitsAbove = spaceAbove >= neededVertical;
+  const fitsBelow = spaceBelow >= neededVertical;
 
-  const cardTopRaw = placeAbove
-    ? hole.y - CARD_GAP - cardSize.height
-    : hole.y + hole.h + CARD_GAP;
-  const cardTop = Math.max(
-    EDGE_PAD,
-    Math.min(viewport.h - EDGE_PAD - cardSize.height, cardTopRaw),
-  );
+  let cardLeft: number;
+  let cardTop: number;
+
+  if (fitsAbove || fitsBelow) {
+    const placeAbove = fitsAbove && (!fitsBelow || targetCenterY > viewport.h / 2);
+
+    const desiredCenterX = rect.left + rect.width / 2;
+    const halfW = cardSize.width / 2;
+    const minCenterX = EDGE_PAD + halfW;
+    const maxCenterX = Math.max(minCenterX, viewport.w - EDGE_PAD - halfW);
+    const clampedCenterX = Math.min(maxCenterX, Math.max(minCenterX, desiredCenterX));
+    cardLeft = clampedCenterX - halfW;
+
+    const cardTopRaw = placeAbove
+      ? hole.y - CARD_GAP - cardSize.height
+      : hole.y + hole.h + CARD_GAP;
+    cardTop = Math.max(
+      EDGE_PAD,
+      Math.min(viewport.h - EDGE_PAD - cardSize.height, cardTopRaw),
+    );
+  } else {
+    const spaceLeft = hole.x;
+    const spaceRight = viewport.w - (hole.x + hole.w);
+    const placeLeft = spaceLeft >= spaceRight;
+
+    const cardLeftRaw = placeLeft
+      ? hole.x - CARD_GAP - cardSize.width
+      : hole.x + hole.w + CARD_GAP;
+    cardLeft = Math.max(
+      EDGE_PAD,
+      Math.min(viewport.w - EDGE_PAD - cardSize.width, cardLeftRaw),
+    );
+
+    const clampedTargetCenterY = Math.min(
+      viewport.h - EDGE_PAD,
+      Math.max(EDGE_PAD, targetCenterY),
+    );
+    cardTop = Math.max(
+      EDGE_PAD,
+      Math.min(
+        viewport.h - EDGE_PAD - cardSize.height,
+        clampedTargetCenterY - cardSize.height / 2,
+      ),
+    );
+  }
 
   const spring = { type: "spring", damping: 26, stiffness: 220 } as const;
 

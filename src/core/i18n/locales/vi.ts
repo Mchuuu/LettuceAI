@@ -6957,6 +6957,102 @@ export const viMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
   },
   tour: {
+    editModelLlama: {
+      context: {
+        title: "Chọn dùng bao nhiêu ngữ cảnh",
+        body: "Ngữ cảnh lớn hơn nghĩa là nhớ được lâu hơn trong cuộc trò chuyện, nhưng ngốn VRAM rất nhanh. Tự động sẽ chọn kích thước theo phần cứng của bạn, và bạn luôn có thể tự điều chỉnh.",
+      },
+      presets: {
+        title: "Cài đặt sẵn lo phần tinh chỉnh cho bạn",
+        body: "Cân bằng, Thông lượng, Tiết kiệm VRAM, CPU + RAM. Một chạm sẽ đặt giá trị hợp lý cho mọi thứ bên dưới, và bạn vẫn có thể chỉnh lại sau.",
+      },
+      gpu: {
+        title: "Chuyển tải GPU nằm ở đây",
+        body: "Tự động sẽ lên kế hoạch số lớp dựa trên VRAM trống của bạn. Nếu có nhiều GPU, bạn có thể chia mô hình giữa các card tại đây, hoặc theo mặc định chung từ cài đặt.",
+      },
+      report: {
+        title: "Xem điều gì thực sự đã xảy ra",
+        body: "Sau mỗi lần tải, báo cáo này cho biết những gì thực sự chạy: số lớp trên GPU, ngữ cảnh đã dùng, các phương án dự phòng nếu có. Khi thấy chậm, hãy xem ở đây trước.",
+      },
+    },
+    runtimeDefaults: {
+      storage: {
+        title: "Mô hình của bạn sống ở đây",
+        body: "Thư mục này chứa mọi tệp mô hình đã tải về. Bạn có thể chuyển nó sang ổ đĩa khác bất cứ khi nào sắp hết dung lượng.",
+      },
+      llama: {
+        title: "Mặc định cho mọi mô hình cục bộ",
+        body: "Ngữ cảnh, KV cache và hành vi GPU đặt ở đây áp dụng cho tất cả mô hình cục bộ. Mỗi mô hình đều có thể ghi đè từ trình chỉnh sửa riêng của nó.",
+      },
+      multiGpu: {
+        title: "Chia mô hình giữa các GPU",
+        body: "Nếu có từ hai card đồ họa trở lên, hãy bật tính năng này để phân bổ các lớp giữa chúng. Mô hình đặt ở chế độ Kế thừa sẽ tự động theo công tắc này.",
+      },
+    },
+    hfBrowser: {
+      panel: {
+        title: "Báo cáo độ phù hợp dành riêng cho bạn",
+        body:
+          "Mọi thứ ở đây đều được tính theo máy này: kết luận ở trên cho biết mô hình có chạy được không và mượt đến đâu. Đổi bất kỳ cài đặt nào, kết luận sẽ cập nhật ngay.",
+      },
+      tabs: {
+        title: "Hai cách duyệt",
+        body:
+          "Cài đặt đề xuất tự chọn và tinh chỉnh tệp cho bạn. Tệp khả dụng liệt kê mọi bản tải trong kho nếu bạn muốn tự chọn.",
+      },
+      quant: {
+        title: "Chọn mức lượng tử hóa",
+        body: "Quant nhỏ hơn dùng ít bộ nhớ hơn nhưng mất một chút chất lượng. Điểm số cạnh mỗi tệp cho biết nó vừa với phần cứng của bạn đến đâu.",
+      },
+      context: {
+        title: "Ngữ cảnh cũng tốn bộ nhớ",
+        body: "Tệp mô hình chưa phải là tất cả: mỗi token ngữ cảnh cũng cần chỗ. Thanh trượt này cho biết bạn có thể đẩy lên bao xa trên máy của mình.",
+      },
+      offload: {
+        title: "Mô hình nên chạy ở đâu?",
+        body: "Tự động sẽ chọn giúp bạn. GPU nhanh nhất nếu vừa, CPU là đường chậm nhưng an toàn, còn Hỗn hợp là phương án ở giữa. Bạn có thể đổi lại sau trong trình chỉnh sửa mô hình.",
+      },
+      kvLocation: {
+        title: "Bộ nhớ đệm hội thoại nằm ở đâu",
+        body: "Giữ KV cache trong VRAM là nhanh nhất. Đẩy nó sang RAM sẽ giải phóng GPU cho nhiều lớp hơn khi bộ nhớ eo hẹp.",
+      },
+    },
+    groupChatDetail: {
+      title: {
+        title: "Cài đặt nhóm nằm sau cái tên",
+        body: "Chạm vào tên nhóm để quản lý thành viên, chọn cách chọn người nói tiếp theo và tắt tiếng những nhân vật bạn muốn cho ngồi ngoài.",
+      },
+      participants: {
+        title: "Mọi người trong phòng",
+        body: "Đây là các nhân vật trong nhóm này. Chạm để thêm, xóa hoặc sắp xếp lại ai tham gia cuộc trò chuyện.",
+      },
+      memory: {
+        title: "Cả nhóm cùng ghi nhớ",
+        body: "Bộ nhớ nhóm được chia sẻ trong toàn bộ cuộc trò chuyện. Chạm vào biểu tượng bộ não để xem, ghim hoặc dọn dẹp những gì nhóm biết.",
+      },
+      composer: {
+        title: "Nói gì đó đi",
+        body: "Gõ tin nhắn của bạn ở đây. Ai trả lời tiếp theo tùy vào cách chọn người nói bạn đã đặt trong cài đặt nhóm.",
+      },
+    },
+    dynamicMemory: {
+      enable: {
+        title: "Bật bộ nhớ động",
+        body: "Khi bật, ứng dụng âm thầm trích các thông tin quan trọng từ cuộc trò chuyện và gợi lại sau này, để nhân vật nhớ những gì đáng nhớ.",
+      },
+      mode: {
+        title: "Chọn mức kiểm soát bạn muốn",
+        body: "Tự động chạy cập nhật bộ nhớ trong nền, Hỏi trước sẽ hỏi bạn trước khi lưu, còn Thủ công để bạn toàn quyền quyết định.",
+      },
+      preset: {
+        title: "Hồ sơ lo phần tinh chỉnh",
+        body: "Chọn một hồ sơ để đặt mức suy giảm, ngân sách và ngưỡng trong một lần. Bạn có thể tinh chỉnh mọi thứ trong cài đặt nâng cao.",
+      },
+      embedding: {
+        title: "Chạy nhờ một mô hình cục bộ nhỏ",
+        body: "Việc gợi nhớ hoạt động qua các embedding được tính ngay trên thiết bị của bạn. Phần này quản lý phiên bản mô hình embedding và các cài đặt của nó.",
+      },
+    },
     stepCounter: "Bước {{current}} / {{total}}",
     skipTour: "Bỏ qua hướng dẫn",
     next: "Tiếp",

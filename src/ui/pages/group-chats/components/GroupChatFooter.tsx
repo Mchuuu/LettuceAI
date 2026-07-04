@@ -605,6 +605,7 @@ export function GroupChatFooter({
                 value={draft}
                 onChange={(event) => handleDraftChange(event.target.value)}
                 onKeyDown={handleKeyDown}
+                data-tour-id="group-chat-composer"
                 placeholder={
                   directorMode
                     ? t("groupChats.footer.directorPlaceholder")

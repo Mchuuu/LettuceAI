@@ -42,6 +42,7 @@ import {
   type QueuedDownload,
 } from "../../../core/downloads/DownloadQueueContext";
 import { BottomMenu, MenuLabel, MenuDivider } from "../../components/BottomMenu";
+import { GuidedTour, useGuidedTour } from "../../components/GuidedTour";
 import { toast } from "../../components/toast";
 import {
   addOrUpdateModel,
@@ -1501,6 +1502,8 @@ export function HuggingFaceBrowserPage() {
   const [readme, setReadme] = useState<string | null>(null);
   const [readmeLoading, setReadmeLoading] = useState(false);
   const [runabilityScores, setRunabilityScores] = useState<Record<string, RunabilityScore>>({});
+
+  const { shouldShow: showHfTour, dismiss: dismissHfTour } = useGuidedTour("hfBrowser");
 
   // Recommendation panel state
   const [recData, setRecData] = useState<RecommendationData | null>(null);
@@ -3157,7 +3160,10 @@ export function HuggingFaceBrowserPage() {
                                 </div>
                               </>
                             ) : (
-                              <div className="grid grid-cols-2 gap-1 rounded-lg border border-fg/10 bg-fg/5 p-1">
+                              <div
+                                className="grid grid-cols-2 gap-1 rounded-lg border border-fg/10 bg-fg/5 p-1"
+                                data-tour-id="hf-rec-tabs"
+                              >
                                 <button
                                   type="button"
                                   onClick={() => setFilesPanelTab("recommended")}
@@ -3189,7 +3195,10 @@ export function HuggingFaceBrowserPage() {
                           {/* Recommended settings tab */}
                           {filesPanelTab === "recommended" && (
                             <div className="flex-1 overflow-y-auto px-3 py-3 pb-6">
-                              <div className="rounded-xl border border-fg/10 bg-fg/3 px-3 py-2.5">
+                              <div
+                                className="rounded-xl border border-fg/10 bg-fg/3 px-3 py-2.5"
+                                data-tour-id="hf-rec-panel"
+                              >
                                 {recLoading || !recData ? (
                                   <div className="space-y-2.5 animate-pulse">
                                     <div className="h-8 w-24 rounded bg-fg/10" />
@@ -3417,7 +3426,7 @@ export function HuggingFaceBrowserPage() {
                                         )}
 
                                         {/* Quantization */}
-                                        <div>
+                                        <div data-tour-id="hf-rec-quant">
                                           <label className="text-[9px] font-semibold uppercase tracking-wider text-fg/40">
                                             {t("hfBrowser.quantization")}
                                           </label>
@@ -3611,7 +3620,7 @@ export function HuggingFaceBrowserPage() {
                                           );
 
                                           return (
-                                            <div>
+                                            <div data-tour-id="hf-rec-context">
                                               <div className="flex items-center justify-between">
                                                 <label className="text-[9px] font-semibold uppercase tracking-wider text-fg/40">
                                                   {t("hfBrowser.contextLength")}
@@ -3780,7 +3789,7 @@ export function HuggingFaceBrowserPage() {
                                           </select>
                                         </div>
 
-                                        <div>
+                                        <div data-tour-id="hf-rec-offload">
                                           <label className="text-[9px] font-semibold uppercase tracking-wider text-fg/40">
                                             {t("hfBrowser.detailModelOffload")}
                                           </label>
@@ -3818,7 +3827,7 @@ export function HuggingFaceBrowserPage() {
                                           </p>
                                         </div>
 
-                                        <div>
+                                        <div data-tour-id="hf-rec-kv-location">
                                           <label className="text-[9px] font-semibold uppercase tracking-wider text-fg/40">
                                             {t("hfBrowser.kvLocationLabel")}
                                           </label>
@@ -4509,6 +4518,10 @@ export function HuggingFaceBrowserPage() {
             <ArrowRight size={16} />
           </button>
         </div>
+      )}
+
+      {showHfTour && recData != null && !recLoading && (
+        <GuidedTour tour="hfBrowser" onDismiss={dismissHfTour} />
       )}
     </div>
   );

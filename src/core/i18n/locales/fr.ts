@@ -7589,6 +7589,102 @@ export const frMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
   },
   tour: {
+    editModelLlama: {
+      context: {
+        title: "Choisissez la taille du contexte",
+        body: "Plus de contexte signifie une mémoire plus longue dans la conversation, mais cela consomme vite la VRAM. Auto le dimensionne selon votre matériel, et vous pouvez toujours l'ajuster vous-même.",
+      },
+      presets: {
+        title: "Les presets font le réglage pour vous",
+        body: "Équilibré, Débit, Économie de VRAM, CPU + RAM. Un appui définit des valeurs raisonnables pour tout ce qui suit, et vous pouvez encore affiner ensuite.",
+      },
+      gpu: {
+        title: "C'est ici que vit l'offload GPU",
+        body: "Auto planifie les couches selon votre VRAM libre. Avec plusieurs GPU, vous pouvez répartir le modèle entre les cartes ici, ou suivre la valeur globale des paramètres.",
+      },
+      report: {
+        title: "Voyez ce qui s'est vraiment passé",
+        body: "Après chaque chargement, ce rapport montre ce qui a réellement tourné : couches sur le GPU, contexte utilisé, éventuels replis. Quand quelque chose semble lent, regardez ici en premier.",
+      },
+    },
+    runtimeDefaults: {
+      storage: {
+        title: "Vos modèles vivent ici",
+        body: "Ce dossier contient chaque fichier de modèle téléchargé. Vous pouvez le déplacer vers un autre disque dès que la place vient à manquer.",
+      },
+      llama: {
+        title: "Des valeurs par défaut pour chaque modèle local",
+        body: "Le contexte, le KV cache et le comportement GPU définis ici s'appliquent à tous les modèles locaux. Chaque modèle peut les remplacer depuis son propre éditeur.",
+      },
+      multiGpu: {
+        title: "Répartissez les modèles entre GPU",
+        body: "Avec deux cartes graphiques ou plus, activez ceci pour répartir les couches entre elles. Les modèles réglés sur Hériter suivent cet interrupteur automatiquement.",
+      },
+    },
+    hfBrowser: {
+      panel: {
+        title: "Votre rapport de compatibilité",
+        body:
+          "Tout ici est calibré pour cette machine : le verdict en haut indique si le modèle tournera, et avec quelle aisance. Modifiez un réglage et le verdict se met à jour en direct.",
+      },
+      tabs: {
+        title: "Deux façons de parcourir",
+        body:
+          "Réglages recommandés choisit et ajuste un fichier pour vous. Fichiers disponibles liste tous les téléchargements du dépôt si vous préférez choisir vous-même.",
+      },
+      quant: {
+        title: "Choisissez une quantification",
+        body: "Les quants plus petits utilisent moins de mémoire mais perdent un peu de qualité. Le score à côté de chaque fichier vous indique à quel point il convient à votre matériel.",
+      },
+      context: {
+        title: "Le contexte coûte aussi de la mémoire",
+        body: "Le fichier du modèle n'est pas toute l'histoire : chaque token de contexte a aussi besoin de place. Ce curseur montre jusqu'où vous pouvez aller sur votre machine.",
+      },
+      offload: {
+        title: "Où le modèle doit-il tourner ?",
+        body: "Auto choisit pour vous. GPU est le plus rapide si tout tient, CPU est la voie lente mais sûre, et Mixte coupe la poire en deux. Vous pourrez changer cela plus tard dans l'éditeur du modèle.",
+      },
+      kvLocation: {
+        title: "Où vit le cache de la conversation",
+        body: "Garder le KV cache dans la VRAM est le plus rapide. Le pousser vers la RAM libère votre GPU pour plus de couches quand la place se fait rare.",
+      },
+    },
+    groupChatDetail: {
+      title: {
+        title: "Les paramètres du groupe se cachent derrière le nom",
+        body: "Appuyez sur le nom du groupe pour gérer les participants, choisir comment le prochain intervenant est désigné et mettre en sourdine les personnages que vous voulez laisser de côté.",
+      },
+      participants: {
+        title: "Tout le monde dans la salle",
+        body: "Voici les personnages de ce groupe. Appuyez pour ajouter, retirer ou réordonner qui fait partie de la conversation.",
+      },
+      memory: {
+        title: "Le groupe se souvient ensemble",
+        body: "Les souvenirs de groupe sont partagés dans toute la conversation. Appuyez sur le cerveau pour voir, épingler ou faire le tri dans ce que le groupe sait.",
+      },
+      composer: {
+        title: "Dites quelque chose",
+        body: "Tapez votre message ici. Qui répond ensuite dépend de la sélection d'intervenant choisie dans les paramètres du groupe.",
+      },
+    },
+    dynamicMemory: {
+      enable: {
+        title: "Activez la mémoire dynamique",
+        body: "Une fois activée, l'application extrait discrètement les faits importants de vos discussions et les rappelle plus tard, pour que les personnages retiennent ce qui compte.",
+      },
+      mode: {
+        title: "Choisissez le niveau de contrôle souhaité",
+        body: "Automatique exécute les mises à jour de la mémoire en arrière-plan, Demander d'abord vous consulte avant d'enregistrer, et Manuel vous laisse tout gérer.",
+      },
+      preset: {
+        title: "Les profils font le réglage",
+        body: "Choisissez un profil pour définir le déclin, les budgets et les seuils en une fois. Vous pouvez tout affiner dans les paramètres avancés.",
+      },
+      embedding: {
+        title: "Propulsé par un petit modèle local",
+        body: "Le rappel fonctionne grâce à des embeddings calculés sur votre appareil. Cette section gère la version du modèle d'embedding et ses paramètres.",
+      },
+    },
     stepCounter: "Étape {{current}} sur {{total}}",
     skipTour: "Passer le tour",
     next: "Suivant",

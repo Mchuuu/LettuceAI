@@ -6957,6 +6957,102 @@ export const idMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
   },
   tour: {
+    editModelLlama: {
+      context: {
+        title: "Pilih seberapa banyak konteks yang dipakai",
+        body: "Konteks lebih besar berarti memori percakapan lebih panjang, tapi cepat menghabiskan VRAM. Otomatis menyesuaikan ukurannya dengan perangkat keras Anda, dan Anda selalu bisa mengaturnya sendiri.",
+      },
+      presets: {
+        title: "Preset melakukan penyetelan untuk Anda",
+        body: "Seimbang, Throughput, Penghemat VRAM, CPU + RAM. Satu ketukan mengatur nilai yang masuk akal untuk semua di bawah, dan Anda tetap bisa menyesuaikannya setelahnya.",
+      },
+      gpu: {
+        title: "Di sinilah offload GPU berada",
+        body: "Otomatis merencanakan layer dari VRAM kosong Anda. Dengan lebih dari satu GPU, Anda bisa membagi model ke beberapa kartu di sini, atau mengikuti default global dari pengaturan.",
+      },
+      report: {
+        title: "Lihat apa yang benar-benar terjadi",
+        body: "Setelah setiap pemuatan, laporan ini menunjukkan apa yang benar-benar berjalan: layer di GPU, konteks yang dipakai, fallback apa pun. Kalau terasa lambat, lihat di sini dulu.",
+      },
+    },
+    runtimeDefaults: {
+      storage: {
+        title: "Model Anda tersimpan di sini",
+        body: "Folder ini menyimpan semua berkas model yang diunduh. Anda bisa memindahkannya ke drive lain kapan pun ruang mulai habis.",
+      },
+      llama: {
+        title: "Default untuk setiap model lokal",
+        body: "Konteks, KV cache, dan perilaku GPU yang diatur di sini berlaku untuk semua model lokal. Setiap model bisa menggantinya dari editornya sendiri.",
+      },
+      multiGpu: {
+        title: "Bagi model ke beberapa GPU",
+        body: "Dengan dua kartu grafis atau lebih, nyalakan ini untuk menyebar layer ke semuanya. Model yang diatur ke Warisi akan mengikuti sakelar ini secara otomatis.",
+      },
+    },
+    hfBrowser: {
+      panel: {
+        title: "Laporan kecocokan pribadimu",
+        body:
+          "Semua di sini disesuaikan dengan mesin ini: penilaian di atas menunjukkan apakah model akan berjalan dan seberapa lancar. Ubah pengaturan apa pun dan penilaiannya langsung diperbarui.",
+      },
+      tabs: {
+        title: "Dua cara menjelajah",
+        body:
+          "Pengaturan yang Disarankan memilih dan menyetel file untukmu. File Tersedia menampilkan semua unduhan di repo kalau kamu lebih suka memilih sendiri.",
+      },
+      quant: {
+        title: "Pilih kuantisasi",
+        body: "Kuantisasi lebih kecil memakai lebih sedikit memori tapi kehilangan sedikit kualitas. Skor di samping setiap berkas menunjukkan seberapa cocok berkas itu dengan perangkat keras Anda.",
+      },
+      context: {
+        title: "Konteks juga memakan memori",
+        body: "Berkas model bukan keseluruhan cerita: setiap token konteks juga butuh ruang. Slider ini menunjukkan seberapa jauh Anda bisa mendorongnya di mesin Anda.",
+      },
+      offload: {
+        title: "Di mana model sebaiknya berjalan?",
+        body: "Otomatis memilihkan untuk Anda. GPU paling cepat kalau muat, CPU jalur lambat tapi aman, dan Campuran mengambil jalan tengah. Anda bisa mengubahnya nanti di editor model.",
+      },
+      kvLocation: {
+        title: "Tempat cache percakapan berada",
+        body: "Menyimpan KV cache di VRAM paling cepat. Memindahkannya ke RAM membebaskan GPU Anda untuk lebih banyak layer saat ruang mulai sempit.",
+      },
+    },
+    groupChatDetail: {
+      title: {
+        title: "Pengaturan grup ada di balik nama",
+        body: "Ketuk nama grup untuk mengelola peserta, memilih cara pembicara berikutnya ditentukan, dan membisukan karakter yang ingin Anda istirahatkan.",
+      },
+      participants: {
+        title: "Semua yang ada di ruangan",
+        body: "Inilah karakter di grup ini. Ketuk untuk menambah, menghapus, atau mengatur ulang siapa saja yang ikut dalam percakapan.",
+      },
+      memory: {
+        title: "Grup mengingat bersama",
+        body: "Memori grup dibagikan ke seluruh percakapan. Ketuk ikon otak untuk melihat, menyematkan, atau merapikan apa yang diketahui grup.",
+      },
+      composer: {
+        title: "Katakan sesuatu",
+        body: "Ketik pesan Anda di sini. Siapa yang menjawab berikutnya tergantung pemilihan pembicara yang Anda pilih di pengaturan grup.",
+      },
+    },
+    dynamicMemory: {
+      enable: {
+        title: "Nyalakan memori dinamis",
+        body: "Saat aktif, aplikasi diam-diam mengambil fakta penting dari obrolan Anda dan mengingatnya nanti, sehingga karakter mengingat hal yang penting.",
+      },
+      mode: {
+        title: "Pilih seberapa banyak kendali yang Anda mau",
+        body: "Otomatis menjalankan pembaruan memori di latar belakang, Tanya Dulu meminta persetujuan Anda sebelum menyimpan, dan Manual menyerahkan semuanya kepada Anda.",
+      },
+      preset: {
+        title: "Profil mengatur penyetelan",
+        body: "Pilih profil untuk mengatur peluruhan, anggaran, dan ambang sekaligus. Anda bisa menyetel semuanya lebih rinci di pengaturan lanjutan.",
+      },
+      embedding: {
+        title: "Ditenagai model lokal kecil",
+        body: "Pengingatan bekerja lewat embedding yang dihitung di perangkat Anda. Bagian ini mengelola versi model embedding dan pengaturannya.",
+      },
+    },
     stepCounter: "Langkah {{current}} dari {{total}}",
     skipTour: "Lewati tur",
     next: "Berikutnya",

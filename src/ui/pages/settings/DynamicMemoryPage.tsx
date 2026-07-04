@@ -21,6 +21,7 @@ import {
   saveAdvancedSettings,
   getEmbeddingModelInfo,
 } from "../../../core/storage/repo";
+import { GuidedTour, useGuidedTour } from "../../components/GuidedTour";
 import { listPromptTemplates } from "../../../core/prompts/service";
 import { storageBridge } from "../../../core/storage/files";
 import type {
@@ -338,6 +339,8 @@ export function DynamicMemoryPage() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("direct");
+  const { shouldShow: showMemoryTour, dismiss: dismissMemoryTour } =
+    useGuidedTour("dynamicMemory");
 
   // Direct chat settings
   const [enabled, setEnabled] = useState(false);
@@ -795,7 +798,10 @@ export function DynamicMemoryPage() {
             >
               {/* Enable Toggle (direct chats only) */}
               {activeTab === "direct" && (
-                <div className={cn("rounded-xl border border-fg/10 bg-fg/5 px-4 py-3")}>
+                <div
+                  className={cn("rounded-xl border border-fg/10 bg-fg/5 px-4 py-3")}
+                  data-tour-id="dynmem-enable"
+                >
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <span className="text-sm font-medium text-fg">
@@ -820,7 +826,7 @@ export function DynamicMemoryPage() {
               )}
 
               <div className={cn(!currentEnabled && "opacity-50 pointer-events-none", "space-y-4")}>
-                <div className="space-y-3">
+                <div className="space-y-3" data-tour-id="dynmem-mode">
                   <h3 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35 px-1">
                     {t("dynamicMemory.mode.title")}
                   </h3>
@@ -847,7 +853,7 @@ export function DynamicMemoryPage() {
                 </div>
 
                 {/* Presets */}
-                <div className="space-y-3">
+                <div className="space-y-3" data-tour-id="dynmem-preset">
                   <h3 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-fg/35 px-1">
                     {t("dynamicMemory.page.memoryProfile")}
                   </h3>
@@ -1509,7 +1515,7 @@ export function DynamicMemoryPage() {
                 supportsExtendedTokenCapacity ||
                 supportsMatryoshkaDimensions ||
                 modelVersion) && (
-                <section className="space-y-4">
+                <section className="space-y-4" data-tour-id="dynmem-embedding">
                   <SectionLabel>{t("dynamicMemory.page.embeddingModelSection")}</SectionLabel>
 
                   {availableEmbeddingVersions.filter((v) => v === "v3" || v === "v4").length >
@@ -1721,6 +1727,8 @@ export function DynamicMemoryPage() {
           },
         }}
       />
+
+      {showMemoryTour && <GuidedTour tour="dynamicMemory" onDismiss={dismissMemoryTour} />}
     </div>
   );
 }

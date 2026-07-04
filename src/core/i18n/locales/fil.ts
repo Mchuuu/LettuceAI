@@ -7590,6 +7590,102 @@ export const filMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
   },
   tour: {
+    editModelLlama: {
+      context: {
+        title: "Piliin kung gaano kalaking konteksto ang gagamitin",
+        body: "Mas malaking konteksto, mas mahabang memorya sa usapan, pero mabilis nitong nauubos ang VRAM. Awtomatikong sinusukat ito ng Auto mula sa hardware mo, at pwede mo pa ring i-adjust ito mismo.",
+      },
+      presets: {
+        title: "Ang mga preset na ang bahala sa tuning",
+        body: "Balanced, Throughput, VRAM Saver, CPU + RAM. Isang tap lang, nakaset na ang makatuwirang mga value para sa lahat sa ibaba, at pwede mo pa ring baguhin pagkatapos.",
+      },
+      gpu: {
+        title: "Dito nakatira ang GPU offload",
+        body: "Pinaplano ng Auto ang mga layer mula sa libreng VRAM mo. Kung higit sa isa ang GPU mo, pwede mong hatiin dito ang modelo sa mga card, o sundin ang global default mula sa settings.",
+      },
+      report: {
+        title: "Tingnan kung ano talaga ang nangyari",
+        body: "Pagkatapos ng bawat pag-load, ipinapakita ng report na ito kung ano talaga ang tumakbo: mga layer sa GPU, nagamit na konteksto, anumang fallback. Kapag parang mabagal, dito ka muna tumingin.",
+      },
+    },
+    runtimeDefaults: {
+      storage: {
+        title: "Dito nakatira ang mga modelo mo",
+        body: "Ang folder na ito ang naglalaman ng bawat na-download na model file. Pwede mo itong ilipat sa ibang drive kapag nauubusan ka na ng espasyo.",
+      },
+      llama: {
+        title: "Mga default para sa bawat lokal na modelo",
+        body: "Ang konteksto, KV cache, at GPU behavior na nakaset dito ay para sa lahat ng lokal na modelo. Pwedeng i-override ng anumang modelo ang mga ito mula sa sarili nitong editor.",
+      },
+      multiGpu: {
+        title: "Hatiin ang mga modelo sa mga GPU",
+        body: "Kung dalawa o higit pa ang graphics card mo, buksan ito para ikalat ang mga layer sa kanila. Awtomatikong sumusunod sa switch na ito ang mga modelong nakaset sa Manahin.",
+      },
+    },
+    hfBrowser: {
+      panel: {
+        title: "Ang personal mong fit report",
+        body:
+          "Lahat dito ay naka-size sa machine na ito: sinasabi ng verdict sa itaas kung tatakbo ang model at kung gaano kaginhawa. Baguhin ang kahit anong setting at agad nag-a-update ang verdict.",
+      },
+      tabs: {
+        title: "Dalawang paraan mag-browse",
+        body:
+          "Pinipili at tine-tune ng Recommended Settings ang file para sa iyo. Nakalista sa Available Files ang lahat ng download sa repo kung gusto mong mamili mismo.",
+      },
+      quant: {
+        title: "Pumili ng quantization",
+        body: "Mas maliit na quants, mas kaunting memory ang gamit pero may kaunting nawawalang kalidad. Sinasabi sa iyo ng score sa tabi ng bawat file kung gaano ito kabagay sa hardware mo.",
+      },
+      context: {
+        title: "May bayad ding memory ang konteksto",
+        body: "Hindi lang ang model file ang buong kwento: kailangan din ng espasyo ng bawat token ng konteksto. Ipinapakita ng slider na ito kung hanggang saan mo kaya sa makina mo.",
+      },
+      offload: {
+        title: "Saan dapat tumakbo ang modelo?",
+        body: "Ang Auto na ang pipili para sa iyo. GPU ang pinakamabilis kung kasya, CPU ang mabagal-pero-siguradong ruta, at ang Mixed ang hatian ng dalawa. Pwede mo itong palitan mamaya sa model editor.",
+      },
+      kvLocation: {
+        title: "Saan nakatira ang cache ng usapan",
+        body: "Pinakamabilis kapag nasa VRAM ang KV cache. Ang pagtulak nito sa RAM ay nagpapalaya sa GPU mo para sa mas maraming layer kapag masikip na.",
+      },
+    },
+    groupChatDetail: {
+      title: {
+        title: "Nasa likod ng pangalan ang mga setting ng grupo",
+        body: "I-tap ang pangalan ng grupo para pamahalaan ang mga kalahok, piliin kung paano pipiliin ang susunod na magsasalita, at i-mute ang mga karakter na gusto mong magpahinga muna.",
+      },
+      participants: {
+        title: "Lahat ng nasa kwarto",
+        body: "Ito ang mga karakter sa grupong ito. I-tap para magdagdag, mag-alis, o baguhin ang pagkakasunod ng mga kasali sa usapan.",
+      },
+      memory: {
+        title: "Sabay-sabay na nakakaalala ang grupo",
+        body: "Ang mga memorya ng grupo ay hati ng buong usapan. I-tap ang utak para makita, i-pin, o linisin ang alam ng grupo.",
+      },
+      composer: {
+        title: "Magsabi ng kahit ano",
+        body: "I-type ang mensahe mo dito. Kung sino ang susunod na sasagot, depende sa speaker selection na pinili mo sa mga setting ng grupo.",
+      },
+    },
+    dynamicMemory: {
+      enable: {
+        title: "Buksan ang dynamic memory",
+        body: "Kapag naka-enable, tahimik na kinukuha ng app ang mahahalagang detalye mula sa mga chat mo at inaalala ang mga ito mamaya, para tandaan ng mga karakter ang mahalaga.",
+      },
+      mode: {
+        title: "Piliin kung gaano kalaking kontrol ang gusto mo",
+        body: "Ang Awtomatiko ay nagpapatakbo ng mga update sa memory sa background, ang Magtanong Muna ay nagtatanong sa iyo bago mag-save, at ang Manwal ay ipinauubaya ang lahat sa iyo.",
+      },
+      preset: {
+        title: "Ang mga profile na ang bahala sa tuning",
+        body: "Pumili ng profile para maiset ang decay, mga budget, at mga threshold nang sabay-sabay. Pwede mong i-fine-tune ang lahat sa ilalim ng advanced settings.",
+      },
+      embedding: {
+        title: "Pinapatakbo ng maliit na lokal na modelo",
+        body: "Gumagana ang recall gamit ang mga embedding na kinakalkula sa device mo. Pinamamahalaan ng section na ito ang bersyon ng embedding model at ang mga setting nito.",
+      },
+    },
     stepCounter: "Hakbang {{current}} ng {{total}}",
     skipTour: "Laktawan ang tour",
     next: "Susunod",

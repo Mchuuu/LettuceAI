@@ -6957,6 +6957,102 @@ export const itMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
   },
   tour: {
+    editModelLlama: {
+      context: {
+        title: "Scegli quanto contesto usare",
+        body: "Un contesto più grande significa una memoria più lunga nella conversazione, ma consuma VRAM in fretta. Auto lo dimensiona in base al tuo hardware, e puoi sempre regolarlo tu stesso.",
+      },
+      presets: {
+        title: "I preset fanno la messa a punto per te",
+        body: "Bilanciato, Throughput, Risparmio VRAM, CPU + RAM. Un tocco imposta valori sensati per tutto ciò che c'è sotto, e puoi comunque ritoccare dopo.",
+      },
+      gpu: {
+        title: "Qui vive l'offload GPU",
+        body: "Auto pianifica i layer in base alla VRAM libera. Con più di una GPU puoi dividere il modello tra le schede da qui, oppure seguire il default globale delle impostazioni.",
+      },
+      report: {
+        title: "Guarda cosa è successo davvero",
+        body: "Dopo ogni caricamento, questo report mostra cosa è andato davvero: layer sulla GPU, contesto usato, eventuali fallback. Quando qualcosa sembra lento, guarda prima qui.",
+      },
+    },
+    runtimeDefaults: {
+      storage: {
+        title: "I tuoi modelli vivono qui",
+        body: "Questa cartella contiene tutti i file dei modelli scaricati. Puoi spostarla su un altro disco quando lo spazio scarseggia.",
+      },
+      llama: {
+        title: "Default per ogni modello locale",
+        body: "Contesto, KV cache e comportamento GPU impostati qui valgono per tutti i modelli locali. Ogni modello può sovrascriverli dal proprio editor.",
+      },
+      multiGpu: {
+        title: "Dividi i modelli tra le GPU",
+        body: "Con due o più schede grafiche, attivalo per distribuire i layer tra di esse. I modelli impostati su Eredita seguono questo interruttore automaticamente.",
+      },
+    },
+    hfBrowser: {
+      panel: {
+        title: "Il tuo report di compatibilità",
+        body:
+          "Tutto qui è calibrato su questa macchina: il verdetto in alto dice se il modello girerà e con quanta scioltezza. Cambia un'impostazione e il verdetto si aggiorna subito.",
+      },
+      tabs: {
+        title: "Due modi per esplorare",
+        body:
+          "Impostazioni consigliate sceglie e regola un file per te. File disponibili elenca tutti i download del repository se preferisci scegliere a mano.",
+      },
+      quant: {
+        title: "Scegli una quantizzazione",
+        body: "Quantizzazioni più piccole usano meno memoria ma perdono un po' di qualità. Il punteggio accanto a ogni file ti dice quanto bene si adatta al tuo hardware.",
+      },
+      context: {
+        title: "Anche il contesto costa memoria",
+        body: "Il file del modello non è tutta la storia: ogni token di contesto ha bisogno di spazio a sua volta. Questo slider mostra fin dove puoi spingerti sulla tua macchina.",
+      },
+      offload: {
+        title: "Dove dovrebbe girare il modello?",
+        body: "Auto sceglie per te. GPU è la più veloce se ci sta, CPU è la via lenta ma sicura, e Misto fa una via di mezzo. Puoi cambiarlo più tardi nell'editor del modello.",
+      },
+      kvLocation: {
+        title: "Dove vive la cache della conversazione",
+        body: "Tenere la KV cache in VRAM è la scelta più veloce. Spostarla in RAM libera la GPU per più layer quando lo spazio si fa stretto.",
+      },
+    },
+    groupChatDetail: {
+      title: {
+        title: "Le impostazioni del gruppo vivono dietro il nome",
+        body: "Tocca il nome del gruppo per gestire i partecipanti, scegliere come viene deciso il prossimo a parlare e silenziare i personaggi che vuoi lasciare in panchina.",
+      },
+      participants: {
+        title: "Tutti quelli nella stanza",
+        body: "Questi sono i personaggi di questo gruppo. Tocca per aggiungere, rimuovere o riordinare chi fa parte della conversazione.",
+      },
+      memory: {
+        title: "Il gruppo ricorda insieme",
+        body: "Le memorie di gruppo sono condivise in tutta la conversazione. Tocca il cervello per vedere, fissare o ripulire ciò che il gruppo sa.",
+      },
+      composer: {
+        title: "Di' qualcosa",
+        body: "Scrivi qui il tuo messaggio. Chi risponde dopo dipende dalla selezione del parlante scelta nelle impostazioni del gruppo.",
+      },
+    },
+    dynamicMemory: {
+      enable: {
+        title: "Attiva la memoria dinamica",
+        body: "Quando è attiva, l'app estrae in silenzio i fatti importanti dalle tue chat e li richiama più tardi, così i personaggi ricordano ciò che conta.",
+      },
+      mode: {
+        title: "Scegli quanto controllo vuoi",
+        body: "Automatico esegue gli aggiornamenti della memoria in background, Chiedi prima ti consulta prima di salvare, e Manuale lascia tutto a te.",
+      },
+      preset: {
+        title: "I profili impostano la messa a punto",
+        body: "Scegli un profilo per impostare decadimento, budget e soglie in un colpo solo. Puoi rifinire tutto nelle impostazioni avanzate.",
+      },
+      embedding: {
+        title: "Alimentata da un piccolo modello locale",
+        body: "Il richiamo funziona tramite embedding calcolati sul tuo dispositivo. Questa sezione gestisce la versione del modello di embedding e le sue impostazioni.",
+      },
+    },
     stepCounter: "Passo {{current}} di {{total}}",
     skipTour: "Salta il tour",
     next: "Avanti",

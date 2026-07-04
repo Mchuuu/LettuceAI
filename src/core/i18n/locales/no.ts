@@ -7590,6 +7590,102 @@ export const noMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
   },
   tour: {
+    editModelLlama: {
+      context: {
+        title: "Velg hvor mye kontekst du vil bruke",
+        body: "Større kontekst betyr lengre hukommelse i samtalen, men det spiser VRAM fort. Auto tilpasser størrelsen etter maskinvaren din, og du kan alltid justere selv.",
+      },
+      presets: {
+        title: "Forhåndsinnstillinger gjør jobben for deg",
+        body: "Balansert, Gjennomstrømning, VRAM-sparer, CPU + RAM. Ett trykk setter fornuftige verdier for alt nedenfor, og du kan fortsatt finjustere etterpå.",
+      },
+      gpu: {
+        title: "Her bor GPU-avlastning",
+        body: "Auto planlegger lag ut fra ledig VRAM. Med mer enn én GPU kan du dele modellen mellom kortene her, eller følge den globale standarden fra innstillingene.",
+      },
+      report: {
+        title: "Se hva som faktisk skjedde",
+        body: "Etter hver innlasting viser denne rapporten hva som virkelig kjørte: lag på GPU, brukt kontekst, eventuelle fallbacks. Når noe føles tregt, se her først.",
+      },
+    },
+    runtimeDefaults: {
+      storage: {
+        title: "Modellene dine bor her",
+        body: "Denne mappen inneholder alle nedlastede modellfiler. Du kan flytte den til en annen disk når du går tom for plass.",
+      },
+      llama: {
+        title: "Standarder for alle lokale modeller",
+        body: "Kontekst, KV cache og GPU-oppførsel som settes her gjelder for alle lokale modeller. Enhver modell kan overstyre dem fra sin egen editor.",
+      },
+      multiGpu: {
+        title: "Del modeller mellom GPU-er",
+        body: "Med to eller flere skjermkort kan du slå på dette for å spre lag mellom dem. Modeller satt til Arv følger denne bryteren automatisk.",
+      },
+    },
+    hfBrowser: {
+      panel: {
+        title: "Din personlige passform-rapport",
+        body:
+          "Alt her er tilpasset denne maskinen: dommen øverst sier om modellen vil kjøre, og hvor komfortabelt. Endre en innstilling og dommen oppdateres umiddelbart.",
+      },
+      tabs: {
+        title: "To måter å bla på",
+        body:
+          "Anbefalte innstillinger velger og justerer en fil for deg. Tilgjengelige filer viser alle nedlastinger i repoet hvis du heller vil velge selv.",
+      },
+      quant: {
+        title: "Velg en kvantisering",
+        body: "Mindre kvanter bruker mindre minne, men mister litt kvalitet. Poengsummen ved siden av hver fil forteller deg hvor godt den passer maskinvaren din.",
+      },
+      context: {
+        title: "Kontekst koster også minne",
+        body: "Modellfilen er ikke hele historien: hvert token med kontekst trenger også plass. Denne glidebryteren viser hvor langt du kan presse den på maskinen din.",
+      },
+      offload: {
+        title: "Hvor skal modellen kjøre?",
+        body: "Auto velger for deg. GPU er raskest hvis det får plass, CPU er den trege, men trygge ruten, og Blandet deler forskjellen. Du kan endre dette senere i modelleditoren.",
+      },
+      kvLocation: {
+        title: "Hvor samtalecachen bor",
+        body: "Å holde KV cachen i VRAM er raskest. Å flytte den til RAM frigjør GPU-en til flere lag når det blir trangt.",
+      },
+    },
+    groupChatDetail: {
+      title: {
+        title: "Gruppeinnstillingene bor bak navnet",
+        body: "Trykk på gruppenavnet for å administrere deltakere, velge hvordan neste taler plukkes, og dempe karakterer du vil holde utenfor.",
+      },
+      participants: {
+        title: "Alle i rommet",
+        body: "Dette er karakterene i denne gruppen. Trykk for å legge til, fjerne eller endre rekkefølgen på hvem som er med i samtalen.",
+      },
+      memory: {
+        title: "Gruppen husker sammen",
+        body: "Gruppeminner deles på tvers av hele samtalen. Trykk på hjernen for å se, feste eller rydde opp i det gruppen vet.",
+      },
+      composer: {
+        title: "Si noe",
+        body: "Skriv meldingen din her. Hvem som svarer neste gang avhenger av talervalget du gjorde i gruppeinnstillingene.",
+      },
+    },
+    dynamicMemory: {
+      enable: {
+        title: "Slå på dynamisk minne",
+        body: "Når det er aktivert, henter appen stille ut viktige fakta fra samtalene dine og husker dem senere, slik at karakterene husker det som betyr noe.",
+      },
+      mode: {
+        title: "Velg hvor mye kontroll du vil ha",
+        body: "Automatisk kjører minneoppdateringer i bakgrunnen, Spør først sjekker med deg før lagring, og Manuell overlater alt til deg.",
+      },
+      preset: {
+        title: "Profiler setter innstillingene",
+        body: "Velg en profil for å sette forfall, budsjetter og terskler i ett jafs. Du kan finjustere alt under avanserte innstillinger.",
+      },
+      embedding: {
+        title: "Drevet av en liten lokal modell",
+        body: "Gjenkalling fungerer gjennom embeddings beregnet på enheten din. Denne seksjonen håndterer versjonen av embedding-modellen og innstillingene dens.",
+      },
+    },
     stepCounter: "Steg {{current}} av {{total}}",
     skipTour: "Hopp over omvisning",
     next: "Neste",

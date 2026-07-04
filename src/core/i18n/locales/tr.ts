@@ -7590,6 +7590,102 @@ export const trMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
   },
   tour: {
+    editModelLlama: {
+      context: {
+        title: "Ne kadar bağlam kullanacağını seç",
+        body: "Daha büyük bağlam, konuşmada daha uzun hafıza demek ama VRAM'i hızla tüketir. Otomatik, donanımına göre boyutlandırır; istersen kendin de ayarlayabilirsin.",
+      },
+      presets: {
+        title: "Ön ayarlar ince ayarı senin yerine yapar",
+        body: "Dengeli, İşleme Kapasitesi (Throughput), VRAM Tasarrufu, CPU + RAM. Tek dokunuş aşağıdaki her şey için makul değerler ayarlar, sonrasında yine de kurcalayabilirsin.",
+      },
+      gpu: {
+        title: "GPU'ya yük boşaltma burada",
+        body: "Otomatik, boş VRAM'ine göre katmanları planlar. Birden fazla GPU'n varsa modeli buradan kartlara bölebilir ya da ayarlardaki genel varsayılanı takip edebilirsin.",
+      },
+      report: {
+        title: "Gerçekte ne olduğunu gör",
+        body: "Her yüklemeden sonra bu rapor gerçekte ne çalıştığını gösterir: GPU'daki katmanlar, kullanılan bağlam, varsa geri dönüşler. Bir şey yavaş hissettirdiğinde önce buraya bak.",
+      },
+    },
+    runtimeDefaults: {
+      storage: {
+        title: "Modellerin burada yaşıyor",
+        body: "Bu klasör indirilen tüm model dosyalarını barındırır. Alan azaldığında klasörü istediğin zaman başka bir diske taşıyabilirsin.",
+      },
+      llama: {
+        title: "Tüm yerel modeller için varsayılanlar",
+        body: "Burada ayarlanan bağlam, KV cache ve GPU davranışı tüm yerel modellere uygulanır. Her model bunları kendi düzenleyicisinden geçersiz kılabilir.",
+      },
+      multiGpu: {
+        title: "Modelleri GPU'lar arasında böl",
+        body: "İki veya daha fazla ekran kartın varsa, katmanları aralarında dağıtmak için bunu aç. Devral olarak ayarlanan modeller bu anahtarı otomatik takip eder.",
+      },
+    },
+    hfBrowser: {
+      panel: {
+        title: "Sana özel uyumluluk raporu",
+        body:
+          "Buradaki her şey bu makineye göre hesaplanır: üstteki sonuç modelin çalışıp çalışmayacağını ve ne kadar rahat çalışacağını söyler. Herhangi bir ayarı değiştir, sonuç anında güncellenir.",
+      },
+      tabs: {
+        title: "İki gezinme yolu",
+        body:
+          "Önerilen Ayarlar senin için bir dosya seçip ayarlar. Kendin seçmek istersen Kullanılabilir Dosyalar depodaki tüm indirmeleri listeler.",
+      },
+      quant: {
+        title: "Bir kuantizasyon seç",
+        body: "Daha küçük kuantizasyonlar daha az bellek kullanır ama biraz kalite kaybeder. Her dosyanın yanındaki puan, donanımına ne kadar uyduğunu söyler.",
+      },
+      context: {
+        title: "Bağlam da bellek harcar",
+        body: "Model dosyası hikayenin tamamı değil: bağlamdaki her token da yer ister. Bu kaydırıcı, makinende ne kadar ileri gidebileceğini gösterir.",
+      },
+      offload: {
+        title: "Model nerede çalışmalı?",
+        body: "Otomatik senin yerine seçer. Sığıyorsa GPU en hızlısı, CPU yavaş ama güvenli yol, Karma ise ikisinin ortası. Bunu daha sonra model düzenleyicisinden değiştirebilirsin.",
+      },
+      kvLocation: {
+        title: "Konuşma önbelleği nerede tutulur",
+        body: "KV cache'i VRAM'de tutmak en hızlısı. RAM'e itmek, işler sıkıştığında GPU'nu daha fazla katman için serbest bırakır.",
+      },
+    },
+    groupChatDetail: {
+      title: {
+        title: "Grup ayarları ismin arkasında",
+        body: "Katılımcıları yönetmek, sıradaki konuşmacının nasıl seçileceğini belirlemek ve dışarıda kalmasını istediğin karakterleri susturmak için grup adına dokun.",
+      },
+      participants: {
+        title: "Odadaki herkes",
+        body: "Bunlar bu gruptaki karakterler. Konuşmaya birini eklemek, çıkarmak veya sırayı değiştirmek için dokun.",
+      },
+      memory: {
+        title: "Grup birlikte hatırlar",
+        body: "Grup hafızaları tüm konuşma boyunca paylaşılır. Grubun ne bildiğini görmek, sabitlemek veya temizlemek için beyne dokun.",
+      },
+      composer: {
+        title: "Bir şey söyle",
+        body: "Mesajını buraya yaz. Sıradaki cevabı kimin vereceği, grup ayarlarında seçtiğin konuşmacı seçimine bağlı.",
+      },
+    },
+    dynamicMemory: {
+      enable: {
+        title: "Dinamik hafızayı aç",
+        body: "Etkinleştirildiğinde uygulama, sohbetlerinden önemli bilgileri sessizce çıkarır ve daha sonra hatırlar; böylece karakterler önemli olanı unutmaz.",
+      },
+      mode: {
+        title: "Ne kadar kontrol istediğini seç",
+        body: "Otomatik hafıza güncellemelerini arka planda çalıştırır, Önce sor kaydetmeden önce sana danışır, Manuel ise her şeyi sana bırakır.",
+      },
+      preset: {
+        title: "Profiller ince ayarı belirler",
+        body: "Azalma, bütçe ve eşikleri tek seferde ayarlamak için bir profil seç. Gelişmiş ayarlardan her şeye ince ayar yapabilirsin.",
+      },
+      embedding: {
+        title: "Küçük bir yerel modelle çalışır",
+        body: "Hatırlama, cihazında hesaplanan embedding'ler üzerinden çalışır. Bu bölüm embedding modelinin sürümünü ve ayarlarını yönetir.",
+      },
+    },
     stepCounter: "Adım {{current}} / {{total}}",
     skipTour: "Turu atla",
     next: "İleri",
