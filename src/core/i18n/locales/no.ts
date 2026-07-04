@@ -3917,6 +3917,10 @@ export const noMessages: DeepPartialMessageTree<LocaleMessages> = {
       action: "Handling",
     },
     confirm: {
+      inUseTitle: "Filen er i bruk",
+      inUseBody:
+        "Denne filen brukes av: {{models}}. Sletter du den, slutter de oppsettene å virke til du velger en annen fil.",
+      inUseGlobalDefaults: "Globale standardinnstillinger",
       deleteTitle: "Slett modellfil",
       deleteMessage: "Slett {{filename}}? Dette fjerner kun den lokale GGUF-filen fra modellemappen.",
     },

@@ -4061,6 +4061,10 @@ export const enMessages = {
       action: "Action",
     },
     confirm: {
+      inUseTitle: "File is in use",
+      inUseBody:
+        "This file is used by: {{models}}. Deleting it will break those setups until you point them at another file.",
+      inUseGlobalDefaults: "Global defaults",
       deleteTitle: "Delete model file",
       deleteMessage:
         "Delete {{filename}}? This only removes the local GGUF file from the models folder.",

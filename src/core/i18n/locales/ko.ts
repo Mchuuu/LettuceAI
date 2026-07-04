@@ -3917,6 +3917,10 @@ export const koMessages: DeepPartialMessageTree<LocaleMessages> = {
       action: "작업",
     },
     confirm: {
+      inUseTitle: "파일이 사용 중입니다",
+      inUseBody:
+        "이 파일은 {{models}}에서 사용 중입니다. 삭제하면 다른 파일을 지정할 때까지 해당 설정이 작동하지 않습니다.",
+      inUseGlobalDefaults: "전역 기본값",
       deleteTitle: "모델 파일 삭제",
       deleteMessage: "{{filename}}을(를) 삭제하시겠습니까? models 폴더의 로컬 GGUF 파일만 제거됩니다.",
     },

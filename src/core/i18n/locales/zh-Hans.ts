@@ -3917,6 +3917,10 @@ export const zhHansMessages: DeepPartialMessageTree<LocaleMessages> = {
       action: "操作",
     },
     confirm: {
+      inUseTitle: "文件正在使用中",
+      inUseBody:
+        "此文件正被以下模型使用：{{models}}。删除后，这些配置将无法工作，直到你指定其他文件。",
+      inUseGlobalDefaults: "全局默认设置",
       deleteTitle: "删除模型文件",
       deleteMessage: "删除 {{filename}}？此操作仅从模型文件夹中移除本地 GGUF 文件。",
     },

@@ -3917,6 +3917,10 @@ export const elMessages: DeepPartialMessageTree<LocaleMessages> = {
       action: "Ενέργεια",
     },
     confirm: {
+      inUseTitle: "Το αρχείο χρησιμοποιείται",
+      inUseBody:
+        "Αυτό το αρχείο χρησιμοποιείται από: {{models}}. Αν το διαγράψεις, αυτές οι ρυθμίσεις θα σταματήσουν να λειτουργούν μέχρι να επιλέξεις άλλο αρχείο.",
+      inUseGlobalDefaults: "Καθολικές προεπιλογές",
       deleteTitle: "Διαγραφή αρχείου μοντέλου",
       deleteMessage: "Να διαγραφεί το {{filename}}; Αυτό αφαιρεί μόνο το τοπικό αρχείο GGUF από τον φάκελο μοντέλων.",
     },

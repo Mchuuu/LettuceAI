@@ -8575,6 +8575,10 @@ export const idMessages: DeepPartialMessageTree<LocaleMessages> = {
       action: "Action",
     },
     confirm: {
+      inUseTitle: "File sedang digunakan",
+      inUseBody:
+        "File ini digunakan oleh: {{models}}. Menghapusnya akan merusak pengaturan tersebut sampai kamu memilih file lain.",
+      inUseGlobalDefaults: "Default global",
       deleteTitle: "Delete model file",
       deleteMessage: "Delete {{filename}}? This only removes the local GGUF file from the models folder.",
     },

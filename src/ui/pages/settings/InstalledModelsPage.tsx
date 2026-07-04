@@ -344,13 +344,55 @@ export function InstalledModelsPage() {
     [t],
   );
 
+  const findFileUsage = useCallback(
+    async (path: string): Promise<string[]> => {
+      const normalize = (value: string) => value.replace(/\\/g, "/");
+      const target = normalize(path);
+      const matches = (candidate: string | null | undefined) =>
+        typeof candidate === "string" && candidate.length > 0 && normalize(candidate) === target;
+
+      try {
+        const settings = await readSettings();
+        const usage: string[] = [];
+        for (const configured of settings.models ?? []) {
+          const advanced = configured.advancedModelSettings;
+          if (matches(configured.name)) {
+            usage.push(configured.displayName);
+          }
+          if (matches(advanced?.llamaMmprojPath)) {
+            usage.push(`${configured.displayName} (mmproj)`);
+          }
+          if (matches(advanced?.llamaMtpModelPath)) {
+            usage.push(`${configured.displayName} (MTP)`);
+          }
+        }
+        const globalAdvanced = settings.advancedModelSettings;
+        if (matches(globalAdvanced?.llamaMmprojPath) || matches(globalAdvanced?.llamaMtpModelPath)) {
+          usage.push(t("installedModels.confirm.inUseGlobalDefaults"));
+        }
+        return usage;
+      } catch {
+        return [];
+      }
+    },
+    [t],
+  );
+
   const handleDeleteModel = useCallback(
     async (model: InstalledGgufModel) => {
+      const usedBy = await findFileUsage(model.path);
       const confirmed = await confirmBottomMenu({
         title: t("installedModels.confirm.deleteTitle"),
         message: t("installedModels.confirm.deleteMessage", { filename: model.filename }),
         confirmLabel: t("common.buttons.delete"),
         destructive: true,
+        warning:
+          usedBy.length > 0
+            ? {
+                title: t("installedModels.confirm.inUseTitle"),
+                body: t("installedModels.confirm.inUseBody", { models: usedBy.join(", ") }),
+              }
+            : undefined,
       });
       if (!confirmed) return;
       try {
@@ -367,7 +409,7 @@ export function InstalledModelsPage() {
         setDeletingPath(null);
       }
     },
-    [loadModels, t],
+    [findFileUsage, loadModels, t],
   );
 
   const handleDeleteOllama = useCallback(

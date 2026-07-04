@@ -8575,6 +8575,10 @@ export const jaMessages: DeepPartialMessageTree<LocaleMessages> = {
       action: "Action",
     },
     confirm: {
+      inUseTitle: "ファイルは使用中です",
+      inUseBody:
+        "このファイルは {{models}} で使用されています。削除すると、別のファイルを指定するまでそれらの設定は動作しなくなります。",
+      inUseGlobalDefaults: "グローバル既定値",
       deleteTitle: "Delete model file",
       deleteMessage: "Delete {{filename}}? This only removes the local GGUF file from the models folder.",
     },

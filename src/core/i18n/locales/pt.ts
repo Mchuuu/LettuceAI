@@ -7340,6 +7340,10 @@ export const ptMessages: DeepPartialMessageTree<LocaleMessages> = {
       action: "Action",
     },
     confirm: {
+      inUseTitle: "O arquivo está em uso",
+      inUseBody:
+        "Este arquivo é usado por: {{models}}. Excluí-lo fará essas configurações pararem de funcionar até você escolher outro arquivo.",
+      inUseGlobalDefaults: "Padrões globais",
       deleteTitle: "Delete model file",
       deleteMessage: "Delete {{filename}}? This only removes the local GGUF file from the models folder.",
     },

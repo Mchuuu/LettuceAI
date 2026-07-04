@@ -7340,6 +7340,10 @@ export const viMessages: DeepPartialMessageTree<LocaleMessages> = {
       action: "Action",
     },
     confirm: {
+      inUseTitle: "Tệp đang được sử dụng",
+      inUseBody:
+        "Tệp này đang được dùng bởi: {{models}}. Xóa nó sẽ khiến các thiết lập đó ngừng hoạt động cho đến khi bạn chọn tệp khác.",
+      inUseGlobalDefaults: "Mặc định chung",
       deleteTitle: "Delete model file",
       deleteMessage: "Delete {{filename}}? This only removes the local GGUF file from the models folder.",
     },

@@ -3917,6 +3917,10 @@ export const deMessages: DeepPartialMessageTree<LocaleMessages> = {
       action: "Aktion",
     },
     confirm: {
+      inUseTitle: "Datei wird verwendet",
+      inUseBody:
+        "Diese Datei wird verwendet von: {{models}}. Nach dem Löschen funktionieren diese Konfigurationen erst wieder, wenn du eine andere Datei auswählst.",
+      inUseGlobalDefaults: "Globale Standardwerte",
       deleteTitle: "Modelldatei löschen",
       deleteMessage: "{{filename}} löschen? Dadurch wird nur die lokale GGUF-Datei aus dem Modellordner entfernt.",
     },

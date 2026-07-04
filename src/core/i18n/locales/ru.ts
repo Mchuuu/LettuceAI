@@ -3917,6 +3917,10 @@ export const ruMessages: DeepPartialMessageTree<LocaleMessages> = {
       action: "Действие",
     },
     confirm: {
+      inUseTitle: "Файл используется",
+      inUseBody:
+        "Этот файл используется: {{models}}. После удаления эти настройки перестанут работать, пока вы не выберете другой файл.",
+      inUseGlobalDefaults: "Глобальные настройки",
       deleteTitle: "Удалить файл модели",
       deleteMessage: "Удалить {{filename}}? Это удалит только локальный GGUF-файл из папки models.",
     },

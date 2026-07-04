@@ -3917,6 +3917,10 @@ export const nlMessages: DeepPartialMessageTree<LocaleMessages> = {
       action: "Actie",
     },
     confirm: {
+      inUseTitle: "Bestand is in gebruik",
+      inUseBody:
+        "Dit bestand wordt gebruikt door: {{models}}. Als je het verwijdert, werken die configuraties pas weer nadat je een ander bestand kiest.",
+      inUseGlobalDefaults: "Globale standaardinstellingen",
       deleteTitle: "Modelbestand verwijderen",
       deleteMessage: "{{filename}} verwijderen? Dit verwijdert alleen het lokale GGUF-bestand uit de modellenmap.",
     },

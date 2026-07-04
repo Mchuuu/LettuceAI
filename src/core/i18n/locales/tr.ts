@@ -3917,6 +3917,10 @@ export const trMessages: DeepPartialMessageTree<LocaleMessages> = {
       action: "İşlem",
     },
     confirm: {
+      inUseTitle: "Dosya kullanımda",
+      inUseBody:
+        "Bu dosyayı şunlar kullanıyor: {{models}}. Silersen, başka bir dosya seçene kadar bu kurulumlar çalışmaz.",
+      inUseGlobalDefaults: "Genel varsayılanlar",
       deleteTitle: "Model dosyasını sil",
       deleteMessage: "{{filename}} silinsin mi? Bu işlem yalnızca models klasöründeki yerel GGUF dosyasını kaldırır.",
     },

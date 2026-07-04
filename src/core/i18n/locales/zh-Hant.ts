@@ -3917,6 +3917,10 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       action: "動作",
     },
     confirm: {
+      inUseTitle: "檔案使用中",
+      inUseBody:
+        "此檔案正被以下模型使用：{{models}}。刪除後，這些設定將無法運作，直到你指定其他檔案。",
+      inUseGlobalDefaults: "全域預設",
       deleteTitle: "刪除模型檔案",
       deleteMessage: "刪除 {{filename}}？這只會從模型資料夾中移除本機 GGUF 檔案。",
     },

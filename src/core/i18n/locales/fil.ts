@@ -3917,6 +3917,10 @@ export const filMessages: DeepPartialMessageTree<LocaleMessages> = {
       action: "Aksyon",
     },
     confirm: {
+      inUseTitle: "Ginagamit ang file",
+      inUseBody:
+        "Ginagamit ang file na ito ng: {{models}}. Kapag binura ito, hindi gagana ang mga setup na iyon hangga't hindi ka pumipili ng ibang file.",
+      inUseGlobalDefaults: "Global defaults",
       deleteTitle: "Burahin ang file ng modelo",
       deleteMessage: "Burahin ang {{filename}}? Tinatanggal lang nito ang lokal na GGUF file mula sa models folder.",
     },
