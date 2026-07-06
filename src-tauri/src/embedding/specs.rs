@@ -15,6 +15,18 @@ pub(crate) const MODEL_FILES_V3_REMOTE: [&str; 2] = ["model.int8.onnx", "tokeniz
 pub(crate) const MODEL_FILES_V3_LOCAL: [&str; 2] = ["v3-model.int8.onnx", "v3-tokenizer.json"];
 pub(crate) const MODEL_FILES_V4_REMOTE: [&str; 2] = ["onnx/model.int8.onnx", "tokenizer.json"];
 pub(crate) const MODEL_FILES_V4_LOCAL: [&str; 2] = ["v4-model.int8.onnx", "v4-tokenizer.json"];
+pub(crate) const BGE_SMALL_ZH_V15_LABEL: &str = "bge-small-zh-v1.5";
+
+pub(crate) const MODEL_FILES_BGE_SMALL_ZH_V15_REMOTE: [&str; 3] = [
+    "onnx/model_quantized.onnx",
+    "onnx/model_quantized.onnx_data",
+    "tokenizer.json",
+];
+pub(crate) const MODEL_FILES_BGE_SMALL_ZH_V15_LOCAL: [&str; 3] = [
+    "bge-small-zh-v1.5/model_quantized.onnx",
+    "bge-small-zh-v1.5/model_quantized.onnx_data",
+    "bge-small-zh-v1.5/tokenizer.json",
+];
 
 pub(crate) const COMPANION_EMOTION_MODEL_FILES_REMOTE: [&str; 3] = [
     "onnx/model_quantized.onnx",
@@ -45,6 +57,8 @@ pub(crate) const HUGGINGFACE_BASE_V3: &str =
     "https://huggingface.co/Zeolit/lettuce-emb-512d-v3/resolve/main";
 pub(crate) const HUGGINGFACE_BASE_V4: &str =
     "https://huggingface.co/Zeolit/lettuce-emb-768d-v4/resolve/main";
+pub(crate) const HUGGINGFACE_BASE_BGE_SMALL_ZH_V15: &str =
+    "https://huggingface.co/onnx-community/bge-small-zh-v1.5-ONNX/resolve/main";
 pub(crate) const HUGGINGFACE_BASE_COMPANION_EMOTION: &str =
     "https://huggingface.co/SamLowe/roberta-base-go_emotions-onnx/resolve/main";
 pub(crate) const HUGGINGFACE_BASE_COMPANION_NER: &str =
@@ -126,12 +140,19 @@ pub(crate) fn download_source_spec(requested: Option<&str>) -> DownloadSourceSpe
             local_files: &MODEL_FILES_V3_LOCAL,
             base_url: HUGGINGFACE_BASE_V3,
         },
-        _ => DownloadSourceSpec {
+        Some("v4") => DownloadSourceSpec {
             target_version: EmbeddingModelVersion::V4,
             source_label: "v4",
             remote_files: &MODEL_FILES_V4_REMOTE,
             local_files: &MODEL_FILES_V4_LOCAL,
             base_url: HUGGINGFACE_BASE_V4,
+        },
+        _ => DownloadSourceSpec {
+            target_version: EmbeddingModelVersion::BgeSmallZhV15,
+            source_label: BGE_SMALL_ZH_V15_LABEL,
+            remote_files: &MODEL_FILES_BGE_SMALL_ZH_V15_REMOTE,
+            local_files: &MODEL_FILES_BGE_SMALL_ZH_V15_LOCAL,
+            base_url: HUGGINGFACE_BASE_BGE_SMALL_ZH_V15,
         },
     }
 }
@@ -159,6 +180,16 @@ pub(crate) fn embedding_download_plan(requested: Option<&str>) -> Vec<DownloadFi
             item.progress_name = "model.int8.onnx";
         }
         if let Some(item) = plan.get_mut(1) {
+            item.progress_name = "tokenizer.json";
+        }
+    } else if matches!(source.target_version, EmbeddingModelVersion::BgeSmallZhV15) {
+        if let Some(item) = plan.get_mut(0) {
+            item.progress_name = "model_quantized.onnx";
+        }
+        if let Some(item) = plan.get_mut(1) {
+            item.progress_name = "model_quantized.onnx_data";
+        }
+        if let Some(item) = plan.get_mut(2) {
             item.progress_name = "tokenizer.json";
         }
     }
@@ -191,5 +222,6 @@ pub(crate) fn embedding_owned_files(version: &EmbeddingModelVersion) -> Vec<&'st
         }
         EmbeddingModelVersion::V3 => MODEL_FILES_V3_LOCAL.to_vec(),
         EmbeddingModelVersion::V4 => MODEL_FILES_V4_LOCAL.to_vec(),
+        EmbeddingModelVersion::BgeSmallZhV15 => MODEL_FILES_BGE_SMALL_ZH_V15_LOCAL.to_vec(),
     }
 }

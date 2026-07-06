@@ -1330,7 +1330,7 @@ fn export_audio_providers(app: &tauri::AppHandle) -> Result<Vec<JsonValue>, Stri
     let conn = open_db(app)?;
     let mut stmt = conn
         .prepare(
-            "SELECT id, provider_type, label, api_key, project_id, location, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at FROM audio_providers",
+            "SELECT id, provider_type, label, api_key, project_id, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at FROM audio_providers",
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
@@ -1343,12 +1343,14 @@ fn export_audio_providers(app: &tauri::AppHandle) -> Result<Vec<JsonValue>, Stri
                 "api_key": r.get::<_, Option<String>>(3)?,
                 "project_id": r.get::<_, Option<String>>(4)?,
                 "location": r.get::<_, Option<String>>(5)?,
-                "base_url": r.get::<_, Option<String>>(6)?,
-                "request_path": r.get::<_, Option<String>>(7)?,
-                "kokoro_variant": r.get::<_, Option<String>>(8)?,
-                "asset_root": r.get::<_, Option<String>>(9)?,
-                "created_at": r.get::<_, i64>(10)?,
-                "updated_at": r.get::<_, i64>(11)?,
+                "resource_id": r.get::<_, Option<String>>(6)?,
+                "secret_key": r.get::<_, Option<String>>(7)?,
+                "base_url": r.get::<_, Option<String>>(8)?,
+                "request_path": r.get::<_, Option<String>>(9)?,
+                "kokoro_variant": r.get::<_, Option<String>>(10)?,
+                "asset_root": r.get::<_, Option<String>>(11)?,
+                "created_at": r.get::<_, i64>(12)?,
+                "updated_at": r.get::<_, i64>(13)?,
             }))
         })
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -3245,8 +3247,8 @@ fn import_audio_providers(app: &tauri::AppHandle, data: &JsonValue) -> Result<()
     if let Some(arr) = data.as_array() {
         for item in arr {
             conn.execute(
-                "INSERT INTO audio_providers (id, provider_type, label, api_key, project_id, location, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                "INSERT INTO audio_providers (id, provider_type, label, api_key, project_id, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
                 params![
                     item.get("id").and_then(|v| v.as_str()),
                     item.get("provider_type").and_then(|v| v.as_str()),
@@ -3254,6 +3256,8 @@ fn import_audio_providers(app: &tauri::AppHandle, data: &JsonValue) -> Result<()
                     item.get("api_key").and_then(|v| v.as_str()),
                     item.get("project_id").and_then(|v| v.as_str()),
                     item.get("location").and_then(|v| v.as_str()),
+                    item.get("resource_id").and_then(|v| v.as_str()),
+                    item.get("secret_key").and_then(|v| v.as_str()),
                     item.get("base_url").and_then(|v| v.as_str()),
                     item.get("request_path").and_then(|v| v.as_str()),
                     item.get("kokoro_variant").and_then(|v| v.as_str()),

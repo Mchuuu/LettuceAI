@@ -14,6 +14,7 @@ import {
 import { useModelDownload } from "./hooks/useModelDownload";
 
 type Capacity = 1024 | 2048 | 4096;
+const BGE_SMALL_ZH_VERSION = "bge-small-zh-v1.5";
 
 const CAPACITY_OPTIONS = [
   {
@@ -44,11 +45,14 @@ export function EmbeddingDownloadPage() {
   const initialCapacity: Capacity = ([1024, 2048, 4096].includes(capacityParam)
     ? capacityParam
     : 2048) as Capacity;
-  // v3 is no longer offered as a download option; the page always installs v4.
-  // The `?version=` query param is ignored aside from logging legacy callers.
-  const downloadVersion = "v4" as const;
-  const downloadVersionLabel = "V4";
-  const downloadApproxSize = "~138 MB";
+  // v3 is no longer offered as a download option; the page installs the
+  // Chinese bge-small-zh-v1.5 model by default, while still accepting explicit
+  // v4 requests for legacy fallback.
+  const requestedVersion = searchParams.get("version")?.toLowerCase();
+  const downloadVersion = requestedVersion === "v4" ? "v4" : BGE_SMALL_ZH_VERSION;
+  const downloadVersionLabel =
+    downloadVersion === BGE_SMALL_ZH_VERSION ? BGE_SMALL_ZH_VERSION : downloadVersion.toUpperCase();
+  const downloadApproxSize = downloadVersion === BGE_SMALL_ZH_VERSION ? "~24 MB" : "~138 MB";
 
   const [showCapacitySelection, setShowCapacitySelection] = useState(!autoStart);
   const [selectedCapacity, setSelectedCapacity] = useState<Capacity>(initialCapacity);

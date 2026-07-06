@@ -11,9 +11,7 @@ use crate::creation_helper::service::{
     creation_tool_result_message, emit_creation_helper_step, emit_creation_helper_turn_start,
     emit_creation_helper_update, emit_creation_segment_boundary, send_creation_api_request,
 };
-use crate::creation_helper::types::{
-    CreationMessageRole, CreationSession, CreationToolResult,
-};
+use crate::creation_helper::types::{CreationMessageRole, CreationSession, CreationToolResult};
 use crate::utils::{log_info, log_warn};
 
 use super::exec::dispatch_tool;

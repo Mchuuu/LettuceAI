@@ -47,6 +47,7 @@ const AUDIO_PROVIDER_TYPE_LABEL: Record<AudioProviderType, string> = {
   elevenlabs: "ElevenLabs",
   fish_tts: "fishTts",
   fish_speech: "fishSpeech",
+  doubao_tts: "doubaoTts",
   gemini_tts: "geminiTts",
   openai_tts: "openaiTts",
   kokoro: "kokoro",
@@ -56,12 +57,14 @@ const AUDIO_PROVIDER_TYPE_TRANSLATION_KEY: Record<
   Exclude<AudioProviderType, "elevenlabs">,
   | "providers.extra.audioProviderLabel.fishTts"
   | "providers.extra.audioProviderLabel.fishSpeech"
+  | "providers.extra.audioProviderLabel.doubaoTts"
   | "providers.extra.audioProviderLabel.geminiTts"
   | "providers.extra.audioProviderLabel.openaiTts"
   | "providers.extra.audioProviderLabel.kokoro"
 > = {
   fish_tts: "providers.extra.audioProviderLabel.fishTts",
   fish_speech: "providers.extra.audioProviderLabel.fishSpeech",
+  doubao_tts: "providers.extra.audioProviderLabel.doubaoTts",
   gemini_tts: "providers.extra.audioProviderLabel.geminiTts",
   openai_tts: "providers.extra.audioProviderLabel.openaiTts",
   kokoro: "providers.extra.audioProviderLabel.kokoro",

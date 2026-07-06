@@ -130,12 +130,7 @@ fn message_swipes(message: &JsonValue) -> Option<(Vec<String>, usize)> {
             variant
                 .get("content")
                 .and_then(JsonValue::as_str)
-                .map(|content| {
-                    (
-                        content,
-                        variant.get("id").and_then(JsonValue::as_str),
-                    )
-                })
+                .map(|content| (content, variant.get("id").and_then(JsonValue::as_str)))
         })
         .collect();
     let current = pick_message_content(message);
@@ -145,7 +140,11 @@ fn message_swipes(message: &JsonValue) -> Option<(Vec<String>, usize)> {
 
     let selected_id = message.get("selectedVariantId").and_then(JsonValue::as_str);
     let selected = selected_id
-        .and_then(|id| swipe_variants.iter().position(|(_, variant_id)| *variant_id == Some(id)))
+        .and_then(|id| {
+            swipe_variants
+                .iter()
+                .position(|(_, variant_id)| *variant_id == Some(id))
+        })
         .or_else(|| {
             swipe_variants
                 .iter()

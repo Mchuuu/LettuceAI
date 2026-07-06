@@ -263,7 +263,10 @@ fn echoed_timestamp_regex() -> &'static Regex {
 /// just at the start. Conservative: only matches the app's own time format,
 /// leaving roleplay brackets like `[she smiles]` and unrelated timestamps alone.
 pub fn strip_echoed_time_stamps(text: &str) -> String {
-    echoed_timestamp_regex().replace_all(text, "").trim().to_string()
+    echoed_timestamp_regex()
+        .replace_all(text, "")
+        .trim()
+        .to_string()
 }
 
 pub fn time_placeholder_values(reference_ms: u64) -> Vec<(&'static str, String)> {

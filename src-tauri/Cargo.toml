@@ -93,6 +93,8 @@ hound = "3.5.1"
 thiserror = "2.0.16"
 whisper-rs = { version = "0.16.0", features = ["tracing_backend"] }
 pdf-extract = "0.7"
+hmac = "0.12"
+sha2 = "0.10"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios", target_os = "macos")))'.dependencies]
 machine-uid = "0.3"
@@ -129,4 +131,6 @@ tauri-plugin-haptics = "2"
 [patch.crates-io]
 esaxx-rs = { path = "crates/esaxx-rs-0.1.10" }
 whisper-rs = { git = "https://codeberg.org/MegalithOfficial/whisper-rs.git" }
-whisper-rs-sys = { git = "https://codeberg.org/MegalithOfficial/whisper-rs.git" }
+
+[patch."https://codeberg.org/MegalithOfficial/whisper-rs.git"]
+whisper-rs-sys = { path = "crates/whisper-rs/sys" }

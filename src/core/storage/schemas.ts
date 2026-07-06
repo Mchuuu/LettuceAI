@@ -3096,7 +3096,7 @@ export const SettingsSchema = z.object({
         DynamicMemoryStructuredFallbackFormatSchema.optional(),
       manualModeContextWindow: z.number().optional(),
       embeddingMaxTokens: z.number().optional(), // 1024, 2048, or 4096
-      embeddingModelVersion: z.enum(["v3", "v4"]).optional(),
+      embeddingModelVersion: z.enum(["v3", "v4", "bge-small-zh-v1.5"]).optional(),
       embeddingDimensions: z.number().optional(),
       embeddingKeepModelLoaded: z.boolean().optional(),
       hostApi: HostApiSettingsSchema.optional(),

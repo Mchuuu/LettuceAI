@@ -14,7 +14,11 @@ pub fn repair_v4_tokenizer(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         match repair_v4_tokenizer_inner(&app).await {
-            Ok(true) => log_info(&app, "embedding_migration", "installed missing v4 tokenizer"),
+            Ok(true) => log_info(
+                &app,
+                "embedding_migration",
+                "installed missing v4 tokenizer",
+            ),
             Ok(false) => {}
             Err(e) => log_warn(
                 &app,
@@ -164,6 +168,7 @@ fn log_model_file_status(app: &AppHandle, component: &str, model_dir: &PathBuf) 
         ("v2", &MODEL_FILES_V2_LOCAL),
         ("v3", &MODEL_FILES_V3_LOCAL),
         ("v4", &MODEL_FILES_V4_LOCAL),
+        (BGE_SMALL_ZH_V15_LABEL, &MODEL_FILES_BGE_SMALL_ZH_V15_LOCAL),
         ("companion-emotion", &COMPANION_EMOTION_MODEL_FILES_LOCAL),
         ("companion-ner", &COMPANION_NER_MODEL_FILES_LOCAL),
         ("companion-router", &COMPANION_ROUTER_MODEL_FILES_LOCAL),
@@ -441,7 +446,8 @@ pub async fn start_embedding_download(
 ) -> Result<(), String> {
     // v1, v2, and v3 are no longer offered as downloadable options. Existing
     // installs are still detected and used for inference, but new downloads
-    // and upgrades always target the current model (v4).
+    // and upgrades target the Chinese bge-small-zh-v1.5 model unless v4 is
+    // explicitly requested as a legacy fallback.
     if let Some(requested) = version.as_deref() {
         let normalized = requested.to_ascii_lowercase();
         if matches!(normalized.as_str(), "v1" | "v2" | "v3") {
@@ -449,8 +455,8 @@ pub async fn start_embedding_download(
                 module_path!(),
                 line!(),
                 format!(
-                    "Embedding model {} is no longer downloadable. Use v4.",
-                    normalized
+                    "Embedding model {} is no longer downloadable. Use {}.",
+                    normalized, BGE_SMALL_ZH_V15_LABEL
                 ),
             ));
         }
@@ -594,6 +600,7 @@ pub async fn delete_embedding_model(app: AppHandle) -> Result<(), String> {
     files.extend(MODEL_FILES_V2_LOCAL_LEGACY.iter().copied());
     files.extend(MODEL_FILES_V3_LOCAL.iter().copied());
     files.extend(MODEL_FILES_V4_LOCAL.iter().copied());
+    files.extend(MODEL_FILES_BGE_SMALL_ZH_V15_LOCAL.iter().copied());
     delete_files(&model_dir, &files)?;
 
     Ok(())
@@ -625,6 +632,7 @@ pub async fn delete_embedding_model_version(app: AppHandle, version: String) -> 
         }
         "v3" => MODEL_FILES_V3_LOCAL.to_vec(),
         "v4" => MODEL_FILES_V4_LOCAL.to_vec(),
+        BGE_SMALL_ZH_V15_LABEL => MODEL_FILES_BGE_SMALL_ZH_V15_LOCAL.to_vec(),
         _ => {
             return Err(crate::utils::err_msg(
                 module_path!(),

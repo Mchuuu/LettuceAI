@@ -1,5 +1,6 @@
 pub mod audio_cache;
 pub mod commands;
+mod doubao;
 mod elevenlabs;
 mod fish;
 mod fish_speech;

@@ -17,7 +17,7 @@ export interface AdvancedSettings {
   manualModeContextWindow?: number;
   customLlmModelsDir?: string;
   embeddingMaxTokens?: number; // 1024, 2048, or 4096
-  embeddingModelVersion?: "v3" | "v4";
+  embeddingModelVersion?: "v3" | "v4" | "bge-small-zh-v1.5";
   embeddingDimensions?: number;
   accessibility?: {
     send: { enabled: boolean; volume: number };

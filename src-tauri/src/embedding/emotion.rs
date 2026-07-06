@@ -14,7 +14,7 @@ use tauri::AppHandle;
 use tokenizers::Tokenizer;
 use tokio::sync::Mutex as TokioMutex;
 
-const MAX_EMOTION_SEQ_LENGTH: usize = 512;
+const MAX_EMOTION_SEQ_LENGTH: usize = 192;
 
 #[derive(Debug, Clone)]
 pub(crate) struct EmotionLabelScore {

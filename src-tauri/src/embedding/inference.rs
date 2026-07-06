@@ -91,6 +91,19 @@ fn log_model_file_status(app: &AppHandle, component: &str, model_dir: &PathBuf) 
             format!("model file v4 {}: {}", filename, describe_path(&path)),
         );
     }
+    for filename in MODEL_FILES_BGE_SMALL_ZH_V15_LOCAL.iter() {
+        let path = model_dir.join(filename);
+        log_info(
+            app,
+            component,
+            format!(
+                "model file {} {}: {}",
+                BGE_SMALL_ZH_V15_LABEL,
+                filename,
+                describe_path(&path)
+            ),
+        );
+    }
 }
 
 pub(super) fn compute_embedding_with_session(

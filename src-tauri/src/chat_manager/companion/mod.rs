@@ -2,11 +2,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::AppHandle;
 
+use crate::chat_manager::emotion::{
+    EmotionContextMessage, MappedEmotionSignals, MappedRelationshipDelta,
+};
 use crate::chat_manager::types::{Character, Persona, Session};
-use crate::embedding::emotion::{EmotionClassification, EmotionLabelScore};
 use crate::utils::log_warn;
 
 const DECAY_MINUTES: f64 = 45.0;
+const DEFAULT_EMOTION_CONTEXT_MESSAGE_COUNT: usize = 1;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -550,7 +553,9 @@ pub async fn update_state_for_user_message(
             + (elapsed_minutes / 180.0).min(0.05),
     );
 
-    let bundle = detect_signals(app, user_message).await;
+    let emotion_context =
+        collect_emotion_context_messages(session, DEFAULT_EMOTION_CONTEXT_MESSAGE_COUNT);
+    let bundle = detect_signals(app, user_message, &emotion_context).await;
     let volatility = 0.75 + regulation.volatility * 0.9;
     let delta = bundle.delta.scaled(volatility);
     let felt = state.emotional_state.felt.add(&delta).clamp();
@@ -1068,211 +1073,65 @@ fn companion_config(character: &Character) -> CompanionConfig {
         .unwrap_or_default()
 }
 
-async fn detect_signals(app: &AppHandle, message: &str) -> SignalBundle {
-    match crate::embedding::emotion::classify_text(app, message).await {
-        Ok(Some(classification)) => signals_from_classification(&classification),
-        Ok(None) => SignalBundle {
-            signals: Vec::new(),
-            delta: EmotionVector::default(),
-            relationship_delta: RelationshipDelta {
-                stability: 0.01,
-                ..RelationshipDelta::default()
-            },
-            confidence: 0.2,
-        },
+async fn detect_signals(
+    app: &AppHandle,
+    message: &str,
+    context_messages: &[EmotionContextMessage],
+) -> SignalBundle {
+    match crate::chat_manager::emotion::extract_mapped_signals(app, message, context_messages).await
+    {
+        Ok(mapped) => signal_bundle_from_mapped(mapped),
         Err(err) => {
             log_warn(
                 app,
                 "companion_emotion",
                 format!(
-                    "emotion classifier unavailable; using neutral update: {}",
+                    "emotion extractor unavailable; using neutral update: {}",
                     err
                 ),
             );
-            SignalBundle {
-                signals: Vec::new(),
-                delta: EmotionVector::default(),
-                relationship_delta: RelationshipDelta {
-                    stability: 0.01,
-                    ..RelationshipDelta::default()
-                },
-                confidence: 0.2,
-            }
+            signal_bundle_from_mapped(crate::chat_manager::emotion::neutral_signals(0.2))
         }
     }
 }
 
-fn signals_from_classification(classification: &EmotionClassification) -> SignalBundle {
-    let mut signals = Vec::new();
-    let mut delta = EmotionVector::default();
-    let mut rel = RelationshipDelta::default();
-    let mut applied_score = 0.0_f64;
-
-    for item in classification.labels.iter().take(8) {
-        if item.score < label_threshold(item.label.as_str()) {
-            continue;
-        }
-        applied_score = applied_score.max(item.score as f64);
-        apply_emotion_label(item, &mut signals, &mut delta, &mut rel);
+fn collect_emotion_context_messages(session: &Session, count: usize) -> Vec<EmotionContextMessage> {
+    if count == 0 {
+        return Vec::new();
     }
 
-    if signals.is_empty() {
-        rel.stability += 0.01;
-    }
+    session
+        .messages
+        .iter()
+        .rev()
+        .filter(|message| message.visible_in_chat && !message.content.trim().is_empty())
+        .take(count)
+        .map(|message| EmotionContextMessage {
+            role: message.role.clone(),
+            content: message.content.clone(),
+        })
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect()
+}
 
-    let confidence = if signals.is_empty() {
-        0.25
-    } else {
-        clamp01((classification.confidence * 0.75) + (applied_score * 0.25))
-    };
-
+fn signal_bundle_from_mapped(mapped: MappedEmotionSignals) -> SignalBundle {
     SignalBundle {
-        signals,
-        delta: delta.clamp_signed(),
-        relationship_delta: rel,
-        confidence,
+        signals: mapped.signals,
+        delta: mapped.delta,
+        relationship_delta: relationship_delta_from_mapped(mapped.relationship_delta),
+        confidence: mapped.confidence,
     }
 }
 
-fn apply_emotion_label(
-    item: &EmotionLabelScore,
-    signals: &mut Vec<String>,
-    delta: &mut EmotionVector,
-    rel: &mut RelationshipDelta,
-) {
-    let score = item.score as f64;
-    let label = item.label.as_str();
-
-    match label {
-        "love" => {
-            push_signal(signals, "emotion:love");
-            delta.warmth += 0.10 * score;
-            delta.affection_intensity += 0.15 * score;
-            delta.longing += 0.06 * score;
-            delta.trust += 0.04 * score;
-            rel.closeness += 0.035 * score;
-            rel.affection += 0.055 * score;
-        }
-        "caring" => {
-            push_signal(signals, "emotion:caring");
-            delta.warmth += 0.11 * score;
-            delta.trust += 0.05 * score;
-            delta.calm += 0.04 * score;
-            rel.closeness += 0.025 * score;
-            rel.trust += 0.025 * score;
-        }
-        "gratitude" | "admiration" | "approval" => {
-            push_signal(signals, "emotion:appreciation");
-            delta.warmth += 0.08 * score;
-            delta.trust += 0.07 * score;
-            delta.calm += 0.035 * score;
-            rel.trust += 0.03 * score;
-            rel.stability += 0.025 * score;
-        }
-        "joy" | "amusement" | "excitement" | "optimism" => {
-            push_signal(signals, "emotion:positive");
-            delta.warmth += 0.07 * score;
-            delta.calm += 0.035 * score;
-            delta.affection_intensity += 0.04 * score;
-            rel.closeness += 0.018 * score;
-            rel.stability += 0.015 * score;
-        }
-        "desire" => {
-            push_signal(signals, "emotion:desire");
-            delta.longing += 0.12 * score;
-            delta.affection_intensity += 0.08 * score;
-            delta.vulnerability += 0.035 * score;
-            rel.closeness += 0.025 * score;
-            rel.affection += 0.03 * score;
-        }
-        "relief" => {
-            push_signal(signals, "emotion:relief");
-            delta.calm += 0.08 * score;
-            delta.trust += 0.04 * score;
-            delta.tension -= 0.05 * score;
-            delta.hurt -= 0.035 * score;
-            rel.stability += 0.03 * score;
-            rel.tension -= 0.025 * score;
-        }
-        "remorse" => {
-            push_signal(signals, "emotion:remorse");
-            delta.warmth += 0.04 * score;
-            delta.trust += 0.035 * score;
-            delta.hurt -= 0.06 * score;
-            delta.tension -= 0.05 * score;
-            rel.trust += 0.025 * score;
-            rel.tension -= 0.025 * score;
-            rel.stability += 0.02 * score;
-        }
-        "sadness" | "grief" | "disappointment" => {
-            push_signal(signals, "emotion:distress");
-            delta.warmth += 0.035 * score;
-            delta.vulnerability += 0.10 * score;
-            delta.reassurance_need += 0.09 * score;
-            delta.hurt += 0.045 * score;
-            delta.calm -= 0.035 * score;
-            rel.closeness += 0.012 * score;
-        }
-        "fear" | "nervousness" => {
-            push_signal(signals, "emotion:anxiety");
-            delta.vulnerability += 0.09 * score;
-            delta.reassurance_need += 0.10 * score;
-            delta.tension += 0.04 * score;
-            delta.calm -= 0.06 * score;
-            rel.stability -= 0.015 * score;
-        }
-        "anger" | "annoyance" | "disapproval" | "disgust" => {
-            push_signal(signals, "emotion:conflict");
-            delta.hurt += 0.08 * score;
-            delta.irritation += 0.10 * score;
-            delta.tension += 0.12 * score;
-            delta.calm -= 0.08 * score;
-            delta.warmth -= 0.06 * score;
-            delta.trust -= 0.045 * score;
-            rel.tension += 0.07 * score;
-            rel.trust -= 0.045 * score;
-            rel.affection -= 0.06 * score;
-            rel.closeness -= 0.03 * score;
-            rel.stability -= 0.035 * score;
-        }
-        "embarrassment" => {
-            push_signal(signals, "emotion:embarrassment");
-            delta.vulnerability += 0.07 * score;
-            delta.reassurance_need += 0.045 * score;
-            delta.tension += 0.02 * score;
-            delta.warmth += 0.02 * score;
-        }
-        "confusion" => {
-            push_signal(signals, "emotion:uncertainty");
-            delta.tension += 0.025 * score;
-            delta.reassurance_need += 0.035 * score;
-            delta.calm -= 0.025 * score;
-        }
-        "curiosity" | "realization" | "surprise" => {
-            push_signal(signals, "emotion:engagement");
-            delta.warmth += 0.025 * score;
-            delta.vulnerability += 0.02 * score;
-            rel.closeness += 0.01 * score;
-        }
-        "pride" => {
-            push_signal(signals, "emotion:pride");
-            delta.calm += 0.035 * score;
-            delta.warmth += 0.025 * score;
-            rel.stability += 0.015 * score;
-        }
-        "neutral" => {
-            push_signal(signals, "emotion:neutral");
-            rel.stability += 0.01 * score;
-        }
-        _ => {}
-    }
-}
-
-fn label_threshold(label: &str) -> f32 {
-    match label {
-        "neutral" => 0.55,
-        "love" | "caring" | "gratitude" | "remorse" | "anger" | "sadness" | "fear" => 0.18,
-        _ => 0.22,
+fn relationship_delta_from_mapped(mapped: MappedRelationshipDelta) -> RelationshipDelta {
+    RelationshipDelta {
+        closeness: mapped.closeness,
+        trust: mapped.trust,
+        affection: mapped.affection,
+        tension: mapped.tension,
+        stability: mapped.stability,
     }
 }
 
@@ -1321,12 +1180,6 @@ fn describe_top_dimensions(vector: &EmotionVector, count: usize) -> String {
         .collect::<Vec<_>>();
 
     described.join(", ")
-}
-
-fn push_signal(signals: &mut Vec<String>, label: &str) {
-    if !signals.iter().any(|existing| existing == label) {
-        signals.push(label.to_string());
-    }
 }
 
 fn elapsed_minutes(previous: u64, now: u64) -> f64 {
@@ -1445,22 +1298,13 @@ fn default_affection() -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::chat_manager::emotion::types::{
+        EmotionExtraction, ExtractedAffect, ExtractedEmotionLabel,
+    };
 
     #[test]
-    fn classifier_labels_map_to_companion_signals() {
-        let bundle = signals_from_classification(&EmotionClassification {
-            confidence: 0.8,
-            labels: vec![
-                EmotionLabelScore {
-                    label: "love".into(),
-                    score: 0.82,
-                },
-                EmotionLabelScore {
-                    label: "gratitude".into(),
-                    score: 0.62,
-                },
-            ],
-        });
+    fn extracted_labels_map_to_companion_signals() {
+        let bundle = mapped_bundle(0.8, &[("love", 0.82), ("gratitude", 0.62)]);
 
         assert!(bundle.signals.iter().any(|signal| signal == "emotion:love"));
         assert!(bundle.delta.longing > 0.04);
@@ -1488,13 +1332,26 @@ mod tests {
     }
 
     fn anger_bundle() -> SignalBundle {
-        signals_from_classification(&EmotionClassification {
-            confidence: 0.8,
-            labels: vec![EmotionLabelScore {
-                label: "anger".into(),
-                score: 0.9,
-            }],
-        })
+        mapped_bundle(0.8, &[("anger", 0.9)])
+    }
+
+    fn mapped_bundle(confidence: f64, labels: &[(&str, f64)]) -> SignalBundle {
+        let extraction = EmotionExtraction {
+            provider: "test".to_string(),
+            labels: labels
+                .iter()
+                .map(|(label, score)| ExtractedEmotionLabel {
+                    label: (*label).to_string(),
+                    score: *score,
+                })
+                .collect(),
+            affect: ExtractedAffect::default(),
+            confidence,
+            evidence: Vec::new(),
+        };
+        signal_bundle_from_mapped(crate::chat_manager::emotion::map_extraction_to_companion(
+            &extraction,
+        ))
     }
 
     #[test]

@@ -2264,6 +2264,15 @@ fn memory_embedding_requires_embedding(
         || memory_embedding_is_stale(memory, target_source_version, target_dimensions)
 }
 
+fn memory_embedding_matches_signature(
+    memory: &MemoryEmbedding,
+    target_source_version: &str,
+    target_dimensions: usize,
+) -> bool {
+    !memory_embedding_is_pending(memory)
+        && !memory_embedding_is_stale(memory, target_source_version, target_dimensions)
+}
+
 async fn migrate_group_memory_embeddings_if_needed(
     app: &AppHandle,
     session: &mut GroupSession,
@@ -2450,6 +2459,31 @@ async fn select_relevant_memories(
         );
     }
 
+    let (target_source_version, target_dimensions) =
+        match embedding::resolve_active_embedding_signature(app) {
+            Ok(signature) => signature,
+            Err(err) => {
+                log_warn(
+                    app,
+                    "group_memory_retrieval",
+                    format!("failed to resolve embedding signature: {}", err),
+                );
+                return Vec::new();
+            }
+        };
+    let (candidate_index_map, candidate_memories): (Vec<usize>, Vec<MemoryEmbedding>) = session
+        .memory_embeddings
+        .iter()
+        .cloned()
+        .enumerate()
+        .filter(|(_, memory)| {
+            memory_embedding_matches_signature(memory, &target_source_version, target_dimensions)
+        })
+        .unzip();
+    if candidate_memories.is_empty() {
+        return Vec::new();
+    }
+
     let query_embedding = match embedding::compute_embedding(app.clone(), query.to_string()).await {
         Ok(vec) => vec,
         Err(err) => {
@@ -2465,7 +2499,7 @@ async fn select_relevant_memories(
     if matches!(strategy, MemoryRetrievalStrategy::Cosine) {
         let cosine_indices = select_top_cosine_memory_indices(
             &query_embedding,
-            &session.memory_embeddings,
+            &candidate_memories,
             limit,
             min_similarity,
         );
@@ -2475,7 +2509,8 @@ async fn select_relevant_memories(
         return cosine_indices
             .into_iter()
             .filter_map(|(idx, score)| {
-                session.memory_embeddings.get(idx).map(|mem| {
+                let source_idx = *candidate_index_map.get(idx)?;
+                session.memory_embeddings.get(source_idx).map(|mem| {
                     let mut cloned = mem.clone();
                     cloned.match_score = Some(score);
                     cloned
@@ -2488,7 +2523,7 @@ async fn select_relevant_memories(
     let cosine_limit = (limit.saturating_sub(2)).max(1);
     let cosine_indices = select_relevant_memory_indices(
         &query_embedding,
-        &session.memory_embeddings,
+        &candidate_memories,
         cosine_limit,
         min_similarity,
     );
@@ -2497,11 +2532,14 @@ async fn select_relevant_memories(
     let mut results: Vec<MemoryEmbedding> = Vec::new();
 
     for (idx, score) in &cosine_indices {
-        if let Some(mem) = session.memory_embeddings.get(*idx) {
+        let Some(source_idx) = candidate_index_map.get(*idx).copied() else {
+            continue;
+        };
+        if let Some(mem) = session.memory_embeddings.get(source_idx) {
             let mut cloned = mem.clone();
             cloned.match_score = Some(*score);
             results.push(cloned);
-            selected.insert(*idx);
+            selected.insert(source_idx);
         }
     }
 
@@ -2511,7 +2549,15 @@ async fn select_relevant_memories(
             .memory_embeddings
             .iter()
             .enumerate()
-            .filter(|(i, m)| !m.is_cold && !selected.contains(i))
+            .filter(|(i, m)| {
+                !m.is_cold
+                    && !selected.contains(i)
+                    && memory_embedding_matches_signature(
+                        m,
+                        &target_source_version,
+                        target_dimensions,
+                    )
+            })
             .max_by_key(|(_, m)| m.created_at)
             .map(|(i, _)| i)
         {
@@ -2528,7 +2574,16 @@ async fn select_relevant_memories(
             .memory_embeddings
             .iter()
             .enumerate()
-            .filter(|(i, m)| !m.is_cold && !selected.contains(i) && m.access_count > 0)
+            .filter(|(i, m)| {
+                !m.is_cold
+                    && !selected.contains(i)
+                    && m.access_count > 0
+                    && memory_embedding_matches_signature(
+                        m,
+                        &target_source_version,
+                        target_dimensions,
+                    )
+            })
             .max_by_key(|(_, m)| m.access_count)
             .map(|(i, _)| i)
         {
@@ -2543,7 +2598,7 @@ async fn select_relevant_memories(
     if results.len() < limit {
         let extra_indices = select_relevant_memory_indices(
             &query_embedding,
-            &session.memory_embeddings,
+            &candidate_memories,
             limit,
             min_similarity,
         );
@@ -2551,12 +2606,15 @@ async fn select_relevant_memories(
             if results.len() >= limit {
                 break;
             }
-            if !selected.contains(&idx) {
-                if let Some(mem) = session.memory_embeddings.get(idx) {
+            let Some(source_idx) = candidate_index_map.get(idx).copied() else {
+                continue;
+            };
+            if !selected.contains(&source_idx) {
+                if let Some(mem) = session.memory_embeddings.get(source_idx) {
                     let mut cloned = mem.clone();
                     cloned.match_score = Some(score);
                     results.push(cloned);
-                    selected.insert(idx);
+                    selected.insert(source_idx);
                 }
             }
         }
@@ -2565,11 +2623,8 @@ async fn select_relevant_memories(
     // 5. Cold keyword fallback as last resort
     if results.is_empty() {
         let normalized_query = normalize_query_text(query);
-        let cold_indices = search_cold_memory_indices_by_keyword(
-            &session.memory_embeddings,
-            &normalized_query,
-            limit,
-        );
+        let cold_indices =
+            search_cold_memory_indices_by_keyword(&candidate_memories, &normalized_query, limit);
         if !cold_indices.is_empty() {
             log_info(
                 app,
@@ -2579,7 +2634,10 @@ async fn select_relevant_memories(
         }
         return cold_indices
             .into_iter()
-            .filter_map(|idx| session.memory_embeddings.get(idx).cloned())
+            .filter_map(|idx| {
+                let source_idx = *candidate_index_map.get(idx)?;
+                session.memory_embeddings.get(source_idx).cloned()
+            })
             .collect();
     }
 
@@ -7274,20 +7332,22 @@ pub fn group_chat_dynamic_memory_cycle_status(
     let since = total.saturating_sub(last_window_end);
     let approval = app.state::<crate::dynamic_memory_approval::DynamicMemoryApprovalManager>();
 
-    Ok(crate::chat_manager::memory::flow::DynamicMemoryCycleStatus {
-        run_mode: dynamic.run_mode.clone(),
-        interval,
-        messages_since_last_cycle: since,
-        messages_until_next_cycle: interval.saturating_sub(since),
-        total_conversation_messages: total,
-        pending_approval_count: approval.pending(&session_id),
-        skipped: approval.was_skipped(&session_id),
-        latest_cycle_status: session
-            .memory_tool_events
-            .last()
-            .and_then(|event| event.get("status").and_then(Value::as_str))
-            .map(str::to_string),
-    })
+    Ok(
+        crate::chat_manager::memory::flow::DynamicMemoryCycleStatus {
+            run_mode: dynamic.run_mode.clone(),
+            interval,
+            messages_since_last_cycle: since,
+            messages_until_next_cycle: interval.saturating_sub(since),
+            total_conversation_messages: total,
+            pending_approval_count: approval.pending(&session_id),
+            skipped: approval.was_skipped(&session_id),
+            latest_cycle_status: session
+                .memory_tool_events
+                .last()
+                .and_then(|event| event.get("status").and_then(Value::as_str))
+                .map(str::to_string),
+        },
+    )
 }
 
 #[tauri::command]

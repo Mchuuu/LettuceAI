@@ -3,8 +3,8 @@ use std::path::Path;
 
 use super::specs::{
     COMPANION_EMOTION_MODEL_FILES_LOCAL, COMPANION_NER_MODEL_FILES_LOCAL,
-    COMPANION_ROUTER_MODEL_FILES_LOCAL, MODEL_FILES_V1, MODEL_FILES_V2_LOCAL,
-    MODEL_FILES_V2_LOCAL_LEGACY, MODEL_FILES_V3_LOCAL, MODEL_FILES_V4_LOCAL,
+    COMPANION_ROUTER_MODEL_FILES_LOCAL, MODEL_FILES_BGE_SMALL_ZH_V15_LOCAL, MODEL_FILES_V1,
+    MODEL_FILES_V2_LOCAL, MODEL_FILES_V2_LOCAL_LEGACY, MODEL_FILES_V3_LOCAL, MODEL_FILES_V4_LOCAL,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -13,6 +13,7 @@ pub(crate) struct InstalledSources {
     pub(crate) has_v2: bool,
     pub(crate) has_v3: bool,
     pub(crate) has_v4: bool,
+    pub(crate) has_bge_small_zh_v15: bool,
     pub(crate) has_companion_emotion: bool,
     pub(crate) has_companion_ner: bool,
     pub(crate) has_companion_router: bool,
@@ -36,6 +37,9 @@ pub(crate) fn detect_installed_sources(model_dir: &Path) -> InstalledSources {
     let has_v4 = MODEL_FILES_V4_LOCAL
         .iter()
         .all(|filename| model_dir.join(filename).exists());
+    let has_bge_small_zh_v15 = MODEL_FILES_BGE_SMALL_ZH_V15_LOCAL
+        .iter()
+        .all(|filename| model_dir.join(filename).exists());
     let has_companion_emotion = COMPANION_EMOTION_MODEL_FILES_LOCAL
         .iter()
         .all(|filename| model_dir.join(filename).exists());
@@ -51,6 +55,7 @@ pub(crate) fn detect_installed_sources(model_dir: &Path) -> InstalledSources {
         has_v2,
         has_v3,
         has_v4,
+        has_bge_small_zh_v15,
         has_companion_emotion,
         has_companion_ner,
         has_companion_router,

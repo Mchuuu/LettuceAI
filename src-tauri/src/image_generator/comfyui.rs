@@ -79,9 +79,7 @@ async fn upload_image(
         .file_name(filename)
         .mime_str(&mime_type)
         .map_err(|error| format!("Failed to attach reference image: {}", error))?;
-    let form = Form::new()
-        .part("image", part)
-        .text("overwrite", "true");
+    let form = Form::new().part("image", part).text("overwrite", "true");
 
     let url = format!("{}/upload/image", base_url);
     let client = build_client(app, &url)?;
@@ -116,7 +114,11 @@ async fn upload_image(
     }
 }
 
-fn substitute_tokens(template: &str, request: &ImageGenerationRequest, uploaded: &[String]) -> String {
+fn substitute_tokens(
+    template: &str,
+    request: &ImageGenerationRequest,
+    uploaded: &[String],
+) -> String {
     let advanced = request.advanced_model_settings.as_ref();
     let size_override = request
         .size

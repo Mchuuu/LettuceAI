@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ChevronRight,
@@ -37,6 +37,7 @@ import {
 } from "../../../core/storage/audioProviders";
 
 import { BottomMenu, MenuButton } from "../../components/BottomMenu";
+import { toast } from "../../components/toast";
 import { useI18n, type TranslationKey } from "../../../core/i18n/context";
 
 const GEMINI_VOICES = [
@@ -60,6 +61,14 @@ const GEMINI_VOICES = [
   descriptionKey: TranslationKey;
 }>;
 
+function supportsProviderVoiceRefresh(provider: AudioProvider) {
+  return (
+    provider.providerType === "elevenlabs" ||
+    provider.providerType === "fish_tts" ||
+    (provider.providerType === "doubao_tts" && provider.resourceId !== "seed-icl-2.0")
+  );
+}
+
 export function VoicesPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -67,10 +76,12 @@ export function VoicesPage() {
   const [userVoices, setUserVoices] = useState<UserVoice[]>([]);
   const [providerVoices, setProviderVoices] = useState<Record<string, CachedVoice[]>>({});
   const [loadingVoicesFor, setLoadingVoicesFor] = useState<string | null>(null);
+  const [playingProviderVoice, setPlayingProviderVoice] = useState<string | null>(null);
   const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [cacheStats, setCacheStats] = useState<TtsCacheStats | null>(null);
   const [isClearingCache, setIsClearingCache] = useState(false);
+  const providerVoicePreviewAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Voice editor state
   const [isVoiceEditorOpen, setIsVoiceEditorOpen] = useState(false);
@@ -90,6 +101,7 @@ export function VoicesPage() {
     if (providerType === "gemini_tts") return t("voices.extra.badge.gemini");
     if (providerType === "fish_tts") return t("voices.extra.badge.fish");
     if (providerType === "fish_speech") return t("voices.extra.badge.fishSpeech");
+    if (providerType === "doubao_tts") return t("voices.extra.badge.doubao");
     if (providerType === "openai_tts") return t("voices.extra.badge.openai");
     return t("voices.extra.badge.elevenlabs");
   };
@@ -129,17 +141,27 @@ export function VoicesPage() {
       const voicesMap: Record<string, CachedVoice[]> = {};
       for (const provider of loadedProviders) {
         try {
-          const voices = await getProviderVoices(provider.id);
+          let voices = await getProviderVoices(provider.id);
+          if (voices.length === 0 && supportsProviderVoiceRefresh(provider)) {
+            setLoadingVoicesFor(provider.id);
+            voices = await refreshProviderVoices(provider.id);
+          }
           voicesMap[provider.id] = voices;
         } catch (e) {
           console.error(`Failed to load voices for ${provider.label}:`, e);
+          toast.error(
+            t("voices.extra.page.loadProviderVoicesFailed", { provider: provider.label }),
+            String(e),
+          );
           voicesMap[provider.id] = [];
         }
       }
       setProviderVoices(voicesMap);
     } catch (e) {
       console.error("Failed to load voices data:", e);
+      toast.error(t("voices.extra.page.loadVoicesFailed"), String(e));
     } finally {
+      setLoadingVoicesFor(null);
       setIsLoading(false);
     }
   }, []);
@@ -151,14 +173,70 @@ export function VoicesPage() {
       setProviderVoices((prev) => ({ ...prev, [providerId]: voices }));
     } catch (e) {
       console.error("Failed to refresh voices:", e);
+      const provider = providers.find((item) => item.id === providerId);
+      toast.error(
+        t("voices.extra.page.refreshProviderVoicesFailed", {
+          provider: provider?.label ?? providerId,
+        }),
+        String(e),
+      );
     } finally {
       setLoadingVoicesFor(null);
     }
   };
 
+  const stopProviderVoicePreview = useCallback(() => {
+    const audio = providerVoicePreviewAudioRef.current;
+    if (!audio) return;
+
+    audio.pause();
+    audio.currentTime = 0;
+    audio.src = "";
+    audio.load();
+    providerVoicePreviewAudioRef.current = null;
+  }, []);
+
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useEffect(() => () => stopProviderVoicePreview(), [stopProviderVoicePreview]);
+
+  const handlePreviewProviderVoice = async (provider: AudioProvider, voice: CachedVoice) => {
+    const previewKey = `${provider.id}:${voice.voiceId}`;
+    stopProviderVoicePreview();
+    setPlayingProviderVoice(previewKey);
+    try {
+      const models = await listAudioModels(provider.providerType);
+      const modelId = models[0]?.id;
+      if (!modelId) {
+        throw new Error(t("voices.extra.page.noPreviewModel"));
+      }
+      const response = await generateTtsPreview(
+        provider.id,
+        modelId,
+        voice.voiceId,
+        t("voices.extra.editor.defaultSample"),
+      );
+      const audio = playAudioFromBase64(response.audioBase64, response.format);
+      providerVoicePreviewAudioRef.current = audio;
+      const clearCurrentAudio = () => {
+        if (providerVoicePreviewAudioRef.current === audio) {
+          providerVoicePreviewAudioRef.current = null;
+        }
+      };
+      audio.addEventListener("ended", clearCurrentAudio, { once: true });
+      audio.addEventListener("error", clearCurrentAudio, { once: true });
+    } catch (e) {
+      console.error("Failed to preview provider voice:", e);
+      toast.error(
+        t("voices.extra.page.previewProviderVoiceFailed", { voice: voice.name }),
+        String(e),
+      );
+    } finally {
+      setPlayingProviderVoice(null);
+    }
+  };
 
   const handleCreateVoice = () => {
     const firstNonKokoro = editableProviders.find((p) => p.providerType !== "kokoro");
@@ -369,27 +447,39 @@ export function VoicesPage() {
                     </p>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
-                      {displayedVoices.map((voice) => (
-                        <div
-                          key={voice.voiceId}
-                          className="flex items-center gap-2 rounded-lg border border-fg/5 bg-surface-el/20 px-2 py-1.5"
-                        >
-                          <Volume2 className="h-3 w-3 shrink-0 text-fg/40" />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs font-medium text-fg/80">{voice.name}</p>
-                            {voice.labels?.category && (
-                              <p className="truncate text-[10px] text-fg/40">
-                                {voice.labels.category}
-                              </p>
+                      {displayedVoices.map((voice) => {
+                        const previewKey = `${provider.id}:${voice.voiceId}`;
+                        const isPlayingPreview = playingProviderVoice === previewKey;
+                        return (
+                          <button
+                            key={voice.voiceId}
+                            type="button"
+                            onClick={() => void handlePreviewProviderVoice(provider, voice)}
+                            className="flex items-center gap-2 rounded-lg border border-fg/5 bg-surface-el/20 px-2 py-1.5 text-left transition hover:border-fg/20 hover:bg-fg/10 disabled:opacity-60"
+                          >
+                            {isPlayingPreview ? (
+                              <Loader2 className="h-3 w-3 shrink-0 animate-spin text-accent" />
+                            ) : (
+                              <Volume2 className="h-3 w-3 shrink-0 text-fg/40" />
                             )}
-                            {voice.labels?.gender && !voice.labels?.category && (
-                              <p className="truncate text-[10px] text-fg/40">
-                                {voice.labels.gender}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-xs font-medium text-fg/80">
+                                {voice.name}
                               </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                              {voice.labels?.category && (
+                                <p className="truncate text-[10px] text-fg/40">
+                                  {voice.labels.categories || voice.labels.category}
+                                </p>
+                              )}
+                              {voice.labels?.gender && !voice.labels?.category && (
+                                <p className="truncate text-[10px] text-fg/40">
+                                  {voice.labels.gender}
+                                </p>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
 
@@ -662,7 +752,9 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
     const provider = providers.find((p) => p.id === formData.providerId);
     if (!provider) return;
 
-    if (provider.providerType === "elevenlabs" || provider.providerType === "fish_tts") {
+    if (
+      supportsProviderVoiceRefresh(provider)
+    ) {
       setIsLoadingVoices(true);
       void (async () => {
         try {
@@ -709,7 +801,10 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
         finalVoiceData.voiceId = "kore";
       }
 
-      if (provider?.providerType === "fish_tts" && !finalVoiceData.voiceId.trim()) {
+      if (
+        (provider?.providerType === "fish_tts" || provider?.providerType === "doubao_tts") &&
+        !finalVoiceData.voiceId.trim()
+      ) {
         throw new Error(t("voices.extra.editor.fishVoiceIdRequired"));
       }
 
@@ -828,11 +923,14 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
   const allowsVoiceLookupByName =
     activeProvider?.providerType === "elevenlabs" && !isElevenLabsVoiceDesign;
   const usesProviderVoicePicker =
-    activeProvider?.providerType === "elevenlabs" || activeProvider?.providerType === "fish_tts";
+    activeProvider?.providerType === "elevenlabs" ||
+    activeProvider?.providerType === "fish_tts" ||
+    (activeProvider?.providerType === "doubao_tts" && activeProvider.resourceId !== "seed-icl-2.0");
   const requiresManualVoiceId =
     activeProvider?.providerType === "openai_tts" ||
     activeProvider?.providerType === "fish_tts" ||
-    activeProvider?.providerType === "fish_speech";
+    activeProvider?.providerType === "fish_speech" ||
+    activeProvider?.providerType === "doubao_tts";
   const sampleLength = textSample.trim().length;
   const previewDisabled =
     isPlaying ||
@@ -927,7 +1025,9 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label className="text-[11px] font-medium text-fg/70">
-                {activeProvider?.providerType === "fish_tts"
+                {activeProvider?.providerType === "doubao_tts"
+                  ? t("voices.extra.editor.doubaoVoice")
+                  : activeProvider?.providerType === "fish_tts"
                   ? t("voices.extra.editor.fishVoice")
                   : t("voices.extra.editor.elevenlabsVoice")}
               </label>
@@ -987,7 +1087,9 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
               )}
             </select>
             <p className="mt-1 text-[10px] text-fg/40">
-              {activeProvider?.providerType === "fish_tts"
+              {activeProvider?.providerType === "doubao_tts"
+                ? t("voices.extra.editor.doubaoVoiceHint")
+                : activeProvider?.providerType === "fish_tts"
                 ? t("voices.extra.editor.fishVoiceHint")
                 : t("voices.extra.editor.elevenlabsVoiceHint")}
             </p>

@@ -67,7 +67,8 @@ pub fn llm_metrics_list(app: tauri::AppHandle, limit: Option<i64>) -> Result<Jso
     for row in rows {
         let (id, created_at, summary_json) =
             row.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-        let mut summary = serde_json::from_str::<JsonValue>(&summary_json).unwrap_or_else(|_| json!({}));
+        let mut summary =
+            serde_json::from_str::<JsonValue>(&summary_json).unwrap_or_else(|_| json!({}));
         if let Some(obj) = summary.as_object_mut() {
             obj.insert("id".into(), json!(id));
             obj.insert("createdAt".into(), json!(created_at));
@@ -96,7 +97,8 @@ pub fn llm_metrics_get(app: tauri::AppHandle, id: String) -> Result<Option<JsonV
         return Ok(None);
     };
 
-    let mut summary = serde_json::from_str::<JsonValue>(&summary_json).unwrap_or_else(|_| json!({}));
+    let mut summary =
+        serde_json::from_str::<JsonValue>(&summary_json).unwrap_or_else(|_| json!({}));
     let samples = serde_json::from_str::<JsonValue>(&samples_json).unwrap_or_else(|_| json!([]));
     if let Some(obj) = summary.as_object_mut() {
         obj.insert("id".into(), json!(id));
@@ -145,7 +147,8 @@ pub fn llm_metrics_get_by_message(
         return Ok(None);
     };
 
-    let mut summary = serde_json::from_str::<JsonValue>(&summary_json).unwrap_or_else(|_| json!({}));
+    let mut summary =
+        serde_json::from_str::<JsonValue>(&summary_json).unwrap_or_else(|_| json!({}));
     let samples = serde_json::from_str::<JsonValue>(&samples_json).unwrap_or_else(|_| json!([]));
     if let Some(obj) = summary.as_object_mut() {
         obj.insert("id".into(), json!(id));

@@ -3,6 +3,7 @@ pub mod companion;
 pub mod companion_consolidation;
 pub mod companion_growth;
 pub mod companion_soul_writer;
+pub mod emotion;
 pub mod execution;
 pub mod flows;
 pub mod lorebook_entry_generator;

@@ -2151,10 +2151,7 @@ pub async fn hf_get_author_overview(
 }
 
 #[tauri::command]
-pub async fn hf_get_model_files(
-    app: AppHandle,
-    model_id: String,
-) -> Result<HfModelInfo, String> {
+pub async fn hf_get_model_files(app: AppHandle, model_id: String) -> Result<HfModelInfo, String> {
     log_info(
         &app,
         "hf_browser",

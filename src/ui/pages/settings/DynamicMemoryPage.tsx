@@ -137,9 +137,17 @@ function ModeOption({
 }
 
 type MemoryPreset = "minimal" | "balanced" | "comprehensive" | "custom";
-type SelectableEmbeddingVersion = "v3" | "v4";
+type SelectableEmbeddingVersion = "v3" | "v4" | "bge-small-zh-v1.5";
 
+const BGE_SMALL_ZH_VERSION = "bge-small-zh-v1.5" as const;
+const SELECTABLE_EMBEDDING_VERSIONS = ["v3", "v4", BGE_SMALL_ZH_VERSION] as const;
+const DEFAULT_EMBEDDING_VERSION = BGE_SMALL_ZH_VERSION;
 const V4_DIMENSION_OPTIONS = [64, 128, 256, 512, 768] as const;
+
+const isSelectableEmbeddingVersion = (
+  version: string | null | undefined,
+): version is SelectableEmbeddingVersion =>
+  !!version && SELECTABLE_EMBEDDING_VERSIONS.includes(version as SelectableEmbeddingVersion);
 
 const PRESETS: Record<
   Exclude<MemoryPreset, "custom">,
@@ -631,17 +639,16 @@ export function DynamicMemoryPage() {
 
   const navigateToBundleDownload = (version?: SelectableEmbeddingVersion) => {
     const targetVersion =
-      version ?? (selectedEmbeddingVersion === "v3" || modelSourceVersion === "v3" ? "v3" : "v4");
+      version ?? (isSelectableEmbeddingVersion(modelSourceVersion)
+        ? modelSourceVersion
+        : DEFAULT_EMBEDDING_VERSION);
     navigate(`/settings/embedding-download?version=${targetVersion}`);
   };
 
   const handleDeleteSelectedEmbeddingModel = async () => {
-    const version =
-      selectedEmbeddingVersion === "v3"
-        ? "v3"
-        : selectedEmbeddingVersion === "v4"
-          ? "v4"
-          : null;
+    const version = isSelectableEmbeddingVersion(selectedEmbeddingVersion)
+      ? selectedEmbeddingVersion
+      : null;
     if (!version) return;
     const confirmed = await confirmBottomMenu({
       title: t("dynamicMemory.page.deleteEmbeddingTitle", {
@@ -689,13 +696,16 @@ export function DynamicMemoryPage() {
   const isLocalLlamaSummaryModel =
     effectiveSummarisationModel?.providerId === "llamacpp"
     && getPlatform().type !== "mobile";
-  const hasV3Installed = availableEmbeddingVersions.includes("v3");
-  const hasV4Installed = availableEmbeddingVersions.includes("v4");
-  const hasBothMajorEmbeddingVersionsInstalled = hasV3Installed && hasV4Installed;
+  const hasDefaultEmbeddingInstalled = availableEmbeddingVersions.includes(BGE_SMALL_ZH_VERSION);
+  const selectableInstalledEmbeddingVersions = SELECTABLE_EMBEDDING_VERSIONS.filter((version) =>
+    availableEmbeddingVersions.includes(version),
+  );
   const effectiveEmbeddingVersion =
     selectedEmbeddingVersion ?? modelSourceVersion ?? modelVersion ?? null;
   const supportsExtendedTokenCapacity =
-    effectiveEmbeddingVersion === "v3" || effectiveEmbeddingVersion === "v4";
+    effectiveEmbeddingVersion === "v3" ||
+    effectiveEmbeddingVersion === "v4" ||
+    effectiveEmbeddingVersion === BGE_SMALL_ZH_VERSION;
   const supportsMatryoshkaDimensions = effectiveEmbeddingVersion === "v4";
   const effectiveEmbeddingDimensions = supportsMatryoshkaDimensions ? embeddingDimensions : 512;
   const selectedSummarisationModelLabel =
@@ -1511,28 +1521,27 @@ export function DynamicMemoryPage() {
               </section>
 
               {/* Embedding Model */}
-              {(availableEmbeddingVersions.filter((v) => v === "v3" || v === "v4").length > 1 ||
+              {(selectableInstalledEmbeddingVersions.length > 1 ||
                 supportsExtendedTokenCapacity ||
                 supportsMatryoshkaDimensions ||
                 modelVersion) && (
                 <section className="space-y-4" data-tour-id="dynmem-embedding">
                   <SectionLabel>{t("dynamicMemory.page.embeddingModelSection")}</SectionLabel>
 
-                  {availableEmbeddingVersions.filter((v) => v === "v3" || v === "v4").length >
-                    1 && (
+                  {selectableInstalledEmbeddingVersions.length > 1 && (
                     <FieldRow
                       label={t("dynamicMemory.page.embeddingModel")}
                       helper={
                         selectedEmbeddingVersion === "v3"
                           ? t("dynamicMemory.page.embeddingV3Deprecated")
-                          : t("dynamicMemory.page.embeddingV4Latest")
+                          : selectedEmbeddingVersion === "v4"
+                            ? t("dynamicMemory.page.embeddingV4Legacy")
+                            : t("dynamicMemory.page.embeddingBgeSmallZhLatest")
                       }
                     >
                       <SegmentedRow
-                        options={(["v3", "v4"] as const).filter((version) =>
-                          availableEmbeddingVersions.includes(version),
-                        )}
-                        value={selectedEmbeddingVersion ?? "v4"}
+                        options={selectableInstalledEmbeddingVersions}
+                        value={selectedEmbeddingVersion ?? DEFAULT_EMBEDDING_VERSION}
                         onChange={(next) =>
                           handleEmbeddingModelVersionChange(next as SelectableEmbeddingVersion)
                         }
@@ -1626,7 +1635,7 @@ export function DynamicMemoryPage() {
                     <RefreshCw className="h-4 w-4" />
                     {t("dynamicMemory.page.testModel")}
                   </button>
-                  {(!hasBothMajorEmbeddingVersionsInstalled || !installBundleComplete) && (
+                  {(!hasDefaultEmbeddingInstalled || !installBundleComplete) && (
                     <button
                       onClick={() => setShowDownloadModelMenu(true)}
                       className={cn(
@@ -1673,12 +1682,12 @@ export function DynamicMemoryPage() {
           <button
             onClick={() => {
               setShowDownloadModelMenu(false);
-              navigateToBundleDownload("v4");
+              navigateToBundleDownload(DEFAULT_EMBEDDING_VERSION);
             }}
-            disabled={hasV4Installed && installBundleComplete}
+            disabled={hasDefaultEmbeddingInstalled && installBundleComplete}
             className={cn(
               "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition",
-              hasV4Installed && installBundleComplete
+              hasDefaultEmbeddingInstalled && installBundleComplete
                 ? "cursor-not-allowed border-fg/10 bg-fg/5 text-fg/35"
                 : "border-fg/10 bg-fg/5 text-fg hover:bg-fg/10",
             )}
@@ -1689,14 +1698,14 @@ export function DynamicMemoryPage() {
               </div>
               <div>
                 <div className="text-sm font-medium">
-                  {t("dynamicMemory.page.downloadVersion", { version: "v4" })}
+                  {t("dynamicMemory.page.downloadVersion", { version: BGE_SMALL_ZH_VERSION })}
                 </div>
                 <div className="text-[11px] text-fg/45">
-                  {t("dynamicMemory.page.downloadV4Description")}
+                  {t("dynamicMemory.page.downloadBgeSmallZhDescription")}
                 </div>
               </div>
             </div>
-            {hasV4Installed && installBundleComplete && (
+            {hasDefaultEmbeddingInstalled && installBundleComplete && (
               <span className="flex items-center gap-1 text-xs text-fg/45">
                 <Check className="h-3.5 w-3.5" />
                 {t("dynamicMemory.page.installed")}

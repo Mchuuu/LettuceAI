@@ -830,6 +830,15 @@ fn memory_embedding_requires_embedding(
         || memory_embedding_is_stale(memory, target_source_version, target_dimensions)
 }
 
+fn memory_embedding_matches_signature(
+    memory: &MemoryEmbedding,
+    target_source_version: &str,
+    target_dimensions: usize,
+) -> bool {
+    !memory_embedding_is_pending(memory)
+        && !memory_embedding_is_stale(memory, target_source_version, target_dimensions)
+}
+
 async fn migrate_session_memory_embeddings_if_needed(
     app: &AppHandle,
     session: &mut Session,
@@ -1365,6 +1374,34 @@ pub(crate) async fn select_relevant_memories(
         } else {
             None
         };
+    let temporal_query_active = temporal_range.is_some();
+    let effective_min_similarity = if temporal_query_active {
+        -1.0
+    } else {
+        min_similarity
+    };
+
+    if let Err(err) = migrate_session_memory_embeddings_if_needed(app, session).await {
+        log_warn(
+            app,
+            "memory_retrieval",
+            format!("memory vector migration failed: {}", err),
+        );
+    }
+
+    let (target_source_version, target_dimensions) =
+        match embedding::resolve_active_embedding_signature(app) {
+            Ok(signature) => signature,
+            Err(err) => {
+                log_warn(
+                    app,
+                    "memory_retrieval",
+                    format!("failed to resolve embedding signature: {}", err),
+                );
+                return Vec::new();
+            }
+        };
+
     let filtered_candidates: Option<Vec<(usize, MemoryEmbedding)>> =
         temporal_range.as_ref().map(|range| {
             session
@@ -1373,7 +1410,13 @@ pub(crate) async fn select_relevant_memories(
                 .cloned()
                 .enumerate()
                 .filter(|(_, memory)| {
-                    memory.superseded_by.is_none() && memory_matches_temporal_range(memory, range)
+                    memory.superseded_by.is_none()
+                        && memory_embedding_matches_signature(
+                            memory,
+                            &target_source_version,
+                            target_dimensions,
+                        )
+                        && memory_matches_temporal_range(memory, range)
                 })
                 .collect()
         });
@@ -1389,22 +1432,18 @@ pub(crate) async fn select_relevant_memories(
                 .iter()
                 .cloned()
                 .enumerate()
-                .filter(|(_, memory)| memory.superseded_by.is_none())
+                .filter(|(_, memory)| {
+                    memory.superseded_by.is_none()
+                        && memory_embedding_matches_signature(
+                            memory,
+                            &target_source_version,
+                            target_dimensions,
+                        )
+                })
                 .unzip()
         };
-    let temporal_query_active = temporal_range.is_some();
-    let effective_min_similarity = if temporal_query_active {
-        -1.0
-    } else {
-        min_similarity
-    };
-
-    if let Err(err) = migrate_session_memory_embeddings_if_needed(app, session).await {
-        log_warn(
-            app,
-            "memory_retrieval",
-            format!("memory vector migration failed: {}", err),
-        );
+    if candidate_memories.is_empty() {
+        return Vec::new();
     }
 
     let query_embedding = match embedding::compute_embedding(app.clone(), query.to_string()).await {

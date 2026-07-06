@@ -742,6 +742,9 @@ mod tests {
         let mut call = call_with_signature(None);
         call.raw_arguments = Some("{\"value\":\"raw\"}".to_string());
         let payload = tool_call_message_payload("openai", &call, 0);
-        assert_eq!(payload["function"]["arguments"], json!("{\"value\":\"raw\"}"));
+        assert_eq!(
+            payload["function"]["arguments"],
+            json!("{\"value\":\"raw\"}")
+        );
     }
 }

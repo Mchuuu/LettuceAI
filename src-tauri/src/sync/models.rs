@@ -170,6 +170,10 @@ pub struct AudioProvider {
     pub api_key: Option<String>,
     pub project_id: Option<String>,
     pub location: Option<String>,
+    #[serde(default)]
+    pub resource_id: Option<String>,
+    #[serde(default)]
+    pub secret_key: Option<String>,
     pub base_url: Option<String>,
     pub request_path: Option<String>,
     #[serde(default)]

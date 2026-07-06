@@ -10,9 +10,9 @@ use crate::sync::models::{
     CompanionSharedMemory, CreationHelperSession, GroupMessage, GroupMessageVariant,
     GroupParticipation, GroupSession, Message, MessageVariant, MetaEntry, Model, Persona,
     PromptTemplate, ProviderCredential, Scene, SceneVariant, Secret, Session, Settings,
-    SyncAsrCorrection, SyncAsrIgnoredSuggestion, SyncAsrVocabularyTerm,
-    SyncCompanionScheduledNote, SyncCompanionTurnEffect, SyncLorebook, SyncLorebookEntry,
-    SyncMemoryEmbeddingRecord, SyncedMemoryEmbedding, UsageMetadata, UsageRecord, UserVoice,
+    SyncAsrCorrection, SyncAsrIgnoredSuggestion, SyncAsrVocabularyTerm, SyncCompanionScheduledNote,
+    SyncCompanionTurnEffect, SyncLorebook, SyncLorebookEntry, SyncMemoryEmbeddingRecord,
+    SyncedMemoryEmbedding, UsageMetadata, UsageRecord, UserVoice,
 };
 use crate::sync::protocol::{ChangeOp, ChangeRecord, CursorSet, DomainCursor, SyncDomain};
 use crate::utils::{log_error_global, log_info_global};
@@ -1973,8 +1973,7 @@ fn deserialize_memory_embedding_head(
     match bincode_decode_exact(&head.payload) {
         Ok(value) => Ok(value),
         Err(current_err) => {
-            if let Ok(value) =
-                bincode_decode_exact::<LegacySyncedMemoryEmbeddingV1>(&head.payload)
+            if let Ok(value) = bincode_decode_exact::<LegacySyncedMemoryEmbeddingV1>(&head.payload)
             {
                 log_info_global(
                     "sync_payload",
@@ -1985,8 +1984,7 @@ fn deserialize_memory_embedding_head(
                 );
                 return Ok(upgrade_legacy_memory_embedding_v1(value));
             }
-            if let Ok(value) =
-                bincode_decode_exact::<LegacySyncedMemoryEmbeddingV0>(&head.payload)
+            if let Ok(value) = bincode_decode_exact::<LegacySyncedMemoryEmbeddingV0>(&head.payload)
             {
                 log_info_global(
                     "sync_payload",
@@ -2440,8 +2438,8 @@ fn apply_tts_snapshot(conn: &mut DbConnection, payload: &[u8]) -> Result<(), Str
         .collect::<Vec<_>>();
     for provider in snapshot.audio_providers {
         tx.execute(
-            r#"INSERT OR REPLACE INTO audio_providers (id, provider_type, label, api_key, project_id, location, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at)
-               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)"#,
+            r#"INSERT OR REPLACE INTO audio_providers (id, provider_type, label, api_key, project_id, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at)
+               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)"#,
             params![
                 provider.id,
                 provider.provider_type,
@@ -2449,6 +2447,8 @@ fn apply_tts_snapshot(conn: &mut DbConnection, payload: &[u8]) -> Result<(), Str
                 provider.api_key,
                 provider.project_id,
                 provider.location,
+                provider.resource_id,
+                provider.secret_key,
                 provider.base_url,
                 provider.request_path,
                 provider.kokoro_variant,
@@ -3629,7 +3629,7 @@ fn fetch_global_core(conn: &DbConnection) -> Result<GlobalCoreData, String> {
         .collect();
 
     let mut stmt = conn
-        .prepare("SELECT id, provider_type, label, api_key, project_id, location, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at FROM audio_providers")
+        .prepare("SELECT id, provider_type, label, api_key, project_id, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at FROM audio_providers")
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     let audio_providers: Vec<AudioProvider> = stmt
         .query_map([], |r| {
@@ -3640,12 +3640,14 @@ fn fetch_global_core(conn: &DbConnection) -> Result<GlobalCoreData, String> {
                 api_key: r.get(3)?,
                 project_id: r.get(4)?,
                 location: r.get(5)?,
-                base_url: r.get(6)?,
-                request_path: r.get(7)?,
-                kokoro_variant: r.get(8)?,
-                asset_root: r.get(9)?,
-                created_at: r.get(10)?,
-                updated_at: r.get(11)?,
+                resource_id: r.get(6)?,
+                secret_key: r.get(7)?,
+                base_url: r.get(8)?,
+                request_path: r.get(9)?,
+                kokoro_variant: r.get(10)?,
+                asset_root: r.get(11)?,
+                created_at: r.get(12)?,
+                updated_at: r.get(13)?,
             })
         })
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
@@ -4241,7 +4243,9 @@ pub(crate) fn asr_correction_entity_id(
     )
 }
 
-pub(crate) fn fetch_asr_vocabulary_terms(conn: &DbConnection) -> Result<Vec<SyncAsrVocabularyTerm>, String> {
+pub(crate) fn fetch_asr_vocabulary_terms(
+    conn: &DbConnection,
+) -> Result<Vec<SyncAsrVocabularyTerm>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT term, normalized_term, language, category, scope, priority, use_count, created_at, updated_at
@@ -4715,7 +4719,10 @@ mod tests {
         assert_eq!(decoded.memory.id, "852275");
         assert_eq!(decoded.memory.created_at, 1776758542110);
         assert_eq!(decoded.memory.token_count, 20);
-        assert_eq!(decoded.memory.embedding_source_version.as_deref(), Some("v4"));
+        assert_eq!(
+            decoded.memory.embedding_source_version.as_deref(),
+            Some("v4")
+        );
         assert_eq!(decoded.memory.match_score, None);
         assert_eq!(decoded.memory.category.as_deref(), Some("character_trait"));
     }
@@ -4918,10 +4925,16 @@ mod tests {
         tx.commit().unwrap();
 
         let priority: i64 = conn
-            .query_row("SELECT priority FROM asr_vocabulary_terms LIMIT 1", [], |r| r.get(0))
+            .query_row(
+                "SELECT priority FROM asr_vocabulary_terms LIMIT 1",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         let term_count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM asr_vocabulary_terms", [], |r| r.get(0))
+            .query_row("SELECT COUNT(*) FROM asr_vocabulary_terms", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         assert_eq!(priority, 90);
         assert_eq!(term_count, 1);
@@ -4934,7 +4947,9 @@ mod tests {
             )
             .unwrap();
         let new_term_id: i64 = conn
-            .query_row("SELECT id FROM asr_vocabulary_terms LIMIT 1", [], |r| r.get(0))
+            .query_row("SELECT id FROM asr_vocabulary_terms LIMIT 1", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         let new_correction_id: i64 = conn
             .query_row("SELECT id FROM asr_corrections LIMIT 1", [], |r| r.get(0))
@@ -4962,7 +4977,9 @@ mod tests {
         tx.commit().unwrap();
 
         let term_id: Option<i64> = conn
-            .query_row("SELECT term_id FROM asr_voice_examples LIMIT 1", [], |r| r.get(0))
+            .query_row("SELECT term_id FROM asr_voice_examples LIMIT 1", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         assert_eq!(term_id, None);
     }

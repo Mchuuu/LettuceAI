@@ -9,7 +9,7 @@ use super::types::{
     AudioModel, AudioProvider, AudioProviderType, CachedVoice, CreatedVoiceResult,
     TtsPreviewResponse, UserVoice, VoiceDesignPreview,
 };
-use super::{elevenlabs, fish, fish_speech, gemini, kokoro, openai_compatible};
+use super::{doubao, elevenlabs, fish, fish_speech, gemini, kokoro, openai_compatible};
 use crate::abort_manager::AbortRegistry;
 use crate::storage_manager::db::{now_ms, open_db};
 
@@ -21,6 +21,24 @@ pub struct KokoroVoiceBlendInput {
 }
 
 const SYSTEM_KOKORO_ID: &str = "system-kokoro";
+
+fn non_empty_trimmed(value: Option<&str>) -> Option<&str> {
+    value.map(str::trim).filter(|value| !value.is_empty())
+}
+
+fn doubao_openapi_secret_key<'a>(
+    secret_key: Option<&'a str>,
+    request_path: Option<&'a str>,
+) -> Option<&'a str> {
+    non_empty_trimmed(secret_key).or_else(|| {
+        // Early Doubao builds temporarily stored Secret Access Key in request_path.
+        non_empty_trimmed(request_path).filter(|value| !value.starts_with('/'))
+    })
+}
+
+fn doubao_request_path_override(request_path: Option<&str>) -> Option<&str> {
+    non_empty_trimmed(request_path).filter(|value| value.starts_with('/'))
+}
 
 fn ensure_default_kokoro_provider(
     conn: &rusqlite::Connection,
@@ -48,8 +66,8 @@ fn ensure_default_kokoro_provider(
     let now = now_ms();
     let _ = conn.execute(
         "INSERT OR IGNORE INTO audio_providers
-         (id, provider_type, label, api_key, project_id, location, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at)
-         VALUES (?1, 'kokoro', 'Kokoro (Local)', NULL, NULL, NULL, NULL, NULL, ?2, ?3, ?4, ?4)",
+         (id, provider_type, label, api_key, project_id, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at)
+         VALUES (?1, 'kokoro', 'Kokoro (Local)', NULL, NULL, NULL, NULL, NULL, NULL, NULL, ?2, ?3, ?4, ?4)",
         params![SYSTEM_KOKORO_ID, variant, asset_root, now],
     );
     Ok(())
@@ -96,7 +114,7 @@ pub fn audio_provider_list(app: AppHandle) -> Result<Vec<AudioProvider>, String>
     repair_system_kokoro_asset_root(&conn, &app);
     let mut stmt = conn
         .prepare(
-            "SELECT id, provider_type, label, api_key, project_id, location, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at
+            "SELECT id, provider_type, label, api_key, project_id, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at
              FROM audio_providers ORDER BY created_at DESC",
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -110,12 +128,14 @@ pub fn audio_provider_list(app: AppHandle) -> Result<Vec<AudioProvider>, String>
                 api_key: row.get(3)?,
                 project_id: row.get(4)?,
                 location: row.get(5)?,
-                base_url: row.get(6)?,
-                request_path: row.get(7)?,
-                kokoro_variant: row.get(8)?,
-                asset_root: row.get(9)?,
-                created_at: row.get(10)?,
-                updated_at: row.get(11)?,
+                resource_id: row.get(6)?,
+                secret_key: row.get(7)?,
+                base_url: row.get(8)?,
+                request_path: row.get(9)?,
+                kokoro_variant: row.get(10)?,
+                asset_root: row.get(11)?,
+                created_at: row.get(12)?,
+                updated_at: row.get(13)?,
             })
         })
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
@@ -150,19 +170,23 @@ pub fn audio_provider_upsert(
         .unwrap_or_else(|| "us-central1".to_string());
     let base_url = provider.base_url.clone();
     let request_path = provider.request_path.clone();
+    let resource_id = provider.resource_id.clone();
+    let secret_key = provider.secret_key.clone();
 
     let kokoro_variant = provider.kokoro_variant.clone();
     let asset_root = provider.asset_root.clone();
 
     conn.execute(
-        "INSERT INTO audio_providers (id, provider_type, label, api_key, project_id, location, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11)
+        "INSERT INTO audio_providers (id, provider_type, label, api_key, project_id, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?13)
          ON CONFLICT(id) DO UPDATE SET
             provider_type = excluded.provider_type,
             label = excluded.label,
             api_key = excluded.api_key,
             project_id = excluded.project_id,
             location = excluded.location,
+            resource_id = excluded.resource_id,
+            secret_key = excluded.secret_key,
             base_url = excluded.base_url,
             request_path = excluded.request_path,
             kokoro_variant = excluded.kokoro_variant,
@@ -175,6 +199,8 @@ pub fn audio_provider_upsert(
             provider.api_key,
             provider.project_id,
             location,
+            resource_id,
+            secret_key,
             base_url,
             request_path,
             kokoro_variant,
@@ -191,6 +217,8 @@ pub fn audio_provider_upsert(
         api_key: provider.api_key,
         project_id: provider.project_id,
         location: provider.location,
+        resource_id: provider.resource_id,
+        secret_key: provider.secret_key,
         base_url: provider.base_url,
         request_path: provider.request_path,
         kokoro_variant: provider.kokoro_variant,
@@ -235,6 +263,7 @@ pub fn audio_models_list(provider_type: String) -> Vec<AudioModel> {
         Some(AudioProviderType::Elevenlabs) => elevenlabs::get_models(),
         Some(AudioProviderType::FishTts) => fish::default_models(),
         Some(AudioProviderType::FishSpeech) => fish_speech::default_models(),
+        Some(AudioProviderType::DoubaoTts) => doubao::default_models(),
         Some(AudioProviderType::OpenAiTts) => openai_compatible::default_models(),
         Some(AudioProviderType::Kokoro) => kokoro_variants_as_models(),
         None => vec![],
@@ -248,6 +277,7 @@ pub fn audio_voice_design_models_list(provider_type: String) -> Vec<AudioModel> 
         Some(AudioProviderType::Elevenlabs) => elevenlabs::get_voice_design_models(),
         Some(AudioProviderType::FishTts) => fish::default_models(),
         Some(AudioProviderType::FishSpeech) => fish_speech::default_models(),
+        Some(AudioProviderType::DoubaoTts) => doubao::default_models(),
         Some(AudioProviderType::OpenAiTts) => openai_compatible::default_models(),
         Some(AudioProviderType::Kokoro) => kokoro_variants_as_models(),
         None => vec![],
@@ -561,11 +591,29 @@ pub async fn audio_provider_refresh_voices(
     let conn = open_db(&app)?;
 
     // Get provider details
-    let (provider_type, api_key): (String, Option<String>) = conn
+    let (provider_type, api_key, project_id, resource_id, secret_key, base_url, request_path): (
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ) = conn
         .query_row(
-            "SELECT provider_type, api_key FROM audio_providers WHERE id = ?",
+            "SELECT provider_type, api_key, project_id, resource_id, secret_key, base_url, request_path FROM audio_providers WHERE id = ?",
             params![provider_id],
-            |row| Ok((row.get(0)?, row.get(1)?)),
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                    row.get(6)?,
+                ))
+            },
         )
         .map_err(|e| {
             crate::utils::err_msg(
@@ -584,11 +632,28 @@ pub async fn audio_provider_refresh_voices(
         return Ok(Vec::new());
     }
 
-    // ElevenLabs/Fish - fetch from API
+    // ElevenLabs/Fish/Doubao - fetch from API
     let api_key = api_key.ok_or("API key not configured")?;
     let voices = match provider_type.as_str() {
         "elevenlabs" => elevenlabs::fetch_voices(&api_key, None).await?,
         "fish_tts" => fish::fetch_voices(&api_key).await?,
+        "doubao_tts" => {
+            if resource_id.as_deref() == Some("seed-icl-2.0") {
+                return Ok(Vec::new());
+            }
+            doubao::fetch_voices(doubao::DoubaoConfig {
+                api_key: &api_key,
+                openapi_access_key: project_id.as_deref(),
+                openapi_secret_key: doubao_openapi_secret_key(
+                    secret_key.as_deref(),
+                    request_path.as_deref(),
+                ),
+                resource_id: resource_id.as_deref(),
+                base_url: base_url.as_deref(),
+                request_path: doubao_request_path_override(request_path.as_deref()),
+            })
+            .await?
+        }
         _ => {
             return Err(crate::utils::err_msg(
                 module_path!(),
@@ -597,7 +662,7 @@ pub async fn audio_provider_refresh_voices(
                     "Voice refresh not supported for provider type: {}",
                     provider_type
                 ),
-            ))
+            ));
         }
     };
 
@@ -739,8 +804,10 @@ pub async fn tts_preview(
     let conn = open_db(&app)?;
 
     // Get provider details
-    let (provider_type, api_key, project_id, location, base_url, request_path, kokoro_variant, asset_root): (
+    let (provider_type, api_key, project_id, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root): (
         String,
+        Option<String>,
+        Option<String>,
         Option<String>,
         Option<String>,
         Option<String>,
@@ -750,9 +817,9 @@ pub async fn tts_preview(
         Option<String>,
     ) = conn
         .query_row(
-            "SELECT provider_type, api_key, project_id, location, base_url, request_path, kokoro_variant, asset_root FROM audio_providers WHERE id = ?",
+            "SELECT provider_type, api_key, project_id, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root FROM audio_providers WHERE id = ?",
             params![provider_id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?, row.get(8)?, row.get(9)?)),
         )
         .map_err(|e| {
             crate::utils::err_msg(
@@ -815,6 +882,26 @@ pub async fn tts_preview(
                 )
                 .await?;
                 Ok((data, "audio/mpeg".to_string()))
+            }
+            "doubao_tts" => {
+                doubao::generate_speech(
+                    doubao::DoubaoConfig {
+                        api_key: &api_key,
+                        openapi_access_key: project_id.as_deref(),
+                        openapi_secret_key: doubao_openapi_secret_key(
+                            secret_key.as_deref(),
+                            request_path.as_deref(),
+                        ),
+                        resource_id: resource_id.as_deref(),
+                        base_url: base_url.as_deref(),
+                        request_path: doubao_request_path_override(request_path.as_deref()),
+                    },
+                    &text,
+                    &voice_id,
+                    &model_id,
+                    prompt.as_deref(),
+                )
+                .await
             }
             "openai_tts" => {
                 let base_url = base_url.ok_or("Base URL required for OpenAI-compatible TTS")?;
@@ -965,7 +1052,12 @@ pub async fn audio_provider_verify(
     api_key: Option<String>,
     project_id: Option<String>,
     base_url: Option<String>,
+    location: Option<String>,
+    request_path: Option<String>,
+    resource_id: Option<String>,
+    secret_key: Option<String>,
 ) -> Result<bool, String> {
+    let _ = location;
     match provider_type.as_str() {
         "gemini_tts" => {
             let api_key = api_key.ok_or("API key required for Gemini TTS")?;
@@ -975,6 +1067,21 @@ pub async fn audio_provider_verify(
         "elevenlabs" => elevenlabs::verify_api_key(api_key.as_deref().unwrap_or("")).await,
         "fish_tts" => fish::verify_api_key(api_key.as_deref().unwrap_or("")).await,
         "fish_speech" => fish_speech::verify_server(base_url.as_deref(), api_key.as_deref()).await,
+        "doubao_tts" => {
+            let api_key = api_key.ok_or("API key required for Doubao TTS")?;
+            doubao::verify_api_key(doubao::DoubaoConfig {
+                api_key: &api_key,
+                openapi_access_key: project_id.as_deref(),
+                openapi_secret_key: doubao_openapi_secret_key(
+                    secret_key.as_deref(),
+                    request_path.as_deref(),
+                ),
+                resource_id: resource_id.as_deref(),
+                base_url: base_url.as_deref(),
+                request_path: doubao_request_path_override(request_path.as_deref()),
+            })
+            .await
+        }
         "openai_tts" => Ok(true),
         "kokoro" => Ok(true),
         _ => Err(crate::utils::err_msg(

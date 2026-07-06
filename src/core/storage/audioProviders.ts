@@ -5,6 +5,7 @@ export type AudioProviderType =
   | "elevenlabs"
   | "fish_tts"
   | "fish_speech"
+  | "doubao_tts"
   | "openai_tts"
   | "kokoro";
 
@@ -13,10 +14,12 @@ export interface AudioProvider {
   providerType: AudioProviderType;
   label: string;
   apiKey?: string;
-  projectId?: string; // Gemini only
-  location?: string; // Gemini only
+  projectId?: string; // Gemini only / Doubao OpenAPI access key id
+  location?: string; // Gemini region
+  resourceId?: string; // Doubao X-Api-Resource-Id
+  secretKey?: string; // Doubao OpenAPI secret access key
   baseUrl?: string; // OpenAI-compatible TTS only
-  requestPath?: string; // OpenAI-compatible TTS only
+  requestPath?: string; // OpenAI-compatible request path
   kokoroVariant?: KokoroModelVariant; // Kokoro only
   assetRoot?: string; // Kokoro only
   createdAt?: number;
@@ -136,12 +139,20 @@ export async function verifyAudioProvider(
   apiKey?: string,
   projectId?: string,
   baseUrl?: string,
+  location?: string,
+  requestPath?: string,
+  resourceId?: string,
+  secretKey?: string,
 ): Promise<boolean> {
   return invoke<boolean>("audio_provider_verify", {
     providerType,
     apiKey,
     projectId,
     baseUrl,
+    location,
+    requestPath,
+    resourceId,
+    secretKey,
   });
 }
 

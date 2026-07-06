@@ -30,6 +30,7 @@ const MAX_SEQ_LENGTH_MODERN: usize = 4096;
 pub(crate) const ORT_VERSION: &str = "1.22.0";
 const EMBEDDING_DIM_LEGACY: usize = 512;
 const EMBEDDING_DIM_V4: usize = 768;
+const EMBEDDING_DIM_BGE_SMALL_ZH_V15: usize = 512;
 const EMBEDDING_TEST_TIMEOUT_SECS: u64 = 90;
 const EMBEDDING_BENCH_MAX_SEQ_LENGTH: usize = 1024;
 
@@ -38,8 +39,9 @@ pub enum EmbeddingModelVersion {
     V1,
     V2,
     V3,
-    #[default]
     V4,
+    #[default]
+    BgeSmallZhV15,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -47,6 +49,7 @@ enum EmbeddingSourceVersion {
     V1,
     V3,
     V4,
+    BgeSmallZhV15,
 }
 
 impl EmbeddingSourceVersion {
@@ -55,6 +58,7 @@ impl EmbeddingSourceVersion {
             EmbeddingSourceVersion::V1 => "v1",
             EmbeddingSourceVersion::V3 => "v3",
             EmbeddingSourceVersion::V4 => "v4",
+            EmbeddingSourceVersion::BgeSmallZhV15 => BGE_SMALL_ZH_V15_LABEL,
         }
     }
 }
@@ -129,12 +133,18 @@ fn resolve_selected_source_version(
     _has_v2: bool,
     has_v3: bool,
     has_v4: bool,
+    has_bge_small_zh_v15: bool,
 ) -> Option<EmbeddingSourceVersion> {
     match preferred {
+        Some(BGE_SMALL_ZH_V15_LABEL) if has_bge_small_zh_v15 => {
+            Some(EmbeddingSourceVersion::BgeSmallZhV15)
+        }
         Some("v4") if has_v4 => Some(EmbeddingSourceVersion::V4),
         Some("v3") if has_v3 => Some(EmbeddingSourceVersion::V3),
         _ => {
-            if has_v4 {
+            if has_bge_small_zh_v15 {
+                Some(EmbeddingSourceVersion::BgeSmallZhV15)
+            } else if has_v4 {
                 Some(EmbeddingSourceVersion::V4)
             } else if has_v3 {
                 Some(EmbeddingSourceVersion::V3)
@@ -168,6 +178,12 @@ fn resolve_model_paths(
             MAX_SEQ_LENGTH_MODERN,
             "v4",
         ),
+        EmbeddingSourceVersion::BgeSmallZhV15 => (
+            model_dir.join("bge-small-zh-v1.5/model_quantized.onnx"),
+            model_dir.join("bge-small-zh-v1.5/tokenizer.json"),
+            MAX_SEQ_LENGTH_MODERN,
+            BGE_SMALL_ZH_V15_LABEL,
+        ),
     }
 }
 
@@ -180,6 +196,7 @@ fn resolve_target_embedding_dimensions(
             64 | 128 | 256 | 512 | 768 => preferred_dimensions.unwrap_or(EMBEDDING_DIM_V4),
             _ => EMBEDDING_DIM_V4,
         },
+        EmbeddingSourceVersion::BgeSmallZhV15 => EMBEDDING_DIM_BGE_SMALL_ZH_V15,
         _ => EMBEDDING_DIM_LEGACY,
     }
 }
@@ -195,6 +212,7 @@ fn resolve_runtime_model(app: &AppHandle) -> Result<ActiveEmbeddingConfig, Strin
         installed.has_v2,
         installed.has_v3,
         installed.has_v4,
+        installed.has_bge_small_zh_v15,
     )
     .ok_or_else(|| {
         crate::utils::err_msg(
@@ -236,11 +254,17 @@ pub(crate) fn resolve_active_embedding_signature(
 
 fn fallback_embedding_signature(app: &AppHandle) -> (String, usize) {
     match detect_model_version(app).ok().flatten() {
+        Some(version @ EmbeddingModelVersion::BgeSmallZhV15) => {
+            (version.label().to_string(), EMBEDDING_DIM_BGE_SMALL_ZH_V15)
+        }
         Some(version @ EmbeddingModelVersion::V4) => {
             (version.label().to_string(), EMBEDDING_DIM_V4)
         }
         Some(version) => (version.label().to_string(), EMBEDDING_DIM_LEGACY),
-        None => ("v4".to_string(), EMBEDDING_DIM_V4),
+        None => (
+            BGE_SMALL_ZH_V15_LABEL.to_string(),
+            EMBEDDING_DIM_BGE_SMALL_ZH_V15,
+        ),
     }
 }
 
@@ -259,9 +283,8 @@ pub(crate) fn embedding_signature_for_result(
             };
             (version, vector.len())
         }
-        None => {
-            resolve_active_embedding_signature(app).unwrap_or_else(|_| fallback_embedding_signature(app))
-        }
+        None => resolve_active_embedding_signature(app)
+            .unwrap_or_else(|_| fallback_embedding_signature(app)),
     }
 }
 
@@ -270,13 +293,16 @@ pub fn check_embedding_model(app: AppHandle) -> Result<bool, String> {
     let model_dir = embedding_model_dir(&app)?;
     layout::migrate_legacy_layout(&model_dir)?;
     let installed = layout::detect_installed_sources(&model_dir);
-    Ok(installed.has_v3 || installed.has_v4)
+    Ok(installed.has_v3 || installed.has_v4 || installed.has_bge_small_zh_v15)
 }
 
 pub fn detect_model_version(app: &AppHandle) -> Result<Option<EmbeddingModelVersion>, String> {
     let model_dir = embedding_model_dir(app)?;
     layout::migrate_legacy_layout(&model_dir)?;
     let installed = layout::detect_installed_sources(&model_dir);
+    if installed.has_bge_small_zh_v15 {
+        return Ok(Some(EmbeddingModelVersion::BgeSmallZhV15));
+    }
     if installed.has_v4 {
         return Ok(Some(EmbeddingModelVersion::V4));
     }
@@ -299,6 +325,7 @@ impl EmbeddingModelVersion {
             EmbeddingModelVersion::V2 => "v2",
             EmbeddingModelVersion::V3 => "v3",
             EmbeddingModelVersion::V4 => "v4",
+            EmbeddingModelVersion::BgeSmallZhV15 => BGE_SMALL_ZH_V15_LABEL,
         }
     }
 }
@@ -322,14 +349,19 @@ pub fn get_embedding_model_info(app: AppHandle) -> Result<EmbeddingModelInfo, St
     if installed.has_v4 {
         available_versions.push("v4".to_string());
     }
+    if installed.has_bge_small_zh_v15 {
+        available_versions.push(BGE_SMALL_ZH_V15_LABEL.to_string());
+    }
 
-    let preferred_source_version = settings::read_embedding_preferences(&app).preferred_source_version;
+    let preferred_source_version =
+        settings::read_embedding_preferences(&app).preferred_source_version;
     let selected_source = resolve_selected_source_version(
         preferred_source_version.as_deref(),
         installed.has_v1,
         installed.has_v2,
         installed.has_v3,
         installed.has_v4,
+        installed.has_bge_small_zh_v15,
     );
     let source_version = selected_source.map(|v| v.as_str().to_string());
     let max_tokens = match selected_source {

@@ -8,6 +8,7 @@ pub enum AudioProviderType {
     Elevenlabs,
     FishTts,
     FishSpeech,
+    DoubaoTts,
     OpenAiTts,
     Kokoro,
 }
@@ -19,6 +20,7 @@ impl AudioProviderType {
             "elevenlabs" => Some(Self::Elevenlabs),
             "fish_tts" => Some(Self::FishTts),
             "fish_speech" => Some(Self::FishSpeech),
+            "doubao_tts" => Some(Self::DoubaoTts),
             "openai_tts" => Some(Self::OpenAiTts),
             "kokoro" => Some(Self::Kokoro),
             _ => None,
@@ -38,6 +40,10 @@ pub struct AudioProvider {
     pub project_id: Option<String>,
     #[serde(default)]
     pub location: Option<String>,
+    #[serde(default)]
+    pub resource_id: Option<String>,
+    #[serde(default)]
+    pub secret_key: Option<String>,
     #[serde(default)]
     pub base_url: Option<String>,
     #[serde(default)]

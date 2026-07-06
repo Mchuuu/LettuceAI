@@ -70,6 +70,7 @@ export function AudioProviderEditor({
   const isKokoro = formData?.providerType === "kokoro";
   const isOpenAiCompatible = formData?.providerType === "openai_tts";
   const isFishSpeechLocal = formData?.providerType === "fish_speech";
+  const isDoubao = formData?.providerType === "doubao_tts";
 
   const browseAssetRoot = async () => {
     try {
@@ -135,6 +136,10 @@ export function AudioProviderEditor({
         formData.apiKey,
         formData.projectId,
         formData.baseUrl,
+        formData.location,
+        formData.requestPath,
+        formData.resourceId,
+        formData.secretKey,
       );
 
       if (!isValid) {
@@ -185,6 +190,8 @@ export function AudioProviderEditor({
                     : next === "fish_speech"
                       ? "/v1/tts"
                       : undefined,
+                resourceId: next === "doubao_tts" ? "seed-tts-2.0" : undefined,
+                secretKey: next === "doubao_tts" ? formData.secretKey : undefined,
                 apiKey: next === "kokoro" ? undefined : formData.apiKey,
                 kokoroVariant: next === "kokoro" ? formData.kokoroVariant : undefined,
                 assetRoot: next === "kokoro" ? formData.assetRoot : undefined,
@@ -201,6 +208,9 @@ export function AudioProviderEditor({
             </option>
             <option value="fish_speech" className="bg-surface-el">
               {t("providers.audioEditor.types.fishSpeech")}
+            </option>
+            <option value="doubao_tts" className="bg-surface-el">
+              {t("providers.audioEditor.types.doubao")}
             </option>
             <option value="gemini_tts" className="bg-surface-el">
               {t("providers.audioEditor.types.gemini")}
@@ -231,6 +241,8 @@ export function AudioProviderEditor({
                   ? t("providers.audioEditor.placeholders.labelFish")
                 : formData.providerType === "fish_speech"
                   ? t("providers.audioEditor.placeholders.labelFishSpeech")
+                : formData.providerType === "doubao_tts"
+                  ? t("providers.audioEditor.placeholders.labelDoubao")
                 : formData.providerType === "openai_tts"
                   ? t("providers.audioEditor.placeholders.labelOpenai")
                   : formData.providerType === "kokoro"
@@ -349,7 +361,9 @@ export function AudioProviderEditor({
                   setFormData({ ...formData, projectId: e.target.value });
                   if (validationError) setValidationError(null);
                 }}
-                placeholder={t("providers.audioEditor.placeholders.projectId")}
+                placeholder={
+                  t("providers.audioEditor.placeholders.projectId")
+                }
                 className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
               />
             </div>
@@ -361,18 +375,80 @@ export function AudioProviderEditor({
                 type="text"
                 value={formData.location ?? ""}
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                placeholder={t("providers.audioEditor.placeholders.region")}
+                placeholder={
+                  t("providers.audioEditor.placeholders.region")
+                }
                 className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
               />
             </div>
           </>
         )}
 
-        {(isOpenAiCompatible || isFishSpeechLocal) && (
+        {isDoubao && (
           <>
             <div>
               <label className="mb-1 block text-[11px] font-medium text-fg/70">
-                {t("providers.audioEditor.fields.baseUrl")}
+                {t("providers.audioEditor.fields.doubaoVoiceModel")}
+              </label>
+              <select
+                value={formData.resourceId ?? "seed-tts-2.0"}
+                onChange={(e) => {
+                  setFormData({ ...formData, resourceId: e.target.value });
+                  if (validationError) setValidationError(null);
+                }}
+                className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg focus:border-fg/30 focus:outline-none"
+              >
+                <option value="seed-tts-2.0" className="bg-surface-el">
+                  {t("providers.audioEditor.doubaoVoiceModels.tts2")}
+                </option>
+                <option value="seed-icl-2.0" className="bg-surface-el">
+                  {t("providers.audioEditor.doubaoVoiceModels.icl2")}
+                </option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-medium text-fg/70">
+                {t("providers.audioEditor.fields.doubaoAccessKeyId")}
+              </label>
+              <input
+                type="text"
+                value={formData.projectId ?? ""}
+                onChange={(e) => {
+                  setFormData({ ...formData, projectId: e.target.value });
+                  if (validationError) setValidationError(null);
+                }}
+                placeholder={t("providers.audioEditor.placeholders.doubaoAccessKeyId")}
+                className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-medium text-fg/70">
+                {t("providers.audioEditor.fields.doubaoSecretAccessKey")}
+              </label>
+              <input
+                type="password"
+                value={formData.secretKey ?? ""}
+                onChange={(e) => {
+                  setFormData({ ...formData, secretKey: e.target.value });
+                  if (validationError) setValidationError(null);
+                }}
+                placeholder={t("providers.audioEditor.placeholders.doubaoSecretAccessKey")}
+                className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
+              />
+              <p className="mt-1 text-[10px] text-fg/40">
+                {t("providers.audioEditor.doubaoOpenApiHint")}
+              </p>
+            </div>
+          </>
+        )}
+
+        {(isOpenAiCompatible || isFishSpeechLocal || isDoubao) && (
+          <>
+            <div>
+              <label className="mb-1 block text-[11px] font-medium text-fg/70">
+                {isDoubao
+                  ? t("providers.audioEditor.fields.baseUrlOptional")
+                  : t("providers.audioEditor.fields.baseUrl")}
               </label>
               <input
                 type="text"
@@ -381,7 +457,11 @@ export function AudioProviderEditor({
                   setFormData({ ...formData, baseUrl: e.target.value });
                   if (validationError) setValidationError(null);
                 }}
-                placeholder={t("providers.audioEditor.placeholders.baseUrl")}
+                placeholder={
+                  isDoubao
+                    ? t("providers.audioEditor.placeholders.doubaoBaseUrl")
+                    : t("providers.audioEditor.placeholders.baseUrl")
+                }
                 className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
               />
             </div>
@@ -391,13 +471,24 @@ export function AudioProviderEditor({
               </label>
               <input
                 type="text"
-                value={formData.requestPath ?? (isFishSpeechLocal ? "/v1/tts" : "/v1/audio/speech")}
+                value={
+                  formData.requestPath ??
+                  (isDoubao ? "" : isFishSpeechLocal ? "/v1/tts" : "/v1/audio/speech")
+                }
                 onChange={(e) => setFormData({ ...formData, requestPath: e.target.value })}
-                placeholder={isFishSpeechLocal ? "/v1/tts" : "/v1/audio/speech"}
+                placeholder={
+                  isDoubao
+                    ? t("providers.audioEditor.placeholders.doubaoRequestPath")
+                    : isFishSpeechLocal
+                      ? "/v1/tts"
+                      : "/v1/audio/speech"
+                }
                 className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
               />
               <p className="mt-1 text-[10px] text-fg/40">
-                {t("providers.audioEditor.requestPathHint")}
+                {isDoubao
+                  ? t("providers.audioEditor.doubaoRequestPathHint")
+                  : t("providers.audioEditor.requestPathHint")}
               </p>
             </div>
           </>

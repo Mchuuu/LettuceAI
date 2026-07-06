@@ -243,7 +243,7 @@ export const storageBridge = {
   compareCustomTexts: (textA: string, textB: string) =>
     invoke<number>("compare_custom_texts", { textA, textB }),
   deleteEmbeddingModel: () => invoke("delete_embedding_model") as Promise<void>,
-  deleteEmbeddingModelVersion: (version: "v1" | "v2" | "v3" | "v4") =>
+  deleteEmbeddingModelVersion: (version: "v1" | "v2" | "v3" | "v4" | "bge-small-zh-v1.5") =>
     invoke("delete_embedding_model_version", { version }) as Promise<void>,
 
   // Companion analysis models (emotion / NER / router) — installed individually
