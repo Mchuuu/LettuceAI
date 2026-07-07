@@ -11,11 +11,11 @@ pub(crate) use types::{EmotionContextMessage, MappedEmotionSignals, MappedRelati
 
 pub(crate) async fn extract_mapped_signals(
     app: &AppHandle,
+    role: &str,
     message: &str,
-    
     context_messages: &[EmotionContextMessage],
 ) -> Result<MappedEmotionSignals, String> {
-    if let Some(extraction) = llm::extract(app, message, context_messages).await? {
+    if let Some(extraction) = llm::extract(app, role, message, context_messages).await? {
         return Ok(mapper::map_extraction_to_companion(&extraction));
     }
 
@@ -38,5 +38,5 @@ pub(crate) async fn extract_assistant_mapped_signals_placeholder(
 ) -> Result<MappedEmotionSignals, String> {
     // Placeholder for future assistant-message emotion extraction. That path
     // should apply the mapped delta with a lower weight before updating soul.
-    extract_mapped_signals(app, message, context_messages).await
+    extract_mapped_signals(app, "assistant", message, context_messages).await
 }

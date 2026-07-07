@@ -3394,6 +3394,14 @@ export const enMessages = {
       sharedMemoryDesc:
         "New and existing chats with this companion share one memory pool. Edits in one chat affect the others. Emotional state and relationship state stay per chat.",
       sharedMemoryAria: "Shared memory across sessions",
+      emotionContinuityTitle: "Emotion Continuity",
+      emotionContinuityDesc:
+        "Optionally analyze the companion's own replies and let them leave a small trace on expressed emotion.",
+      assistantEmotionWeight: "Assistant influence",
+      assistantEmotionOff: "Off",
+      assistantEmotionHigh: "Higher",
+      emotionContextCount: "Context",
+      emotionContextHint: "Previous messages sent to emotion extraction.",
     },
     soulPresets: {
       secureLabel: "Secure",

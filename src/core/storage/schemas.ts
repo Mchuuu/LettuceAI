@@ -3297,6 +3297,12 @@ export const CompanionPromptingConfigSchema = z.object({
 });
 export type CompanionPromptingConfig = z.infer<typeof CompanionPromptingConfigSchema>;
 
+export const CompanionEmotionConfigSchema = z.object({
+  assistantUpdateWeight: z.number().min(0).max(0.5).default(0),
+  contextMessageCount: z.number().int().min(0).max(8).default(1),
+});
+export type CompanionEmotionConfig = z.infer<typeof CompanionEmotionConfigSchema>;
+
 export const CompanionScheduledNoteRecurrenceSchema = z.enum([
   "none",
   "daily",
@@ -3377,6 +3383,10 @@ export const CompanionConfigSchema = z.object({
   prompting: CompanionPromptingConfigSchema.default({
     promptTemplateId: null,
     styleNotes: "",
+  }),
+  emotion: CompanionEmotionConfigSchema.default({
+    assistantUpdateWeight: 0,
+    contextMessageCount: 1,
   }),
   timeAwareness: z.boolean().default(false),
 });

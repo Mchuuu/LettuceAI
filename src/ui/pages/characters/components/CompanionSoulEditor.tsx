@@ -38,6 +38,7 @@ type SoulTextKey =
 type AffectKey = keyof CompanionConfig["soul"]["baselineAffect"];
 type RegulationKey = keyof CompanionConfig["soul"]["regulationStyle"];
 type RelationshipKey = keyof CompanionConfig["relationshipDefaults"];
+type EmotionConfigKey = keyof CompanionConfig["emotion"];
 
 interface CompanionSoulEditorProps {
   companion: CompanionConfig | null | undefined;
@@ -297,6 +298,15 @@ export function CompanionSoulEditor({
     onChange({
       ...value,
       relationshipDefaults: { ...value.relationshipDefaults, [key]: nextValue },
+    });
+  };
+  const updateEmotion = <K extends EmotionConfigKey>(
+    key: K,
+    nextValue: CompanionConfig["emotion"][K],
+  ) => {
+    onChange({
+      ...value,
+      emotion: { ...value.emotion, [key]: nextValue },
     });
   };
 
@@ -742,6 +752,114 @@ export function CompanionSoulEditor({
               disabled={disabled}
               aria-label={t("characters.soulEditor.sharedMemoryAria")}
             />
+          </div>
+
+          <div
+            className={cn(
+              "border border-fg/10 bg-surface-el/40 p-4",
+              radius.md,
+            )}
+          >
+            <div className="flex min-w-0 items-start gap-3">
+              <div
+                className={cn(
+                  "flex h-8 w-8 shrink-0 items-center justify-center border border-fg/10 bg-fg/5 text-fg/75",
+                  radius.full,
+                )}
+              >
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className={cn(typography.body.size, "font-semibold text-fg")}>
+                      {t("characters.soulEditor.emotionContinuityTitle")}
+                    </p>
+                    <p className={cn(typography.bodySmall.size, "mt-1 text-fg/55")}>
+                      {t("characters.soulEditor.emotionContinuityDesc")}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs tabular-nums text-fg/55">
+                    {Math.round(value.emotion.assistantUpdateWeight * 100)}%
+                  </span>
+                </div>
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_120px]">
+                  <div className={spacing.tight}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm text-fg/80">
+                        {t("characters.soulEditor.assistantEmotionWeight")}
+                      </span>
+                      <span className="inline-flex items-center gap-0.5 text-[11px] text-fg/50">
+                        <NumberInput
+                          min={0}
+                          max={50}
+                          step={1}
+                          disabled={disabled}
+                          value={Math.round(value.emotion.assistantUpdateWeight * 100)}
+                          onChange={(next) =>
+                            updateEmotion(
+                              "assistantUpdateWeight",
+                              Math.max(0, Math.min(50, next ?? 0)) / 100,
+                            )
+                          }
+                          className={cn(
+                            "w-9 border-b border-transparent bg-transparent text-right text-fg/70 tabular-nums outline-none",
+                            "hover:border-fg/15 focus:border-fg/30 focus:text-fg",
+                            "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                            "disabled:cursor-not-allowed disabled:opacity-50",
+                          )}
+                          aria-label={t("characters.soulEditor.assistantEmotionWeight")}
+                        />
+                        <span aria-hidden="true">%</span>
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={50}
+                      step={1}
+                      disabled={disabled}
+                      value={Math.round(value.emotion.assistantUpdateWeight * 100)}
+                      onChange={(event) =>
+                        updateEmotion("assistantUpdateWeight", Number(event.target.value) / 100)
+                      }
+                      className="w-full accent-accent disabled:opacity-50"
+                    />
+                    <div className="flex justify-between text-[10px] text-fg/40">
+                      <span>{t("characters.soulEditor.assistantEmotionOff")}</span>
+                      <span>{t("characters.soulEditor.assistantEmotionHigh")}</span>
+                    </div>
+                  </div>
+
+                  <label className={spacing.tight}>
+                    <span className="block text-sm text-fg/80">
+                      {t("characters.soulEditor.emotionContextCount")}
+                    </span>
+                    <NumberInput
+                      min={0}
+                      max={8}
+                      step={1}
+                      disabled={disabled}
+                      value={value.emotion.contextMessageCount}
+                      onChange={(next) =>
+                        updateEmotion(
+                          "contextMessageCount",
+                          Math.max(0, Math.min(8, Math.round(next ?? 0))),
+                        )
+                      }
+                      className={cn(
+                        "h-9 w-full border border-fg/10 bg-surface-el/40 px-3 text-sm text-fg outline-none",
+                        radius.sm,
+                        "focus:border-fg/30 disabled:cursor-not-allowed disabled:opacity-50",
+                      )}
+                    />
+                    <span className="block text-[10px] text-fg/40">
+                      {t("characters.soulEditor.emotionContextHint")}
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

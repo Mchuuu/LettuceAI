@@ -3288,6 +3288,13 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       sharedMemoryTitle: "跨會話共享記憶",
       sharedMemoryDesc: "與此同伴的新舊聊天室共享同一個記憶池。在一個聊天室中的編輯會影響其他聊天室。情緒狀態和關係狀態則維持在各個聊天室中。",
       sharedMemoryAria: "跨會話共享記憶",
+      emotionContinuityTitle: "情緒連續性",
+      emotionContinuityDesc: "可選擇分析同伴自己的回覆，讓它們對外顯情緒留下少量痕跡。",
+      assistantEmotionWeight: "Assistant 影響",
+      assistantEmotionOff: "關閉",
+      assistantEmotionHigh: "較高",
+      emotionContextCount: "上下文",
+      emotionContextHint: "送給情緒提取的前序訊息數。",
     },
     soulPresets: {
       secureLabel: "安全型",

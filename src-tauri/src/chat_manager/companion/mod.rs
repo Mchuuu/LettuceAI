@@ -10,6 +10,8 @@ use crate::utils::log_warn;
 
 const DECAY_MINUTES: f64 = 45.0;
 const DEFAULT_EMOTION_CONTEXT_MESSAGE_COUNT: usize = 1;
+const MAX_EMOTION_CONTEXT_MESSAGE_COUNT: usize = 8;
+const MAX_ASSISTANT_EMOTION_UPDATE_WEIGHT: f64 = 0.5;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -368,6 +370,39 @@ struct CompanionMemoryConfig {
     shared_across_sessions: bool,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CompanionEmotionConfig {
+    #[serde(default)]
+    assistant_update_weight: f64,
+    #[serde(default = "default_emotion_context_message_count")]
+    context_message_count: u32,
+}
+
+impl Default for CompanionEmotionConfig {
+    fn default() -> Self {
+        Self {
+            assistant_update_weight: 0.0,
+            context_message_count: DEFAULT_EMOTION_CONTEXT_MESSAGE_COUNT as u32,
+        }
+    }
+}
+
+impl CompanionEmotionConfig {
+    fn assistant_update_weight(&self) -> f64 {
+        self.assistant_update_weight
+            .clamp(0.0, MAX_ASSISTANT_EMOTION_UPDATE_WEIGHT)
+    }
+
+    fn context_message_count(&self) -> usize {
+        (self.context_message_count as usize).min(MAX_EMOTION_CONTEXT_MESSAGE_COUNT)
+    }
+}
+
+fn default_emotion_context_message_count() -> u32 {
+    DEFAULT_EMOTION_CONTEXT_MESSAGE_COUNT as u32
+}
+
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 struct CompanionContextConfig {
@@ -474,6 +509,8 @@ struct CompanionConfig {
     #[serde(default)]
     memory: CompanionMemoryConfig,
     #[serde(default)]
+    emotion: CompanionEmotionConfig,
+    #[serde(default)]
     prompting: CompanionPromptingConfig,
     #[serde(default)]
     context: CompanionContextConfig,
@@ -554,8 +591,8 @@ pub async fn update_state_for_user_message(
     );
 
     let emotion_context =
-        collect_emotion_context_messages(session, DEFAULT_EMOTION_CONTEXT_MESSAGE_COUNT);
-    let bundle = detect_signals(app, user_message, &emotion_context).await;
+        collect_emotion_context_messages(session, config.emotion.context_message_count());
+    let bundle = detect_signals(app, "user", user_message, &emotion_context).await;
     let volatility = 0.75 + regulation.volatility * 0.9;
     let delta = bundle.delta.scaled(volatility);
     let felt = state.emotional_state.felt.add(&delta).clamp();
@@ -597,6 +634,60 @@ pub async fn update_state_for_user_message(
     state.active_signals = bundle.signals;
     state.updated_at = now;
 
+    session.companion_state = serde_json::to_value(state).ok();
+    true
+}
+
+pub async fn update_state_for_assistant_message(
+    app: &AppHandle,
+    session: &mut Session,
+    character: &Character,
+    assistant_message: &str,
+    now: u64,
+) -> bool {
+    if !is_companion_mode(session, character) {
+        return false;
+    }
+
+    let config = companion_config(character);
+    let assistant_weight = config.emotion.assistant_update_weight();
+    if assistant_weight <= 0.0 || assistant_message.trim().is_empty() {
+        return false;
+    }
+
+    let mut state = current_state(session, &config);
+    let regulation = config.soul.regulation_style.clone();
+    let emotion_context =
+        collect_emotion_context_messages(session, config.emotion.context_message_count());
+    let bundle = detect_signals(app, "assistant", assistant_message, &emotion_context).await;
+    if bundle.signals.is_empty() {
+        return false;
+    }
+
+    let volatility = 0.75 + regulation.volatility * 0.9;
+    let expressed_delta = bundle.delta.scaled(volatility * assistant_weight);
+    let felt_delta = bundle.delta.scaled(volatility * assistant_weight * 0.35);
+    let felt = state.emotional_state.felt.add(&felt_delta).clamp();
+    let expressed = state
+        .emotional_state
+        .expressed
+        .add(&expressed_delta)
+        .clamp();
+    let regulated = regulate_expressed(&felt, &regulation);
+    let expressed = expressed.lerp(&regulated, 0.35).clamp();
+    let blocked = felt.subtract_positive(&expressed);
+
+    state.emotional_state.momentum = state.emotional_state.momentum.lerp(&expressed_delta, 0.25);
+    state.emotional_state.felt = felt;
+    state.emotional_state.expressed = expressed;
+    state.emotional_state.blocked = blocked;
+    state.emotional_state.active_drivers = bundle
+        .signals
+        .into_iter()
+        .filter(|signal| signal != "emotion:neutral")
+        .collect();
+    state.emotional_state.confidence = (bundle.confidence * assistant_weight).clamp(0.0, 1.0);
+    state.emotional_state.updated_at = now;
     session.companion_state = serde_json::to_value(state).ok();
     true
 }
@@ -1075,10 +1166,12 @@ fn companion_config(character: &Character) -> CompanionConfig {
 
 async fn detect_signals(
     app: &AppHandle,
+    role: &str,
     message: &str,
     context_messages: &[EmotionContextMessage],
 ) -> SignalBundle {
-    match crate::chat_manager::emotion::extract_mapped_signals(app, message, context_messages).await
+    match crate::chat_manager::emotion::extract_mapped_signals(app, role, message, context_messages)
+        .await
     {
         Ok(mapped) => signal_bundle_from_mapped(mapped),
         Err(err) => {
@@ -1104,7 +1197,11 @@ fn collect_emotion_context_messages(session: &Session, count: usize) -> Vec<Emot
         .messages
         .iter()
         .rev()
-        .filter(|message| message.visible_in_chat && !message.content.trim().is_empty())
+        .filter(|message| {
+            (message.role.eq_ignore_ascii_case("user")
+                || message.role.eq_ignore_ascii_case("assistant"))
+                && !message.content.trim().is_empty()
+        })
         .take(count)
         .map(|message| EmotionContextMessage {
             role: message.role.clone(),

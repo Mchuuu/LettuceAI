@@ -168,9 +168,6 @@ impl CompletionFlow {
             reasoning: None,
             model_id: None,
         };
-        session.messages.push(user_msg.clone());
-        session.updated_at = now;
-
         if companion::update_state_for_user_message(
             &app,
             &mut session,
@@ -186,6 +183,9 @@ impl CompletionFlow {
                 format!("updated companion state for session={}", session.id),
             );
         }
+
+        session.messages.push(user_msg.clone());
+        session.updated_at = now;
 
         context.save_session(&session)?;
 
@@ -819,6 +819,25 @@ impl CompletionFlow {
             reasoning,
             model_id: Some(selected_model.id.clone()),
         };
+
+        if companion::update_state_for_assistant_message(
+            &app,
+            &mut session,
+            &character,
+            &assistant_message.content,
+            assistant_created_at,
+        )
+        .await
+        {
+            log_info(
+                &app,
+                "companion",
+                format!(
+                    "updated companion state from assistant message for session={}",
+                    session.id
+                ),
+            );
+        }
 
         session.messages.push(assistant_message.clone());
         session.updated_at = now_millis()?;
