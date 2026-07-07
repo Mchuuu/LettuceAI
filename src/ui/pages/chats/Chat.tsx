@@ -38,17 +38,19 @@ import {
 } from "../../../core/storage/schemas";
 import {
   abortAudioPreview,
-  generateTtsForMessage,
   listAudioModels,
   listAudioProviders,
   listUserVoices,
-  playAudioFromBase64,
   type AudioModel,
   type AudioProvider,
   type AudioProviderType,
   type TtsPreviewResponse,
   type UserVoice,
 } from "../../../core/storage/audioProviders";
+import {
+  startMessageAudioPlayback,
+  type MessageAudioPlayback,
+} from "./audio/messageAudioPlayer";
 import { useChatLayoutContext } from "./ChatLayout";
 import {
   createBranchedGroupSession,
@@ -120,6 +122,7 @@ import {
   SCENE_PROMPT_APPROVAL_EVENT,
   type ScenePromptApprovalDetail,
 } from "./hooks/useChatEnhancementsController";
+import { CHAT_ASSISTANT_FINALIZED_EVENT } from "./hooks/useChatStreamingController";
 import {
   asrCorrectionUpsert,
   asrIgnoreSuggestion,
@@ -258,7 +261,7 @@ export function ChatConversationPage() {
   const [audioStatusByMessage, setAudioStatusByMessage] = useState<
     Record<string, "loading" | "playing">
   >({});
-  const audioPlaybackRef = useRef<HTMLAudioElement | null>(null);
+  const audioPlaybackRef = useRef<MessageAudioPlayback | null>(null);
   const audioPlayingMessageIdRef = useRef<string | null>(null);
   const audioRequestRef = useRef<{ requestId: string; messageId: string } | null>(null);
   const cancelledAudioRequestsRef = useRef<Set<string>>(new Set());
@@ -1228,38 +1231,8 @@ export function ChatConversationPage() {
     }
   }, []);
 
-  const startAudioPlayback = useCallback(
-    (messageId: string, response: TtsPreviewResponse) => {
-      setAudioStatus(messageId, "playing");
-      const audio = playAudioFromBase64(response.audioBase64, response.format);
-      audioPlaybackRef.current = audio;
-      audioPlayingMessageIdRef.current = messageId;
-      audio.onended = () => {
-        if (audioPlaybackRef.current === audio) {
-          audioPlaybackRef.current = null;
-          audioPlayingMessageIdRef.current = null;
-          setAudioStatus(messageId, null);
-        }
-      };
-      audio.onerror = () => {
-        if (audioPlaybackRef.current === audio) {
-          audioPlaybackRef.current = null;
-          audioPlayingMessageIdRef.current = null;
-          setAudioStatus(messageId, null);
-        }
-      };
-    },
-    [setAudioStatus],
-  );
-
   const stopAudioPlayback = useCallback(() => {
-    const audio = audioPlaybackRef.current;
-    if (audio) {
-      audio.pause();
-      audio.currentTime = 0;
-      audio.onended = null;
-      audio.onerror = null;
-    }
+    audioPlaybackRef.current?.stop();
     audioPlaybackRef.current = null;
     const messageId = audioPlayingMessageIdRef.current;
     if (messageId) {
@@ -1273,6 +1246,11 @@ export function ChatConversationPage() {
     if (!pending) return;
     audioRequestRef.current = null;
     cancelledAudioRequestsRef.current.add(pending.requestId);
+    audioPlaybackRef.current?.stop();
+    audioPlaybackRef.current = null;
+    if (audioPlayingMessageIdRef.current === pending.messageId) {
+      audioPlayingMessageIdRef.current = null;
+    }
     setAudioStatus(pending.messageId, null);
     try {
       await abortAudioPreview(pending.requestId);
@@ -1387,42 +1365,49 @@ export function ChatConversationPage() {
           prompt: voice.prompt,
         });
         const cached = audioPreviewCacheRef.current.get(cacheKey);
-        if (cached) {
-          if (audioRequestRef.current?.requestId !== requestId) {
-            cancelledAudioRequestsRef.current.delete(requestId);
-            return;
-          }
-          audioRequestRef.current = null;
-          if (cancelledAudioRequestsRef.current.has(requestId)) {
-            cancelledAudioRequestsRef.current.delete(requestId);
-            setAudioStatus(message.id, null);
-            return;
-          }
-          startAudioPlayback(message.id, cached);
-          return;
-        }
 
         try {
-          const response = await generateTtsForMessage(
-            voice.providerId,
-            voice.modelId,
-            voice.voiceId,
-            trimmedText,
-            voice.prompt,
+          const playback = await startMessageAudioPlayback({
+            providerId: voice.providerId,
+            providerType: provider.providerType as AudioProviderType,
+            modelId: voice.modelId,
+            voiceId: voice.voiceId,
+            text: trimmedText,
+            prompt: voice.prompt,
             requestId,
-          );
-          if (audioRequestRef.current?.requestId !== requestId) {
+            cached,
+            onCache: (response) => cacheAudioPreview(cacheKey, response),
+            onPlaybackStart: () => {
+              if (audioRequestRef.current?.requestId === requestId) {
+                audioRequestRef.current = null;
+              }
+              setAudioStatus(message.id, "playing");
+            },
+          });
+          if (audioRequestRef.current && audioRequestRef.current.requestId !== requestId) {
+            playback.stop();
             cancelledAudioRequestsRef.current.delete(requestId);
             return;
           }
-          audioRequestRef.current = null;
           if (cancelledAudioRequestsRef.current.has(requestId)) {
+            playback.stop();
             cancelledAudioRequestsRef.current.delete(requestId);
             setAudioStatus(message.id, null);
             return;
           }
-          cacheAudioPreview(cacheKey, response);
-          startAudioPlayback(message.id, response);
+          audioPlaybackRef.current = playback;
+          audioPlayingMessageIdRef.current = message.id;
+          void playback.done
+            .catch((error) => {
+              console.warn("Message audio playback ended with an error:", error);
+            })
+            .finally(() => {
+              if (audioPlaybackRef.current === playback) {
+                audioPlaybackRef.current = null;
+                audioPlayingMessageIdRef.current = null;
+                setAudioStatus(message.id, null);
+              }
+            });
           return;
         } catch (error) {
           if (audioRequestRef.current?.requestId === requestId) {
@@ -1469,42 +1454,48 @@ export function ChatConversationPage() {
           text: trimmedText,
         });
         const cached = audioPreviewCacheRef.current.get(cacheKey);
-        if (cached) {
-          if (audioRequestRef.current?.requestId !== requestId) {
-            cancelledAudioRequestsRef.current.delete(requestId);
-            return;
-          }
-          audioRequestRef.current = null;
-          if (cancelledAudioRequestsRef.current.has(requestId)) {
-            cancelledAudioRequestsRef.current.delete(requestId);
-            setAudioStatus(message.id, null);
-            return;
-          }
-          startAudioPlayback(message.id, cached);
-          return;
-        }
 
         try {
-          const response = await generateTtsForMessage(
+          const playback = await startMessageAudioPlayback({
             providerId,
+            providerType: provider.providerType as AudioProviderType,
             modelId,
             voiceId,
-            trimmedText,
-            undefined,
+            text: trimmedText,
             requestId,
-          );
-          if (audioRequestRef.current?.requestId !== requestId) {
+            cached,
+            onCache: (response) => cacheAudioPreview(cacheKey, response),
+            onPlaybackStart: () => {
+              if (audioRequestRef.current?.requestId === requestId) {
+                audioRequestRef.current = null;
+              }
+              setAudioStatus(message.id, "playing");
+            },
+          });
+          if (audioRequestRef.current && audioRequestRef.current.requestId !== requestId) {
+            playback.stop();
             cancelledAudioRequestsRef.current.delete(requestId);
             return;
           }
-          audioRequestRef.current = null;
           if (cancelledAudioRequestsRef.current.has(requestId)) {
+            playback.stop();
             cancelledAudioRequestsRef.current.delete(requestId);
             setAudioStatus(message.id, null);
             return;
           }
-          cacheAudioPreview(cacheKey, response);
-          startAudioPlayback(message.id, response);
+          audioPlaybackRef.current = playback;
+          audioPlayingMessageIdRef.current = message.id;
+          void playback.done
+            .catch((error) => {
+              console.warn("Message audio playback ended with an error:", error);
+            })
+            .finally(() => {
+              if (audioPlaybackRef.current === playback) {
+                audioPlaybackRef.current = null;
+                audioPlayingMessageIdRef.current = null;
+                setAudioStatus(message.id, null);
+              }
+            });
         } catch (error) {
           if (audioRequestRef.current?.requestId === requestId) {
             audioRequestRef.current = null;
@@ -1528,7 +1519,6 @@ export function ChatConversationPage() {
       ensureAudioProviders,
       ensureUserVoices,
       setAudioStatus,
-      startAudioPlayback,
       stopAudioPlayback,
     ],
   );
@@ -1536,6 +1526,51 @@ export function ChatConversationPage() {
   const effectiveVoiceAutoplay = useMemo(() => {
     return session?.voiceAutoplay ?? character?.voiceAutoplay ?? false;
   }, [character?.voiceAutoplay, session?.voiceAutoplay]);
+
+  useEffect(() => {
+    const handleFinalAssistantMessage = (event: Event) => {
+      const detail = (event as CustomEvent<{ sessionId?: string; message?: StoredMessage }>)
+        .detail;
+      const message = detail?.message;
+      if (!message || detail?.sessionId !== session?.id) return;
+      if (!effectiveVoiceAutoplay) return;
+      if (abortRequestedRef.current) return;
+      if (autoPlayInFlightRef.current) return;
+      if (message.id.startsWith("placeholder")) return;
+      if (message.role !== "assistant" && message.role !== "scene") return;
+      if (!message.content.trim()) return;
+
+      const displayText = replacePlaceholders(
+        message.content,
+        character?.name ?? "",
+        persona?.title ?? "",
+      );
+      const signature = `${message.id}:${displayText}`;
+      if (signature === sendStartSignatureRef.current) return;
+      if (signature === autoPlaySignatureRef.current) return;
+
+      autoPlaySignatureRef.current = signature;
+      autoPlayInFlightRef.current = true;
+      void handlePlayMessageAudio(message, displayText)
+        .catch((error) => {
+          console.error("Failed to autoplay finalized message audio:", error);
+        })
+        .finally(() => {
+          autoPlayInFlightRef.current = false;
+        });
+    };
+
+    window.addEventListener(CHAT_ASSISTANT_FINALIZED_EVENT, handleFinalAssistantMessage);
+    return () => {
+      window.removeEventListener(CHAT_ASSISTANT_FINALIZED_EVENT, handleFinalAssistantMessage);
+    };
+  }, [
+    character?.name,
+    effectiveVoiceAutoplay,
+    handlePlayMessageAudio,
+    persona?.title,
+    session?.id,
+  ]);
 
   const handleAbortWithFlag = useCallback(async () => {
     abortRequestedRef.current = true;

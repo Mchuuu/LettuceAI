@@ -319,6 +319,7 @@ macro_rules! invoke_handler {
             crate::tts_manager::commands::user_voice_upsert,
             crate::tts_manager::commands::user_voice_delete,
             crate::tts_manager::commands::tts_preview,
+            crate::tts_manager::commands::tts_stream_doubao,
             crate::tts_manager::commands::audio_provider_verify,
             crate::tts_manager::commands::audio_provider_search_voices,
             crate::tts_manager::commands::voice_design_preview,

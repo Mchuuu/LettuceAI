@@ -206,6 +206,24 @@ export async function generateTtsPreview(
   });
 }
 
+export async function streamDoubaoTts(
+  providerId: string,
+  modelId: string,
+  voiceId: string,
+  text: string,
+  requestId: string,
+  prompt?: string,
+): Promise<void> {
+  return invoke("tts_stream_doubao", {
+    providerId,
+    modelId,
+    voiceId,
+    prompt,
+    text,
+    requestId,
+  });
+}
+
 export async function kokoroSupportedVariants(): Promise<KokoroSupportedVariant[]> {
   return invoke<KokoroSupportedVariant[]>("kokoro_supported_variants");
 }

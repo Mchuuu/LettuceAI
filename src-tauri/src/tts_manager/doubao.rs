@@ -30,6 +30,21 @@ pub struct DoubaoConfig<'a> {
     pub request_path: Option<&'a str>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DoubaoStreamInfo {
+    pub format: String,
+    pub sample_rate: u32,
+    pub mime_type: String,
+}
+
+#[derive(Debug, Clone)]
+pub enum DoubaoAudioStreamEvent {
+    Start(DoubaoStreamInfo),
+    Chunk(Vec<u8>),
+    End,
+}
+
 pub fn default_models() -> Vec<AudioModel> {
     vec![
         AudioModel {
@@ -209,6 +224,11 @@ impl DoubaoPromptOptions {
 
         Ok(options)
     }
+
+    fn force_stream_pcm(&mut self) {
+        self.format = "pcm".to_string();
+        self.bit_rate = None;
+    }
 }
 
 pub async fn generate_speech(
@@ -329,6 +349,144 @@ pub async fn generate_speech(
     }
 
     Ok((audio, mime_for_format(&options.format).to_string()))
+}
+
+pub async fn stream_speech<F>(
+    config: DoubaoConfig<'_>,
+    text: &str,
+    voice_id: &str,
+    model: &str,
+    prompt: Option<&str>,
+    mut on_event: F,
+) -> Result<(), String>
+where
+    F: FnMut(DoubaoAudioStreamEvent) -> Result<(), String>,
+{
+    let speaker = voice_id.trim();
+    if speaker.is_empty() {
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            "Doubao TTS requires a voice id",
+        ));
+    }
+
+    let resource_id = resolve_resource_id(config.resource_id, model);
+    let mut options = DoubaoPromptOptions::from_prompt(prompt)?;
+    options.force_stream_pcm();
+    let mut additions_map = options.additions.unwrap_or_default();
+    additions_map
+        .entry("max_length_to_filter_parenthesis".to_string())
+        .or_insert_with(|| serde_json::Value::from(100));
+    let additions = Some(
+        serde_json::to_string(&additions_map)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?,
+    );
+
+    let request = TtsRequest {
+        user: TtsUser { uid: "lettuceai" },
+        req_params: TtsReqParams {
+            text,
+            speaker,
+            audio_params: TtsAudioParams {
+                format: &options.format,
+                sample_rate: options.sample_rate,
+                bit_rate: options.bit_rate,
+                emotion: options.emotion.as_deref(),
+                emotion_scale: options.emotion_scale,
+                speech_rate: options.speech_rate,
+                loudness_rate: options.loudness_rate,
+                enable_subtitle: options.enable_subtitle,
+            },
+            additions,
+        },
+    };
+
+    let url = format!(
+        "{}{}",
+        normalize_base_url(config.base_url),
+        normalize_request_path(config.request_path)
+    );
+    let client = reqwest::Client::new();
+    let response = client
+        .post(&url)
+        .header("X-Api-Key", config.api_key)
+        .header("X-Api-Resource-Id", resource_id)
+        .header("X-Api-Request-Id", uuid::Uuid::new_v4().to_string())
+        .header(CONTENT_TYPE, "application/json")
+        .json(&request)
+        .send()
+        .await
+        .map_err(|e| {
+            crate::utils::err_msg(module_path!(), line!(), format!("Request failed: {}", e))
+        })?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let log_id = response
+            .headers()
+            .get("X-Tt-Logid")
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            format!(
+                "Doubao TTS error ({}){}: {}",
+                status,
+                format_log_id(&log_id),
+                body
+            ),
+        ));
+    }
+
+    on_event(DoubaoAudioStreamEvent::Start(DoubaoStreamInfo {
+        format: options.format.clone(),
+        sample_rate: options.sample_rate,
+        mime_type: mime_for_format(&options.format).to_string(),
+    }))?;
+
+    let mut emitted_audio = false;
+    let mut buffer = String::new();
+    let mut stream = response.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!("Failed to read Doubao TTS stream: {}", e),
+            )
+        })?;
+        buffer.push_str(&String::from_utf8_lossy(&chunk));
+        while let Some(json) = pop_next_json_object(&mut buffer) {
+            if let Some(audio) = decode_tts_stream_message(&json)? {
+                emitted_audio = true;
+                on_event(DoubaoAudioStreamEvent::Chunk(audio))?;
+            }
+        }
+    }
+    while let Some(json) = pop_next_json_object(&mut buffer) {
+        if let Some(audio) = decode_tts_stream_message(&json)? {
+            emitted_audio = true;
+            on_event(DoubaoAudioStreamEvent::Chunk(audio))?;
+        }
+    }
+
+    if !emitted_audio {
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            "Doubao TTS returned no audio data",
+        ));
+    }
+
+    on_event(DoubaoAudioStreamEvent::End)?;
+    Ok(())
 }
 
 #[derive(Debug, Serialize)]
@@ -597,6 +755,13 @@ async fn signed_openapi_post(
 }
 
 fn handle_tts_stream_message(json: &str, audio: &mut Vec<u8>) -> Result<(), String> {
+    if let Some(mut decoded) = decode_tts_stream_message(json)? {
+        audio.append(&mut decoded);
+    }
+    Ok(())
+}
+
+fn decode_tts_stream_message(json: &str) -> Result<Option<Vec<u8>>, String> {
     let message: TtsStreamMessage = serde_json::from_str(json).map_err(|e| {
         crate::utils::err_msg(
             module_path!(),
@@ -606,19 +771,19 @@ fn handle_tts_stream_message(json: &str, audio: &mut Vec<u8>) -> Result<(), Stri
     })?;
     if message.code == 0 {
         if let Some(data) = message.data.as_deref().filter(|value| !value.is_empty()) {
-            let mut decoded = STANDARD.decode(data).map_err(|e| {
+            let decoded = STANDARD.decode(data).map_err(|e| {
                 crate::utils::err_msg(
                     module_path!(),
                     line!(),
                     format!("Failed to decode Doubao TTS audio chunk: {}", e),
                 )
             })?;
-            audio.append(&mut decoded);
+            return Ok(Some(decoded));
         }
-        return Ok(());
+        return Ok(None);
     }
     if message.code == 20000000 {
-        return Ok(());
+        return Ok(None);
     }
 
     Err(crate::utils::err_msg(

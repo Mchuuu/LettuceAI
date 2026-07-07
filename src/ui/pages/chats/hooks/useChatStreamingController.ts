@@ -25,6 +25,15 @@ import {
 } from "./sceneImageProtocol";
 
 const INITIAL_MESSAGE_LIMIT = 50;
+export const CHAT_ASSISTANT_FINALIZED_EVENT = "lettuce-chat:assistant-finalized";
+
+function emitFinalAssistantMessage(sessionId: string, message: StoredMessage) {
+  window.dispatchEvent(
+    new CustomEvent(CHAT_ASSISTANT_FINALIZED_EVENT, {
+      detail: { sessionId, message },
+    }),
+  );
+}
 
 function createStreamBatcher(dispatch: ChatControllerPagingContext["dispatch"]) {
   const pendingContentByMessage = new Map<string, string>();
@@ -316,6 +325,7 @@ export function useChatStreamingController({
           });
         }
 
+        emitFinalAssistantMessage(result.sessionId, finalAssistantMessage);
         if (finalAssistantMessage.content !== result.assistantMessage.content) {
           try {
             await persistSession(updatedSession);
@@ -594,6 +604,7 @@ export function useChatStreamingController({
           });
         }
 
+        emitFinalAssistantMessage(result.sessionId, finalAssistantMessage);
         if (finalAssistantMessage.content !== result.assistantMessage.content) {
           try {
             await persistSession(updatedSession);
@@ -878,6 +889,7 @@ export function useChatStreamingController({
           });
         }
 
+        emitFinalAssistantMessage(result.sessionId, finalAssistantMessage);
         if (finalAssistantMessage.content !== result.assistantMessage.content) {
           try {
             await persistSession(updatedSession);

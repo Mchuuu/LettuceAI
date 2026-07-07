@@ -3,7 +3,7 @@ use rusqlite::params;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 
 use super::types::{
     AudioModel, AudioProvider, AudioProviderType, CachedVoice, CreatedVoiceResult,
@@ -1043,6 +1043,134 @@ pub async fn tts_preview(
         audio_base64,
         format,
     })
+}
+
+#[tauri::command]
+pub async fn tts_stream_doubao(
+    app: AppHandle,
+    provider_id: String,
+    model_id: String,
+    voice_id: String,
+    prompt: Option<String>,
+    text: String,
+    request_id: String,
+) -> Result<(), String> {
+    let conn = open_db(&app)?;
+    let (
+        provider_type,
+        api_key,
+        project_id,
+        resource_id,
+        secret_key,
+        base_url,
+        request_path,
+    ): (
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ) = conn
+        .query_row(
+            "SELECT provider_type, api_key, project_id, resource_id, secret_key, base_url, request_path FROM audio_providers WHERE id = ?",
+            params![provider_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?)),
+        )
+        .map_err(|e| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!("Provider not found: {}", e),
+            )
+        })?;
+
+    if provider_type != "doubao_tts" {
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            format!("Provider {} is not Doubao TTS", provider_id),
+        ));
+    }
+
+    let api_key = api_key.ok_or("API key not configured")?;
+    let event_name = format!("tts-stream://{}", request_id);
+    let mut abort_rx = {
+        use tauri::Manager;
+        let registry = app.state::<AbortRegistry>();
+        registry.register(request_id.clone())
+    };
+
+    let app_for_stream = app.clone();
+    let stream_audio = doubao::stream_speech(
+        doubao::DoubaoConfig {
+            api_key: &api_key,
+            openapi_access_key: project_id.as_deref(),
+            openapi_secret_key: doubao_openapi_secret_key(
+                secret_key.as_deref(),
+                request_path.as_deref(),
+            ),
+            resource_id: resource_id.as_deref(),
+            base_url: base_url.as_deref(),
+            request_path: doubao_request_path_override(request_path.as_deref()),
+        },
+        &text,
+        &voice_id,
+        &model_id,
+        prompt.as_deref(),
+        |event| {
+            match event {
+                doubao::DoubaoAudioStreamEvent::Start(info) => {
+                    let _ = app_for_stream.emit(
+                        &event_name,
+                        serde_json::json!({
+                            "type": "start",
+                            "sampleRate": info.sample_rate,
+                            "format": info.format,
+                            "mimeType": info.mime_type,
+                        }),
+                    );
+                }
+                doubao::DoubaoAudioStreamEvent::Chunk(bytes) => {
+                    let _ = app_for_stream.emit(
+                        &event_name,
+                        serde_json::json!({
+                            "type": "chunk",
+                            "audioBase64": STANDARD.encode(bytes),
+                        }),
+                    );
+                }
+                doubao::DoubaoAudioStreamEvent::End => {
+                    let _ = app_for_stream.emit(&event_name, serde_json::json!({ "type": "end" }));
+                }
+            }
+            Ok(())
+        },
+    );
+
+    let result = tokio::select! {
+        _ = &mut abort_rx => Err("Audio generation aborted".to_string()),
+        value = stream_audio => value,
+    };
+
+    if let Err(err) = &result {
+        let _ = app.emit(
+            &event_name,
+            serde_json::json!({
+                "type": "error",
+                "message": err,
+            }),
+        );
+    }
+
+    {
+        use tauri::Manager;
+        let registry = app.state::<AbortRegistry>();
+        registry.unregister(&request_id);
+    }
+
+    result
 }
 
 /// Verify API key for audio provider
