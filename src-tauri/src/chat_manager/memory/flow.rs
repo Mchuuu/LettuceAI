@@ -71,6 +71,7 @@ const ALLOWED_MEMORY_CATEGORIES: &[&str] = &[
     "preference",
     "other",
 ];
+const DYNAMIC_MEMORY_OUTPUT_LANGUAGE_INSTRUCTION: &str = "Output language: use Simplified Chinese for all conversation summaries, created memory text, and done summaries. Preserve proper nouns, quoted text, IDs, tool names, and memory category enum values exactly when needed.";
 const HARD_DELETE_CONFIDENCE_THRESHOLD: f32 = 0.7;
 const MEMORY_MIGRATION_EMBED_TIMEOUT_SECS: u64 = 90;
 
@@ -321,6 +322,18 @@ fn dynamic_memory_request_id(session_id: &str, phase: &str) -> String {
 }
 
 const POST_TURN_MEMORY_DEBOUNCE_MS: u64 = 1_200;
+
+fn with_dynamic_memory_language_instruction(prompt: String) -> String {
+    let trimmed = prompt.trim();
+    if trimmed.is_empty() {
+        DYNAMIC_MEMORY_OUTPUT_LANGUAGE_INSTRUCTION.to_string()
+    } else {
+        format!(
+            "{}\n\n{}",
+            trimmed, DYNAMIC_MEMORY_OUTPUT_LANGUAGE_INSTRUCTION
+        )
+    }
+}
 
 fn dynamic_memory_request_session(session: &Session) -> Session {
     let mut sanitized = session.clone();
@@ -3748,10 +3761,12 @@ async fn run_memory_tool_update(
             "You maintain a long-term memory index for a conversation transcript. Use tools to add or delete concise factual memories. Every create_memory call must include a category tag. Keep the list tidy and capped at {{max_entries}} entries. Prefer deleting by ID when removing items. When finished, call the done tool.".to_string()
         });
 
-    let rendered = base_prompt
-        .replace("{{max_entries}}", &max_entries.to_string())
-        .replace("{{current_memory_tokens}}", &current_tokens.to_string())
-        .replace("{{hot_token_budget}}", &token_budget.to_string());
+    let rendered = with_dynamic_memory_language_instruction(
+        base_prompt
+            .replace("{{max_entries}}", &max_entries.to_string())
+            .replace("{{current_memory_tokens}}", &current_tokens.to_string())
+            .replace("{{hot_token_budget}}", &token_budget.to_string()),
+    );
 
     crate::chat_manager::messages::push_system_message(
         &mut messages_for_api,
@@ -4696,11 +4711,14 @@ fn build_memory_tag_repair_tool_config() -> ToolConfig {
     ToolConfig {
         tools: vec![ToolDefinition {
             name: "retag_memory".to_string(),
-            description: Some("Assign a valid category for each memory text.".to_string()),
+            description: Some(
+                "Assign a valid category for each memory text. Return the text exactly as provided."
+                    .to_string(),
+            ),
             parameters: json!({
                 "type": "object",
                 "properties": {
-                    "text": { "type": "string", "description": "Original memory text to categorize" },
+                    "text": { "type": "string", "description": "Original memory text to categorize; return it exactly as provided" },
                     "category": {
                         "type": "string",
                         "enum": ["character_trait", "relationship", "plot_event", "world_detail", "preference", "other"],
@@ -4733,7 +4751,7 @@ async fn run_memory_tag_repair(
         &mut messages_for_api,
         &system_role,
         Some(
-            "Classify each memory text with exactly one valid category. Use only retag_memory tool calls."
+            "Classify each memory text with exactly one valid category. Use only retag_memory tool calls. Return each text exactly as provided; do not translate or rewrite it."
                 .to_string(),
         ),
     );
@@ -4884,7 +4902,7 @@ fn build_memory_tool_config(is_companion: bool) -> ToolConfig {
     let mut create_memory_params = json!({
         "type": "object",
         "properties": {
-            "text": { "type": "string", "description": "Concise memory to store" },
+            "text": { "type": "string", "description": "Concise memory to store in Simplified Chinese" },
             "important": { "type": "boolean", "description": "If true, memory will be pinned (never decays)" },
             "category": {
                 "type": "string",
@@ -4914,7 +4932,7 @@ fn build_memory_tool_config(is_companion: bool) -> ToolConfig {
             ToolDefinition {
                 name: "create_memory".to_string(),
                 description: Some(
-                    "Create a concise memory entry capturing important facts.".to_string(),
+                    "Create a concise memory entry capturing important facts. The text field must be written in Simplified Chinese.".to_string(),
                 ),
                 parameters: create_memory_params,
             },
@@ -4960,12 +4978,12 @@ fn build_memory_tool_config(is_companion: bool) -> ToolConfig {
             ToolDefinition {
                 name: "done".to_string(),
                 description: Some(
-                    "Call this when you have finished adding or deleting memories.".to_string(),
+                    "Call this when you have finished adding or deleting memories. Summary should be in Simplified Chinese.".to_string(),
                 ),
                 parameters: json!({
                     "type": "object",
                     "properties": {
-                        "summary": { "type": "string", "description": "Optional short note of changes made" }
+                        "summary": { "type": "string", "description": "Optional short note of changes made in Simplified Chinese" }
                     },
                     "required": []
                 }),
@@ -4980,12 +4998,12 @@ fn summarization_tool_config() -> ToolConfig {
         tools: vec![ToolDefinition {
             name: "write_summary".to_string(),
             description: Some(
-                "Return a concise summary of the provided conversation window.".to_string(),
+                "Return a concise summary of the provided conversation window in Simplified Chinese.".to_string(),
             ),
             parameters: json!({
                 "type": "object",
                 "properties": {
-                    "summary": { "type": "string", "description": "Concise summary text" }
+                    "summary": { "type": "string", "description": "Concise summary text in Simplified Chinese" }
                 },
                 "required": ["summary"]
             }),
@@ -5062,7 +5080,7 @@ async fn summarize_messages(
             "Summarize the recent conversation transcript into a concise paragraph capturing durable facts and decisions. Avoid adding new information.".to_string()
         });
 
-    let mut rendered = base_prompt;
+    let mut rendered = with_dynamic_memory_language_instruction(base_prompt);
     let prev_text = prior_summary
         .filter(|s| !s.trim().is_empty())
         .unwrap_or("No previous summary provided.");
@@ -5081,7 +5099,7 @@ async fn summarize_messages(
 
     messages_for_api.push(json!({
         "role": "user",
-        "content": "Return only the concise summary for the above conversation window. Use the write_summary tool."
+        "content": "Return only the concise summary for the above conversation window in Simplified Chinese. Use the write_summary tool."
     }));
 
     let request_session = dynamic_memory_request_session(session);
@@ -5242,7 +5260,7 @@ async fn summarize_messages(
     let mut fallback_messages = messages_for_api.clone();
     fallback_messages.push(json!({
         "role": "user",
-        "content": "Return only the final merged summary as plain text. No tools, no JSON, no markdown, no commentary."
+        "content": "Return only the final merged summary as Simplified Chinese plain text. No tools, no JSON, no markdown, no commentary."
     }));
 
     let api_response = send_dynamic_memory_request(
