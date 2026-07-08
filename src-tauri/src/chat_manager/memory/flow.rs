@@ -1655,6 +1655,7 @@ pub async fn retry_dynamic_memory(
         model_id.as_deref(),
         update_default.unwrap_or(false),
         true, // force = true for retry
+        None,
     )
     .await
 }
@@ -1681,8 +1682,75 @@ pub async fn trigger_dynamic_memory(app: AppHandle, session_id: String) -> Resul
         None,
         false,
         true,
+        None,
     )
     .await
+}
+
+pub async fn initialize_imported_chat_memory(
+    app: AppHandle,
+    session_id: String,
+) -> Result<(), String> {
+    log_info(
+        &app,
+        "dynamic_memory",
+        format!("import bootstrap requested for session {}", session_id),
+    );
+    let context = ChatContext::initialize(app.clone())?;
+    let mut session = context
+        .load_session(&session_id)?
+        .ok_or_else(|| "Session not found".to_string())?;
+    let character = context.find_character(&session.character_id)?;
+    let dynamic = context
+        .settings
+        .advanced_settings
+        .as_ref()
+        .and_then(|advanced| advanced.dynamic_memory.as_ref())
+        .ok_or_else(|| "Dynamic memory is not configured".to_string())?;
+
+    if !dynamic.enabled || !character.memory_type.eq_ignore_ascii_case("dynamic") {
+        return Err("Dynamic memory is not enabled for this character".to_string());
+    }
+
+    let total = session_conversation_count(app.clone(), session.id.clone())?.max(0) as usize;
+    if total == 0 {
+        return Ok(());
+    }
+
+    let window_size = dynamic.summary_message_interval.max(1) as usize;
+    let (last_window_end, _) = resolve_last_valid_window_end(&app, &session)?;
+    let mut start = last_window_end.min(total);
+    if start >= total {
+        return Ok(());
+    }
+
+    let remaining = total - start;
+    let total_windows = (remaining + window_size - 1) / window_size;
+    let mut index = 1;
+
+    while start < total {
+        let end = (start + window_size).min(total);
+        process_dynamic_memory_cycle_with_model(
+            &app,
+            &mut session,
+            &context.settings,
+            &character,
+            None,
+            false,
+            false,
+            Some(DynamicMemoryWindowOverride {
+                start,
+                end,
+                index,
+                total: total_windows,
+            }),
+        )
+        .await?;
+        start = end;
+        index += 1;
+    }
+
+    Ok(())
 }
 
 pub fn abort_dynamic_memory(app: AppHandle, session_id: String) -> Result<(), String> {
@@ -2271,8 +2339,44 @@ pub(crate) async fn process_dynamic_memory_cycle(
     character: &Character,
 ) -> Result<(), String> {
     // Delegate to the version with model override, using None for defaults, and force=false
-    process_dynamic_memory_cycle_with_model(app, session, settings, character, None, false, false)
-        .await
+    process_dynamic_memory_cycle_with_model(
+        app, session, settings, character, None, false, false, None,
+    )
+    .await
+}
+
+#[derive(Clone, Copy)]
+struct DynamicMemoryWindowOverride {
+    start: usize,
+    end: usize,
+    index: usize,
+    total: usize,
+}
+
+fn dynamic_memory_progress_payload(
+    session_id: &str,
+    step: u32,
+    label: &str,
+    window_override: Option<DynamicMemoryWindowOverride>,
+    processed_messages: usize,
+    total_messages: usize,
+) -> Value {
+    let mut payload = json!({
+        "sessionId": session_id,
+        "step": step,
+        "totalSteps": 4,
+        "label": label,
+    });
+
+    if let Some(window) = window_override {
+        payload["phase"] = json!("import_bootstrap");
+        payload["windowIndex"] = json!(window.index);
+        payload["totalWindows"] = json!(window.total);
+        payload["processedMessages"] = json!(processed_messages);
+        payload["totalMessages"] = json!(total_messages);
+    }
+
+    payload
 }
 
 /// Process dynamic memory cycle with optional model override.
@@ -2286,16 +2390,20 @@ async fn process_dynamic_memory_cycle_with_model(
     model_id_override: Option<&str>,
     update_default_on_success: bool,
     force: bool,
+    window_override: Option<DynamicMemoryWindowOverride>,
 ) -> Result<(), String> {
     log_info(
         app,
         "dynamic_memory",
         format!(
-            "starting cycle: session_id={} force={} model_override={} update_default={} embeddings={} events={}",
+            "starting cycle: session_id={} force={} model_override={} update_default={} window_override={} embeddings={} events={}",
             session.id,
             force,
             model_id_override.unwrap_or("none"),
             update_default_on_success,
+            window_override
+                .map(|w| format!("{}..{} ({}/{})", w.start, w.end, w.index, w.total))
+                .unwrap_or_else(|| "none".to_string()),
             session.memory_embeddings.len(),
             session.memory_tool_events.len()
         ),
@@ -2362,7 +2470,7 @@ async fn process_dynamic_memory_cycle_with_model(
 
     // For retry/manual trigger/model override, skip the "enough new messages" gate.
     // Also skip if we detected a rewind; we need to rebuild the summary/memory state.
-    if model_id_override.is_none() && !force && !cursor_rewound {
+    if window_override.is_none() && model_id_override.is_none() && !force && !cursor_rewound {
         if total_convo_at_start <= last_window_end {
             log_info(
                 app,
@@ -2389,7 +2497,7 @@ async fn process_dynamic_memory_cycle_with_model(
         }
     }
 
-    if model_id_override.is_none() && !force && !cursor_rewound {
+    if window_override.is_none() && model_id_override.is_none() && !force && !cursor_rewound {
         match dynamic.run_mode.as_str() {
             "manual" => {
                 log_info(
@@ -2430,14 +2538,18 @@ async fn process_dynamic_memory_cycle_with_model(
     app.state::<crate::dynamic_memory_approval::DynamicMemoryApprovalManager>()
         .clear(&session.id);
 
-    let mut window_start = if cursor_rewound {
+    let mut window_start = if let Some(window) = window_override {
+        window.start.min(total_convo_at_start)
+    } else if cursor_rewound {
         0
     } else if force || model_id_override.is_some() {
         total_convo_at_start.saturating_sub(window_size)
     } else {
         last_window_end
     };
-    let mut window_end = total_convo_at_start;
+    let mut window_end = window_override
+        .map(|window| window.end.min(total_convo_at_start))
+        .unwrap_or(total_convo_at_start);
 
     let convo_window = match fetch_conversation_messages_range(
         app,
@@ -2587,7 +2699,14 @@ async fn process_dynamic_memory_cycle_with_model(
     );
     let _ = app.emit(
         "dynamic-memory:progress",
-        json!({ "sessionId": session.id, "step": 1, "totalSteps": 4, "label": "Summarizing conversation" }),
+        dynamic_memory_progress_payload(
+            &session.id,
+            1,
+            "Summarizing conversation",
+            window_override,
+            window_end,
+            total_convo_at_start,
+        ),
     );
 
     ensure_dynamic_memory_not_cancelled(app, session, &cancel_token)?;
@@ -2678,7 +2797,14 @@ async fn process_dynamic_memory_cycle_with_model(
     let _ = save_session(app, session);
     let _ = app.emit(
         "dynamic-memory:progress",
-        json!({ "sessionId": session.id, "step": 2, "totalSteps": 4, "label": "Analyzing memories" }),
+        dynamic_memory_progress_payload(
+            &session.id,
+            2,
+            "Analyzing memories",
+            window_override,
+            window_end,
+            total_convo_at_start,
+        ),
     );
     ensure_dynamic_memory_not_cancelled(app, session, &cancel_token)?;
 
@@ -2762,7 +2888,14 @@ async fn process_dynamic_memory_cycle_with_model(
     let _ = save_session(app, session);
     let _ = app.emit(
         "dynamic-memory:progress",
-        json!({ "sessionId": session.id, "step": 3, "totalSteps": 4, "label": "Applying changes" }),
+        dynamic_memory_progress_payload(
+            &session.id,
+            3,
+            "Applying changes",
+            window_override,
+            window_end,
+            total_convo_at_start,
+        ),
     );
     ensure_dynamic_memory_not_cancelled(app, session, &cancel_token)?;
 
@@ -2788,7 +2921,14 @@ async fn process_dynamic_memory_cycle_with_model(
     session.memory_progress_step = Some(4);
     let _ = app.emit(
         "dynamic-memory:progress",
-        json!({ "sessionId": session.id, "step": 4, "totalSteps": 4, "label": "Organizing memories" }),
+        dynamic_memory_progress_payload(
+            &session.id,
+            4,
+            "Organizing memories",
+            window_override,
+            window_end,
+            total_convo_at_start,
+        ),
     );
     session.memory_status = Some("idle".to_string());
     session.memory_error = None;
@@ -2820,7 +2960,20 @@ async fn process_dynamic_memory_cycle_with_model(
         }
     }
 
-    let _ = app.emit("dynamic-memory:success", json!({ "sessionId": session.id }));
+    let should_emit_success = window_override
+        .map(|window| window.index >= window.total)
+        .unwrap_or(true);
+    if should_emit_success {
+        let mut payload = json!({ "sessionId": session.id });
+        if let Some(window) = window_override {
+            payload["phase"] = json!("import_bootstrap");
+            payload["windowIndex"] = json!(window.index);
+            payload["totalWindows"] = json!(window.total);
+            payload["processedMessages"] = json!(window.end);
+            payload["totalMessages"] = json!(total_convo_at_start);
+        }
+        let _ = app.emit("dynamic-memory:success", payload);
+    }
     log_info(
         app,
         "dynamic_memory",

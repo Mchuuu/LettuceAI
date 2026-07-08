@@ -1069,6 +1069,14 @@ pub async fn trigger_dynamic_memory(app: AppHandle, session_id: String) -> Resul
 }
 
 #[tauri::command]
+pub async fn initialize_imported_chat_memory(
+    app: AppHandle,
+    session_id: String,
+) -> Result<(), String> {
+    super::memory::flow::initialize_imported_chat_memory(app, session_id).await
+}
+
+#[tauri::command]
 pub fn abort_dynamic_memory(app: AppHandle, session_id: String) -> Result<(), String> {
     super::memory::flow::abort_dynamic_memory(app, session_id)
 }

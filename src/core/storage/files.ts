@@ -483,6 +483,8 @@ export const storageBridge = {
     }) as Promise<void>,
   triggerDynamicMemory: (sessionId: string) =>
     invoke("trigger_dynamic_memory", { sessionId }) as Promise<void>,
+  initializeImportedChatMemory: (sessionId: string) =>
+    invoke("initialize_imported_chat_memory", { sessionId }) as Promise<void>,
   abortDynamicMemory: (sessionId: string) =>
     invoke("abort_dynamic_memory", { sessionId }) as Promise<void>,
   skipDynamicMemoryCycle: (sessionId: string) =>

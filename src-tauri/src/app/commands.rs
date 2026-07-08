@@ -211,6 +211,7 @@ macro_rules! invoke_handler {
             crate::chat_manager::chat_generate_user_reply,
             crate::chat_manager::retry_dynamic_memory,
             crate::chat_manager::trigger_dynamic_memory,
+            crate::chat_manager::initialize_imported_chat_memory,
             crate::chat_manager::abort_dynamic_memory,
             crate::chat_manager::skip_dynamic_memory_cycle,
             crate::chat_manager::dynamic_memory_pending_approval,

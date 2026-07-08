@@ -1,5 +1,5 @@
 import { useEffect, useState, memo, useRef } from "react";
-import { Edit2, Trash2, Download, EyeOff, Paintbrush, Upload } from "lucide-react";
+import { Edit2, Trash2, Download, EyeOff, Paintbrush, Upload, Sparkles, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
@@ -11,6 +11,7 @@ import {
   archiveSession,
   SESSION_UPDATED_EVENT,
   deleteCharacter,
+  readSettings,
 } from "../../../core/storage/repo";
 import type { Character, ChatsViewMode } from "../../../core/storage/schemas";
 import { typography, radius, spacing, interactive, cn } from "../../design-tokens";
@@ -46,7 +47,21 @@ export function ChatPage() {
   const [exporting, setExporting] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exportTarget, setExportTarget] = useState<Character | null>(null);
-  const [, setImportingChatpkg] = useState(false);
+  const [importingChatpkg, setImportingChatpkg] = useState(false);
+  const [pendingChatImport, setPendingChatImport] = useState<{
+    path: string;
+    filename: string;
+    character: Character;
+  } | null>(null);
+  const [importMemoryProgress, setImportMemoryProgress] = useState<{
+    sessionId: string;
+    step: number | null;
+    totalSteps: number;
+    windowIndex: number | null;
+    totalWindows: number | null;
+    processedMessages: number | null;
+    totalMessages: number | null;
+  } | null>(null);
   const [latestSessionByCharacter, setLatestSessionByCharacter] = useState<
     Record<string, { id: string; updatedAt: number; archived: boolean }>
   >(() => chatsPageCache?.latestSessionByCharacter ?? {});
@@ -233,24 +248,79 @@ export function ChatPage() {
     setExportMenuOpen(true);
   };
 
-  const openImportChatpkg = async (character: Character) => {
+  const runChatImport = async (
+    picked: { path: string; filename: string },
+    character: Character,
+    initializeMemory: boolean,
+  ) => {
+    let importedSessionId: string | null = null;
+    let unlistenProgress: UnlistenFn | null = null;
+    setPendingChatImport(null);
+    setSelectedCharacter(null);
+    setImportingChatpkg(true);
+    setImportMemoryProgress(null);
     try {
-      const picked = await storageBridge.jsonlPickFile();
-      if (!picked) return;
-      setSelectedCharacter(null);
-      setImportingChatpkg(true);
       const result = await storageBridge.jsonlImport(picked.path, {
         targetCharacterId: character.id,
       });
-      const importedSessionId = result?.sessionId;
-      if (typeof importedSessionId === "string" && importedSessionId.length > 0) {
-        navigate(`/chat/${character.id}?sessionId=${encodeURIComponent(importedSessionId)}`);
+      importedSessionId = typeof result?.sessionId === "string" ? result.sessionId : null;
+
+      if (initializeMemory && importedSessionId) {
+        setImportMemoryProgress({
+          sessionId: importedSessionId,
+          step: null,
+          totalSteps: 4,
+          windowIndex: null,
+          totalWindows: null,
+          processedMessages: null,
+          totalMessages: null,
+        });
+        unlistenProgress = await listen("dynamic-memory:progress", (event: any) => {
+          const payload = event.payload ?? {};
+          if (payload.sessionId !== importedSessionId) return;
+          setImportMemoryProgress({
+            sessionId: importedSessionId!,
+            step: typeof payload.step === "number" ? payload.step : null,
+            totalSteps: typeof payload.totalSteps === "number" ? payload.totalSteps : 4,
+            windowIndex: typeof payload.windowIndex === "number" ? payload.windowIndex : null,
+            totalWindows: typeof payload.totalWindows === "number" ? payload.totalWindows : null,
+            processedMessages:
+              typeof payload.processedMessages === "number" ? payload.processedMessages : null,
+            totalMessages: typeof payload.totalMessages === "number" ? payload.totalMessages : null,
+          });
+        });
+        await storageBridge.initializeImportedChatMemory(importedSessionId);
       }
     } catch (err) {
       console.error("Failed to import chat:", err);
-      alert(typeof err === "string" ? err : "Failed to import chat");
+      alert(typeof err === "string" ? err : t("chats.settings.failedImportChat"));
     } finally {
+      if (unlistenProgress) unlistenProgress();
+      setImportMemoryProgress(null);
       setImportingChatpkg(false);
+      if (importedSessionId) {
+        navigate(`/chat/${character.id}?sessionId=${encodeURIComponent(importedSessionId)}`);
+      }
+    }
+  };
+
+  const openImportChatpkg = async (character: Character) => {
+    if (importingChatpkg) return;
+    try {
+      const picked = await storageBridge.jsonlPickFile();
+      if (!picked) return;
+      const settings = await readSettings();
+      const canInitializeMemory =
+        character.memoryType === "dynamic" &&
+        settings.advancedSettings?.dynamicMemory?.enabled === true;
+      if (canInitializeMemory) {
+        setPendingChatImport({ ...picked, character });
+        return;
+      }
+      await runChatImport(picked, character, false);
+    } catch (err) {
+      console.error("Failed to import chat:", err);
+      alert(typeof err === "string" ? err : t("chats.settings.failedImportChat"));
     }
   };
 
@@ -360,6 +430,7 @@ export function ChatPage() {
               onClick={() => {
                 void openImportChatpkg(selectedCharacter);
               }}
+              disabled={importingChatpkg}
               className="flex w-full items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-left transition hover:border-emerald-500/50 hover:bg-emerald-500/20"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/20">
@@ -396,6 +467,118 @@ export function ChatPage() {
             </button>
           </div>
         )}
+      </BottomMenu>
+
+      <BottomMenu
+        isOpen={Boolean(pendingChatImport)}
+        onClose={() => {
+          if (!importingChatpkg) setPendingChatImport(null);
+        }}
+        includeExitIcon={false}
+        title={t("chats.settings.importChatPackageTitle")}
+      >
+        {pendingChatImport && (
+          <div className="space-y-3">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="text-sm font-medium text-white">{pendingChatImport.filename}</div>
+              <div className="mt-1 text-xs leading-relaxed text-white/55">
+                {t("chats.settings.importChatMemoryChoiceDesc")}
+              </div>
+            </div>
+            <button
+              onClick={() =>
+                void runChatImport(pendingChatImport, pendingChatImport.character, true)
+              }
+              disabled={importingChatpkg}
+              className="flex w-full items-center gap-3 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-left transition hover:border-emerald-400/50 hover:bg-emerald-400/20 disabled:opacity-50"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-400/30 bg-emerald-400/20">
+                <Sparkles className="h-4 w-4 text-emerald-300" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-emerald-100">
+                  {t("chats.settings.importAndExtractMemory")}
+                </div>
+                <div className="mt-0.5 text-xs text-emerald-100/60">
+                  {t("chats.settings.importAndExtractMemoryDesc")}
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() =>
+                void runChatImport(pendingChatImport, pendingChatImport.character, false)
+              }
+              disabled={importingChatpkg}
+              className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left transition hover:border-white/20 hover:bg-white/10 disabled:opacity-50"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/10">
+                <Upload className="h-4 w-4 text-white/70" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-white">
+                  {t("chats.settings.importMessagesOnly")}
+                </div>
+                <div className="mt-0.5 text-xs text-white/55">
+                  {t("chats.settings.importMessagesOnlyDesc")}
+                </div>
+              </div>
+            </button>
+          </div>
+        )}
+      </BottomMenu>
+
+      <BottomMenu
+        isOpen={Boolean(importMemoryProgress)}
+        onClose={() => {}}
+        includeExitIcon={false}
+        title={t("chats.settings.extractingImportedMemory")}
+      >
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-5 w-5 animate-spin text-emerald-300" />
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-white">
+                {t("chats.settings.extractingImportedMemory")}
+              </div>
+              <div className="mt-0.5 text-xs text-white/55">
+                {importMemoryProgress?.windowIndex && importMemoryProgress.totalWindows
+                  ? t("chats.settings.extractingImportedMemoryWindow", {
+                      current: importMemoryProgress.windowIndex,
+                      total: importMemoryProgress.totalWindows,
+                    })
+                  : t("chats.settings.extractingImportedMemoryPreparing")}
+              </div>
+            </div>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-emerald-400/80 transition-all duration-500"
+              style={{
+                width: `${
+                  importMemoryProgress?.processedMessages && importMemoryProgress.totalMessages
+                    ? Math.max(
+                        6,
+                        Math.min(
+                          100,
+                          (importMemoryProgress.processedMessages /
+                            importMemoryProgress.totalMessages) *
+                            100,
+                        ),
+                      )
+                    : 12
+                }%`,
+              }}
+            />
+          </div>
+          {importMemoryProgress?.step ? (
+            <div className="text-xs text-white/50">
+              {t("chats.settings.extractingImportedMemoryStep", {
+                current: importMemoryProgress.step,
+                total: importMemoryProgress.totalSteps,
+              })}
+            </div>
+          ) : null}
+        </div>
       </BottomMenu>
 
       <CharacterExportMenu
