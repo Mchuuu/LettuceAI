@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use serde_json::Value;
+use serde_json::{json, Value};
 
-use super::{deepseek::DeepSeekAdapter, ProviderAdapter};
-use crate::chat_manager::tooling::ToolConfig;
+use super::{OpenAIChatRequest, ProviderAdapter};
+use crate::chat_manager::tooling::{openai_tool_choice, openai_tools, ToolConfig};
 
 pub struct XAIAdapter;
 
@@ -27,7 +27,11 @@ impl ProviderAdapter for XAIAdapter {
     }
 
     fn default_headers_template(&self) -> HashMap<String, String> {
-        DeepSeekAdapter.default_headers_template()
+        let mut out = HashMap::new();
+        out.insert("Authorization".into(), "Bearer <apiKey>".into());
+        out.insert("Content-Type".into(), "application/json".into());
+        out.insert("Accept".into(), "text/event-stream".into());
+        out
     }
 
     fn headers(
@@ -35,14 +39,25 @@ impl ProviderAdapter for XAIAdapter {
         api_key: &str,
         extra: Option<&HashMap<String, String>>,
     ) -> HashMap<String, String> {
-        DeepSeekAdapter.headers(api_key, extra)
+        let mut out: HashMap<String, String> = HashMap::new();
+        out.insert("Authorization".into(), format!("Bearer {}", api_key));
+        out.insert("Content-Type".into(), "application/json".into());
+        out.insert("Accept".into(), "text/event-stream".into());
+        out.entry("User-Agent".into())
+            .or_insert_with(|| "LettuceAI/0.1".into());
+        if let Some(extra) = extra {
+            for (k, v) in extra.iter() {
+                out.insert(k.clone(), v.clone());
+            }
+        }
+        out
     }
 
     fn body(
         &self,
         model_name: &str,
         messages_for_api: &Vec<Value>,
-        system_prompt: Option<String>,
+        _system_prompt: Option<String>,
         temperature: Option<f64>,
         top_p: Option<f64>,
         max_tokens: u32,
@@ -50,32 +65,41 @@ impl ProviderAdapter for XAIAdapter {
         should_stream: bool,
         frequency_penalty: Option<f64>,
         presence_penalty: Option<f64>,
-        top_k: Option<u32>,
+        _top_k: Option<u32>,
         tool_config: Option<&ToolConfig>,
         reasoning_enabled: bool,
         reasoning_effort: Option<String>,
         reasoning_budget: Option<u32>,
     ) -> Value {
-        let mut value = DeepSeekAdapter.body(
-            model_name,
-            messages_for_api,
-            system_prompt,
+        let (tools, tool_choice) = if let Some(cfg) = tool_config {
+            let tools = openai_tools(cfg);
+            let choice = if tools.is_some() {
+                openai_tool_choice(cfg.choice.as_ref())
+            } else {
+                None
+            };
+            (tools, choice)
+        } else {
+            (None, None)
+        };
+
+        let total_tokens = max_tokens + reasoning_budget.unwrap_or(0);
+        let body = OpenAIChatRequest {
+            model: model_name,
+            messages: messages_for_api,
+            stream: should_stream,
             temperature,
             top_p,
-            max_tokens,
+            max_tokens: Some(total_tokens),
             context_length,
-            should_stream,
             frequency_penalty,
             presence_penalty,
-            top_k,
-            tool_config,
-            reasoning_enabled,
-            reasoning_effort,
-            reasoning_budget,
-        );
-        if let Some(map) = value.as_object_mut() {
-            map.remove("thinking");
-        }
-        value
+            max_completion_tokens: None,
+            reasoning_effort: reasoning_enabled.then_some(reasoning_effort).flatten(),
+            reasoning: None,
+            tools,
+            tool_choice,
+        };
+        serde_json::to_value(body).unwrap_or_else(|_| json!({}))
     }
 }
