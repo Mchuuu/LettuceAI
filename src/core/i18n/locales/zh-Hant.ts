@@ -395,7 +395,7 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
   },
   about: {
     kicker: "應用程式資訊",
-    appName: "LettuceAI",
+    appName: "菜包",
     description: "版本詳細資訊、更新檢查與實用連結。",
     info: {
       version: "版本",
@@ -1004,6 +1004,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
         "會先匯入訊息，再進行記憶抽取。歷史記錄較多時，記憶抽取可能需要一段時間。",
       importAndExtractMemory: "匯入並抽取記憶",
       importAndExtractMemoryDesc: "從這份聊天記錄生成動態記憶和向量。",
+      importMemoryWindowSize: "抽取視窗大小",
+      importMemoryWindowSizeDesc: "每批處理的訊息數，範圍 50-200。",
       importMessagesOnly: "僅匯入訊息",
       importMessagesOnlyDesc: "只建立聊天工作階段，不執行記憶抽取。",
       extractingImportedMemory: "正在抽取匯入的記憶",
@@ -6783,7 +6785,7 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
     },
     welcome: {
-      appName: "LettuceAI",
+      appName: "菜包",
       tagline: "您的個人 AI 夥伴。私密、安全、始終在裝置上。",
       features: {
         onDevice: "僅限裝置上",

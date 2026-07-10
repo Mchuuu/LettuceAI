@@ -25,7 +25,7 @@ export function TabItem({
       className={`relative block ${className}`}
     >
       <motion.div
-        className={`relative flex h-full w-full items-center justify-center rounded-full font-medium transition ${
+        className={`relative flex h-full w-full flex-col items-center justify-center gap-1.5 rounded-full font-medium transition ${
           active ? "text-fg" : "text-fg/38 hover:text-fg/80"
         }`}
         whileTap={{ scale: 0.95 }}
@@ -39,7 +39,7 @@ export function TabItem({
           />
         )}
         <Icon size={22} strokeWidth={active ? 2.45 : 2.2} className="relative z-10" />
-        <span className="sr-only">{label}</span>
+        <span className="relative z-10 text-[10px] leading-none">{label}</span>
       </motion.div>
     </Link>
   );

@@ -395,7 +395,7 @@ export const koMessages: DeepPartialMessageTree<LocaleMessages> = {
   },
   about: {
     kicker: "앱 정보",
-    appName: "LettuceAI",
+    appName: "菜包",
     description: "버전 정보, 업데이트 확인 및 유용한 링크.",
     info: {
       version: "버전",
@@ -6765,7 +6765,7 @@ export const koMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
     },
     welcome: {
-      appName: "LettuceAI",
+      appName: "菜包",
       tagline: "개인 AI 동반자. 비공개, 안전, 항상 기기 내에서.",
       features: {
         onDevice: "기기 내 전용",

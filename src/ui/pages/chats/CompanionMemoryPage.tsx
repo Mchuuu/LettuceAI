@@ -44,6 +44,7 @@ import { BottomMenu } from "../../components/BottomMenu";
 import { DateTimePicker } from "../../components/DateTimePicker";
 import {
   companionCategoryLabel,
+  companionSignalLabel,
   COMPANION_CATEGORY_ORDER,
   emotionLabel,
   formatPercent,
@@ -57,7 +58,6 @@ import {
 } from "./companionUi";
 import { useI18n } from "../../../core/i18n/context";
 import type { TranslationKey } from "../../../core/i18n/context";
-import { RELATIONSHIP_AXIS_ANCHORS } from "../characters/utils/companionDefaults";
 import { storageBridge } from "../../../core/storage/files";
 
 type MemoryFilter = "all" | "active" | "superseded";
@@ -1056,34 +1056,34 @@ export function CompanionMemoryPage() {
               <StatTile
                 label={t("chats.companionMemoryPage.stats.closeness")}
                 value={relationshipState?.closeness ?? companion?.relationshipDefaults?.closeness ?? 0.1}
-                low={RELATIONSHIP_AXIS_ANCHORS.closeness.low}
-                mid={RELATIONSHIP_AXIS_ANCHORS.closeness.mid}
-                high={RELATIONSHIP_AXIS_ANCHORS.closeness.high}
+                low={t("chats.companionMemoryPage.levels.closeness.low")}
+                mid={t("chats.companionMemoryPage.levels.closeness.mid")}
+                high={t("chats.companionMemoryPage.levels.closeness.high")}
                 bipolar
               />
               <StatTile
                 label={t("chats.companionMemoryPage.stats.trust")}
                 value={relationshipState?.trust ?? companion?.relationshipDefaults?.trust ?? 0.1}
-                low={RELATIONSHIP_AXIS_ANCHORS.trust.low}
-                mid={RELATIONSHIP_AXIS_ANCHORS.trust.mid}
-                high={RELATIONSHIP_AXIS_ANCHORS.trust.high}
+                low={t("chats.companionMemoryPage.levels.trust.low")}
+                mid={t("chats.companionMemoryPage.levels.trust.mid")}
+                high={t("chats.companionMemoryPage.levels.trust.high")}
                 bipolar
               />
               <StatTile
                 label={t("chats.companionMemoryPage.stats.affection")}
                 value={relationshipState?.affection ?? companion?.relationshipDefaults?.affection ?? 0.05}
                 tone="warm"
-                low={RELATIONSHIP_AXIS_ANCHORS.affection.low}
-                mid={RELATIONSHIP_AXIS_ANCHORS.affection.mid}
-                high={RELATIONSHIP_AXIS_ANCHORS.affection.high}
+                low={t("chats.companionMemoryPage.levels.affection.low")}
+                mid={t("chats.companionMemoryPage.levels.affection.mid")}
+                high={t("chats.companionMemoryPage.levels.affection.high")}
                 bipolar
               />
               <StatTile
                 label={t("chats.companionMemoryPage.stats.tension")}
                 value={relationshipState?.tension ?? companion?.relationshipDefaults?.tension ?? 0}
                 tone="warning"
-                low={RELATIONSHIP_AXIS_ANCHORS.tension.low}
-                high={RELATIONSHIP_AXIS_ANCHORS.tension.high}
+                low={t("chats.companionMemoryPage.levels.tension.low")}
+                high={t("chats.companionMemoryPage.levels.tension.high")}
               />
             </div>
 
@@ -1097,7 +1097,7 @@ export function CompanionMemoryPage() {
                     <div className="flex flex-wrap gap-1.5">
                       {topFelt.map((entry) => (
                         <Pill key={entry.key} tone={entry.value >= 0.5 ? "accent" : "default"}>
-                          {emotionLabel(entry.key)}
+                          {emotionLabel(t, entry.key)}
                           <span className="text-fg/40">{formatPercent(entry.value)}</span>
                         </Pill>
                       ))}
@@ -1111,7 +1111,7 @@ export function CompanionMemoryPage() {
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {activeSignals.map((signal) => (
-                        <Pill key={signal} tone="muted">{signal}</Pill>
+                        <Pill key={signal} tone="muted">{companionSignalLabel(t, signal)}</Pill>
                       ))}
                     </div>
                   </div>

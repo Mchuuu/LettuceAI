@@ -180,11 +180,88 @@ export function topEmotionEntries(vector?: CompanionEmotionVector | null, limit 
     .slice(0, limit);
 }
 
-export function emotionLabel(key: string): string {
-  return key
-    .replace(/([A-Z])/g, " $1")
-    .replace(/^./, (char) => char.toUpperCase())
-    .trim();
+export function emotionLabel(t: T, key: string): string {
+  switch (key) {
+    case "warmth":
+      return t("characters.soulSliders.warmth");
+    case "calm":
+      return t("characters.soulSliders.calm");
+    case "vulnerability":
+      return t("characters.soulSliders.vulnerability");
+    case "longing":
+      return t("characters.soulSliders.longing");
+    case "hurt":
+      return t("characters.soulSliders.hurt");
+    case "tension":
+      return t("characters.soulSliders.tension");
+    case "irritation":
+      return t("characters.soulSliders.irritation");
+    case "affectionIntensity":
+    case "affection_intensity":
+      return t("characters.soulSliders.affection");
+    case "reassuranceNeed":
+    case "reassurance_need":
+      return t("characters.soulSliders.reassuranceNeed");
+    case "joy":
+      return t("chats.companionUi.emotionLabels.joy");
+    case "trust":
+      return t("chats.companionUi.emotionLabels.trust");
+    case "fear":
+      return t("chats.companionUi.emotionLabels.fear");
+    case "surprise":
+      return t("chats.companionUi.emotionLabels.surprise");
+    case "sadness":
+      return t("chats.companionUi.emotionLabels.sadness");
+    case "disgust":
+      return t("chats.companionUi.emotionLabels.disgust");
+    case "anger":
+      return t("chats.companionUi.emotionLabels.anger");
+    case "anticipation":
+      return t("chats.companionUi.emotionLabels.anticipation");
+    default:
+      return key
+        .replace(/([A-Z])/g, " $1")
+        .replace(/^./, (char) => char.toUpperCase())
+        .trim();
+  }
+}
+
+export function companionSignalLabel(t: T, signal: string): string {
+  const key = signal.replace(/^emotion:/, "");
+  switch (key) {
+    case "love":
+      return t("chats.companionUi.signalLabels.love");
+    case "caring":
+      return t("chats.companionUi.signalLabels.caring");
+    case "appreciation":
+      return t("chats.companionUi.signalLabels.appreciation");
+    case "positive":
+      return t("chats.companionUi.signalLabels.positive");
+    case "desire":
+      return t("chats.companionUi.signalLabels.desire");
+    case "relief":
+      return t("chats.companionUi.signalLabels.relief");
+    case "remorse":
+      return t("chats.companionUi.signalLabels.remorse");
+    case "distress":
+      return t("chats.companionUi.signalLabels.distress");
+    case "anxiety":
+      return t("chats.companionUi.signalLabels.anxiety");
+    case "conflict":
+      return t("chats.companionUi.signalLabels.conflict");
+    case "embarrassment":
+      return t("chats.companionUi.signalLabels.embarrassment");
+    case "uncertainty":
+      return t("chats.companionUi.signalLabels.uncertainty");
+    case "engagement":
+      return t("chats.companionUi.signalLabels.engagement");
+    case "pride":
+      return t("chats.companionUi.signalLabels.pride");
+    case "neutral":
+      return t("chats.companionUi.signalLabels.neutral");
+    default:
+      return signal.replace(/^emotion:/, "").replace(/_/g, " ");
+  }
 }
 
 export function summarizeSoulText(t: T, value?: string | null): string {

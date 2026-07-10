@@ -1072,8 +1072,9 @@ pub async fn trigger_dynamic_memory(app: AppHandle, session_id: String) -> Resul
 pub async fn initialize_imported_chat_memory(
     app: AppHandle,
     session_id: String,
+    window_size: Option<u32>,
 ) -> Result<(), String> {
-    super::memory::flow::initialize_imported_chat_memory(app, session_id).await
+    super::memory::flow::initialize_imported_chat_memory(app, session_id, window_size).await
 }
 
 #[tauri::command]

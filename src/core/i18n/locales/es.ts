@@ -395,7 +395,7 @@ export const esMessages: DeepPartialMessageTree<LocaleMessages> = {
   },
   about: {
     kicker: "Información de la app",
-    appName: "LettuceAI",
+    appName: "菜包",
     description: "Detalles de la versión, comprobación de actualizaciones y enlaces útiles.",
     info: {
       version: "Versión",
@@ -6764,7 +6764,7 @@ export const esMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
     },
     welcome: {
-      appName: "LettuceAI",
+      appName: "菜包",
       tagline: "Tu compañero de IA personal. Privado, seguro y siempre en el dispositivo.",
       features: {
         onDevice: "Solo en el dispositivo",

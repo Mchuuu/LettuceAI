@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 
+const JSONL_UPLOAD_CHUNK_SIZE = 512 * 1024;
+
 async function readJsonCommand<T>(
   command: string,
   args?: Record<string, unknown>,
@@ -26,6 +28,94 @@ async function writeJsonCommand(
 ): Promise<void> {
   const payload = JSON.stringify(data, null, 2);
   await invoke(command, { data: payload, ...(args ?? {}) });
+}
+
+function pickJsonlFileWithInput(): Promise<File | null> {
+  return new Promise((resolve, reject) => {
+    console.info("[jsonlPickFile] creating native file input");
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "*/*";
+    input.style.display = "none";
+
+    const cleanup = () => {
+      console.info("[jsonlPickFile] cleaning up native file input");
+      input.remove();
+    };
+
+    input.addEventListener(
+      "change",
+      () => {
+        const file = input.files?.[0] ?? null;
+        console.info(
+          "[jsonlPickFile] native input change",
+          file ? { name: file.name, size: file.size, type: file.type } : null,
+        );
+        cleanup();
+        resolve(file);
+      },
+      { once: true },
+    );
+    input.addEventListener(
+      "cancel",
+      () => {
+        console.info("[jsonlPickFile] native input cancel");
+        cleanup();
+        resolve(null);
+      },
+      { once: true },
+    );
+    input.addEventListener(
+      "error",
+      () => {
+        console.error("[jsonlPickFile] native input error event");
+        cleanup();
+        reject(new Error("Failed to pick JSONL file"));
+      },
+      { once: true },
+    );
+
+    document.body.appendChild(input);
+    console.info("[jsonlPickFile] native file input appended, invoking click");
+    input.click();
+    console.info("[jsonlPickFile] native file input click invoked");
+  });
+}
+
+async function uploadJsonlFile(file: File): Promise<string> {
+  console.info("[jsonlUpload] begin", { name: file.name, size: file.size });
+  const path = await invoke<string>("jsonl_upload_begin", { filename: file.name });
+  try {
+    const totalChunks = Math.ceil(file.size / JSONL_UPLOAD_CHUNK_SIZE);
+    console.info("[jsonlUpload] temp path created", { path, totalChunks });
+    for (let offset = 0; offset < file.size; offset += JSONL_UPLOAD_CHUNK_SIZE) {
+      const chunk = file.slice(offset, Math.min(offset + JSONL_UPLOAD_CHUNK_SIZE, file.size));
+      const data = new Uint8Array(await chunk.arrayBuffer());
+      const chunkIndex = Math.floor(offset / JSONL_UPLOAD_CHUNK_SIZE) + 1;
+      if (chunkIndex === 1 || chunkIndex === totalChunks || chunkIndex % 10 === 0) {
+        console.info("[jsonlUpload] appending chunk", {
+          chunkIndex,
+          totalChunks,
+          bytes: data.byteLength,
+        });
+      }
+      await invoke("jsonl_upload_append", {
+        path,
+        data: Array.from(data),
+      });
+    }
+    console.info("[jsonlUpload] complete", { path, size: file.size });
+    return path;
+  } catch (error) {
+    console.error("[jsonlUpload] failed", error);
+    try {
+      await invoke("jsonl_upload_discard", { path });
+      console.info("[jsonlUpload] discarded temp file after failure", { path });
+    } catch {
+      // ignore cleanup errors
+    }
+    throw error;
+  }
 }
 
 export const storageBridge = {
@@ -483,8 +573,8 @@ export const storageBridge = {
     }) as Promise<void>,
   triggerDynamicMemory: (sessionId: string) =>
     invoke("trigger_dynamic_memory", { sessionId }) as Promise<void>,
-  initializeImportedChatMemory: (sessionId: string) =>
-    invoke("initialize_imported_chat_memory", { sessionId }) as Promise<void>,
+  initializeImportedChatMemory: (sessionId: string, windowSize?: number) =>
+    invoke("initialize_imported_chat_memory", { sessionId, windowSize }) as Promise<void>,
   abortDynamicMemory: (sessionId: string) =>
     invoke("abort_dynamic_memory", { sessionId }) as Promise<void>,
   skipDynamicMemoryCycle: (sessionId: string) =>
@@ -632,18 +722,37 @@ export const storageBridge = {
   jsonlExportGroupChat: (sessionId: string) =>
     invoke<string>("jsonl_export_group_chat", { sessionId }),
   jsonlInspect: (path: string) =>
-    invoke<string>("jsonl_inspect", { path }).then((s) => JSON.parse(s) as any),
+    invoke<string>("jsonl_inspect", { path }).then((s) => {
+      console.info("[jsonlInspect] complete", { path });
+      return JSON.parse(s) as any;
+    }),
   jsonlImport: (
     path: string,
     options?: {
       targetCharacterId?: string;
       participantCharacterMap?: Record<string, string>;
     },
-  ) =>
-    invoke<string>("jsonl_import", {
+  ) => {
+    const optionsJson = options ? JSON.stringify(options) : null;
+    console.info("[jsonlImport] invoking", {
       path,
-      optionsJson: options ? JSON.stringify(options) : null,
-    }).then((s) => JSON.parse(s) as any),
+      hasTargetCharacterId: Boolean(options?.targetCharacterId),
+      participantCount: options?.participantCharacterMap
+        ? Object.keys(options.participantCharacterMap).length
+        : 0,
+    });
+    return invoke<string>("jsonl_import", {
+      path,
+      optionsJson,
+    }).then((s) => {
+      console.info("[jsonlImport] complete", { path });
+      return JSON.parse(s) as any;
+    });
+  },
+  jsonlDiscardUpload: (path: string) => {
+    console.info("[jsonlUpload] discarding temp file", { path });
+    return invoke("jsonl_upload_discard", { path }) as Promise<void>;
+  },
 
   // Get the storage root path for temp file operations
   getStorageRoot: () => invoke<string>("get_storage_root"),
@@ -1057,40 +1166,25 @@ export const storageBridge = {
     }
   },
 
-  jsonlPickFile: async (): Promise<{ path: string; filename: string } | null> => {
+  jsonlPickFile: async (): Promise<{ path: string; filename: string; temporary: boolean } | null> => {
     try {
-      const selected = await open({
-        multiple: false,
-        filters: [{ name: "Chat Log", extensions: ["jsonl", "json"] }],
-      });
-
-      if (!selected || typeof selected !== "string") return null;
-
-      console.log("[jsonlPickFile] Selected file:", selected);
-
-      const isContentUri = selected.startsWith("content://");
-
-      let filename: string;
-      const parts = selected.split("/");
-      filename = parts[parts.length - 1] || "chat.jsonl";
-      if (filename.startsWith("content:") || filename.includes("%")) {
-        filename = "chat.jsonl";
+      console.info("[jsonlPickFile] start");
+      const file = await pickJsonlFileWithInput();
+      if (!file) {
+        console.info("[jsonlPickFile] no file selected");
+        return null;
       }
 
-      if (!filename.endsWith(".jsonl") && !filename.endsWith(".json")) {
-        filename = filename + ".jsonl";
+      console.log("[jsonlPickFile] Selected file:", file.name, file.size);
+      let filename = file.name || "chat.jsonl";
+      const lowerFilename = filename.toLowerCase();
+      if (!lowerFilename.endsWith(".jsonl") && !lowerFilename.endsWith(".json")) {
+        throw new Error("Please choose a .jsonl or .json chat log file.");
       }
 
-      if (isContentUri) {
-        console.log(
-          "[jsonlPickFile] Android content URI detected, passing URI to backend:",
-          selected,
-        );
-      } else {
-        console.log("[jsonlPickFile] Desktop path, using directly:", selected);
-      }
-
-      return { path: selected, filename };
+      const path = await uploadJsonlFile(file);
+      console.info("[jsonlPickFile] upload ready", { filename, path });
+      return { path, filename, temporary: true };
     } catch (error) {
       console.error("[jsonlPickFile] Error:", error);
       throw error;

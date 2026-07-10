@@ -210,7 +210,7 @@ export function useBackupRestore() {
   }, [state.exportPassword, state.confirmPassword, loadBackups]);
 
   const handleImport = useCallback(
-    async (skipDynamicMemoryCheck = false) => {
+    async () => {
       const { selectedBackup, importPassword } = state;
       if (!selectedBackup) return;
 
@@ -247,27 +247,6 @@ export function useBackupRestore() {
         await setTooltipSeen("chat_detail_tour_v1");
         await setTooltipSeen("post_first_message_tour_v1");
 
-
-        if (!skipDynamicMemoryCheck) {
-          console.log("[useBackupRestore] Checking for dynamic memory in backup...");
-          const hasDynamicMemory = await storageBridge.backupCheckDynamicMemory(
-            selectedBackup.path,
-            selectedBackup.encrypted ? importPassword : undefined,
-          );
-
-          console.log("[useBackupRestore] hasDynamicMemory:", hasDynamicMemory);
-
-          if (hasDynamicMemory) {
-            console.log("[useBackupRestore] Checking if embedding model exists...");
-            const hasEmbeddingModel = await storageBridge.checkEmbeddingModel();
-            console.log("[useBackupRestore] hasEmbeddingModel:", hasEmbeddingModel);
-
-            if (!hasEmbeddingModel) {
-              console.log("[useBackupRestore] Returning needsEmbeddingModel=true");
-              return { success: true, needsEmbeddingModel: true };
-            }
-          }
-        }
 
         return { success: true };
       } catch (e) {

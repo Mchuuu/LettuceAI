@@ -241,8 +241,11 @@ function summarizeRegulation(
   return sorted.join(" · ");
 }
 
-function summarizeRelationship(values: CompanionConfig["relationshipDefaults"]): string {
-  return `closeness ${pct(values.closeness)} · trust ${pct(values.trust)}`;
+function summarizeRelationship(
+  values: CompanionConfig["relationshipDefaults"],
+  t: (key: TranslationKey) => string,
+): string {
+  return `${t("characters.soulSliders.closeness")} ${pct(values.closeness)} · ${t("characters.soulSliders.relTrust")} ${pct(values.trust)}`;
 }
 
 const sectionLabel = cn(
@@ -634,7 +637,7 @@ export function CompanionSoulEditor({
             Brain,
             t("characters.soulEditor.baselineAffect"),
             summarizeAffect(value.soul.baselineAffect, t),
-            "How they feel by default — the emotional waterline before anything happens.",
+            t("characters.soulEditor.baselineAffectInfo"),
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {AFFECT_SLIDERS.map((spec) =>
                 renderSlider(spec, value.soul.baselineAffect[spec.key], (next) =>
@@ -649,7 +652,7 @@ export function CompanionSoulEditor({
             SlidersHorizontal,
             t("characters.soulEditor.regulationStyle"),
             summarizeRegulation(value.soul.regulationStyle, t),
-            "How they handle and express what they feel — venting vs. burying.",
+            t("characters.soulEditor.regulationStyleInfo"),
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {REGULATION_SLIDERS.map((spec) =>
                 renderSlider(spec, value.soul.regulationStyle[spec.key], (next) =>
@@ -663,7 +666,7 @@ export function CompanionSoulEditor({
             "relationship",
             Shield,
             t("characters.soulEditor.relationshipDefaults"),
-            summarizeRelationship(value.relationshipDefaults),
+            summarizeRelationship(value.relationshipDefaults, t),
             t("characters.soulEditor.relationshipDefaultsInfo"),
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {RELATIONSHIP_SLIDERS.map((spec) =>

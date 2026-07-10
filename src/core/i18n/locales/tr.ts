@@ -395,7 +395,7 @@ export const trMessages: DeepPartialMessageTree<LocaleMessages> = {
   },
   about: {
     kicker: "Uygulama bilgisi",
-    appName: "LettuceAI",
+    appName: "菜包",
     description: "Sürüm bilgileri, güncelleme kontrolü ve faydalı bağlantılar.",
     info: {
       version: "Sürüm",
@@ -6765,7 +6765,7 @@ export const trMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
     },
     welcome: {
-      appName: "LettuceAI",
+      appName: "菜包",
       tagline: "Kişisel yapay zeka arkadaşın. Gizli, güvenli ve her zaman cihazında.",
       features: {
         onDevice: "Yalnızca cihazda",

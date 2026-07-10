@@ -4,11 +4,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
-use tauri::State;
+use tauri::{Manager, State};
 use uuid::Uuid;
 
 use super::db::{now_ms, open_db, SwappablePool};
+use crate::utils::log_info;
 #[cfg(target_os = "android")]
 use std::io::Read;
 #[cfg(target_os = "android")]
@@ -517,6 +519,37 @@ fn read_jsonl(app: &tauri::AppHandle, path: &str) -> Result<ParsedJsonl, String>
     parse_jsonl(&raw)
 }
 
+fn parse_jsonl_content(raw: String) -> Result<ParsedJsonl, String> {
+    parse_jsonl(&raw)
+}
+
+fn jsonl_import_temp_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+        .join("jsonl-imports");
+    fs::create_dir_all(&dir)
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    Ok(dir)
+}
+
+fn assert_jsonl_temp_path(app: &tauri::AppHandle, path: &str) -> Result<PathBuf, String> {
+    let temp_dir = jsonl_import_temp_dir(app)?;
+    let path = PathBuf::from(path);
+    let parent = path.parent().ok_or_else(|| {
+        crate::utils::err_msg(module_path!(), line!(), "Invalid JSONL upload path")
+    })?;
+    if parent != temp_dir {
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            "Invalid JSONL upload path",
+        ));
+    }
+    Ok(path)
+}
+
 fn imported_variants(entry: &JsonValue, created_at: i64) -> (Vec<JsonValue>, Option<String>) {
     let Some(swipes) = entry.get("swipes").and_then(JsonValue::as_array) else {
         return (Vec::new(), None);
@@ -588,12 +621,84 @@ fn message_created_at(entry: &JsonValue) -> i64 {
     now_ms() as i64
 }
 
+// ------------------- Chunked upload -------------------
+
+#[tauri::command]
+pub fn jsonl_upload_begin(app: tauri::AppHandle, filename: String) -> Result<String, String> {
+    log_info(
+        &app,
+        "jsonl_import",
+        format!("upload_begin filename={}", filename),
+    );
+    let ext = std::path::Path::new(&filename)
+        .extension()
+        .and_then(|value| value.to_str())
+        .filter(|value| value.eq_ignore_ascii_case("json") || value.eq_ignore_ascii_case("jsonl"))
+        .unwrap_or("jsonl");
+    let path = jsonl_import_temp_dir(&app)?.join(format!("{}.{}", Uuid::new_v4(), ext));
+    fs::File::create(&path).map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    log_info(
+        &app,
+        "jsonl_import",
+        format!("upload_begin created path={}", path.to_string_lossy()),
+    );
+    Ok(path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn jsonl_upload_append(
+    app: tauri::AppHandle,
+    path: String,
+    data: Vec<u8>,
+) -> Result<(), String> {
+    let path = assert_jsonl_temp_path(&app, &path)?;
+    let mut file = fs::OpenOptions::new()
+        .append(true)
+        .open(&path)
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    file.write_all(&data)
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
+}
+
+#[tauri::command]
+pub fn jsonl_upload_discard(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    let path = assert_jsonl_temp_path(&app, &path)?;
+    log_info(
+        &app,
+        "jsonl_import",
+        format!("upload_discard path={}", path.to_string_lossy()),
+    );
+    if path.exists() {
+        fs::remove_file(path)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    }
+    Ok(())
+}
+
 // ------------------- Inspect -------------------
 
 #[tauri::command]
 pub fn jsonl_inspect(app: tauri::AppHandle, path: String) -> Result<String, String> {
+    log_info(&app, "jsonl_import", format!("inspect path={}", path));
     let parsed = read_jsonl(&app, &path)?;
+    log_info(
+        &app,
+        "jsonl_import",
+        format!("inspect parsed messages={}", parsed.messages.len()),
+    );
+    build_jsonl_inspect_response(&parsed, Some(&path))
+}
 
+#[tauri::command]
+pub fn jsonl_inspect_content(raw: String) -> Result<String, String> {
+    let parsed = parse_jsonl_content(raw)?;
+    build_jsonl_inspect_response(&parsed, None)
+}
+
+fn build_jsonl_inspect_response(
+    parsed: &ParsedJsonl,
+    source_path: Option<&str>,
+) -> Result<String, String> {
     let title = parsed
         .metadata
         .as_ref()
@@ -601,11 +706,14 @@ pub fn jsonl_inspect(app: tauri::AppHandle, path: String) -> Result<String, Stri
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
         .unwrap_or_else(|| {
-            std::path::Path::new(&path)
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("Imported Chat")
-                .to_string()
+            source_path
+                .and_then(|path| {
+                    std::path::Path::new(path)
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .map(|s| s.to_string())
+                })
+                .unwrap_or_else(|| "Imported Chat".to_string())
         });
 
     // Group inspect: count messages per non-user, non-system `name`.
@@ -652,13 +760,39 @@ pub fn jsonl_import(
     options_json: Option<String>,
     pool: State<'_, SwappablePool>,
 ) -> Result<String, String> {
+    log_info(&app, "jsonl_import", format!("import path={}", path));
+    let parsed = read_jsonl(&app, &path)?;
+    log_info(
+        &app,
+        "jsonl_import",
+        format!("import parsed messages={}", parsed.messages.len()),
+    );
+    jsonl_import_parsed(parsed, options_json, &pool, Some(&app), Some(&path))
+}
+
+#[tauri::command]
+pub fn jsonl_import_content(
+    app: tauri::AppHandle,
+    raw: String,
+    options_json: Option<String>,
+    pool: State<'_, SwappablePool>,
+) -> Result<String, String> {
+    let parsed = parse_jsonl_content(raw)?;
+    jsonl_import_parsed(parsed, options_json, &pool, Some(&app), None)
+}
+
+fn jsonl_import_parsed(
+    parsed: ParsedJsonl,
+    options_json: Option<String>,
+    pool: &State<'_, SwappablePool>,
+    app: Option<&tauri::AppHandle>,
+    source_path: Option<&str>,
+) -> Result<String, String> {
     let options: JsonlImportOptions = match options_json {
         Some(raw) => serde_json::from_str(&raw)
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?,
         None => JsonlImportOptions::default(),
     };
-
-    let parsed = read_jsonl(&app, &path)?;
 
     // Determine single vs group from distinct assistant speakers.
     let mut speakers: HashSet<String> = HashSet::new();
@@ -672,9 +806,21 @@ pub fn jsonl_import(
     let is_group = speakers.len() > 1;
 
     if is_group {
-        import_group(&parsed, &options, &pool, &speakers)
+        import_group(&parsed, &options, pool, &speakers)
     } else {
-        import_single(&app, &parsed, &options, &path)
+        let app = app.ok_or_else(|| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                "Single chat import requires app context",
+            )
+        })?;
+        import_single(
+            app,
+            &parsed,
+            &options,
+            source_path.unwrap_or("Imported Chat"),
+        )
     }
 }
 

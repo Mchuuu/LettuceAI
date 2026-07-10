@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "lettuceai",
+  "productName": "菜包",
   "version": "1.2.0",
   "identifier": "com.lettuceai.app",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "LettuceAI",
+        "title": "菜包",
         "width": 1440,
         "height": 810,
         "minWidth": 1068,
@@ -97,6 +97,7 @@
     ],
     "resources": [
       "./onnxruntime",
+      "./embedding-model",
       "./feedback_sounds/fail.mp3",
       "./feedback_sounds/send.mp3",
       "./feedback_sounds/success.mp3"

@@ -395,7 +395,7 @@ export const jaMessages: DeepPartialMessageTree<LocaleMessages> = {
   },
   about: {
     kicker: "アプリ情報",
-    appName: "LettuceAI",
+    appName: "菜包",
     description: "バージョン情報、アップデート確認、便利なリンク。",
     info: {
       version: "バージョン",
@@ -6132,7 +6132,7 @@ export const jaMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
     },
     welcome: {
-      appName: "LettuceAI",
+      appName: "菜包",
       tagline: "あなたのパーソナルAIコンパニオン。プライベート、安全、常にデバイス上で。",
       features: {
         onDevice: "デバイス上のみ",

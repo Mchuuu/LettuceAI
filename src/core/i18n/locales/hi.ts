@@ -395,7 +395,7 @@ export const hiMessages: DeepPartialMessageTree<LocaleMessages> = {
   },
   about: {
     kicker: "ऐप जानकारी",
-    appName: "LettuceAI",
+    appName: "菜包",
     description: "संस्करण विवरण, अपडेट जांच और उपयोगी लिंक।",
     info: {
       version: "संस्करण",
@@ -6132,7 +6132,7 @@ export const hiMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
     },
     welcome: {
-      appName: "LettuceAI",
+      appName: "菜包",
       tagline: "आपका व्यक्तिगत AI साथी। निजी, सुरक्षित, और हमेशा डिवाइस पर।",
       features: {
         onDevice: "केवल डिवाइस पर",

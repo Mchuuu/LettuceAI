@@ -395,7 +395,7 @@ export const ruMessages: DeepPartialMessageTree<LocaleMessages> = {
   },
   about: {
     kicker: "Информация о приложении",
-    appName: "LettuceAI",
+    appName: "菜包",
     description: "Сведения о версии, проверка обновлений и полезные ссылки.",
     info: {
       version: "Версия",
@@ -6765,7 +6765,7 @@ export const ruMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
     },
     welcome: {
-      appName: "LettuceAI",
+      appName: "菜包",
       tagline: "Ваш личный AI-компаньон. Приватный, безопасный и всегда на устройстве.",
       features: {
         onDevice: "Только на устройстве",

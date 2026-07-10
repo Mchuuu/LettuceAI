@@ -38,7 +38,6 @@ import {
   useCompanionSessionData,
 } from "./companionUi";
 import { useI18n } from "../../../core/i18n/context";
-import { RELATIONSHIP_AXIS_ANCHORS } from "../characters/utils/companionDefaults";
 
 function PageHeader({
   title,
@@ -201,7 +200,7 @@ function EmotionGroup({
             return (
               <div key={`${title}-${entry.key}`}>
                 <div className="mb-0.5 flex items-center justify-between">
-                  <span className="text-[11px] text-fg/65">{emotionLabel(entry.key)}</span>
+                  <span className="text-[11px] text-fg/65">{emotionLabel(t, entry.key)}</span>
                   <span className="text-[10px] font-medium tabular-nums text-fg/70">{pct}%</span>
                 </div>
                 <div className="h-[3px] rounded-full bg-fg/6">
@@ -480,18 +479,18 @@ export function CompanionRelationshipPage() {
                 label={t("chats.companionRelationship.closeness")}
                 value={relationshipState?.closeness ?? companion?.relationshipDefaults?.closeness ?? 0.1}
                 baseline={companion?.relationshipDefaults?.closeness}
-                low={RELATIONSHIP_AXIS_ANCHORS.closeness.low}
-                mid={RELATIONSHIP_AXIS_ANCHORS.closeness.mid}
-                high={RELATIONSHIP_AXIS_ANCHORS.closeness.high}
+                low={t("chats.companionMemoryPage.levels.closeness.low")}
+                mid={t("chats.companionMemoryPage.levels.closeness.mid")}
+                high={t("chats.companionMemoryPage.levels.closeness.high")}
                 bipolar
               />
               <StatTile
                 label={t("chats.companionRelationship.trust")}
                 value={relationshipState?.trust ?? companion?.relationshipDefaults?.trust ?? 0.1}
                 baseline={companion?.relationshipDefaults?.trust}
-                low={RELATIONSHIP_AXIS_ANCHORS.trust.low}
-                mid={RELATIONSHIP_AXIS_ANCHORS.trust.mid}
-                high={RELATIONSHIP_AXIS_ANCHORS.trust.high}
+                low={t("chats.companionMemoryPage.levels.trust.low")}
+                mid={t("chats.companionMemoryPage.levels.trust.mid")}
+                high={t("chats.companionMemoryPage.levels.trust.high")}
                 bipolar
               />
               <StatTile
@@ -499,9 +498,9 @@ export function CompanionRelationshipPage() {
                 value={relationshipState?.affection ?? companion?.relationshipDefaults?.affection ?? 0.05}
                 baseline={companion?.relationshipDefaults?.affection}
                 tone="warm"
-                low={RELATIONSHIP_AXIS_ANCHORS.affection.low}
-                mid={RELATIONSHIP_AXIS_ANCHORS.affection.mid}
-                high={RELATIONSHIP_AXIS_ANCHORS.affection.high}
+                low={t("chats.companionMemoryPage.levels.affection.low")}
+                mid={t("chats.companionMemoryPage.levels.affection.mid")}
+                high={t("chats.companionMemoryPage.levels.affection.high")}
                 bipolar
               />
               <StatTile
@@ -509,14 +508,14 @@ export function CompanionRelationshipPage() {
                 value={relationshipState?.tension ?? companion?.relationshipDefaults?.tension ?? 0}
                 baseline={companion?.relationshipDefaults?.tension}
                 tone="warning"
-                low={RELATIONSHIP_AXIS_ANCHORS.tension.low}
-                high={RELATIONSHIP_AXIS_ANCHORS.tension.high}
+                low={t("chats.companionMemoryPage.levels.tension.low")}
+                high={t("chats.companionMemoryPage.levels.tension.high")}
               />
               <StatTile
                 label={t("chats.companionRelationship.stability")}
                 value={stability}
-                low={RELATIONSHIP_AXIS_ANCHORS.stability.low}
-                high={RELATIONSHIP_AXIS_ANCHORS.stability.high}
+                low={t("chats.companionMemoryPage.levels.stability.low")}
+                high={t("chats.companionMemoryPage.levels.stability.high")}
               />
               <div className="rounded-xl border border-fg/8 bg-fg/2 px-3 py-2.5">
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-fg/45">

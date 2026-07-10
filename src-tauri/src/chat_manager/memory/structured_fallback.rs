@@ -17,13 +17,13 @@ const OPERATION_TAGS: &[&str] = &[
     "done",
 ];
 
-pub const MEMORY_OPERATIONS_XML_FALLBACK_PROMPT: &str = r#"Return only XML. Format: <memory_ops><create_memory important="false"><text>...</text><category>plot_event</category></create_memory><delete_memory confidence="0.9"><text>123456</text></delete_memory><pin_memory><id>123456</id></pin_memory><unpin_memory><id>123456</id></unpin_memory><done><summary>optional note</summary></done></memory_ops>. Use an empty <memory_ops /> when no changes are needed. Do not use markdown."#;
+pub const MEMORY_OPERATIONS_XML_FALLBACK_PROMPT: &str = r#"Return only XML. Format: <memory_ops><create_memory important="false"><text>...</text><category>plot_event</category></create_memory><delete_memory confidence="0.9"><text>123456</text></delete_memory><pin_memory><id>123456</id></pin_memory><unpin_memory><id>123456</id></unpin_memory><done><summary>optional note</summary></done></memory_ops>. Use an empty <memory_ops /> when no changes are needed. Write create_memory text and done summary in Simplified Chinese. Do not use markdown."#;
 
-pub const MEMORY_REPAIRS_XML_FALLBACK_PROMPT: &str = r#"Return only XML. Format: <memory_repairs><item><text>...</text><category>other</category></item></memory_repairs>. Use exactly one <item> per input text. Do not use markdown."#;
+pub const MEMORY_REPAIRS_XML_FALLBACK_PROMPT: &str = r#"Return only XML. Format: <memory_repairs><item><text>...</text><category>other</category></item></memory_repairs>. Use exactly one <item> per input text. Return item text exactly as provided; do not translate or rewrite it. Do not use markdown."#;
 
-pub const MEMORY_OPERATIONS_JSON_FALLBACK_PROMPT: &str = r#"Return only JSON. Format: {"operations":[{"name":"create_memory","arguments":{"text":"...","category":"plot_event","important":false}},{"name":"delete_memory","arguments":{"text":"123456","confidence":0.9}},{"name":"pin_memory","arguments":{"id":"123456"}},{"name":"unpin_memory","arguments":{"id":"123456"}},{"name":"done","arguments":{"summary":"optional note"}}]}. Use {"operations":[]} when no changes are needed. Do not use markdown."#;
+pub const MEMORY_OPERATIONS_JSON_FALLBACK_PROMPT: &str = r#"Return only JSON. Format: {"operations":[{"name":"create_memory","arguments":{"text":"...","category":"plot_event","important":false}},{"name":"delete_memory","arguments":{"text":"123456","confidence":0.9}},{"name":"pin_memory","arguments":{"id":"123456"}},{"name":"unpin_memory","arguments":{"id":"123456"}},{"name":"done","arguments":{"summary":"optional note"}}]}. Use {"operations":[]} when no changes are needed. Write create_memory text and done summary in Simplified Chinese. Do not use markdown."#;
 
-pub const MEMORY_REPAIRS_JSON_FALLBACK_PROMPT: &str = r#"Return only JSON. Format: {"items":[{"text":"...","category":"other"}]}. Use exactly one item per input text. Do not use markdown."#;
+pub const MEMORY_REPAIRS_JSON_FALLBACK_PROMPT: &str = r#"Return only JSON. Format: {"items":[{"text":"...","category":"other"}]}. Use exactly one item per input text. Return item text exactly as provided; do not translate or rewrite it. Do not use markdown."#;
 
 pub fn structured_fallback_format_label(
     format: DynamicMemoryStructuredFallbackFormat,

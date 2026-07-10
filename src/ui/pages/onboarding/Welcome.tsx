@@ -24,7 +24,6 @@ import { typography, radius, spacing, interactive, shadows, cn } from "../../des
 import { useI18n } from "../../../core/i18n/context";
 import { LocaleSelector } from "../../components/LocaleSelector";
 import { BottomMenu, MenuButton, MenuDivider, MenuSection } from "../../components/BottomMenu";
-import { DynamicMemoryEmbeddingPrompt } from "./components/DynamicMemoryEmbeddingPrompt";
 
 interface WelcomePageProps {
   onContinue?: () => void;
@@ -458,7 +457,6 @@ function RestoreBackupModal({
   const [showPassword, setShowPassword] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showEmbeddingPrompt, setShowEmbeddingPrompt] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -531,26 +529,12 @@ function RestoreBackupModal({
 
       setRestoring(true);
 
-      const hasDynamicMemory = await storageBridge.backupCheckDynamicMemory(
-        selectedBackup.path,
-        selectedBackup.encrypted ? password : undefined,
-      );
-
       await storageBridge.backupImport(
         selectedBackup.path,
         selectedBackup.encrypted ? password : undefined,
       );
 
       await setOnboardingCompleted(true);
-
-      if (hasDynamicMemory) {
-        const hasEmbeddingModel = await storageBridge.checkEmbeddingModel();
-        if (!hasEmbeddingModel) {
-          setRestoring(false);
-          setShowEmbeddingPrompt(true);
-          return;
-        }
-      }
 
       setIsExiting(true);
       setTimeout(() => {
@@ -559,28 +543,6 @@ function RestoreBackupModal({
     } catch (e) {
       console.log(e);
       setError(e instanceof Error ? e.message : t("onboarding.welcome.restoreBackup.errors.failedToRestore"));
-      setRestoring(false);
-    }
-  };
-
-  const handleDownloadModel = () => {
-    setShowEmbeddingPrompt(false);
-    handleClose();
-    navigate("/settings/embedding-download?returnTo=/");
-  };
-
-  const handleDisableAndContinue = async () => {
-    setShowEmbeddingPrompt(false);
-    setRestoring(true);
-
-    try {
-      await storageBridge.backupDisableDynamicMemory();
-
-      navigate("/");
-    } catch (error) {
-      console.error("Failed to disable dynamic memory:", error);
-      setError(error instanceof Error ? error.message : t("onboarding.welcome.restoreBackup.errors.failedToUpdateSettings"));
-    } finally {
       setRestoring(false);
     }
   };
@@ -863,12 +825,6 @@ function RestoreBackupModal({
         </div>
       </motion.div>
 
-      {showEmbeddingPrompt && (
-        <DynamicMemoryEmbeddingPrompt
-          onDownload={handleDownloadModel}
-          onContinueWithout={handleDisableAndContinue}
-        />
-      )}
     </motion.div>
   );
 }

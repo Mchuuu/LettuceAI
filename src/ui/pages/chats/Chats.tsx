@@ -34,6 +34,11 @@ import { storageBridge } from "../../../core/storage/files";
 import { ChatTemplateSelector } from "./components/ChatTemplateSelector";
 import { BannerCharacterCard } from "./components/BannerCharacterCard";
 import { CircleCharacterCard } from "./components/CircleCharacterCard";
+import {
+  ImportMemoryWindowSizeControl,
+  clampImportMemoryWindowSize,
+  IMPORT_MEMORY_WINDOW_DEFAULT,
+} from "./components/ImportMemoryWindowSizeControl";
 import { useI18n } from "../../../core/i18n/context";
 import { isRenderableImageUrl } from "../../../core/utils/image";
 import { cleanupOldDrafts } from "./utils/draftCleanup";
@@ -51,8 +56,12 @@ export function ChatPage() {
   const [pendingChatImport, setPendingChatImport] = useState<{
     path: string;
     filename: string;
+    temporary?: boolean;
     character: Character;
   } | null>(null);
+  const [importMemoryWindowSize, setImportMemoryWindowSize] = useState(
+    IMPORT_MEMORY_WINDOW_DEFAULT,
+  );
   const [importMemoryProgress, setImportMemoryProgress] = useState<{
     sessionId: string;
     step: number | null;
@@ -249,9 +258,10 @@ export function ChatPage() {
   };
 
   const runChatImport = async (
-    picked: { path: string; filename: string },
+    picked: { path: string; filename: string; temporary?: boolean },
     character: Character,
     initializeMemory: boolean,
+    memoryWindowSize?: number,
   ) => {
     let importedSessionId: string | null = null;
     let unlistenProgress: UnlistenFn | null = null;
@@ -289,7 +299,7 @@ export function ChatPage() {
             totalMessages: typeof payload.totalMessages === "number" ? payload.totalMessages : null,
           });
         });
-        await storageBridge.initializeImportedChatMemory(importedSessionId);
+        await storageBridge.initializeImportedChatMemory(importedSessionId, memoryWindowSize);
       }
     } catch (err) {
       console.error("Failed to import chat:", err);
@@ -298,6 +308,9 @@ export function ChatPage() {
       if (unlistenProgress) unlistenProgress();
       setImportMemoryProgress(null);
       setImportingChatpkg(false);
+      if (picked.temporary) {
+        void storageBridge.jsonlDiscardUpload(picked.path);
+      }
       if (importedSessionId) {
         navigate(`/chat/${character.id}?sessionId=${encodeURIComponent(importedSessionId)}`);
       }
@@ -305,22 +318,49 @@ export function ChatPage() {
   };
 
   const openImportChatpkg = async (character: Character) => {
-    if (importingChatpkg) return;
+    console.info("[Chats] import chat clicked", {
+      characterId: character.id,
+      importingChatpkg,
+    });
+    if (importingChatpkg) {
+      console.info("[Chats] import chat ignored because import is already running");
+      return;
+    }
     try {
+      setImportingChatpkg(true);
+      console.info("[Chats] opening jsonl picker");
       const picked = await storageBridge.jsonlPickFile();
-      if (!picked) return;
+      console.info("[Chats] jsonl picker returned", picked);
+      if (!picked) {
+        setImportingChatpkg(false);
+        return;
+      }
       const settings = await readSettings();
+      const memoryWindowSize = clampImportMemoryWindowSize(
+        settings.advancedSettings?.dynamicMemory?.summaryMessageInterval ??
+          IMPORT_MEMORY_WINDOW_DEFAULT,
+      );
       const canInitializeMemory =
         character.memoryType === "dynamic" &&
         settings.advancedSettings?.dynamicMemory?.enabled === true;
       if (canInitializeMemory) {
+        console.info("[Chats] showing memory initialization choice", {
+          path: picked.path,
+          filename: picked.filename,
+        });
+        setImportMemoryWindowSize(memoryWindowSize);
         setPendingChatImport({ ...picked, character });
+        setImportingChatpkg(false);
         return;
       }
+      console.info("[Chats] importing chat without memory initialization", {
+        path: picked.path,
+      });
       await runChatImport(picked, character, false);
     } catch (err) {
       console.error("Failed to import chat:", err);
       alert(typeof err === "string" ? err : t("chats.settings.failedImportChat"));
+      setImportingChatpkg(false);
     }
   };
 
@@ -472,7 +512,12 @@ export function ChatPage() {
       <BottomMenu
         isOpen={Boolean(pendingChatImport)}
         onClose={() => {
-          if (!importingChatpkg) setPendingChatImport(null);
+          if (!importingChatpkg) {
+            if (pendingChatImport?.temporary) {
+              void storageBridge.jsonlDiscardUpload(pendingChatImport.path);
+            }
+            setPendingChatImport(null);
+          }
         }}
         includeExitIcon={false}
         title={t("chats.settings.importChatPackageTitle")}
@@ -485,9 +530,19 @@ export function ChatPage() {
                 {t("chats.settings.importChatMemoryChoiceDesc")}
               </div>
             </div>
+            <ImportMemoryWindowSizeControl
+              value={importMemoryWindowSize}
+              onChange={setImportMemoryWindowSize}
+              disabled={importingChatpkg}
+            />
             <button
               onClick={() =>
-                void runChatImport(pendingChatImport, pendingChatImport.character, true)
+                void runChatImport(
+                  pendingChatImport,
+                  pendingChatImport.character,
+                  true,
+                  importMemoryWindowSize,
+                )
               }
               disabled={importingChatpkg}
               className="flex w-full items-center gap-3 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-left transition hover:border-emerald-400/50 hover:bg-emerald-400/20 disabled:opacity-50"

@@ -3,7 +3,7 @@ use chrono::Utc;
 use futures_util::StreamExt;
 use hmac::{Hmac, Mac};
 use reqwest::header::{CONTENT_TYPE, HOST};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
@@ -19,6 +19,8 @@ const OPENAPI_REGION: &str = "cn-beijing";
 const OPENAPI_SERVICE: &str = "speech_saas_prod";
 const OPENAPI_ACTION: &str = "ListSpeakers";
 const OPENAPI_VERSION: &str = "2025-05-20";
+const CLONE_LIST_ACTION: &str = "BatchListMegaTTSTrainStatus";
+const CLONE_LIST_VERSION: &str = "2025-05-21";
 
 #[derive(Debug, Clone, Copy)]
 pub struct DoubaoConfig<'a> {
@@ -26,6 +28,7 @@ pub struct DoubaoConfig<'a> {
     pub openapi_access_key: Option<&'a str>,
     pub openapi_secret_key: Option<&'a str>,
     pub resource_id: Option<&'a str>,
+    pub project_name: Option<&'a str>,
     pub base_url: Option<&'a str>,
     pub request_path: Option<&'a str>,
 }
@@ -656,7 +659,14 @@ pub async fn fetch_voices(config: DoubaoConfig<'_>) -> Result<Vec<ProviderVoice>
         };
         let body = serde_json::to_string(&request)
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-        let response = signed_openapi_post(access_key, secret_key, body).await?;
+        let response: ListSpeakersResponse = signed_openapi_post(
+            OPENAPI_ACTION,
+            OPENAPI_VERSION,
+            access_key,
+            secret_key,
+            body,
+        )
+        .await?;
 
         let result = response.result.ok_or_else(|| {
             let meta = response.response_metadata.as_ref();
@@ -692,6 +702,124 @@ pub async fn fetch_voices(config: DoubaoConfig<'_>) -> Result<Vec<ProviderVoice>
     Ok(voices)
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct CloneVoiceListRequest<'a> {
+    page_number: u32,
+    page_size: u32,
+    project_name: &'a str,
+    state: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    next_token: Option<&'a str>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct CloneVoiceListResponse {
+    #[serde(default)]
+    response_metadata: Option<ResponseMetadata>,
+    #[serde(default)]
+    result: Option<CloneVoiceListResult>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct CloneVoiceListResult {
+    #[serde(default, deserialize_with = "null_as_default")]
+    statuses: Vec<CloneVoiceStatus>,
+    #[serde(default)]
+    total_count: u32,
+    #[serde(default)]
+    next_token: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct CloneVoiceStatus {
+    #[serde(rename = "SpeakerID")]
+    speaker_id: String,
+    #[serde(default)]
+    alias: Option<String>,
+    #[serde(default)]
+    demo_audio: Option<String>,
+    #[serde(default)]
+    state: Option<String>,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    resource_id: Option<String>,
+}
+
+pub async fn fetch_voice_clone_voices(
+    config: DoubaoConfig<'_>,
+) -> Result<Vec<ProviderVoice>, String> {
+    let access_key = config
+        .openapi_access_key
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| "Doubao voice clone list requires Volcengine Access Key ID".to_string())?;
+    let secret_key = config
+        .openapi_secret_key
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| {
+            "Doubao voice clone list requires Volcengine Secret Access Key".to_string()
+        })?;
+    let project_name = config
+        .project_name
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .unwrap_or("default");
+    let mut page = 1;
+    let mut next_token: Option<String> = None;
+    let mut voices = Vec::new();
+    loop {
+        let body = serde_json::to_string(&CloneVoiceListRequest {
+            page_number: page,
+            page_size: 500,
+            project_name,
+            state: "Success",
+            next_token: next_token.as_deref(),
+        })
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let response: CloneVoiceListResponse = signed_openapi_post(
+            CLONE_LIST_ACTION,
+            CLONE_LIST_VERSION,
+            access_key,
+            secret_key,
+            body,
+        )
+        .await?;
+        let result = response.result.ok_or_else(|| {
+            let detail = response
+                .response_metadata
+                .as_ref()
+                .and_then(|m| m.error.as_ref())
+                .map(|e| {
+                    format!(
+                        "{}: {}",
+                        e.code.as_deref().unwrap_or("Unknown"),
+                        e.message.as_deref().unwrap_or("Unknown error")
+                    )
+                })
+                .unwrap_or_else(|| "Missing Result".to_string());
+            format!("Doubao clone voice list error: {}", detail)
+        })?;
+        let count = result.statuses.len();
+        voices.extend(result.statuses.into_iter().map(provider_voice_from_clone));
+        next_token = result.next_token;
+        if count == 0
+            || next_token.is_none()
+            || voices.len() >= result.total_count as usize
+            || result.total_count == 0
+        {
+            break;
+        }
+        page += 1;
+    }
+    Ok(voices)
+}
+
 pub async fn verify_api_key(config: DoubaoConfig<'_>) -> Result<bool, String> {
     Ok(
         !config.api_key.trim().is_empty()
@@ -699,16 +827,18 @@ pub async fn verify_api_key(config: DoubaoConfig<'_>) -> Result<bool, String> {
     )
 }
 
-async fn signed_openapi_post(
+async fn signed_openapi_post<T: DeserializeOwned>(
+    action: &str,
+    version: &str,
     access_key: &str,
     secret_key: &str,
     body: String,
-) -> Result<ListSpeakersResponse, String> {
+) -> Result<T, String> {
     let now = Utc::now();
     let x_date = now.format("%Y%m%dT%H%M%SZ").to_string();
     let short_date = now.format("%Y%m%d").to_string();
     let body_hash = sha256_hex(body.as_bytes());
-    let canonical_query = format!("Action={}&Version={}", OPENAPI_ACTION, OPENAPI_VERSION);
+    let canonical_query = format!("Action={}&Version={}", action, version);
     let canonical_headers = format!(
         "host:{}\nx-content-sha256:{}\nx-date:{}\n",
         OPENAPI_HOST, body_hash, x_date
@@ -761,10 +891,14 @@ async fn signed_openapi_post(
     }
 
     serde_json::from_str(&text).map_err(|e| {
+        let response_preview: String = text.chars().take(4000).collect();
         crate::utils::err_msg(
             module_path!(),
             line!(),
-            format!("Failed to parse Doubao ListSpeakers response: {}", e),
+            format!(
+                "Failed to parse Doubao {} response: {}; body: {}",
+                action, e, response_preview
+            ),
         )
     })
 }
@@ -931,6 +1065,30 @@ fn provider_voice_from_speaker(speaker: DoubaoSpeaker) -> ProviderVoice {
         voice_id: speaker.voice_type,
         name: speaker.name,
         preview_url: speaker.trial_url,
+        labels,
+    }
+}
+
+fn provider_voice_from_clone(voice: CloneVoiceStatus) -> ProviderVoice {
+    let mut labels = HashMap::new();
+    labels.insert("category".to_string(), "library".to_string());
+    labels.insert(
+        "cloneState".to_string(),
+        voice.state.unwrap_or_else(|| "Success".to_string()),
+    );
+    if let Some(description) = voice.description {
+        labels.insert("description".to_string(), description);
+    }
+    if let Some(resource_id) = voice.resource_id {
+        labels.insert("resourceId".to_string(), resource_id);
+    }
+    ProviderVoice {
+        voice_id: voice.speaker_id.clone(),
+        name: voice
+            .alias
+            .filter(|v| !v.trim().is_empty())
+            .unwrap_or(voice.speaker_id),
+        preview_url: voice.demo_audio,
         labels,
     }
 }

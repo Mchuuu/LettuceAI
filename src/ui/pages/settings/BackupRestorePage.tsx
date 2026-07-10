@@ -9,14 +9,11 @@ import {
   Eye,
   EyeOff,
   Lock,
-  HardDrive,
 } from "lucide-react";
 import { interactive, radius, cn } from "../../design-tokens";
 import { BottomMenu } from "../../components/BottomMenu";
 import { useBackupRestore, type BackupInfo } from "./hooks/useBackupRestore";
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { storageBridge } from "../../../core/storage/files";
 import { useI18n } from "../../../core/i18n/context";
 
 function formatDate(timestamp: number) {
@@ -26,38 +23,15 @@ function formatDate(timestamp: number) {
 
 export function BackupRestorePage() {
   const { state, actions } = useBackupRestore();
-  const [showEmbeddingPrompt, setShowEmbeddingPrompt] = useState(false);
   const navigate = useNavigate();
   const { t } = useI18n();
 
   const handleRestoreClick = async () => {
     const result = await actions.handleImport();
-    if (result?.needsEmbeddingModel) {
-      setShowEmbeddingPrompt(true);
-    } else if (result?.success) {
+    if (result?.success) {
       // Import complete - navigate to chat, data is ready in DB
       navigate("/");
     }
-  };
-
-  const handleDownloadModel = () => {
-    setShowEmbeddingPrompt(false);
-    actions.closeModal();
-    navigate("/settings/embedding-download?returnTo=/");
-  };
-
-  const handleDisableAndContinue = async () => {
-    setShowEmbeddingPrompt(false);
-
-    // Import is already done, just disable dynamic memory
-    try {
-      await storageBridge.backupDisableDynamicMemory();
-    } catch (error) {
-      console.error("Failed to disable dynamic memory:", error);
-      // Don't show error to user - the import was successful
-    }
-    // Navigate to chat after successful import
-    navigate("/");
   };
 
   return (
@@ -430,56 +404,6 @@ export function BackupRestorePage() {
         </div>
       </BottomMenu>
 
-      {/* Dynamic Memory Model Required Modal */}
-      <BottomMenu
-        isOpen={showEmbeddingPrompt}
-        onClose={() => setShowEmbeddingPrompt(false)}
-        title={t("backup.embedding.modalTitle")}
-      >
-        <div className="space-y-4">
-          <div className="flex items-start gap-3 rounded-xl border border-warning/20 bg-warning/10 p-3">
-            <HardDrive className="h-5 w-5 shrink-0 text-warning mt-0.5" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-warning/80">{t("backup.embedding.detectedTitle")}</p>
-              <p className="mt-1 text-xs text-warning/70">
-                {t("backup.embedding.detectedDescription")}
-              </p>
-            </div>
-          </div>
-
-          <p className="text-sm text-fg/60">
-            {t("backup.embedding.choiceDescription")}
-          </p>
-
-          <div className="flex flex-col gap-2 pt-2">
-            <button
-              onClick={handleDownloadModel}
-              className={cn(
-                "flex items-center justify-center gap-2 bg-info px-4 py-3 text-sm font-medium text-fg",
-                radius.lg,
-                "hover:bg-info/80",
-              )}
-            >
-              <Download className="h-4 w-4" />
-              {t("backup.embedding.downloadButton")}
-            </button>
-            <button
-              onClick={handleDisableAndContinue}
-              className={cn(
-                "border border-fg/10 bg-fg/5 px-4 py-3 text-sm font-medium text-fg/70",
-                radius.lg,
-                "hover:bg-fg/10",
-              )}
-            >
-              {t("backup.embedding.continueButton")}
-            </button>
-          </div>
-
-          <p className="text-xs text-fg/40 text-center">
-            {t("backup.embedding.reenableNote")}
-          </p>
-        </div>
-      </BottomMenu>
     </div>
   );
 }

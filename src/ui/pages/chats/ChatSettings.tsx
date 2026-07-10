@@ -59,6 +59,11 @@ import { PersonaSelector } from "../group-chats/components/settings";
 import { storageBridge } from "../../../core/storage/files";
 import { ChatTemplateSelector } from "./components/ChatTemplateSelector";
 import { AuthorNoteBottomMenu } from "./components/AuthorNoteBottomMenu";
+import {
+  ImportMemoryWindowSizeControl,
+  clampImportMemoryWindowSize,
+  IMPORT_MEMORY_WINDOW_DEFAULT,
+} from "./components/ImportMemoryWindowSizeControl";
 import { CompanionScheduledNotesEditor } from "../characters/components/CompanionScheduledNotesEditor";
 import { CompanionTimeOverrideCard } from "./components/CompanionTimeOverrideCard";
 import { CalendarClock, Clock } from "lucide-react";
@@ -141,6 +146,7 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
 type PickedChatLog = {
   path: string;
   filename: string;
+  temporary?: boolean;
 };
 
 type ImportMemoryProgress = {
@@ -332,6 +338,9 @@ export function ChatSettingsContent({
   const [messageCount, setMessageCount] = useState<number>(0);
   const [importingChatpkg, setImportingChatpkg] = useState(false);
   const [pendingChatImport, setPendingChatImport] = useState<PickedChatLog | null>(null);
+  const [importMemoryWindowSize, setImportMemoryWindowSize] = useState(
+    IMPORT_MEMORY_WINDOW_DEFAULT,
+  );
   const [importMemoryProgress, setImportMemoryProgress] =
     useState<ImportMemoryProgress | null>(null);
   const personaForAvatar = useMemo(() => {
@@ -665,7 +674,7 @@ export function ChatSettingsContent({
   }, [onOpenAuthorNote]);
 
   const runChatImport = useCallback(
-    async (picked: PickedChatLog, initializeMemory: boolean) => {
+    async (picked: PickedChatLog, initializeMemory: boolean, memoryWindowSize?: number) => {
       if (!characterId) return;
       let importedSessionId: string | null = null;
       let unlistenProgress: UnlistenFn | null = null;
@@ -702,40 +711,67 @@ export function ChatSettingsContent({
               totalMessages: typeof payload.totalMessages === "number" ? payload.totalMessages : null,
             });
           });
-          await storageBridge.initializeImportedChatMemory(importedSessionId);
+          await storageBridge.initializeImportedChatMemory(importedSessionId, memoryWindowSize);
         }
       } catch (error) {
         console.error("Failed to import chat:", error);
         alert(typeof error === "string" ? error : t("chats.settings.failedImportChat"));
       } finally {
-        if (unlistenProgress) unlistenProgress();
-        setImportMemoryProgress(null);
-        setImportingChatpkg(false);
-        if (importedSessionId) {
-          navigate(Routes.chatSession(characterId, importedSessionId), { replace: true });
-        }
+      if (unlistenProgress) unlistenProgress();
+      setImportMemoryProgress(null);
+      setImportingChatpkg(false);
+      if (picked.temporary) {
+        void storageBridge.jsonlDiscardUpload(picked.path);
+      }
+      if (importedSessionId) {
+        navigate(Routes.chatSession(characterId, importedSessionId), { replace: true });
+      }
       }
     },
     [characterId, navigate, t],
   );
 
   const handleOpenImportChatpkg = useCallback(async () => {
-    if (!characterId || importingChatpkg) return;
+    console.info("[ChatSettings] import chat clicked", { characterId, importingChatpkg });
+    if (!characterId || importingChatpkg) {
+      console.info("[ChatSettings] import chat ignored", { characterId, importingChatpkg });
+      return;
+    }
     try {
+      setImportingChatpkg(true);
+      console.info("[ChatSettings] opening jsonl picker");
       const picked = await storageBridge.jsonlPickFile();
-      if (!picked) return;
+      console.info("[ChatSettings] jsonl picker returned", picked);
+      if (!picked) {
+        setImportingChatpkg(false);
+        return;
+      }
       const settings = await readSettings();
+      const memoryWindowSize = clampImportMemoryWindowSize(
+        settings.advancedSettings?.dynamicMemory?.summaryMessageInterval ??
+          IMPORT_MEMORY_WINDOW_DEFAULT,
+      );
       const canInitializeMemory =
         currentCharacter?.memoryType === "dynamic" &&
         settings.advancedSettings?.dynamicMemory?.enabled === true;
       if (canInitializeMemory) {
+        console.info("[ChatSettings] showing memory initialization choice", {
+          path: picked.path,
+          filename: picked.filename,
+        });
+        setImportMemoryWindowSize(memoryWindowSize);
         setPendingChatImport(picked);
+        setImportingChatpkg(false);
         return;
       }
+      console.info("[ChatSettings] importing chat without memory initialization", {
+        path: picked.path,
+      });
       await runChatImport(picked, false);
     } catch (error) {
       console.error("Failed to import chat:", error);
       alert(typeof error === "string" ? error : t("chats.settings.failedImportChat"));
+      setImportingChatpkg(false);
     }
   }, [characterId, currentCharacter?.memoryType, importingChatpkg, runChatImport, t]);
 
@@ -1361,7 +1397,12 @@ export function ChatSettingsContent({
       <BottomMenu
         isOpen={Boolean(pendingChatImport)}
         onClose={() => {
-          if (!importingChatpkg) setPendingChatImport(null);
+          if (!importingChatpkg) {
+            if (pendingChatImport?.temporary) {
+              void storageBridge.jsonlDiscardUpload(pendingChatImport.path);
+            }
+            setPendingChatImport(null);
+          }
         }}
         title={t("chats.settings.importChatPackageTitle")}
       >
@@ -1375,8 +1416,16 @@ export function ChatSettingsContent({
                 {t("chats.settings.importChatMemoryChoiceDesc")}
               </div>
             </div>
+            <ImportMemoryWindowSizeControl
+              value={importMemoryWindowSize}
+              onChange={setImportMemoryWindowSize}
+              disabled={importingChatpkg}
+            />
             <button
-              onClick={() => pendingChatImport && void runChatImport(pendingChatImport, true)}
+              onClick={() =>
+                pendingChatImport &&
+                void runChatImport(pendingChatImport, true, importMemoryWindowSize)
+              }
               disabled={importingChatpkg}
               className={cn(
                 "flex w-full items-center gap-3 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-left transition hover:border-emerald-400/50 hover:bg-emerald-400/20 disabled:opacity-50",

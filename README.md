@@ -3,14 +3,32 @@
 
 
    
-  # LettuceAI
+  # 菜包
   
-  Privacy-first AI roleplay & storytelling app with long-term memory, custom characters, and 20+ providers. Runs on Android, Windows, macOS, and Linux.
+  基于 LettuceAI 二次开发的中文 AI 角色扮演与故事创作客户端，适配 Android、Windows、macOS 和 Linux。
   
   [Overview](#overview) • [Install](#install) • [Development](#development) • [Android](#android) • [iOS](#ios) • [Contributing](#contributing)
 </div>
 
 ## Overview
+
+## 菜包说明
+
+菜包是基于 [LettuceAI](https://github.com/LettuceAI/app) 二次开发的中文 RP（Roleplay）客户端，保留原项目隐私优先、本地优先的设计，面向中文用户补充了界面、本地记忆和语音服务适配。
+
+主要改动包括：
+
+- 应用名称、底部导航、角色编辑、伙伴记忆和关系状态等界面中文化。
+- 内置 `BAAI/bge-small-zh-v1.5` ONNX 向量模型，动态记忆无需联网下载模型。
+- 记忆向量、聊天记录、TTS 音频缓存和其他媒体文件纳入 `.lettuce` 备份与恢复。
+- 豆包 TTS 支持语音复刻音色列表、`ProjectName` 项目配置和 `seed-icl-2.0` 资源 ID。
+- 支持通过 LLM 提取和更新对话中的情绪信息。
+- 支持 TTS 语音流式播放，生成音频后可以边生成边播放。
+- 聊天记录导入支持初始化记忆抽取，导入历史对话后可直接建立记忆。
+- 服务商音色列表支持按名称搜索，方便管理大量音色。
+- Android 应用名称和图标适配为“菜包”。
+
+上游 LettuceAI 的完整功能和开发文档仍适用，下面保留原项目的安装、开发和平台构建说明。
 
 LettuceAI is a privacy-focused, free and open-source AI character chat app for immersive roleplay, storytelling, and realistic AI companions with long-term memory that actually lasts.
 

@@ -169,6 +169,8 @@ pub struct AudioProvider {
     pub label: String,
     pub api_key: Option<String>,
     pub project_id: Option<String>,
+    #[serde(default)]
+    pub project_name: Option<String>,
     pub location: Option<String>,
     #[serde(default)]
     pub resource_id: Option<String>,

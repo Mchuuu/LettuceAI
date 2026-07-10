@@ -71,6 +71,7 @@ export function AudioProviderEditor({
   const isOpenAiCompatible = formData?.providerType === "openai_tts";
   const isFishSpeechLocal = formData?.providerType === "fish_speech";
   const isDoubao = formData?.providerType === "doubao_tts";
+  const isDoubaoVoiceClone = isDoubao && formData?.resourceId === "seed-icl-2.0";
 
   const browseAssetRoot = async () => {
     try {
@@ -147,7 +148,11 @@ export function AudioProviderEditor({
         return;
       }
 
-      await onSave(formData);
+      await onSave(
+        formData.providerType === "doubao_tts" && formData.resourceId === "seed-icl-2.0"
+          ? { ...formData, projectName: formData.projectName?.trim() || "default" }
+          : formData,
+      );
     } catch (e) {
       setValidationError(
         e instanceof Error ? e.message : t("providers.audioEditor.errors.verificationFailed"),
@@ -191,6 +196,7 @@ export function AudioProviderEditor({
                       ? "/v1/tts"
                       : undefined,
                 resourceId: next === "doubao_tts" ? "seed-tts-2.0" : undefined,
+                projectName: next === "doubao_tts" ? formData.projectName ?? "default" : undefined,
                 secretKey: next === "doubao_tts" ? formData.secretKey : undefined,
                 apiKey: next === "kokoro" ? undefined : formData.apiKey,
                 kokoroVariant: next === "kokoro" ? formData.kokoroVariant : undefined,
@@ -393,7 +399,15 @@ export function AudioProviderEditor({
               <select
                 value={formData.resourceId ?? "seed-tts-2.0"}
                 onChange={(e) => {
-                  setFormData({ ...formData, resourceId: e.target.value });
+                  const resourceId = e.target.value;
+                  setFormData({
+                    ...formData,
+                    resourceId,
+                    projectName:
+                      resourceId === "seed-icl-2.0"
+                        ? formData.projectName?.trim() || "default"
+                        : undefined,
+                  });
                   if (validationError) setValidationError(null);
                 }}
                 className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg focus:border-fg/30 focus:outline-none"
@@ -406,6 +420,20 @@ export function AudioProviderEditor({
                 </option>
               </select>
             </div>
+            {isDoubaoVoiceClone && (
+              <div>
+                <label className="mb-1 block text-[11px] font-medium text-fg/70">
+                  {t("providers.audioEditor.fields.doubaoProjectName")}
+                </label>
+                <input
+                  type="text"
+                  value={formData.projectName ?? "default"}
+                  onChange={(e) => setFormData({ ...formData, projectName: e.target.value })}
+                  placeholder={t("providers.audioEditor.placeholders.doubaoProjectName")}
+                  className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
+                />
+              </div>
+            )}
             <div>
               <label className="mb-1 block text-[11px] font-medium text-fg/70">
                 {t("providers.audioEditor.fields.doubaoAccessKeyId")}

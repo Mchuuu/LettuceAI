@@ -505,9 +505,10 @@ fn extract_v2_scene_variants_as_scenes(
 }
 
 pub fn normalize_uec_for_read(value: &JsonValue, strict: bool) -> Result<Uec, String> {
-    let uec = assert_uec(value, strict)?;
+    let normalized = normalize_empty_voice_config_for_uec(value);
+    let uec = assert_uec(&normalized, strict)?;
     if uec.schema.version == SCHEMA_VERSION_V2 {
-        let mut downgraded = downgrade_uec(value, SCHEMA_VERSION, false).map_err(|e| {
+        let mut downgraded = downgrade_uec(&normalized, SCHEMA_VERSION, false).map_err(|e| {
             crate::utils::err_msg(
                 module_path!(),
                 line!(),
@@ -525,6 +526,23 @@ pub fn normalize_uec_for_read(value: &JsonValue, strict: bool) -> Result<Uec, St
     }
 
     Ok(uec)
+}
+
+fn normalize_empty_voice_config_for_uec(value: &JsonValue) -> JsonValue {
+    let mut normalized = value.clone();
+    if let Some(payload) = normalized
+        .get_mut("payload")
+        .and_then(JsonValue::as_object_mut)
+    {
+        let should_clear = payload
+            .get("voiceConfig")
+            .and_then(JsonValue::as_object)
+            .is_some_and(|voice_config| voice_config.is_empty());
+        if should_clear {
+            payload.insert("voiceConfig".to_string(), JsonValue::Null);
+        }
+    }
+    normalized
 }
 
 pub fn stringify_v2_uec(card: &JsonValue) -> Result<String, String> {
@@ -2719,14 +2737,15 @@ pub fn convert_export_to_uec(import_json: String) -> Result<String, String> {
     })?;
 
     if looks_like_uec(&raw_value) {
-        let uec = assert_uec(&raw_value, false).map_err(|e| {
+        let normalized = normalize_empty_voice_config_for_uec(&raw_value);
+        let uec = assert_uec(&normalized, false).map_err(|e| {
             crate::utils::err_msg(module_path!(), line!(), format!("Invalid UEC: {}", e))
         })?;
         return if uec.schema.version == SCHEMA_VERSION_V2 {
-            serde_json::to_string_pretty(&raw_value)
+            serde_json::to_string_pretty(&normalized)
                 .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
         } else {
-            stringify_v2_uec(&raw_value)
+            stringify_v2_uec(&normalized)
         };
     }
 

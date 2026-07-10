@@ -165,6 +165,7 @@ fn archive_name_targets_media(name: &str) -> bool {
         || normalized.starts_with("attachments/")
         || normalized.starts_with("sessions/")
         || normalized.starts_with("generated_images/")
+        || normalized.starts_with("tts_audio/")
 }
 
 pub fn require_encrypted_backup(manifest: &BackupManifest) -> Result<(), String> {
@@ -212,7 +213,7 @@ pub fn sanitize_media_archive_name(
     let root = first.to_string_lossy();
     if !matches!(
         root.as_ref(),
-        "images" | "avatars" | "attachments" | "sessions" | "generated_images"
+        "images" | "avatars" | "attachments" | "sessions" | "generated_images" | "tts_audio"
     ) {
         return Err(format!("Unexpected media root in backup: {}", name));
     }
@@ -1330,7 +1331,7 @@ fn export_audio_providers(app: &tauri::AppHandle) -> Result<Vec<JsonValue>, Stri
     let conn = open_db(app)?;
     let mut stmt = conn
         .prepare(
-            "SELECT id, provider_type, label, api_key, project_id, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at FROM audio_providers",
+            "SELECT id, provider_type, label, api_key, project_id, project_name, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at FROM audio_providers",
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
@@ -1342,15 +1343,16 @@ fn export_audio_providers(app: &tauri::AppHandle) -> Result<Vec<JsonValue>, Stri
                 "label": r.get::<_, String>(2)?,
                 "api_key": r.get::<_, Option<String>>(3)?,
                 "project_id": r.get::<_, Option<String>>(4)?,
-                "location": r.get::<_, Option<String>>(5)?,
-                "resource_id": r.get::<_, Option<String>>(6)?,
-                "secret_key": r.get::<_, Option<String>>(7)?,
-                "base_url": r.get::<_, Option<String>>(8)?,
-                "request_path": r.get::<_, Option<String>>(9)?,
-                "kokoro_variant": r.get::<_, Option<String>>(10)?,
-                "asset_root": r.get::<_, Option<String>>(11)?,
-                "created_at": r.get::<_, i64>(12)?,
-                "updated_at": r.get::<_, i64>(13)?,
+                "project_name": r.get::<_, Option<String>>(5)?,
+                "location": r.get::<_, Option<String>>(6)?,
+                "resource_id": r.get::<_, Option<String>>(7)?,
+                "secret_key": r.get::<_, Option<String>>(8)?,
+                "base_url": r.get::<_, Option<String>>(9)?,
+                "request_path": r.get::<_, Option<String>>(10)?,
+                "kokoro_variant": r.get::<_, Option<String>>(11)?,
+                "asset_root": r.get::<_, Option<String>>(12)?,
+                "created_at": r.get::<_, i64>(13)?,
+                "updated_at": r.get::<_, i64>(14)?,
             }))
         })
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -1402,6 +1404,7 @@ pub async fn backup_export(
         .app_data_dir()
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
         .join("generated_images");
+    let tts_audio_dir = storage.join("tts_audio");
 
     // Generate timestamp for filename
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
@@ -1688,6 +1691,17 @@ pub async fn backup_export(
             encryption.as_ref(),
         )?;
         log_info(&app, "backup", "Added generated images to archive");
+    }
+
+    if tts_audio_dir.exists() {
+        add_directory_to_zip(
+            &mut zip,
+            &tts_audio_dir,
+            "tts_audio",
+            options,
+            encryption.as_ref(),
+        )?;
+        log_info(&app, "backup", "Added TTS audio cache to archive");
     }
 
     // Create manifest
@@ -3247,14 +3261,15 @@ fn import_audio_providers(app: &tauri::AppHandle, data: &JsonValue) -> Result<()
     if let Some(arr) = data.as_array() {
         for item in arr {
             conn.execute(
-                "INSERT INTO audio_providers (id, provider_type, label, api_key, project_id, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                "INSERT INTO audio_providers (id, provider_type, label, api_key, project_id, project_name, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
                 params![
                     item.get("id").and_then(|v| v.as_str()),
                     item.get("provider_type").and_then(|v| v.as_str()),
                     item.get("label").and_then(|v| v.as_str()),
                     item.get("api_key").and_then(|v| v.as_str()),
                     item.get("project_id").and_then(|v| v.as_str()),
+                    item.get("project_name").and_then(|v| v.as_str()),
                     item.get("location").and_then(|v| v.as_str()),
                     item.get("resource_id").and_then(|v| v.as_str()),
                     item.get("secret_key").and_then(|v| v.as_str()),
@@ -3455,6 +3470,7 @@ pub fn backup_get_info(
     let mut attachment_count = 0;
     let mut session_attachment_count = 0;
     let mut generated_image_count = 0;
+    let mut tts_audio_count = 0;
 
     for i in 0..archive.len() {
         if let Ok(file) = archive.by_index(i) {
@@ -3469,6 +3485,8 @@ pub fn backup_get_info(
                 session_attachment_count += 1;
             } else if name.starts_with("generated_images/") {
                 generated_image_count += 1;
+            } else if name.starts_with("tts_audio/") {
+                tts_audio_count += 1;
             }
         }
     }
@@ -3484,6 +3502,7 @@ pub fn backup_get_info(
         "attachmentCount": attachment_count,
         "sessionAttachmentCount": session_attachment_count,
         "generatedImageCount": generated_image_count,
+        "ttsAudioCount": tts_audio_count,
     }))
 }
 
@@ -4201,6 +4220,7 @@ pub async fn backup_import(
         .app_data_dir()
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
         .join("generated_images");
+    let tts_audio_dir = storage.join("tts_audio");
 
     // Clear existing media directories
     if images_dir.exists() {
@@ -4213,6 +4233,11 @@ pub async fn backup_import(
     }
     if attachments_dir.exists() {
         fs::remove_dir_all(&attachments_dir)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    }
+
+    if tts_audio_dir.exists() {
+        fs::remove_dir_all(&tts_audio_dir)
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     }
 
@@ -4252,6 +4277,12 @@ pub async fn backup_import(
         }
         copy_dir_all(&staged_generated_images, &generated_images_dir)?;
         log_info(&app, "backup", "Generated images restored");
+    }
+
+    let staged_tts_audio = staging_dir.join("tts_audio");
+    if staged_tts_audio.exists() {
+        copy_dir_all(&staged_tts_audio, &tts_audio_dir)?;
+        log_info(&app, "backup", "TTS audio cache restored");
     }
 
     fs::remove_dir_all(&staging_dir).ok();
@@ -4481,6 +4512,7 @@ pub fn backup_get_info_from_bytes(data: Vec<u8>) -> Result<serde_json::Value, St
     let mut attachment_count = 0;
     let mut session_attachment_count = 0;
     let mut generated_image_count = 0;
+    let mut tts_audio_count = 0;
 
     for i in 0..archive.len() {
         if let Ok(file) = archive.by_index(i) {
@@ -4497,6 +4529,8 @@ pub fn backup_get_info_from_bytes(data: Vec<u8>) -> Result<serde_json::Value, St
                     session_attachment_count += 1;
                 } else if name.starts_with("generated_images/") {
                     generated_image_count += 1;
+                } else if name.starts_with("tts_audio/") {
+                    tts_audio_count += 1;
                 }
             }
         }
@@ -4513,6 +4547,7 @@ pub fn backup_get_info_from_bytes(data: Vec<u8>) -> Result<serde_json::Value, St
         "attachmentCount": attachment_count,
         "sessionAttachmentCount": session_attachment_count,
         "generatedImageCount": generated_image_count,
+        "ttsAudioCount": tts_audio_count,
     }))
 }
 
@@ -5230,6 +5265,7 @@ pub async fn backup_import_from_bytes(
         .app_data_dir()
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
         .join("generated_images");
+    let tts_audio_dir = storage.join("tts_audio");
 
     // Clear existing media directories
     if images_dir.exists() {
@@ -5242,6 +5278,11 @@ pub async fn backup_import_from_bytes(
     }
     if attachments_dir.exists() {
         fs::remove_dir_all(&attachments_dir)
+            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    }
+
+    if tts_audio_dir.exists() {
+        fs::remove_dir_all(&tts_audio_dir)
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     }
 
@@ -5281,6 +5322,12 @@ pub async fn backup_import_from_bytes(
         }
         copy_dir_all(&staged_generated_images, &generated_images_dir)?;
         log_info(&app, "backup", "Generated images restored");
+    }
+
+    let staged_tts_audio = staging_dir.join("tts_audio");
+    if staged_tts_audio.exists() {
+        copy_dir_all(&staged_tts_audio, &tts_audio_dir)?;
+        log_info(&app, "backup", "TTS audio cache restored");
     }
 
     // Cleanup staging

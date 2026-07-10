@@ -114,7 +114,7 @@ pub fn audio_provider_list(app: AppHandle) -> Result<Vec<AudioProvider>, String>
     repair_system_kokoro_asset_root(&conn, &app);
     let mut stmt = conn
         .prepare(
-            "SELECT id, provider_type, label, api_key, project_id, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at
+            "SELECT id, provider_type, label, api_key, project_id, project_name, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at
              FROM audio_providers ORDER BY created_at DESC",
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -127,15 +127,16 @@ pub fn audio_provider_list(app: AppHandle) -> Result<Vec<AudioProvider>, String>
                 label: row.get(2)?,
                 api_key: row.get(3)?,
                 project_id: row.get(4)?,
-                location: row.get(5)?,
-                resource_id: row.get(6)?,
-                secret_key: row.get(7)?,
-                base_url: row.get(8)?,
-                request_path: row.get(9)?,
-                kokoro_variant: row.get(10)?,
-                asset_root: row.get(11)?,
-                created_at: row.get(12)?,
-                updated_at: row.get(13)?,
+                project_name: row.get(5)?,
+                location: row.get(6)?,
+                resource_id: row.get(7)?,
+                secret_key: row.get(8)?,
+                base_url: row.get(9)?,
+                request_path: row.get(10)?,
+                kokoro_variant: row.get(11)?,
+                asset_root: row.get(12)?,
+                created_at: row.get(13)?,
+                updated_at: row.get(14)?,
             })
         })
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
@@ -172,18 +173,20 @@ pub fn audio_provider_upsert(
     let request_path = provider.request_path.clone();
     let resource_id = provider.resource_id.clone();
     let secret_key = provider.secret_key.clone();
+    let project_name = provider.project_name.clone();
 
     let kokoro_variant = provider.kokoro_variant.clone();
     let asset_root = provider.asset_root.clone();
 
     conn.execute(
-        "INSERT INTO audio_providers (id, provider_type, label, api_key, project_id, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?13)
+        "INSERT INTO audio_providers (id, provider_type, label, api_key, project_id, project_name, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?14)
          ON CONFLICT(id) DO UPDATE SET
             provider_type = excluded.provider_type,
             label = excluded.label,
             api_key = excluded.api_key,
             project_id = excluded.project_id,
+            project_name = excluded.project_name,
             location = excluded.location,
             resource_id = excluded.resource_id,
             secret_key = excluded.secret_key,
@@ -198,6 +201,7 @@ pub fn audio_provider_upsert(
             provider.label,
             provider.api_key,
             provider.project_id,
+            project_name,
             location,
             resource_id,
             secret_key,
@@ -216,6 +220,7 @@ pub fn audio_provider_upsert(
         label: provider.label,
         api_key: provider.api_key,
         project_id: provider.project_id,
+        project_name: provider.project_name,
         location: provider.location,
         resource_id: provider.resource_id,
         secret_key: provider.secret_key,
@@ -591,8 +596,9 @@ pub async fn audio_provider_refresh_voices(
     let conn = open_db(&app)?;
 
     // Get provider details
-    let (provider_type, api_key, project_id, resource_id, secret_key, base_url, request_path): (
+    let (provider_type, api_key, project_id, project_name, resource_id, secret_key, base_url, request_path): (
         String,
+        Option<String>,
         Option<String>,
         Option<String>,
         Option<String>,
@@ -601,7 +607,7 @@ pub async fn audio_provider_refresh_voices(
         Option<String>,
     ) = conn
         .query_row(
-            "SELECT provider_type, api_key, project_id, resource_id, secret_key, base_url, request_path FROM audio_providers WHERE id = ?",
+            "SELECT provider_type, api_key, project_id, project_name, resource_id, secret_key, base_url, request_path FROM audio_providers WHERE id = ?",
             params![provider_id],
             |row| {
                 Ok((
@@ -612,6 +618,7 @@ pub async fn audio_provider_refresh_voices(
                     row.get(4)?,
                     row.get(5)?,
                     row.get(6)?,
+                    row.get(7)?,
                 ))
             },
         )
@@ -638,10 +645,7 @@ pub async fn audio_provider_refresh_voices(
         "elevenlabs" => elevenlabs::fetch_voices(&api_key, None).await?,
         "fish_tts" => fish::fetch_voices(&api_key).await?,
         "doubao_tts" => {
-            if resource_id.as_deref() == Some("seed-icl-2.0") {
-                return Ok(Vec::new());
-            }
-            doubao::fetch_voices(doubao::DoubaoConfig {
+            let config = doubao::DoubaoConfig {
                 api_key: &api_key,
                 openapi_access_key: project_id.as_deref(),
                 openapi_secret_key: doubao_openapi_secret_key(
@@ -649,10 +653,15 @@ pub async fn audio_provider_refresh_voices(
                     request_path.as_deref(),
                 ),
                 resource_id: resource_id.as_deref(),
+                project_name: project_name.as_deref(),
                 base_url: base_url.as_deref(),
                 request_path: doubao_request_path_override(request_path.as_deref()),
-            })
-            .await?
+            };
+            if resource_id.as_deref() == Some("seed-icl-2.0") {
+                doubao::fetch_voice_clone_voices(config).await?
+            } else {
+                doubao::fetch_voices(config).await?
+            }
         }
         _ => {
             return Err(crate::utils::err_msg(
@@ -893,6 +902,7 @@ pub async fn tts_preview(
                             request_path.as_deref(),
                         ),
                         resource_id: resource_id.as_deref(),
+                        project_name: None,
                         base_url: base_url.as_deref(),
                         request_path: doubao_request_path_override(request_path.as_deref()),
                     },
@@ -1112,6 +1122,7 @@ pub async fn tts_stream_doubao(
                 request_path.as_deref(),
             ),
             resource_id: resource_id.as_deref(),
+            project_name: None,
             base_url: base_url.as_deref(),
             request_path: doubao_request_path_override(request_path.as_deref()),
         },
@@ -1205,6 +1216,7 @@ pub async fn audio_provider_verify(
                     request_path.as_deref(),
                 ),
                 resource_id: resource_id.as_deref(),
+                project_name: None,
                 base_url: base_url.as_deref(),
                 request_path: doubao_request_path_override(request_path.as_deref()),
             })

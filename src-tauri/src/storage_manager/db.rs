@@ -846,6 +846,7 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           label TEXT NOT NULL,
           api_key TEXT,
           project_id TEXT,
+          project_name TEXT,
           location TEXT DEFAULT 'us-central1',
           resource_id TEXT,
           secret_key TEXT,
@@ -1607,6 +1608,7 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
     let mut has_audio_secret_key = false;
     let mut has_audio_kokoro_variant = false;
     let mut has_audio_asset_root = false;
+    let mut has_audio_project_name = false;
     let mut rows_audio_providers = stmt_audio_providers
         .query([])
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -1624,6 +1626,7 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
             "secret_key" => has_audio_secret_key = true,
             "kokoro_variant" => has_audio_kokoro_variant = true,
             "asset_root" => has_audio_asset_root = true,
+            "project_name" => has_audio_project_name = true,
             _ => {}
         }
     }
@@ -1653,6 +1656,12 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
     }
     if !has_audio_asset_root {
         let _ = conn.execute("ALTER TABLE audio_providers ADD COLUMN asset_root TEXT", []);
+    }
+    if !has_audio_project_name {
+        let _ = conn.execute(
+            "ALTER TABLE audio_providers ADD COLUMN project_name TEXT",
+            [],
+        );
     }
 
     let mut stmt2 = conn

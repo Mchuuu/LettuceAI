@@ -24,6 +24,24 @@ fn normalize_uec_for_read_accepts_v1_schema() {
 }
 
 #[test]
+fn normalize_uec_for_read_treats_empty_voice_config_as_unset() {
+    let card = json!({
+        "schema": { "name": "UEC", "version": SCHEMA_VERSION },
+        "kind": "character",
+        "payload": {
+            "id": "char-v1",
+            "name": "Aster Vale",
+            "voiceConfig": {}
+        }
+    });
+
+    let parsed = normalize_uec_for_read(&card, false)
+        .expect("empty voiceConfig should be treated as no voice config");
+    let payload = parsed.payload.as_object().expect("payload object");
+    assert!(payload.get("voiceConfig").is_none_or(JsonValue::is_null));
+}
+
+#[test]
 fn normalize_uec_for_read_downgrades_v2_schema_for_legacy_parser() {
     let card = json!({
         "schema": {

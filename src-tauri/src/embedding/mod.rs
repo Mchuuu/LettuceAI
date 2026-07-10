@@ -1,7 +1,9 @@
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
-use tauri::AppHandle;
+use tauri::path::BaseDirectory;
+use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex as TokioMutex;
 
 mod benchmark;
@@ -124,7 +126,62 @@ static ORT_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 pub fn embedding_model_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let lettuce_dir = crate::utils::lettuce_dir(app)?;
-    Ok(lettuce_dir.join("models").join("embedding"))
+    let model_dir = lettuce_dir.join("models").join("embedding");
+    install_bundled_bge_model(app, &model_dir)?;
+    Ok(model_dir)
+}
+
+fn install_bundled_bge_model(app: &AppHandle, model_dir: &Path) -> Result<(), String> {
+    let bundled_relative = Path::new("embedding-model").join("bge-small-zh-v1.5");
+    let bundled_dir = app
+        .path()
+        .resolve(&bundled_relative, BaseDirectory::Resource)
+        .ok()
+        .filter(|path| path.is_dir())
+        .or_else(|| {
+            Some(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(&bundled_relative))
+                .filter(|path| path.is_dir())
+        });
+
+    let Some(bundled_dir) = bundled_dir else {
+        return Ok(());
+    };
+
+    let files = [
+        "model_quantized.onnx",
+        "model_quantized.onnx_data",
+        "tokenizer.json",
+    ];
+    if files
+        .iter()
+        .all(|file| model_dir.join("bge-small-zh-v1.5").join(file).is_file())
+    {
+        return Ok(());
+    }
+
+    let target_dir = model_dir.join("bge-small-zh-v1.5");
+    fs::create_dir_all(&target_dir).map_err(|error| {
+        format!(
+            "failed to create bundled embedding model directory: {}",
+            error
+        )
+    })?;
+    for file in files {
+        let source = bundled_dir.join(file);
+        if !source.is_file() {
+            return Err(format!(
+                "bundled embedding model file is missing: {}",
+                source.display()
+            ));
+        }
+        fs::copy(&source, target_dir.join(file)).map_err(|error| {
+            format!(
+                "failed to install bundled embedding model file {}: {}",
+                file, error
+            )
+        })?;
+    }
+    Ok(())
 }
 
 fn resolve_selected_source_version(

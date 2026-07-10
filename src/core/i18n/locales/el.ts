@@ -395,7 +395,7 @@ export const elMessages: DeepPartialMessageTree<LocaleMessages> = {
   },
   about: {
     kicker: "Πληροφορίες Εφαρμογής",
-    appName: "LettuceAI",
+    appName: "菜包",
     description: "Λεπτομέρειες έκδοσης, έλεγχοι ενημερώσεων και χρήσιμοι σύνδεσμοι.",
     info: {
       version: "Έκδοση",
@@ -6765,7 +6765,7 @@ export const elMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
     },
     welcome: {
-      appName: "LettuceAI",
+      appName: "菜包",
       tagline: "Ο προσωπικός σας σύντροφος AI. Ιδιωτικός, ασφαλής, και πάντα στη συσκευή.",
       features: {
         onDevice: "Μόνο στη συσκευή",

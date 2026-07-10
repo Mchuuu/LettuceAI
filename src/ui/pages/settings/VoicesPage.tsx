@@ -11,6 +11,7 @@ import {
   RefreshCw,
   HardDrive,
   EthernetPort,
+  Search,
 } from "lucide-react";
 
 import {
@@ -65,7 +66,7 @@ function supportsProviderVoiceRefresh(provider: AudioProvider) {
   return (
     provider.providerType === "elevenlabs" ||
     provider.providerType === "fish_tts" ||
-    (provider.providerType === "doubao_tts" && provider.resourceId !== "seed-icl-2.0")
+    provider.providerType === "doubao_tts"
   );
 }
 
@@ -78,6 +79,7 @@ export function VoicesPage() {
   const [loadingVoicesFor, setLoadingVoicesFor] = useState<string | null>(null);
   const [playingProviderVoice, setPlayingProviderVoice] = useState<string | null>(null);
   const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
+  const [providerVoiceSearches, setProviderVoiceSearches] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [cacheStats, setCacheStats] = useState<TtsCacheStats | null>(null);
   const [isClearingCache, setIsClearingCache] = useState(false);
@@ -303,9 +305,7 @@ export function VoicesPage() {
               <p className="truncate text-sm font-medium text-fg">
                 {t("providers.extra.audioEmpty.title")}
               </p>
-              <p className="text-xs text-fg/50">
-                {t("voices.extra.page.noAudioProvidersHint")}
-              </p>
+              <p className="text-xs text-fg/50">{t("voices.extra.page.noAudioProvidersHint")}</p>
             </div>
             <ChevronRight className="h-4 w-4 text-fg/30 group-hover:text-fg/60" />
           </div>
@@ -411,7 +411,18 @@ export function VoicesPage() {
               const voices = getPremadeVoices(provider.id);
               const isLoadingThis = loadingVoicesFor === provider.id;
               const isExpanded = expandedProviders[provider.id] ?? false;
-              const displayedVoices = isExpanded ? voices : voices.slice(0, 10);
+              const search = providerVoiceSearches[provider.id] ?? "";
+              const normalizedSearch = search.trim().toLocaleLowerCase();
+              const filteredVoices = normalizedSearch
+                ? voices.filter((voice) =>
+                    voice.name.toLocaleLowerCase().includes(normalizedSearch),
+                  )
+                : voices;
+              const displayedVoices = normalizedSearch
+                ? filteredVoices
+                : isExpanded
+                  ? voices
+                  : voices.slice(0, 10);
 
               return (
                 <div key={provider.id} className="rounded-xl border border-fg/10 bg-fg/5 p-3">
@@ -437,11 +448,34 @@ export function VoicesPage() {
                     </button>
                   </div>
 
+                  {!isLoadingThis && (
+                    <label className="mb-2 flex items-center gap-2 rounded-lg border border-fg/10 bg-surface-el/20 px-2.5 py-1.5 text-fg/50 focus-within:border-fg/20">
+                      <Search className="h-3.5 w-3.5 shrink-0" />
+                      <input
+                        type="search"
+                        value={search}
+                        onChange={(event) =>
+                          setProviderVoiceSearches((prev) => ({
+                            ...prev,
+                            [provider.id]: event.target.value,
+                          }))
+                        }
+                        placeholder={t("voices.extra.page.searchPlaceholder")}
+                        aria-label={`${provider.label} ${t("voices.extra.page.searchPlaceholder")}`}
+                        className="min-w-0 flex-1 bg-transparent text-xs text-fg outline-none placeholder:text-fg/35"
+                      />
+                    </label>
+                  )}
+
                   {isLoadingThis ? (
                     <div className="flex items-center justify-center py-4">
                       <Loader2 className="h-5 w-5 animate-spin text-fg/40" />
                     </div>
                   ) : voices.length === 0 ? (
+                    <p className="py-2 text-center text-xs text-fg/40">
+                      {t("voices.extra.page.noProviderVoices")}
+                    </p>
+                  ) : filteredVoices.length === 0 ? (
                     <p className="py-2 text-center text-xs text-fg/40">
                       {t("voices.extra.page.noProviderVoices")}
                     </p>
@@ -483,7 +517,7 @@ export function VoicesPage() {
                     </div>
                   )}
 
-                  {voices.length > 10 && (
+                  {voices.length > 10 && !normalizedSearch && (
                     <button
                       onClick={() =>
                         setExpandedProviders((prev) => ({
@@ -519,14 +553,10 @@ export function VoicesPage() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-fg">{t("voices.extra.cache.title")}</p>
-              <p className="text-xs text-fg/50 mt-0.5">
-                {t("voices.extra.cache.description")}
-              </p>
+              <p className="text-xs text-fg/50 mt-0.5">{t("voices.extra.cache.description")}</p>
               {cacheStats && (
                 <div className="mt-2 flex items-center gap-3 text-xs text-fg/60">
-                  <span>
-                    {t("voices.extra.page.cacheFiles", { count: cacheStats.count })}
-                  </span>
+                  <span>{t("voices.extra.page.cacheFiles", { count: cacheStats.count })}</span>
                   <span>•</span>
                   <span>
                     {formatBytes(cacheStats.sizeBytes, [
@@ -687,9 +717,7 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
   const [isPlaying, setIsPlaying] = useState(false);
 
   const [generatedPreviewId, setGeneratedPreviewId] = useState<string | null>(null);
-  const [textSample, setTextSample] = useState(
-    t("voices.extra.editor.defaultSample"),
-  );
+  const [textSample, setTextSample] = useState(t("voices.extra.editor.defaultSample"));
   const [previewError, setPreviewError] = useState<string | null>(null);
   const minVoiceDesignChars = 100;
 
@@ -709,9 +737,7 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
         });
       }
       setGeneratedPreviewId(null);
-      setTextSample(
-        t("voices.extra.editor.defaultSample"),
-      );
+      setTextSample(t("voices.extra.editor.defaultSample"));
       setPreviewError(null);
       setProviderVoices([]);
     }
@@ -752,9 +778,7 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
     const provider = providers.find((p) => p.id === formData.providerId);
     if (!provider) return;
 
-    if (
-      supportsProviderVoiceRefresh(provider)
-    ) {
+    if (supportsProviderVoiceRefresh(provider)) {
       setIsLoadingVoices(true);
       void (async () => {
         try {
@@ -925,7 +949,7 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
   const usesProviderVoicePicker =
     activeProvider?.providerType === "elevenlabs" ||
     activeProvider?.providerType === "fish_tts" ||
-    (activeProvider?.providerType === "doubao_tts" && activeProvider.resourceId !== "seed-icl-2.0");
+    activeProvider?.providerType === "doubao_tts";
   const requiresManualVoiceId =
     activeProvider?.providerType === "openai_tts" ||
     activeProvider?.providerType === "fish_tts" ||
@@ -946,7 +970,9 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
     <BottomMenu
       isOpen={isOpen}
       onClose={onClose}
-      title={formData.id ? t("voices.extra.editor.editTitle") : t("voices.extra.editor.createTitle")}
+      title={
+        formData.id ? t("voices.extra.editor.editTitle") : t("voices.extra.editor.createTitle")
+      }
     >
       <div className="space-y-4 pb-2">
         {/* Voice Name */}
@@ -995,9 +1021,7 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
                 placeholder={t("voices.extra.editor.modelIdPlaceholder")}
                 className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
               />
-              <p className="mt-1 text-[10px] text-fg/40">
-                {t("voices.extra.editor.modelIdHint")}
-              </p>
+              <p className="mt-1 text-[10px] text-fg/40">{t("voices.extra.editor.modelIdHint")}</p>
             </>
           ) : (
             <select
@@ -1028,8 +1052,8 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
                 {activeProvider?.providerType === "doubao_tts"
                   ? t("voices.extra.editor.doubaoVoice")
                   : activeProvider?.providerType === "fish_tts"
-                  ? t("voices.extra.editor.fishVoice")
-                  : t("voices.extra.editor.elevenlabsVoice")}
+                    ? t("voices.extra.editor.fishVoice")
+                    : t("voices.extra.editor.elevenlabsVoice")}
               </label>
               <button
                 type="button"
@@ -1090,8 +1114,8 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
               {activeProvider?.providerType === "doubao_tts"
                 ? t("voices.extra.editor.doubaoVoiceHint")
                 : activeProvider?.providerType === "fish_tts"
-                ? t("voices.extra.editor.fishVoiceHint")
-                : t("voices.extra.editor.elevenlabsVoiceHint")}
+                  ? t("voices.extra.editor.fishVoiceHint")
+                  : t("voices.extra.editor.elevenlabsVoiceHint")}
             </p>
           </div>
         )}
@@ -1133,7 +1157,7 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
                   ? t("voices.extra.editor.fishVoiceIdPlaceholder")
                   : activeProvider?.providerType === "fish_speech"
                     ? t("voices.extra.editor.fishSpeechVoiceIdPlaceholder")
-                  : t("voices.extra.editor.voiceIdPlaceholder")
+                    : t("voices.extra.editor.voiceIdPlaceholder")
               }
               className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none"
             />
@@ -1142,7 +1166,7 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
                 ? t("voices.extra.editor.fishVoiceIdHint")
                 : activeProvider?.providerType === "fish_speech"
                   ? t("voices.extra.editor.fishSpeechVoiceIdHint")
-                : t("voices.extra.editor.voiceIdHint")}
+                  : t("voices.extra.editor.voiceIdHint")}
             </p>
           </div>
         )}

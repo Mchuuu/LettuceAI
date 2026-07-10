@@ -395,7 +395,7 @@ export const noMessages: DeepPartialMessageTree<LocaleMessages> = {
   },
   about: {
     kicker: "Appinfo",
-    appName: "LettuceAI",
+    appName: "菜包",
     description: "Versjonsdetaljer, oppdateringssjekker og nyttige lenker.",
     info: {
       version: "Versjon",
@@ -6765,7 +6765,7 @@ export const noMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
     },
     welcome: {
-      appName: "LettuceAI",
+      appName: "菜包",
       tagline: "Din personlige AI-kompanjong. Privat, sikker og alltid på enheten.",
       features: {
         onDevice: "Kun på enheten",

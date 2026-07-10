@@ -51,7 +51,7 @@ use crate::chat_manager::service::{record_usage_if_available, require_api_key, C
 use crate::chat_manager::storage::save_session;
 use crate::chat_manager::temporal::{
     companion_effective_now, companion_time_awareness_enabled, detect_temporal_query_range,
-    memory_matches_temporal_range, TemporalRange,
+    format_message_timestamp, memory_matches_temporal_range, TemporalRange,
 };
 use crate::chat_manager::thinking::normalize_thinking_content;
 use crate::chat_manager::tooling::{
@@ -161,16 +161,54 @@ fn response_preview(provider_id: &str, value: &Value) -> String {
 
 fn latest_observed_memory_context(
     session: &Session,
+    convo_window: &[StoredMessage],
 ) -> (Option<u64>, Option<String>, Option<String>) {
-    let source = session.messages.iter().rev().find(|message| {
+    let source = convo_window.iter().rev().find(|message| {
         let role = message.role.trim().to_ascii_lowercase();
         role == "user" || role == "assistant"
     });
 
     (
-        source.map(|_| companion_effective_now(session)),
+        source
+            .map(|message| {
+                let delta = crate::chat_manager::temporal::temporal_frame_delta(
+                    session,
+                    message.created_at,
+                );
+                apply_timestamp_delta(message.created_at, delta)
+            })
+            .or_else(|| {
+                session
+                    .messages
+                    .iter()
+                    .rev()
+                    .find(|message| {
+                        let role = message.role.trim().to_ascii_lowercase();
+                        role == "user" || role == "assistant"
+                    })
+                    .map(|_| companion_effective_now(session))
+            }),
         source.map(|message| message.role.clone()),
         source.map(|message| message.id.clone()),
+    )
+}
+
+fn apply_timestamp_delta(timestamp: u64, delta: i64) -> u64 {
+    if delta >= 0 {
+        timestamp.saturating_add(delta as u64)
+    } else {
+        timestamp.saturating_sub(delta.unsigned_abs())
+    }
+}
+
+fn format_dynamic_memory_transcript_line(session: &Session, message: &StoredMessage) -> String {
+    let delta = crate::chat_manager::temporal::temporal_frame_delta(session, message.created_at);
+    let observed_at = apply_timestamp_delta(message.created_at, delta);
+    format!(
+        "[{}] {}: {}",
+        format_message_timestamp(observed_at),
+        message.role,
+        message.content
     )
 }
 
@@ -1981,6 +2019,7 @@ pub async fn trigger_dynamic_memory(app: AppHandle, session_id: String) -> Resul
 pub async fn initialize_imported_chat_memory(
     app: AppHandle,
     session_id: String,
+    window_size_override: Option<u32>,
 ) -> Result<(), String> {
     log_info(
         &app,
@@ -2008,7 +2047,9 @@ pub async fn initialize_imported_chat_memory(
         return Ok(());
     }
 
-    let window_size = dynamic.summary_message_interval.max(1) as usize;
+    let window_size = window_size_override
+        .map(|value| value.clamp(50, 200))
+        .unwrap_or_else(|| dynamic.summary_message_interval.max(1)) as usize;
     let (last_window_end, _) = resolve_last_valid_window_end(&app, &session)?;
     let mut start = last_window_end.min(total);
     if start >= total {
@@ -3999,7 +4040,7 @@ async fn run_memory_tool_update(
 
     let recent_text = convo_window
         .iter()
-        .map(|m| format!("{}: {}", m.role, m.content))
+        .map(|m| format_dynamic_memory_transcript_line(session, m))
         .collect::<Vec<_>>()
         .join("\n");
     let condition_context = dynamic_memory_prompt_condition_context(
@@ -4057,7 +4098,7 @@ async fn run_memory_tool_update(
         "content": format!(
             "Conversation transcript summary:\n{}\n\nRecent transcript lines:\n{}\n\nCurrent memories (with IDs):\n{}",
             summary,
-            convo_window.iter().map(|m| format!("{}: {}", m.role, m.content)).collect::<Vec<_>>().join("\n"),
+            convo_window.iter().map(|m| format_dynamic_memory_transcript_line(session, m)).collect::<Vec<_>>().join("\n"),
             if memory_lines.is_empty() { "none".to_string() } else { memory_lines.join("\n") }
         )
     }));
@@ -4307,7 +4348,7 @@ async fn run_memory_tool_update(
                         };
                         let (observed_at, source_role, source_message_id) =
                             if companion_time_awareness_enabled(session) {
-                                latest_observed_memory_context(session)
+                                latest_observed_memory_context(session, convo_window)
                             } else {
                                 (None, None, None)
                             };
@@ -4815,7 +4856,7 @@ async fn run_memory_tool_update(
                         crate::embedding::tokenizer::count_tokens(app, &text).unwrap_or(0);
                     let (observed_at, source_role, source_message_id) =
                         if companion_time_awareness_enabled(session) {
-                            latest_observed_memory_context(session)
+                            latest_observed_memory_context(session, convo_window)
                         } else {
                             (None, None, None)
                         };
@@ -5316,7 +5357,7 @@ async fn summarize_messages(
             .flatten();
     let recent_text = convo_window
         .iter()
-        .map(|m| format!("{}: {}", m.role, m.content))
+        .map(|m| format_dynamic_memory_transcript_line(session, m))
         .collect::<Vec<_>>()
         .join("\n");
     let condition_context = dynamic_memory_prompt_condition_context(
@@ -5371,7 +5412,7 @@ async fn summarize_messages(
     for msg in convo_window {
         messages_for_api.push(json!({
             "role": msg.role,
-            "content": msg.content
+            "content": format_dynamic_memory_transcript_line(session, msg)
         }));
     }
 

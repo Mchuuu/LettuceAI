@@ -395,7 +395,7 @@ export const nlMessages: DeepPartialMessageTree<LocaleMessages> = {
   },
   about: {
     kicker: "App-info",
-    appName: "LettuceAI",
+    appName: "菜包",
     description: "Versiedetails, updatecontroles en handige links.",
     info: {
       version: "Versie",
@@ -6764,7 +6764,7 @@ export const nlMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
     },
     welcome: {
-      appName: "LettuceAI",
+      appName: "菜包",
       tagline: "Je persoonlijke AI-metgezel. Privé, veilig en altijd op het apparaat.",
       features: {
         onDevice: "Alleen op apparaat",

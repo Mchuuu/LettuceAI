@@ -396,7 +396,7 @@ export const enMessages = {
   },
   about: {
     kicker: "App Info",
-    appName: "LettuceAI",
+    appName: "菜包",
     description: "Version details, update checks, and useful links.",
     devVersion: "dev",
     info: {
@@ -1094,6 +1094,8 @@ export const enMessages = {
         "Messages are imported first. Memory extraction runs afterward and may take a while for long histories.",
       importAndExtractMemory: "Import and extract memories",
       importAndExtractMemoryDesc: "Build dynamic memories and embeddings from this chat log.",
+      importMemoryWindowSize: "Extraction window size",
+      importMemoryWindowSizeDesc: "Messages processed per batch, from 50 to 200.",
       importMessagesOnly: "Import messages only",
       importMessagesOnlyDesc: "Create the chat session without running memory extraction.",
       extractingImportedMemory: "Extracting imported memories",
@@ -1438,6 +1440,33 @@ export const enMessages = {
       missingCharacterId: "Missing characterId",
       sessionNotFound: "Session not found",
       failedLoadCompanion: "Failed to load companion session",
+      emotionLabels: {
+        joy: "Joy",
+        trust: "Trust",
+        fear: "Fear",
+        surprise: "Surprise",
+        sadness: "Sadness",
+        disgust: "Disgust",
+        anger: "Anger",
+        anticipation: "Anticipation",
+      },
+      signalLabels: {
+        love: "Love",
+        caring: "Caring",
+        appreciation: "Appreciation",
+        positive: "Positive",
+        desire: "Desire",
+        relief: "Relief",
+        remorse: "Remorse",
+        distress: "Distress",
+        anxiety: "Anxiety",
+        conflict: "Conflict",
+        embarrassment: "Embarrassment",
+        uncertainty: "Uncertainty",
+        engagement: "Engagement",
+        pride: "Pride",
+        neutral: "Neutral",
+      },
     },
     chatPage: {
       characterNotFound: "Character not found",
@@ -1547,6 +1576,13 @@ export const enMessages = {
         trust: "Trust",
         affection: "Affection",
         tension: "Tension",
+      },
+      levels: {
+        closeness: { low: "Withdrawn", mid: "Acquainted", high: "Intimate" },
+        trust: { low: "Distrustful", mid: "Neutral", high: "Trusting" },
+        affection: { low: "Hostile", mid: "Neutral", high: "Affectionate" },
+        tension: { low: "Easy", high: "Charged" },
+        stability: { low: "Volatile", high: "Stable" },
       },
       feltRightNow: "Felt right now",
       activeDrivers: "Active drivers",
@@ -3903,6 +3939,7 @@ export const enMessages = {
         doubaoAccessKeyId: "Access Key ID (voice list)",
         doubaoSecretAccessKey: "Secret Access Key (voice list)",
         doubaoVoiceModel: "Voice model",
+        doubaoProjectName: "Project Name (voice clone)",
       },
       types: {
         fish: "Fish Audio (Cloud)",
@@ -3929,6 +3966,7 @@ export const enMessages = {
         doubaoSecretAccessKey: "Volcengine Secret Access Key for ListSpeakers",
         doubaoBaseUrl: "https://openspeech.bytedance.com",
         doubaoRequestPath: "/api/v3/tts/unidirectional",
+        doubaoProjectName: "default",
       },
       errors: {
         chooseModelVariant: "Choose a model variant",
@@ -3947,7 +3985,7 @@ export const enMessages = {
       managedPath: "Managed: {{path}}",
       requestPathHint: "Use the provider path if it differs from the OpenAI default",
       doubaoOpenApiHint:
-        "Only needed for refreshing the Doubao TTS 2.0 voice list. Voice clone 2.0 voice lists are not fetched yet.",
+        "Used to refresh the Doubao voice list. Voice clone mode queries the project named below.",
       doubaoRequestPathHint: "Optional synthesis path override. Leave blank for the official default.",
       doubaoVoiceModels: {
         tts2: "Speech synthesis 2.0",
@@ -7662,7 +7700,7 @@ export const enMessages = {
       },
     },
     welcome: {
-      appName: "LettuceAI",
+      appName: "菜包",
       tagline: "Your personal AI companion. Private, secure, and always on-device.",
       features: {
         onDevice: "On-device only",
@@ -9127,6 +9165,7 @@ export const enMessages = {
         noPreviewModel: "No voice model is available for preview",
         showLess: "Show Less",
         showAllVoices: "Show All {{count}} Voices",
+        searchPlaceholder: "Search voices...",
         voiceFallbackTitle: "Voice",
         voiceCount: "{{count}} voices",
         cacheFiles: "{{count}} files",

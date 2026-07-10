@@ -15,6 +15,7 @@ export interface AudioProvider {
   label: string;
   apiKey?: string;
   projectId?: string; // Gemini only / Doubao OpenAPI access key id
+  projectName?: string; // Doubao voice clone project name
   location?: string; // Gemini region
   resourceId?: string; // Doubao X-Api-Resource-Id
   secretKey?: string; // Doubao OpenAPI secret access key

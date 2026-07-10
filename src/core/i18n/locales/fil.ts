@@ -395,7 +395,7 @@ export const filMessages: DeepPartialMessageTree<LocaleMessages> = {
   },
   about: {
     kicker: "Impormasyon ng App",
-    appName: "LettuceAI",
+    appName: "菜包",
     description: "Mga detalye ng bersyon, pagsusuri ng update, at mga kapaki-pakinabang na link.",
     info: {
       version: "Bersyon",
@@ -6765,7 +6765,7 @@ export const filMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
     },
     welcome: {
-      appName: "LettuceAI",
+      appName: "菜包",
       tagline: "Ang iyong personal na AI companion. Pribado, ligtas, at laging nasa device.",
       features: {
         onDevice: "Sa device lamang",

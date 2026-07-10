@@ -395,7 +395,7 @@ export const viMessages: DeepPartialMessageTree<LocaleMessages> = {
   },
   about: {
     kicker: "Thông tin ứng dụng",
-    appName: "LettuceAI",
+    appName: "菜包",
     description: "Chi tiết phiên bản, kiểm tra cập nhật và các liên kết hữu ích.",
     info: {
       version: "Phiên bản",
@@ -6132,7 +6132,7 @@ export const viMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
     },
     welcome: {
-      appName: "LettuceAI",
+      appName: "菜包",
       tagline: "Trợ lý AI cá nhân. Riêng tư, an toàn, và luôn trên thiết bị.",
       features: {
         onDevice: "Chỉ trên thiết bị",

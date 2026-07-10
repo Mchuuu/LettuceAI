@@ -16,12 +16,10 @@ import {
 import {
   readSettings,
   saveAdvancedSettings,
-  checkEmbeddingModel,
   getHostApiStatus,
 } from "../../../core/storage/repo";
 import type { Settings } from "../../../core/storage/schemas";
 import { cn, typography, spacing, interactive } from "../../design-tokens";
-import { EmbeddingDownloadPrompt } from "../../components/EmbeddingDownloadPrompt";
 import { openDocs, DOCS } from "../../../core/utils/docs";
 import { useI18n } from "../../../core/i18n/context";
 import { Switch } from "../../components/Switch";
@@ -291,8 +289,6 @@ export function AdvancedPage() {
   const navigate = useNavigate();
   const { t } = useI18n();
   const [isLoading, setIsLoading] = useState(true);
-  const [showDownloadPrompt, setShowDownloadPrompt] = useState(false);
-
   // Settings state
   const [creationHelperEnabled, setCreationHelperEnabled] = useState(false);
   const [dynamicMemoryEnabled, setDynamicMemoryEnabled] = useState(false);
@@ -366,19 +362,6 @@ export function AdvancedPage() {
 
   const handleToggleDynamicMemory = async () => {
     const newValue = !dynamicMemoryEnabled;
-
-    if (newValue) {
-      try {
-        const modelExists = await checkEmbeddingModel();
-        if (!modelExists) {
-          setShowDownloadPrompt(true);
-          return;
-        }
-      } catch (err) {
-        console.error("Failed to check embedding model:", err);
-        return;
-      }
-    }
 
     setDynamicMemoryEnabled(newValue);
 
@@ -668,10 +651,6 @@ export function AdvancedPage() {
 
       </section>
 
-      <EmbeddingDownloadPrompt
-        isOpen={showDownloadPrompt}
-        onClose={() => setShowDownloadPrompt(false)}
-      />
     </div>
   );
 }

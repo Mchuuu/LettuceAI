@@ -6,6 +6,7 @@ use crate::chat_manager::request::{extract_error_message, extract_text};
 use crate::chat_manager::service::require_api_key;
 use crate::chat_manager::types::{Model, ProviderCredential, Settings};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use tauri::AppHandle;
 
 const EMOTION_EXTRACTION_SYSTEM_PROMPT: &str = r#"You are an emotion extraction component for a roleplay chat client.
@@ -42,6 +43,11 @@ pub(crate) async fn extract(
     let api_key = require_api_key(app, credential, "companion_emotion_llm")?;
     let messages = build_messages(role, trimmed, context_messages);
 
+    let mut extra_body_fields = HashMap::new();
+    if credential.provider_id == "deepseek" {
+        extra_body_fields.insert("thinking".to_string(), json!({ "type": "disabled" }));
+    }
+
     let built = crate::chat_manager::request_builder::build_chat_request(
         credential,
         &api_key,
@@ -62,7 +68,11 @@ pub(crate) async fn extract(
         None,
         None,
         false,
-        None,
+        if extra_body_fields.is_empty() {
+            None
+        } else {
+            Some(extra_body_fields)
+        },
     );
 
     let response = api_request(

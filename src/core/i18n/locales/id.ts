@@ -395,7 +395,7 @@ export const idMessages: DeepPartialMessageTree<LocaleMessages> = {
   },
   about: {
     kicker: "Info Aplikasi",
-    appName: "LettuceAI",
+    appName: "菜包",
     description: "Detail versi, pemeriksaan pembaruan, dan tautan berguna.",
     info: {
       version: "Versi",
@@ -6132,7 +6132,7 @@ export const idMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
     },
     welcome: {
-      appName: "LettuceAI",
+      appName: "菜包",
       tagline: "Pendamping AI pribadi Anda. Privat, aman, dan selalu di perangkat.",
       features: {
         onDevice: "Hanya di perangkat",

@@ -2438,14 +2438,15 @@ fn apply_tts_snapshot(conn: &mut DbConnection, payload: &[u8]) -> Result<(), Str
         .collect::<Vec<_>>();
     for provider in snapshot.audio_providers {
         tx.execute(
-            r#"INSERT OR REPLACE INTO audio_providers (id, provider_type, label, api_key, project_id, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at)
-               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)"#,
+            r#"INSERT OR REPLACE INTO audio_providers (id, provider_type, label, api_key, project_id, project_name, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at)
+               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)"#,
             params![
                 provider.id,
                 provider.provider_type,
                 provider.label,
                 provider.api_key,
                 provider.project_id,
+                provider.project_name,
                 provider.location,
                 provider.resource_id,
                 provider.secret_key,
@@ -3629,7 +3630,7 @@ fn fetch_global_core(conn: &DbConnection) -> Result<GlobalCoreData, String> {
         .collect();
 
     let mut stmt = conn
-        .prepare("SELECT id, provider_type, label, api_key, project_id, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at FROM audio_providers")
+        .prepare("SELECT id, provider_type, label, api_key, project_id, project_name, location, resource_id, secret_key, base_url, request_path, kokoro_variant, asset_root, created_at, updated_at FROM audio_providers")
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     let audio_providers: Vec<AudioProvider> = stmt
         .query_map([], |r| {
@@ -3639,15 +3640,16 @@ fn fetch_global_core(conn: &DbConnection) -> Result<GlobalCoreData, String> {
                 label: r.get(2)?,
                 api_key: r.get(3)?,
                 project_id: r.get(4)?,
-                location: r.get(5)?,
-                resource_id: r.get(6)?,
-                secret_key: r.get(7)?,
-                base_url: r.get(8)?,
-                request_path: r.get(9)?,
-                kokoro_variant: r.get(10)?,
-                asset_root: r.get(11)?,
-                created_at: r.get(12)?,
-                updated_at: r.get(13)?,
+                project_name: r.get(5)?,
+                location: r.get(6)?,
+                resource_id: r.get(7)?,
+                secret_key: r.get(8)?,
+                base_url: r.get(9)?,
+                request_path: r.get(10)?,
+                kokoro_variant: r.get(11)?,
+                asset_root: r.get(12)?,
+                created_at: r.get(13)?,
+                updated_at: r.get(14)?,
             })
         })
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?

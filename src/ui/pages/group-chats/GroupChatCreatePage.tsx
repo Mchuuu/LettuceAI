@@ -20,6 +20,7 @@ export function GroupChatCreatePage() {
   const [showChatpkgImportMapMenu, setShowChatpkgImportMapMenu] = useState(false);
   const [pendingChatpkgImport, setPendingChatpkgImport] = useState<{
     path: string;
+    temporary?: boolean;
     info: any;
   } | null>(null);
   const [chatpkgParticipantMap, setChatpkgParticipantMap] = useState<Record<string, string>>({});
@@ -29,12 +30,22 @@ export function GroupChatCreatePage() {
   });
 
   const handleOpenImportGroupChatpkg = async () => {
+    console.info("[GroupChatCreate] import jsonl clicked", { importingChatpkg });
     try {
+      setImportingChatpkg(true);
+      console.info("[GroupChatCreate] opening jsonl picker");
       const picked = await storageBridge.jsonlPickFile();
-      if (!picked) return;
+      console.info("[GroupChatCreate] jsonl picker returned", picked);
+      if (!picked) {
+        setImportingChatpkg(false);
+        return;
+      }
+      console.info("[GroupChatCreate] inspecting jsonl", { path: picked.path });
       const info = await storageBridge.jsonlInspect(picked.path);
+      console.info("[GroupChatCreate] jsonl inspect returned", info);
       if (info?.type !== "group_chat") {
         alert(t("groupChats.create.invalidPackage"));
+        setImportingChatpkg(false);
         return;
       }
 
@@ -49,24 +60,36 @@ export function GroupChatCreatePage() {
         if (byName) initialMap[speakerName] = byName.id;
       }
 
-      setPendingChatpkgImport({ path: picked.path, info });
+      setPendingChatpkgImport({ path: picked.path, temporary: picked.temporary, info });
       setChatpkgParticipantMap(initialMap);
 
       const unresolved = participants.some(
         (p: any) => typeof p?.name === "string" && !initialMap[p.name],
       );
       if (unresolved) {
+        console.info("[GroupChatCreate] showing participant mapping", {
+          participants: participants.length,
+        });
         setShowChatpkgImportMapMenu(true);
+        setImportingChatpkg(false);
       } else {
-        await runGroupImport(picked.path, initialMap);
+        console.info("[GroupChatCreate] importing mapped group chat", {
+          path: picked.path,
+        });
+        await runGroupImport(picked.path, initialMap, picked.temporary);
       }
     } catch (err) {
       console.error("Failed to inspect group chat:", err);
       alert(typeof err === "string" ? err : t("groupChats.create.inspectPackageError"));
+      setImportingChatpkg(false);
     }
   };
 
-  const runGroupImport = async (path: string, map: Record<string, string>) => {
+  const runGroupImport = async (
+    path: string,
+    map: Record<string, string>,
+    temporary = false,
+  ) => {
     try {
       setImportingChatpkg(true);
       const result = await storageBridge.jsonlImport(path, { participantCharacterMap: map });
@@ -81,13 +104,20 @@ export function GroupChatCreatePage() {
       console.error("Failed to import group chat:", err);
       alert(typeof err === "string" ? err : t("groupChats.create.importPackageError"));
     } finally {
+      if (temporary) {
+        void storageBridge.jsonlDiscardUpload(path);
+      }
       setImportingChatpkg(false);
     }
   };
 
   const handleImportGroupChatpkg = async () => {
     if (!pendingChatpkgImport) return;
-    await runGroupImport(pendingChatpkgImport.path, chatpkgParticipantMap);
+    await runGroupImport(
+      pendingChatpkgImport.path,
+      chatpkgParticipantMap,
+      pendingChatpkgImport.temporary,
+    );
   };
 
   const handleBack = () => {
@@ -242,6 +272,9 @@ export function GroupChatCreatePage() {
         isOpen={showChatpkgImportMapMenu}
         onClose={() => {
           if (importingChatpkg) return;
+          if (pendingChatpkgImport?.temporary) {
+            void storageBridge.jsonlDiscardUpload(pendingChatpkgImport.path);
+          }
           setShowChatpkgImportMapMenu(false);
           setPendingChatpkgImport(null);
           setChatpkgParticipantMap({});

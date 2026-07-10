@@ -39,6 +39,8 @@ pub struct AudioProvider {
     #[serde(default)]
     pub project_id: Option<String>,
     #[serde(default)]
+    pub project_name: Option<String>,
+    #[serde(default)]
     pub location: Option<String>,
     #[serde(default)]
     pub resource_id: Option<String>,
