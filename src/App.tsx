@@ -604,7 +604,6 @@ function App() {
             <ConfirmBottomMenuHost />
             <WhatsNewDrawer isOpen={whatsNewOpen} onClose={() => setWhatsNewOpen(false)} />
             <DownloadQueueProvider>
-              <AppUpdateNotifier />
               <AppContent />
             </DownloadQueueProvider>
           </div>
@@ -614,7 +613,7 @@ function App() {
   );
 }
 
-function AppUpdateNotifier() {
+export function AppUpdateNotifier() {
   const { t } = useI18n();
   const platform = useMemo(() => getPlatform(), []);
   const [autoChecksEnabled, setAutoChecksEnabled] = useState(true);

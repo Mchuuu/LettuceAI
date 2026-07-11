@@ -1540,6 +1540,8 @@ export const enMessages = {
       },
       detail: {
         dated: "Dated {{time}}",
+        observedAt: "Observed {{time}}",
+        observedAtUnknown: "unknown",
         lastUsed: "Last used {{time}}",
         key: "Key: {{key}}",
         replaces: "Replaces {{count}}",
@@ -3898,6 +3900,9 @@ export const enMessages = {
       editDesc: "Change provider settings",
       deleteDesc: "Remove this provider",
       editAudioDesc: "Modify provider settings",
+      duplicate: "Duplicate",
+      duplicateDesc: "Create a copy with the same configuration",
+      copySuffix: "-copy",
       downloadModel: "Download model",
       downloadModelDesc: "Choose a quality and download the voice engine",
       openKokoroStudio: "Open Kokoro Studio",
@@ -4005,6 +4010,12 @@ export const enMessages = {
       voicesLink: "Voices",
     },
     fallbackTitle: "Provider",
+    duplicate: {
+      title: "Duplicate provider",
+      nameLabel: "New provider name",
+      namePlaceholder: "Enter a name",
+      confirm: "Create copy",
+    },
     editor: {
       titleEdit: "Edit Provider",
       titleCreate: "Add Provider",

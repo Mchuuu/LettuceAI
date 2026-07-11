@@ -286,10 +286,13 @@ function MemoryCard({
   onEditDate,
   onDelete,
 }: CardProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const Icon = sectionIcons[memory.category];
   const isUser = memory.sourceRole === "user";
   const SourceIcon = isUser ? User : Bot;
+  const observedAtLabel = memory.observedAt
+    ? new Date(memory.observedAt).toLocaleString(locale)
+    : t("chats.companionMemoryPage.detail.observedAtUnknown");
 
   return (
     <motion.article
@@ -335,6 +338,11 @@ function MemoryCard({
               </span>
               <span className="text-fg/20">·</span>
               <span>{formatRelativeTime(t, memory.createdAt)}</span>
+              <span className="text-fg/20">·</span>
+              <span className="inline-flex items-center gap-1 text-fg/55">
+                <CalendarClock size={10} />
+                {t("chats.companionMemoryPage.detail.observedAt", { time: observedAtLabel })}
+              </span>
               {memory.isPinned && (
                 <>
                   <span className="text-fg/20">·</span>

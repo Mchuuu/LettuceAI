@@ -40,6 +40,10 @@ import {
 import { BottomMenu, MenuButton } from "../../components/BottomMenu";
 import { toast } from "../../components/toast";
 import { useI18n, type TranslationKey } from "../../../core/i18n/context";
+import {
+  playDoubaoVoicePreview,
+  stopDoubaoVoicePreview,
+} from "../../../core/voice/doubaoVoicePreview";
 
 const GEMINI_VOICES = [
   { id: "kore", name: "Kore", descriptionKey: "voices.extra.geminiVoices.kore" },
@@ -188,6 +192,7 @@ export function VoicesPage() {
   };
 
   const stopProviderVoicePreview = useCallback(() => {
+    stopDoubaoVoicePreview();
     const audio = providerVoicePreviewAudioRef.current;
     if (!audio) return;
 
@@ -209,6 +214,11 @@ export function VoicesPage() {
     stopProviderVoicePreview();
     setPlayingProviderVoice(previewKey);
     try {
+      if (provider.resourceId === "seed-icl-2.0" && voice.previewUrl) {
+        const { audio } = await playDoubaoVoicePreview(provider.id, voice.voiceId, voice.previewUrl);
+        providerVoicePreviewAudioRef.current = audio;
+        return;
+      }
       const models = await listAudioModels(provider.providerType);
       const modelId = models[0]?.id;
       if (!modelId) {

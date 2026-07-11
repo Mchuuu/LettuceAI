@@ -12,6 +12,7 @@ use super::types::{
 use super::{doubao, elevenlabs, fish, fish_speech, gemini, kokoro, openai_compatible};
 use crate::abort_manager::AbortRegistry;
 use crate::storage_manager::db::{now_ms, open_db};
+use crate::utils::{log_info, log_warn};
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1105,7 +1106,47 @@ pub async fn tts_stream_doubao(
     }
 
     let api_key = api_key.ok_or("API key not configured")?;
+    let requested_sample_rate = prompt
+        .as_deref()
+        .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok())
+        .and_then(|value| value.get("sampleRate").and_then(|rate| rate.as_u64()))
+        .unwrap_or(44100);
+    log_info(
+        &app,
+        "tts",
+        format!(
+            "Doubao stream request: resource_id={} model={} voice_id={} format=pcm sample_rate={} text_len={} prompt={}",
+            resource_id.as_deref().unwrap_or("<default>"),
+            model_id,
+            voice_id,
+            requested_sample_rate,
+            text.chars().count(),
+            prompt.as_deref().unwrap_or("<none>")
+        ),
+    );
+    let mut native_pcm_player =
+        match crate::tts_manager::android_pcm::Player::start(&app, requested_sample_rate as u32) {
+            Ok(player) => player,
+            Err(error) => {
+                log_warn(
+                    &app,
+                    "tts",
+                    format!(
+                        "Native Android PCM player unavailable; falling back to WebAudio: {error}"
+                    ),
+                );
+                None
+            }
+        };
+    let native_pcm = native_pcm_player.is_some();
+    log_info(
+        &app,
+        "tts",
+        format!("Doubao PCM playback route: native_audio_track={native_pcm}"),
+    );
     let event_name = format!("tts-stream://{}", request_id);
+    let mut streamed_bytes = 0usize;
+    let mut logged_stream_start = false;
     let mut abort_rx = {
         use tauri::Manager;
         let registry = app.state::<AbortRegistry>();
@@ -1133,6 +1174,14 @@ pub async fn tts_stream_doubao(
         |event| {
             match event {
                 doubao::DoubaoAudioStreamEvent::Start(info) => {
+                    log_info(
+                        &app_for_stream,
+                        "tts",
+                        format!(
+                            "Doubao stream start: format={} sample_rate={} mime_type={}",
+                            info.format, info.sample_rate, info.mime_type
+                        ),
+                    );
                     let _ = app_for_stream.emit(
                         &event_name,
                         serde_json::json!({
@@ -1140,10 +1189,40 @@ pub async fn tts_stream_doubao(
                             "sampleRate": info.sample_rate,
                             "format": info.format,
                             "mimeType": info.mime_type,
+                            "nativePcm": native_pcm,
                         }),
                     );
                 }
                 doubao::DoubaoAudioStreamEvent::Chunk(bytes) => {
+                    streamed_bytes = streamed_bytes.saturating_add(bytes.len());
+                    if let Some(player) = native_pcm_player.as_ref() {
+                        player.write(&bytes)?;
+                        if streamed_bytes == bytes.len() {
+                            log_info(
+                                &app_for_stream,
+                                "tts",
+                                format!("Native AudioTrack first write: bytes={}", bytes.len()),
+                            );
+                        }
+                    }
+                    if !logged_stream_start {
+                        log_info(
+                            &app_for_stream,
+                            "tts",
+                            format!(
+                                "Doubao first PCM chunk: bytes={} total_bytes={} first_bytes={}",
+                                bytes.len(),
+                                streamed_bytes,
+                                bytes
+                                    .iter()
+                                    .take(16)
+                                    .map(|value| format!("{:02x}", value))
+                                    .collect::<Vec<_>>()
+                                    .join(" ")
+                            ),
+                        );
+                        logged_stream_start = true;
+                    }
                     let _ = app_for_stream.emit(
                         &event_name,
                         serde_json::json!({
@@ -1153,6 +1232,11 @@ pub async fn tts_stream_doubao(
                     );
                 }
                 doubao::DoubaoAudioStreamEvent::End => {
+                    log_info(
+                        &app_for_stream,
+                        "tts",
+                        format!("Doubao stream end: total_pcm_bytes={}", streamed_bytes),
+                    );
                     let _ = app_for_stream.emit(&event_name, serde_json::json!({ "type": "end" }));
                 }
             }
@@ -1164,6 +1248,11 @@ pub async fn tts_stream_doubao(
         _ = &mut abort_rx => Err("Audio generation aborted".to_string()),
         value = stream_audio => value,
     };
+
+    if let Some(player) = native_pcm_player.take() {
+        player.stop();
+        log_info(&app, "tts", "Native AudioTrack stopped");
+    }
 
     if let Err(err) = &result {
         let _ = app.emit(

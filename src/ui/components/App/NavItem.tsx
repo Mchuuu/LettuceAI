@@ -32,7 +32,7 @@ export function TabItem({
       >
         {active && (
           <motion.div
-            className="absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-fg/8 shadow-[0_0_24px_rgba(255,255,255,0.22)]"
+            className="pointer-events-none absolute left-1/2 top-1/2 h-7 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-fg/10 blur-[7px] shadow-[0_5px_14px_-5px_rgba(255,255,255,0.42)]"
             initial={{ opacity: 0, scale: 0.84 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.16, ease: "easeOut" }}

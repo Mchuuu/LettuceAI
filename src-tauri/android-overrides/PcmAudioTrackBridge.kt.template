@@ -1,0 +1,89 @@
+package __PACKAGE__
+
+import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
+import android.util.Log
+
+object PcmAudioTrackBridge {
+  private const val TAG = "LettuceAudioTrack"
+  private var audioTrack: AudioTrack? = null
+  private var totalBytes = 0L
+
+  @JvmStatic
+  @Synchronized
+  fun start(context: Context, sampleRate: Int, channels: Int, bitsPerSample: Int): Boolean {
+    Log.i(TAG, "start sampleRate=$sampleRate channels=$channels bits=$bitsPerSample")
+    stop()
+    if (channels != 1 || bitsPerSample != 16 || sampleRate <= 0) {
+      Log.w(TAG, "unsupported PCM format")
+      return false
+    }
+
+    val channelMask = AudioFormat.CHANNEL_OUT_MONO
+    val encoding = AudioFormat.ENCODING_PCM_16BIT
+    val minimumBuffer = AudioTrack.getMinBufferSize(sampleRate, channelMask, encoding)
+    if (minimumBuffer <= 0) {
+      Log.w(TAG, "getMinBufferSize failed: $minimumBuffer")
+      return false
+    }
+
+    val bufferSize = maxOf(minimumBuffer, sampleRate / 4 * 2)
+    val track = AudioTrack(
+      AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_MEDIA)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+        .build(),
+      AudioFormat.Builder()
+        .setEncoding(encoding)
+        .setSampleRate(sampleRate)
+        .setChannelMask(channelMask)
+        .build(),
+      bufferSize,
+      AudioTrack.MODE_STREAM,
+      AudioManager.AUDIO_SESSION_ID_GENERATE,
+    )
+    if (track.state != AudioTrack.STATE_INITIALIZED) {
+      Log.e(TAG, "AudioTrack initialization failed: state=${track.state}")
+      track.release()
+      return false
+    }
+
+    track.play()
+    audioTrack = track
+    totalBytes = 0
+    Log.i(TAG, "started bufferSize=$bufferSize")
+    return true
+  }
+
+  @JvmStatic
+  @Synchronized
+  fun write(bytes: ByteArray): Int {
+    val track = audioTrack ?: return AudioTrack.ERROR_INVALID_OPERATION
+    val written = track.write(bytes, 0, bytes.size, AudioTrack.WRITE_BLOCKING)
+    if (written > 0) {
+      totalBytes += written
+      if (totalBytes == written.toLong()) Log.i(TAG, "first write bytes=$written")
+    } else {
+      Log.w(TAG, "write failed: $written")
+    }
+    return written
+  }
+
+  @JvmStatic
+  @Synchronized
+  fun stop() {
+    val track = audioTrack ?: return
+    Log.i(TAG, "stop totalBytes=$totalBytes")
+    audioTrack = null
+    try {
+      track.stop()
+    } catch (_: IllegalStateException) {
+      // The track may already be stopped after an audio device change.
+    }
+    track.flush()
+    track.release()
+  }
+}

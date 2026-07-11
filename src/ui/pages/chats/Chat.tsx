@@ -73,6 +73,7 @@ import { replacePlaceholders } from "../../../core/utils/placeholders";
 import { splitThinkTags } from "../../../core/utils/thinkTags";
 import { getPlatform } from "../../../core/utils/platform";
 import { buildDoubaoVoicePrompt } from "../../../core/voice/doubaoVoiceSettings";
+import { getCachedDoubaoVoicePreviewMetadata } from "../../../core/voice/doubaoVoicePreview";
 import {
   ChatHeader,
   ChatFooter,
@@ -214,6 +215,7 @@ export function ChatConversationPage() {
     : [];
 
   const scrollContainerRef = useRef<HTMLElement | null>(null);
+  const messageListRef = useRef<HTMLDivElement | null>(null);
   const footerRef = useRef<HTMLDivElement | null>(null);
   const [footerHeight, setFooterHeight] = useState(0);
   useEffect(() => {
@@ -1448,9 +1450,16 @@ export function ChatConversationPage() {
           throw new Error(t("chats.errors.noAudioModelsForProvider"));
         }
 
+        const cloneSampleRate =
+          provider.resourceId === "seed-icl-2.0"
+            ? getCachedDoubaoVoicePreviewMetadata(providerId, voiceId)?.sampleRate
+            : undefined;
         const prompt =
           provider.providerType === "doubao_tts"
-            ? buildDoubaoVoicePrompt(character.voiceConfig.doubaoVoiceSettings)
+            ? buildDoubaoVoicePrompt(
+                character.voiceConfig.doubaoVoiceSettings,
+                cloneSampleRate,
+              )
             : undefined;
         const cacheKey = buildAudioCacheKey({
           providerId,
@@ -1470,6 +1479,10 @@ export function ChatConversationPage() {
             text: trimmedText,
             prompt,
             requestId,
+            sampleRate: cloneSampleRate,
+            // Keep the buffered MP3 path available as a fallback, but test
+            // clone voices through the sample-rate-aware PCM stream first.
+            streamDoubao: true,
             cached,
             onCache: (response) => cacheAudioPreview(cacheKey, response),
             onPlaybackStart: () => {
@@ -2067,6 +2080,23 @@ export function ChatConversationPage() {
     container.scrollTo({ top: container.scrollHeight, behavior });
   }, []);
 
+  // Message height can change after the initial render (streaming markdown,
+  // images, and layout animations). Keep following the bottom in those cases
+  // when the user was already there, while preserving manual scroll position.
+  useEffect(() => {
+    const list = messageListRef.current;
+    if (!list) return;
+
+    const observer = new ResizeObserver(() => {
+      const container = scrollContainerRef.current;
+      if (!container || !isAtBottomRef.current) return;
+      container.scrollTop = container.scrollHeight;
+      updateIsAtBottom();
+    });
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [updateIsAtBottom]);
+
   useEffect(() => {
     if (!isMobile) {
       setKeyboardInset(0);
@@ -2077,6 +2107,10 @@ export function ChatConversationPage() {
     let focusTimer: number | null = null;
 
     const updateKeyboardInset = () => {
+      // A keyboard resize reduces the scroll container's clientHeight. Capture
+      // the user's intent before recalculating, otherwise a bottom-pinned chat
+      // is briefly mistaken for a manually scrolled-up chat.
+      const wasAtBottomBeforeResize = isAtBottomRef.current;
       const baseHeight = window.innerHeight;
       const viewportHeight = visualViewport?.height ?? baseHeight;
       const viewportOffsetTop = visualViewport?.offsetTop ?? 0;
@@ -2088,7 +2122,10 @@ export function ChatConversationPage() {
       window.requestAnimationFrame(() => {
         updateIsAtBottom();
         const activeElement = document.activeElement;
-        if (activeElement instanceof HTMLTextAreaElement && isAtBottomRef.current) {
+        if (
+          activeElement instanceof HTMLTextAreaElement &&
+          (wasAtBottomBeforeResize || isAtBottomRef.current)
+        ) {
           scrollToBottom("auto");
         }
       });
@@ -2354,6 +2391,7 @@ export function ChatConversationPage() {
     if (hasContent) {
       const content = draft.trim();
       playAccessibilitySound("send", accessibilitySettings);
+      scrollToBottom("auto");
       await handleSend(content, undefined, { swapPlaces });
       setFooterAsrMode("idle");
       setFooterAsrRawText("");
@@ -2361,6 +2399,7 @@ export function ChatConversationPage() {
       setFooterAsrSuggestions([]);
     } else {
       playAccessibilitySound("send", accessibilitySettings);
+      scrollToBottom("auto");
       await handleContinue({ swapPlaces });
     }
   }, [
@@ -2370,6 +2409,7 @@ export function ChatConversationPage() {
     setDraft,
     handleSend,
     handleContinue,
+    scrollToBottom,
     pendingAttachments,
     accessibilitySettings,
     swapPlaces,
@@ -2380,6 +2420,7 @@ export function ChatConversationPage() {
     if (sending) return;
     setError(null);
     playAccessibilitySound("send", accessibilitySettings);
+    scrollToBottom("auto");
     await handleSendSystemMessage(draft, undefined);
     setFooterAsrMode("idle");
     setFooterAsrRawText("");
@@ -2389,6 +2430,7 @@ export function ChatConversationPage() {
     accessibilitySettings,
     draft,
     handleSendSystemMessage,
+    scrollToBottom,
     sending,
     setError,
   ]);
@@ -2820,6 +2862,7 @@ export function ChatConversationPage() {
         onScroll={handleScroll}
       >
         <div
+          ref={messageListRef}
           className={`${getChatColumnLayout(chatAppearance).className} ${chatAppearance.messageGap === "tight" ? "space-y-2" : chatAppearance.messageGap === "relaxed" ? "space-y-6" : "space-y-4"} px-3 pb-8 pt-4`}
           style={{
             ...getChatColumnLayout(chatAppearance).style,

@@ -31,6 +31,7 @@ import {
   APP_GROUP_CHAT_TEMPLATE_ID,
 } from "../../../../core/prompts/constants";
 import { InteractionModeSelector } from "./InteractionModeSelector";
+import { playDoubaoVoicePreview } from "../../../../core/voice/doubaoVoicePreview";
 
 interface DescriptionStepProps {
   name: string;
@@ -954,6 +955,15 @@ export function DescriptionStep({
                       <button
                         key={`${provider.id}:${voice.voiceId}`}
                         onClick={() => {
+                          if (provider.resourceId === "seed-icl-2.0" && voice.previewUrl) {
+                            void playDoubaoVoicePreview(
+                              provider.id,
+                              voice.voiceId,
+                              voice.previewUrl,
+                            ).catch((error) => {
+                              console.warn("Failed to play Doubao clone preview:", error);
+                            });
+                          }
                           onVoiceConfigChange({
                             source: "provider",
                             providerId: provider.id,

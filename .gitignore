@@ -54,3 +54,5 @@ docs/sync-old-architecture.mmd
 docs/sync-old-architecture.svg
 src-tauri/target-check/
 docs/uec-2-character-fields.md
+whisper-rs/
+src-tauri/gen/

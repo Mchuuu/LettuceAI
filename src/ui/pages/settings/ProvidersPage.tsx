@@ -1,5 +1,7 @@
 import {
   Trash2,
+  Copy,
+  Check,
   ChevronRight,
   Edit3,
   EthernetPort,
@@ -42,6 +44,8 @@ import { cn, colors, interactive, radius } from "../../design-tokens";
 import { getPlatform } from "../../../core/utils/platform";
 import { useI18n } from "../../../core/i18n/context";
 import { Switch } from "../../components/Switch";
+import type { ProviderCredential } from "../../../core/storage/schemas";
+import { addOrUpdateProviderCredential } from "../../../core/storage/repo";
 
 const AUDIO_PROVIDER_TYPE_LABEL: Record<AudioProviderType, string> = {
   elevenlabs: "ElevenLabs",
@@ -71,6 +75,9 @@ const AUDIO_PROVIDER_TYPE_TRANSLATION_KEY: Record<
 };
 
 type ProviderTab = "llm" | "audio";
+type DuplicateTarget =
+  | { kind: "llm"; provider: ProviderCredential }
+  | { kind: "audio"; provider: AudioProvider };
 
 function ResolvedEndpointPreview({
   baseUrl,
@@ -144,6 +151,7 @@ export function ProvidersPage() {
     },
     openEditor,
     closeEditor,
+    reload,
     setSelectedProvider,
     setApiKey,
     setValidationError,
@@ -214,6 +222,10 @@ export function ProvidersPage() {
   const [isAudioDeleting, setIsAudioDeleting] = useState(false);
   const [kokoroSetupProvider, setKokoroSetupProvider] = useState<AudioProvider | null>(null);
   const [kokoroInstalled, setKokoroInstalled] = useState<Record<string, boolean>>({});
+  const [duplicateTarget, setDuplicateTarget] = useState<DuplicateTarget | null>(null);
+  const [duplicateName, setDuplicateName] = useState("");
+  const [isDuplicating, setIsDuplicating] = useState(false);
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
   const { queue: downloadQueue } = useDownloadQueue();
 
   const loadAudioProviders = useCallback(async () => {
@@ -310,6 +322,56 @@ export function ProvidersPage() {
     setIsAudioEditorOpen(false);
     setEditingAudioProvider(null);
   }, []);
+
+  const openDuplicateMenu = useCallback((target: DuplicateTarget) => {
+    setDuplicateTarget(target);
+    setDuplicateName(`${target.provider.label} ${t("providers.actions.copySuffix")}`.trim());
+    setDuplicateError(null);
+    setSelectedProvider(null);
+    setSelectedAudioProvider(null);
+  }, [setSelectedProvider, t]);
+
+  const closeDuplicateMenu = useCallback(() => {
+    if (isDuplicating) return;
+    setDuplicateTarget(null);
+    setDuplicateName("");
+    setDuplicateError(null);
+  }, [isDuplicating]);
+
+  const handleDuplicateProvider = useCallback(async () => {
+    const target = duplicateTarget;
+    const label = duplicateName.trim();
+    if (!target || !label) return;
+
+    setIsDuplicating(true);
+    setDuplicateError(null);
+    try {
+      if (target.kind === "llm") {
+        await addOrUpdateProviderCredential({
+          ...target.provider,
+          id: crypto.randomUUID(),
+          label,
+        });
+        await reload();
+      } else {
+        const now = Date.now();
+        await upsertAudioProvider({
+          ...target.provider,
+          id: crypto.randomUUID(),
+          label,
+          createdAt: now,
+          updatedAt: now,
+        });
+        await loadAudioProviders();
+      }
+      setDuplicateTarget(null);
+      setDuplicateName("");
+    } catch (error) {
+      setDuplicateError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsDuplicating(false);
+    }
+  }, [duplicateName, duplicateTarget, loadAudioProviders, reload]);
 
   const handleSaveAudioProvider = useCallback(
     async (provider: AudioProvider) => {
@@ -578,6 +640,13 @@ export function ProvidersPage() {
                     color="from-info to-info/80"
                   />
                 )}
+                <MenuButton
+                  icon={Copy}
+                  title={t("providers.actions.duplicate")}
+                  description={t("providers.actions.duplicateDesc")}
+                  onClick={() => openDuplicateMenu({ kind: "llm", provider: selectedProvider })}
+                  color="from-accent to-accent/80"
+                />
                 <MenuButton
                   icon={Trash2}
                   title={isDeleting ? t("common.buttons.deleting") : t("common.buttons.delete")}
@@ -1204,6 +1273,13 @@ export function ProvidersPage() {
                   onClick={() => openAudioEditor(selectedAudioProvider)}
                   color="from-info to-info/80"
                 />
+                <MenuButton
+                  icon={Copy}
+                  title={t("providers.actions.duplicate")}
+                  description={t("providers.actions.duplicateDesc")}
+                  onClick={() => openDuplicateMenu({ kind: "audio", provider: selectedAudioProvider })}
+                  color="from-accent to-accent/80"
+                />
                 {selectedAudioProvider.id !== "system-kokoro" && (
                   <MenuButton
                     icon={Trash2}
@@ -1232,6 +1308,52 @@ export function ProvidersPage() {
           />
         </>
       )}
+
+      <BottomMenu
+        isOpen={!!duplicateTarget}
+        onClose={closeDuplicateMenu}
+        title={t("providers.duplicate.title")}
+      >
+        {duplicateTarget && (
+          <div className="space-y-4 pb-2">
+            <div>
+              <label className="mb-1 block text-[11px] font-medium text-fg/70">
+                {t("providers.duplicate.nameLabel")}
+              </label>
+              <input
+                autoFocus
+                value={duplicateName}
+                onChange={(event) => setDuplicateName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") void handleDuplicateProvider();
+                }}
+                placeholder={t("providers.duplicate.namePlaceholder")}
+                className="w-full rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-sm text-fg outline-none focus:border-accent/50"
+              />
+            </div>
+            {duplicateError && <p className="text-xs font-medium text-danger/80">{duplicateError}</p>}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={closeDuplicateMenu}
+                disabled={isDuplicating}
+                className="flex-1 rounded-lg border border-fg/10 bg-fg/5 px-4 py-2 text-sm font-medium text-fg/70 transition hover:bg-fg/10 disabled:opacity-50"
+              >
+                {t("common.buttons.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDuplicateProvider()}
+                disabled={isDuplicating || !duplicateName.trim()}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-accent/40 bg-accent/20 px-4 py-2 text-sm font-semibold text-accent/90 transition hover:bg-accent/30 disabled:opacity-50"
+              >
+                <Check className="h-4 w-4" />
+                {isDuplicating ? t("common.buttons.saving") : t("providers.duplicate.confirm")}
+              </button>
+            </div>
+          </div>
+        )}
+      </BottomMenu>
 
       {/* Engine Setup Bottom Sheet */}
       <BottomMenu isOpen={!!engineSetupResult} onClose={dismissEngineSetup} title={t("providers.engineSetup.title")}>

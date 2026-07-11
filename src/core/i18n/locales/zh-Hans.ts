@@ -70,7 +70,7 @@ export const zhHansMessages: DeepPartialMessageTree<LocaleMessages> = {
       groups: "群组",
       create: "创建",
       discover: "发现",
-      library: "资源库",
+      library: "资源",
     },
     toasts: {
       openingBrowser: "正在浏览器中打开",
@@ -1449,6 +1449,8 @@ export const zhHansMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
       detail: {
         dated: "日期：{{time}}",
+        observedAt: "发生时间：{{time}}",
+        observedAtUnknown: "未知",
         lastUsed: "最后使用：{{time}}",
         key: "键：{{key}}",
         replaces: "取代了 {{count}} 条",
@@ -3800,6 +3802,9 @@ export const zhHansMessages: DeepPartialMessageTree<LocaleMessages> = {
       editDesc: "更改服务商设置",
       deleteDesc: "移除此提供商",
       editAudioDesc: "修改提供商设置",
+      duplicate: "复制",
+      duplicateDesc: "使用相同配置创建一份副本",
+      copySuffix: "-copy",
       downloadModel: "下载模型",
       downloadModelDesc: "选择质量并下载语音引擎",
       openKokoroStudio: "打开 Kokoro Studio",
@@ -3904,6 +3909,12 @@ export const zhHansMessages: DeepPartialMessageTree<LocaleMessages> = {
       voicesLink: "声音",
     },
     fallbackTitle: "提供商",
+    duplicate: {
+      title: "复制服务商",
+      nameLabel: "新服务商名称",
+      namePlaceholder: "输入名称",
+      confirm: "创建副本",
+    },
     editor: {
       titleEdit: "编辑提供者",
       titleCreate: "添加提供者",

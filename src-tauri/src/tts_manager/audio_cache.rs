@@ -14,6 +14,8 @@ pub fn generate_cache_key(
     prompt: Option<&str>,
 ) -> String {
     let mut hasher = blake3::Hasher::new();
+    // Bump the cache namespace when audio encoding defaults change.
+    hasher.update(b"tts-quality-v5-stream-pcm-clone-24000|");
     hasher.update(provider_id.as_bytes());
     hasher.update(b"|");
     hasher.update(model_id.as_bytes());

@@ -14,7 +14,9 @@ import {
 const DOUBAO_STREAM_BUFFER_SECONDS = 0.7;
 const S16_MAX = 32768;
 const PCM_MIME_TYPE = "audio/pcm";
-const PCM_PLAYBACK_GAIN = 1.35;
+// PCM responses can already peak near full scale. Extra amplification clips
+// clone voices and makes them sound muffled, so keep playback at unity gain.
+const PCM_PLAYBACK_GAIN = 1.0;
 
 export interface MessageAudioRequest {
   providerId: string;
@@ -24,7 +26,9 @@ export interface MessageAudioRequest {
   text: string;
   prompt?: string;
   requestId: string;
+  sampleRate?: number;
   cached?: TtsPreviewResponse;
+  streamDoubao?: boolean;
   onCache?: (response: TtsPreviewResponse) => void;
   onPlaybackStart?: () => void;
 }
@@ -35,7 +39,7 @@ export interface MessageAudioPlayback {
 }
 
 type DoubaoStreamPayload =
-  | { type: "start"; sampleRate: number; format: string; mimeType: string }
+  | { type: "start"; sampleRate: number; format: string; mimeType: string; nativePcm?: boolean }
   | { type: "chunk"; audioBase64: string }
   | { type: "end" }
   | { type: "error"; message?: string };
@@ -70,6 +74,36 @@ function concatByteChunks(chunks: Uint8Array[]): Uint8Array {
   return out;
 }
 
+function pcm16ToWav(bytes: Uint8Array, sampleRate: number, channels = 1): Uint8Array {
+  const header = new ArrayBuffer(44);
+  const view = new DataView(header);
+  const writeAscii = (offset: number, value: string) => {
+    for (let index = 0; index < value.length; index += 1) {
+      view.setUint8(offset + index, value.charCodeAt(index));
+    }
+  };
+  const bitsPerSample = 16;
+  const blockAlign = channels * (bitsPerSample / 8);
+  const byteRate = sampleRate * blockAlign;
+  writeAscii(0, "RIFF");
+  view.setUint32(4, 36 + bytes.byteLength, true);
+  writeAscii(8, "WAVE");
+  writeAscii(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, channels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+  writeAscii(36, "data");
+  view.setUint32(40, bytes.byteLength, true);
+  const wav = new Uint8Array(44 + bytes.byteLength);
+  wav.set(new Uint8Array(header), 0);
+  wav.set(bytes, 44);
+  return wav;
+}
+
 function pcm16ToFloat32(bytes: Uint8Array): Float32Array<ArrayBuffer> {
   const sampleCount = Math.floor(bytes.byteLength / 2);
   const out = new Float32Array(sampleCount);
@@ -82,7 +116,9 @@ function pcm16ToFloat32(bytes: Uint8Array): Float32Array<ArrayBuffer> {
 
 class PcmStreamQueue {
   private audioContext: AudioContext | null = null;
-  private sampleRate = 24000;
+  // Doubao streaming PCM is requested at 44.1 kHz. Cached PCM does not carry
+  // sample-rate metadata, so keep the fallback aligned with that stream.
+  private sampleRate = 44100;
   private queue: Float32Array<ArrayBuffer>[] = [];
   private queuedSamples = 0;
   private started = false;
@@ -189,19 +225,6 @@ class PcmStreamQueue {
   }
 }
 
-async function startPcmPlayback(
-  audioBase64: string,
-  onPlaybackStart?: () => void,
-): Promise<MessageAudioPlayback> {
-  const queue = new PcmStreamQueue(onPlaybackStart);
-  queue.push(decodeBase64Bytes(audioBase64));
-  queue.finish();
-  return {
-    stop: () => queue.stop(),
-    done: queue.done,
-  };
-}
-
 async function startBufferedPlayback(request: MessageAudioRequest): Promise<MessageAudioPlayback> {
   const response =
     request.cached ??
@@ -244,6 +267,50 @@ async function startBufferedPlayback(request: MessageAudioRequest): Promise<Mess
   };
 }
 
+async function startCachedPcmWavPlayback(
+  request: MessageAudioRequest,
+  audioBase64: string,
+  sampleRate: number,
+): Promise<MessageAudioPlayback> {
+  const wavBytes = pcm16ToWav(decodeBase64Bytes(audioBase64), sampleRate);
+  const wavBuffer = new ArrayBuffer(wavBytes.byteLength);
+  new Uint8Array(wavBuffer).set(wavBytes);
+  const objectUrl = URL.createObjectURL(new Blob([wavBuffer], { type: "audio/wav" }));
+  const audio = new Audio(objectUrl);
+  audio.preload = "auto";
+  let resolveDone: (() => void) | null = null;
+  const done = new Promise<void>((resolve) => {
+    resolveDone = resolve;
+  });
+  const cleanup = () => {
+    URL.revokeObjectURL(objectUrl);
+    audio.onended = null;
+    audio.onerror = null;
+  };
+  audio.onended = () => {
+    cleanup();
+    resolveDone?.();
+    resolveDone = null;
+  };
+  audio.onerror = () => {
+    cleanup();
+    resolveDone?.();
+    resolveDone = null;
+  };
+  request.onPlaybackStart?.();
+  await audio.play();
+  return {
+    stop: () => {
+      audio.pause();
+      audio.currentTime = 0;
+      cleanup();
+      resolveDone?.();
+      resolveDone = null;
+    },
+    done,
+  };
+}
+
 async function startDoubaoStreamPlayback(
   request: MessageAudioRequest,
 ): Promise<MessageAudioPlayback> {
@@ -258,17 +325,38 @@ async function startDoubaoStreamPlayback(
   if (cached) {
     request.onCache?.(cached);
     if (cached.format === PCM_MIME_TYPE) {
-      return startPcmPlayback(cached.audioBase64, request.onPlaybackStart);
+      return startCachedPcmWavPlayback(
+        request,
+        cached.audioBase64,
+        request.sampleRate ?? 24000,
+      );
     }
     return startBufferedPlayback({ ...request, cached });
   }
 
   const queue = new PcmStreamQueue(request.onPlaybackStart);
+  let nativePcm = false;
+  let resolvePlaybackDone: (() => void) | null = null;
+  const playbackDone = new Promise<void>((resolve) => {
+    resolvePlaybackDone = resolve;
+  });
+  void queue.done.then(() => resolvePlaybackDone?.());
   const eventName = `tts-stream://${request.requestId}`;
   let unlisten: UnlistenFn | null = null;
   let streamError: Error | null = null;
   let stopped = false;
   const audioChunks: Uint8Array[] = [];
+  let streamedBytes = 0;
+  let loggedFirstChunk = false;
+
+  console.debug("[Doubao TTS] stream request", {
+    providerId: request.providerId,
+    modelId: request.modelId,
+    voiceId: request.voiceId,
+    sampleRate: request.sampleRate ?? "server-default",
+    textLength: request.text.length,
+    prompt: request.prompt ?? null,
+  });
 
   unlisten = await listen<DoubaoStreamPayload | string>(eventName, (event) => {
     const rawPayload = event.payload;
@@ -277,22 +365,51 @@ async function startDoubaoStreamPlayback(
         ? (JSON.parse(rawPayload) as DoubaoStreamPayload)
         : rawPayload;
     if (payload.type === "start") {
-      queue.configure(payload.sampleRate);
+      console.debug("[Doubao TTS] stream start", payload);
+      nativePcm = payload.nativePcm === true;
+      console.debug("[Doubao TTS] playback route", {
+        nativePcm,
+        route: nativePcm ? "android-audiotrack" : "webaudio",
+      });
+      if (nativePcm) {
+        request.onPlaybackStart?.();
+      } else {
+        queue.configure(payload.sampleRate);
+      }
       return;
     }
     if (payload.type === "chunk") {
       const bytes = decodeBase64Bytes(payload.audioBase64);
       audioChunks.push(bytes);
-      queue.push(bytes);
+      streamedBytes += bytes.byteLength;
+      if (!loggedFirstChunk) {
+        console.debug("[Doubao TTS] first PCM chunk", {
+          bytes: bytes.byteLength,
+          totalBytes: streamedBytes,
+          firstBytes: Array.from(bytes.slice(0, 16))
+            .map((value) => value.toString(16).padStart(2, "0"))
+            .join(" "),
+        });
+        loggedFirstChunk = true;
+      }
+      if (!nativePcm) queue.push(bytes);
       return;
     }
     if (payload.type === "end") {
-      queue.finish();
+      console.debug("[Doubao TTS] stream end", { totalBytes: streamedBytes });
+      if (nativePcm) {
+        resolvePlaybackDone?.();
+        resolvePlaybackDone = null;
+      } else {
+        queue.finish();
+      }
       return;
     }
     if (payload.type === "error") {
       streamError = new Error(payload.message || "Doubao TTS stream failed");
       queue.stop();
+      resolvePlaybackDone?.();
+      resolvePlaybackDone = null;
     }
   });
 
@@ -328,8 +445,10 @@ async function startDoubaoStreamPlayback(
       unlisten?.();
       unlisten = null;
       queue.stop();
+      resolvePlaybackDone?.();
+      resolvePlaybackDone = null;
     },
-    done: Promise.all([queue.done, commandCompletion, cacheSave.catch(() => undefined)]).then(() => {
+    done: Promise.all([playbackDone, commandCompletion, cacheSave.catch(() => undefined)]).then(() => {
       if (streamError) throw streamError;
     }),
   };
@@ -338,7 +457,7 @@ async function startDoubaoStreamPlayback(
 export async function startMessageAudioPlayback(
   request: MessageAudioRequest,
 ): Promise<MessageAudioPlayback> {
-  if (request.providerType === "doubao_tts") {
+  if (request.providerType === "doubao_tts" && request.streamDoubao !== false) {
     try {
       return await startDoubaoStreamPlayback(request);
     } catch (error) {

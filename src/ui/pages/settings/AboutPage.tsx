@@ -1,15 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { ExternalLink, Globe, RefreshCw, ScrollText, Sparkles } from "lucide-react";
+import { ExternalLink, Globe, ScrollText, Sparkles } from "lucide-react";
 
 import githubSvg from "../../../assets/github.svg";
 import logoSvg from "../../../assets/logo.svg";
-import {
-  checkForAppUpdate,
-  detectUpdateChannel,
-  type AppUpdateInfo,
-} from "../../../core/app-updates/checkForAppUpdate";
-import { presentAppUpdateToast } from "../../../core/app-updates/presentAppUpdateToast";
+import { detectUpdateChannel } from "../../../core/app-updates/checkForAppUpdate";
 import { useI18n } from "../../../core/i18n/context";
 import { readSettings, saveAdvancedSettings } from "../../../core/storage/repo";
 import { type Settings } from "../../../core/storage/schemas";
@@ -23,7 +18,6 @@ import { openExternalUrl } from "../../../core/utils/openExternal";
 import { isDevelopmentMode, setDeveloperModeOverride } from "../../../core/utils/env";
 import { toast } from "../../components/toast";
 import { cn, interactive, typography } from "../../design-tokens";
-import { Switch } from "../../components/Switch";
 
 function ensureAdvancedSettings(settings: Settings): NonNullable<Settings["advancedSettings"]> {
   return {
@@ -124,10 +118,6 @@ export function AboutPage() {
   const { t } = useI18n();
   const platform = useMemo(() => getPlatform(), []);
   const [appVersion, setAppVersion] = useState("...");
-  const [autoChecksEnabled, setAutoChecksEnabled] = useState(true);
-  const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
-  const [updateState, setUpdateState] = useState<"idle" | "available" | "upToDate">("idle");
-  const [availableUpdate, setAvailableUpdate] = useState<AppUpdateInfo | null>(null);
   const [developerModeEnabled, setDeveloperModeEnabled] = useState(isDevelopmentMode());
 
   useEffect(() => {
@@ -141,7 +131,6 @@ export function AboutPage() {
         ]);
         if (cancelled) return;
         setAppVersion(version);
-        setAutoChecksEnabled(settings.advancedSettings?.appUpdateChecksEnabled ?? true);
         setDeveloperModeEnabled(
           isDevelopmentMode() || settings.advancedSettings?.developerModeEnabled === true,
         );
@@ -162,54 +151,6 @@ export function AboutPage() {
   const buildChannel = isDevChannel
     ? t("about.buildChannel.dev")
     : t("about.buildChannel.release");
-
-  const persistAutoChecks = async (enabled: boolean) => {
-    const settings = await readSettings();
-    const advanced = ensureAdvancedSettings(settings);
-    advanced.appUpdateChecksEnabled = enabled;
-    await saveAdvancedSettings(advanced);
-  };
-
-  const toggleAutoChecks = async () => {
-    const next = !autoChecksEnabled;
-    setAutoChecksEnabled(next);
-    try {
-      await persistAutoChecks(next);
-    } catch (error) {
-      console.error("Failed to save app update preference:", error);
-      setAutoChecksEnabled(!next);
-      toast.error(t("about.errors.saveTitle"), t("about.errors.saveDescription"));
-    }
-  };
-
-  const handleCheckNow = async () => {
-    setIsCheckingUpdates(true);
-    try {
-      const update = await checkForAppUpdate(platform);
-      if (!update) {
-        setAvailableUpdate(null);
-        setUpdateState("upToDate");
-        toast.info(t("about.update.upToDateTitle"), t("about.update.upToDateDescription"));
-        return;
-      }
-      setAvailableUpdate(update);
-      setUpdateState("available");
-      presentAppUpdateToast(update, platform.os, {
-        title: t("updates.available.title"),
-        description: t("updates.available.description", {
-          currentVersion: update.currentVersion,
-          latestVersion: update.latestVersion,
-        }),
-        viewLabel: t("updates.available.actions.view"),
-        laterLabel: t("common.buttons.later"),
-      });
-    } catch (error) {
-      console.error("Manual update check failed:", error);
-      toast.error(t("about.update.failedTitle"), t("about.update.failedDescription"));
-    } finally {
-      setIsCheckingUpdates(false);
-    }
-  };
 
   const openExternal = (url: string) => openExternalUrl(url);
 
@@ -292,25 +233,6 @@ export function AboutPage() {
                   <div className="mt-5 flex flex-wrap gap-2">
                     <button
                       type="button"
-                      onClick={handleCheckNow}
-                      disabled={isCheckingUpdates}
-                      className={cn(
-                        "inline-flex h-9 items-center gap-2 rounded-lg border border-fg/12 bg-surface/60 px-3.5",
-                        typography.body.size,
-                        "font-medium text-fg",
-                        interactive.transition.default,
-                        "hover:bg-surface-el/65 disabled:cursor-wait disabled:opacity-60",
-                      )}
-                    >
-                      <RefreshCw
-                        className={cn("h-4 w-4 text-fg/70", isCheckingUpdates && "animate-spin")}
-                      />
-                      {isCheckingUpdates
-                        ? t("about.update.checking")
-                        : t("about.update.checkNow")}
-                    </button>
-                    <button
-                      type="button"
                       onClick={openChangelog}
                       className={cn(
                         "inline-flex h-9 items-center gap-2 rounded-lg border border-fg/10 bg-transparent px-3.5",
@@ -328,49 +250,9 @@ export function AboutPage() {
               </div>
             </div>
 
-            {/* Update status banner (only when an update is available or up to date) */}
-            {updateState === "available" && availableUpdate && (
-              <div className="rounded-xl border border-accent/20 bg-accent/8 px-4 py-3">
-                <div className={cn(typography.body.size, "font-medium text-fg")}>
-                  {t("updates.available.title")}
-                </div>
-                <div className={cn("mt-1", typography.caption.size, "leading-5 text-fg/55")}>
-                  {t("updates.available.description", {
-                    currentVersion: availableUpdate.currentVersion,
-                    latestVersion: availableUpdate.latestVersion,
-                  })}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void openExternal(availableUpdate.downloadUrl)}
-                  className={cn(
-                    "mt-3 inline-flex h-8 items-center gap-2 rounded-md border border-accent/25 bg-surface/55 px-3",
-                    typography.body.size,
-                    "font-medium text-fg",
-                    interactive.transition.default,
-                    "hover:bg-surface-el/60",
-                  )}
-                >
-                  {t("updates.available.actions.view")}
-                  <ExternalLink className="h-3.5 w-3.5 text-fg/55" />
-                </button>
-              </div>
-            )}
-
-            {updateState === "upToDate" && (
-              <div className="rounded-xl border border-fg/10 bg-fg/[0.025] px-4 py-3">
-                <div className={cn(typography.body.size, "font-medium text-fg")}>
-                  {t("about.update.upToDateTitle")}
-                </div>
-                <div className={cn("mt-1", typography.caption.size, "leading-5 text-fg/45")}>
-                  {t("about.update.upToDateDescription")}
-                </div>
-              </div>
-            )}
-
             {/* Two-column grid at lg+ */}
             <div className="grid grid-cols-1 gap-7 lg:grid-cols-2">
-              {/* Left column: Information + Updates */}
+              {/* Left column: Information */}
               <div className="flex flex-col gap-7">
                 <div className="flex flex-col gap-2">
                   <GroupLabel>{t("about.sections.information")}</GroupLabel>
@@ -384,26 +266,6 @@ export function AboutPage() {
                   </Group>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <GroupLabel>{t("about.update.sectionTitle")}</GroupLabel>
-                  <Group>
-                    <div className="flex items-center justify-between gap-4 px-4 py-3">
-                      <div className="min-w-0">
-                        <div className={cn(typography.body.size, "font-medium text-fg")}>
-                          {t("about.update.autoChecks")}
-                        </div>
-                        <div className={cn("mt-0.5", typography.caption.size, "text-fg/45")}>
-                          {t("about.update.autoChecksDescription")}
-                        </div>
-                      </div>
-                      <Switch
-                        checked={autoChecksEnabled}
-                        onChange={() => void toggleAutoChecks()}
-                        aria-label={t("about.update.autoChecks")}
-                      />
-                    </div>
-                  </Group>
-                </div>
               </div>
 
               {/* Right column: Links + Advanced */}

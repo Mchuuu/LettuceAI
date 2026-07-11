@@ -1,3 +1,4 @@
+pub mod android_pcm;
 pub mod audio_cache;
 pub mod commands;
 mod doubao;

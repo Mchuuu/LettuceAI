@@ -29,14 +29,20 @@ export function normalizeDoubaoVoiceSettings(
 
 export function buildDoubaoVoicePrompt(
   settings: CharacterVoiceConfig["doubaoVoiceSettings"] | null | undefined,
+  sampleRate?: number,
 ): string | undefined {
   const normalized = normalizeDoubaoVoiceSettings(settings);
+  const payload: Record<string, number> = { ...normalized };
+  if (Number.isFinite(sampleRate) && (sampleRate ?? 0) > 0) {
+    payload.sampleRate = Math.round(sampleRate as number);
+  }
   if (
-    normalized.pitch === 0 &&
-    normalized.speechRate === 0 &&
-    normalized.loudnessRate === 0
+    payload.pitch === 0 &&
+    payload.speechRate === 0 &&
+    payload.loudnessRate === 0 &&
+    payload.sampleRate === undefined
   ) {
     return undefined;
   }
-  return JSON.stringify(normalized);
+  return JSON.stringify(payload);
 }

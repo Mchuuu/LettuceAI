@@ -86,6 +86,7 @@ import {
   DEFAULT_DOUBAO_VOICE_SETTINGS,
   normalizeDoubaoVoiceSettings,
 } from "../../../core/voice/doubaoVoiceSettings";
+import { playDoubaoVoicePreview } from "../../../core/voice/doubaoVoicePreview";
 
 const wordCount = (text: string) => {
   const trimmed = text.trim();
@@ -2880,6 +2881,15 @@ export function EditCharacterPage() {
                       <button
                         key={`${provider.id}:${voice.voiceId}`}
                         onClick={() => {
+                          if (provider.resourceId === "seed-icl-2.0" && voice.previewUrl) {
+                            void playDoubaoVoicePreview(
+                              provider.id,
+                              voice.voiceId,
+                              voice.previewUrl,
+                            ).catch((error) => {
+                              console.warn("Failed to play Doubao clone preview:", error);
+                            });
+                          }
                           const doubaoSettings =
                             provider.providerType === "doubao_tts"
                               ? {

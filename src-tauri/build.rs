@@ -50,9 +50,11 @@ fn main() {
     println!("cargo:rerun-if-env-changed=KOKORO_ESPEAK_ANDROID_BUNDLE_URL");
     println!("cargo:rerun-if-env-changed=KOKORO_ESPEAK_ANDROID_BUNDLE_PATH");
     println!("cargo:rerun-if-env-changed=KOKORO_ANDROID_BRIDGE_CLASS");
+    println!("cargo:rerun-if-env-changed=PCM_AUDIO_TRACK_ANDROID_BRIDGE_CLASS");
     println!("cargo:rerun-if-changed=tauri.conf.json");
 
     export_android_bridge_class();
+    export_pcm_audio_track_bridge_class();
 
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     match target_os.as_str() {
@@ -120,6 +122,19 @@ fn export_android_bridge_class() {
             format!("{}.{}", identifier, BRIDGE_CLASS_NAME)
         });
     println!("cargo:rustc-env=KOKORO_ANDROID_BRIDGE_CLASS={value}");
+}
+
+fn export_pcm_audio_track_bridge_class() {
+    let value = env::var("PCM_AUDIO_TRACK_ANDROID_BRIDGE_CLASS")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| {
+            let identifier =
+                read_tauri_identifier().unwrap_or_else(|_| "com.lettuceai.app".to_string());
+            format!("{}.PcmAudioTrackBridge", identifier)
+        });
+    println!("cargo:rustc-env=PCM_AUDIO_TRACK_ANDROID_BRIDGE_CLASS={value}");
 }
 
 fn read_tauri_identifier() -> anyhow::Result<String> {

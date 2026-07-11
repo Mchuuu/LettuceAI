@@ -4346,12 +4346,11 @@ async fn run_memory_tool_update(
                                 continue;
                             }
                         };
+                        // Always retain the source message time. The time-awareness
+                        // preference controls retrieval, not whether imported memories
+                        // keep their chat chronology.
                         let (observed_at, source_role, source_message_id) =
-                            if companion_time_awareness_enabled(session) {
-                                latest_observed_memory_context(session, convo_window)
-                            } else {
-                                (None, None, None)
-                            };
+                            latest_observed_memory_context(session, convo_window);
                         let (embedding_source_version, embedding_dimensions) = match embedding
                             .as_ref()
                         {
@@ -4855,11 +4854,7 @@ async fn run_memory_tool_update(
                     let token_count =
                         crate::embedding::tokenizer::count_tokens(app, &text).unwrap_or(0);
                     let (observed_at, source_role, source_message_id) =
-                        if companion_time_awareness_enabled(session) {
-                            latest_observed_memory_context(session, convo_window)
-                        } else {
-                            (None, None, None)
-                        };
+                        latest_observed_memory_context(session, convo_window);
                     let (embedding_source_version, embedding_dimensions) = match embedding.as_ref()
                     {
                         Some(vector) if !vector.is_empty() => {

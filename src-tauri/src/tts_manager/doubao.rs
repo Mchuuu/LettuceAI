@@ -133,7 +133,8 @@ impl DoubaoPromptOptions {
     fn from_prompt(prompt: Option<&str>) -> Result<Self, String> {
         let mut options = Self {
             format: "mp3".to_string(),
-            sample_rate: 24000,
+            sample_rate: 44100,
+            bit_rate: Some(128000),
             ..Self::default()
         };
 
@@ -160,6 +161,9 @@ impl DoubaoPromptOptions {
                     ));
                 }
             };
+            if options.format == "pcm" {
+                options.bit_rate = None;
+            }
         }
         if let Some(sample_rate) = value.get("sampleRate").and_then(|v| v.as_u64()) {
             options.sample_rate = clamp_u32(sample_rate, 8000, 48000);
@@ -268,9 +272,14 @@ pub async fn generate_speech(
     let resource_id = resolve_resource_id(config.resource_id, model);
     let options = DoubaoPromptOptions::from_prompt(prompt)?;
     let mut additions_map = options.additions.unwrap_or_default();
-    additions_map
-        .entry("max_length_to_filter_parenthesis".to_string())
-        .or_insert_with(|| serde_json::Value::from(100));
+    additions_map.insert(
+        "max_length_to_filter_parenthesis".to_string(),
+        serde_json::Value::from(100),
+    );
+    additions_map.insert(
+        "disable_markdown_filter".to_string(),
+        serde_json::Value::from(true),
+    );
     let additions = Some(
         serde_json::to_string(&additions_map)
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?,
@@ -393,9 +402,14 @@ where
     let mut options = DoubaoPromptOptions::from_prompt(prompt)?;
     options.force_stream_pcm();
     let mut additions_map = options.additions.unwrap_or_default();
-    additions_map
-        .entry("max_length_to_filter_parenthesis".to_string())
-        .or_insert_with(|| serde_json::Value::from(100));
+    additions_map.insert(
+        "max_length_to_filter_parenthesis".to_string(),
+        serde_json::Value::from(100),
+    );
+    additions_map.insert(
+        "disable_markdown_filter".to_string(),
+        serde_json::Value::from(true),
+    );
     let additions = Some(
         serde_json::to_string(&additions_map)
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?,
