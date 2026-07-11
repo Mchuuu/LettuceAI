@@ -575,6 +575,12 @@ export const storageBridge = {
     invoke("trigger_dynamic_memory", { sessionId }) as Promise<void>,
   initializeImportedChatMemory: (sessionId: string, windowSize?: number) =>
     invoke("initialize_imported_chat_memory", { sessionId, windowSize }) as Promise<void>,
+  getImportedMemoryJob: (sessionId: string) =>
+    invoke<ImportedMemoryJob | null>("get_imported_memory_job", { sessionId }),
+  resumeImportedMemoryJob: (sessionId: string) =>
+    invoke("resume_imported_memory_job", { sessionId }) as Promise<void>,
+  pauseImportedMemoryJob: (sessionId: string) =>
+    invoke("pause_imported_memory_job", { sessionId }) as Promise<void>,
   abortDynamicMemory: (sessionId: string) =>
     invoke("abort_dynamic_memory", { sessionId }) as Promise<void>,
   skipDynamicMemoryCycle: (sessionId: string) =>
@@ -1191,3 +1197,20 @@ export const storageBridge = {
     }
   },
 };
+
+export interface ImportedMemoryJob {
+  id: string;
+  sessionId: string;
+  status: "running" | "paused" | "failed" | "completed" | "cancelled" | string;
+  windowSize: number;
+  nextWindowStart: number;
+  windowIndex: number;
+  totalWindows: number;
+  processedMessages: number;
+  totalMessages: number;
+  currentWindowStart: number | null;
+  currentWindowEnd: number | null;
+  lastError: string | null;
+  createdAt: number;
+  updatedAt: number;
+}

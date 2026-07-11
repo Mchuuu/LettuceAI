@@ -586,16 +586,30 @@ export function ProvidersPage() {
               );
             })}
             {audioProviders.length > 0 && (
-              <p className="px-1 pt-3 text-[11px] text-fg/40 lg:col-span-2">
-                {t("providers.list.manageVoicesPrefix")}{" "}
-                <button
-                  onClick={() => navigate("/settings/voices")}
-                  className="text-fg/60 underline-offset-2 hover:text-fg hover:underline"
-                >
-                  {t("providers.list.voicesLink")}
-                </button>
-                .
-              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/settings/voices")}
+                className={cn(
+                  "group flex w-full items-center justify-between gap-3 rounded-xl border p-4 text-left",
+                  "border-fg/10 bg-surface-el transition hover:border-fg/20 hover:bg-fg/6",
+                  "lg:col-span-2",
+                )}
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-fg/15 bg-fg/8 text-fg/75">
+                    <Volume2 className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-fg">
+                      {t("providers.list.voiceManagement")}
+                    </div>
+                    <div className="mt-0.5 truncate text-xs text-fg/50">
+                      {t("providers.list.voiceManagementDescription")}
+                    </div>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-fg/35 transition group-hover:text-fg/70" />
+              </button>
             )}
           </div>
         )}

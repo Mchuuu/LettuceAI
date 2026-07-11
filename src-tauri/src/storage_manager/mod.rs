@@ -7,6 +7,7 @@ pub mod db;
 pub mod entity_transfer;
 pub mod group_characters;
 pub mod group_sessions;
+pub mod imported_memory_jobs;
 pub mod importer;
 pub mod jsonl;
 pub mod legacy;

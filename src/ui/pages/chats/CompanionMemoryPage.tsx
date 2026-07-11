@@ -586,12 +586,51 @@ export function CompanionMemoryPage() {
   const [showSummaryEditor, setShowSummaryEditor] = useState(false);
   const [summaryDraft, setSummaryDraft] = useState("");
   const [savingSummary, setSavingSummary] = useState(false);
+  const [importedMemoryJob, setImportedMemoryJob] = useState<
+    Awaited<ReturnType<typeof storageBridge.getImportedMemoryJob>>
+  >(null);
+  const [importedMemoryJobBusy, setImportedMemoryJobBusy] = useState(false);
 
   const companion = character?.companion ?? null;
   const companionState = session?.companionState;
   const relationshipState = companionState?.relationshipState;
   const emotionalState = companionState?.emotionalState;
   const activeSignals = companionState?.activeSignals ?? [];
+
+  const refreshImportedMemoryJob = useCallback(async () => {
+    if (!session?.id) return;
+    try {
+      setImportedMemoryJob(await storageBridge.getImportedMemoryJob(session.id));
+    } catch (error) {
+      console.warn("Failed to load imported memory job:", error);
+    }
+  }, [session?.id]);
+
+  useEffect(() => {
+    void refreshImportedMemoryJob();
+    const timer = window.setInterval(() => void refreshImportedMemoryJob(), 1500);
+    return () => window.clearInterval(timer);
+  }, [refreshImportedMemoryJob]);
+
+  const handleImportedMemoryJobAction = useCallback(
+    async (action: "resume" | "pause") => {
+      if (!session?.id || importedMemoryJobBusy) return;
+      setImportedMemoryJobBusy(true);
+      try {
+        if (action === "resume") {
+          await storageBridge.resumeImportedMemoryJob(session.id);
+        } else {
+          await storageBridge.pauseImportedMemoryJob(session.id);
+        }
+        await refreshImportedMemoryJob();
+      } catch (error) {
+        console.error("Failed to update imported memory job:", error);
+      } finally {
+        setImportedMemoryJobBusy(false);
+      }
+    },
+    [importedMemoryJobBusy, refreshImportedMemoryJob, session?.id],
+  );
 
   useEffect(() => {
     if (!session?.id) return;
@@ -615,6 +654,7 @@ export function CompanionMemoryPage() {
       for (const name of events) {
         const unlisten = await listen(name, (event: any) => {
           if (event.payload?.sessionId !== session.id) return;
+          if (event.payload?.phase === "import_bootstrap") return;
           if (name !== "dynamic-memory:processing") {
             resetGeneration();
           }
@@ -624,7 +664,10 @@ export function CompanionMemoryPage() {
       }
 
       const unlistenProgress = await listen("dynamic-memory:progress", (event: any) => {
-        if (event.payload?.sessionId === session.id) {
+        if (
+          event.payload?.sessionId === session.id &&
+          event.payload?.phase !== "import_bootstrap"
+        ) {
           setProgressStep(Number(event.payload.step));
         }
       });
@@ -649,7 +692,8 @@ export function CompanionMemoryPage() {
     };
   }, [reload, session?.id]);
 
-  const memoryProcessing = session?.memoryStatus === "processing";
+  const importedMemoryActive = importedMemoryJob?.status === "running";
+  const memoryProcessing = session?.memoryStatus === "processing" && !importedMemoryActive;
   const memoryCycleActive = memoryProcessing || triggering;
 
   useEffect(() => {
@@ -678,7 +722,7 @@ export function CompanionMemoryPage() {
   void nowTick;
 
   const handleTriggerMemory = useCallback(async () => {
-    if (!session?.id || triggering || memoryProcessing) return;
+    if (!session?.id || triggering || memoryProcessing || importedMemoryActive) return;
     setTriggering(true);
     setProgressStep(null);
     setGenTokens(null);
@@ -693,7 +737,7 @@ export function CompanionMemoryPage() {
     } finally {
       setTriggering(false);
     }
-  }, [session?.id, triggering, memoryProcessing, reload]);
+  }, [session?.id, triggering, memoryProcessing, importedMemoryActive, reload]);
 
   const handleCancelMemory = useCallback(async () => {
     if (!session || cancelling) return;
@@ -996,6 +1040,52 @@ export function CompanionMemoryPage() {
       />
 
       <main className="flex-1 overflow-y-auto px-3 pb-[calc(env(safe-area-inset-bottom)+24px)] pt-4 lg:px-8">
+        {importedMemoryJob && importedMemoryJob.status !== "completed" && (
+          <div className="mx-auto mb-4 w-full max-w-7xl">
+            <div className={cn(radius.md, "space-y-3 border border-emerald-500/20 bg-emerald-500/10 p-3")}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Loader2 className={cn("h-4 w-4 shrink-0 text-emerald-300", importedMemoryJob.status === "running" && "animate-spin")} />
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-semibold text-emerald-100">
+                      {t("chats.companionMemoryPage.importedMemoryTitle")}
+                    </div>
+                    <div className="text-[11px] text-emerald-100/60">
+                      {importedMemoryJob.status === "running"
+                        ? t("chats.companionMemoryPage.importedMemoryRunning")
+                        : importedMemoryJob.status === "failed"
+                          ? t("chats.companionMemoryPage.importedMemoryFailed")
+                          : t("chats.companionMemoryPage.importedMemoryPaused")}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={importedMemoryJobBusy}
+                  onClick={() => void handleImportedMemoryJobAction(importedMemoryJob.status === "running" ? "pause" : "resume")}
+                  className="rounded-md border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[11px] font-medium text-emerald-100 disabled:opacity-50"
+                >
+                  {importedMemoryJob.status === "running" ? t("common.buttons.cancel") : t("chats.companionMemoryPage.importedMemoryResume")}
+                </button>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-emerald-500/15">
+                <div
+                  className="h-full rounded-full bg-emerald-400/75 transition-all duration-500"
+                  style={{
+                    width: `${importedMemoryJob.totalWindows > 0 ? Math.max(4, Math.min(100, (importedMemoryJob.windowIndex / importedMemoryJob.totalWindows) * 100)) : 4}%`,
+                  }}
+                />
+              </div>
+              <div className="text-[11px] tabular-nums text-emerald-100/60">
+                {t("chats.companionMemoryPage.importedMemoryProgress", {
+                  current: importedMemoryJob.windowIndex,
+                  total: importedMemoryJob.totalWindows,
+                })}
+                {importedMemoryJob.lastError ? ` · ${importedMemoryJob.lastError}` : ""}
+              </div>
+            </div>
+          </div>
+        )}
         {memoryCycleActive && (
           <div className="mx-auto mb-4 w-full max-w-7xl">
             <div className={cn(radius.md, "border border-blue-500/20 bg-blue-500/10 p-3 space-y-2")}>

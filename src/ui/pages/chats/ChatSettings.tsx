@@ -343,6 +343,8 @@ export function ChatSettingsContent({
   );
   const [importMemoryProgress, setImportMemoryProgress] =
     useState<ImportMemoryProgress | null>(null);
+  const [importMemoryProgressOpen, setImportMemoryProgressOpen] = useState(false);
+  const [importMemorySessionId, setImportMemorySessionId] = useState<string | null>(null);
   const personaForAvatar = useMemo(() => {
     if (!currentSession) return null;
     if (currentSession.personaDisabled || currentSession.personaId === "") return null;
@@ -678,16 +680,44 @@ export function ChatSettingsContent({
       if (!characterId) return;
       let importedSessionId: string | null = null;
       let unlistenProgress: UnlistenFn | null = null;
+      const terminalUnlisteners: UnlistenFn[] = [];
+      let backgroundTaskStarted = false;
+      let backgroundTaskFinished = false;
+      const finishBackgroundTask = (error?: unknown) => {
+        if (backgroundTaskFinished) return;
+        backgroundTaskFinished = true;
+        if (error) {
+          console.error("Imported memory initialization failed:", error);
+          alert(typeof error === "string" ? error : t("chats.settings.failedImportChat"));
+        }
+        unlistenProgress?.();
+        terminalUnlisteners.forEach((unlisten) => unlisten());
+        setImportMemoryProgress(null);
+        setImportMemoryProgressOpen(false);
+        setImportingChatpkg(false);
+        if (picked.temporary) {
+          void storageBridge.jsonlDiscardUpload(picked.path);
+        }
+        if (characterId && importedSessionId) {
+          navigate(Routes.chatSession(characterId, importedSessionId), { replace: true });
+        }
+      };
       setPendingChatImport(null);
       setImportingChatpkg(true);
       setImportMemoryProgress(null);
+      setImportMemorySessionId(null);
       try {
         const result = await storageBridge.jsonlImport(picked.path, {
           targetCharacterId: characterId,
         });
         importedSessionId = typeof result?.sessionId === "string" ? result.sessionId : null;
 
+        if (importedSessionId) {
+          setImportMemorySessionId(importedSessionId);
+        }
+
         if (initializeMemory && importedSessionId) {
+          backgroundTaskStarted = true;
           setImportMemoryProgress({
             sessionId: importedSessionId,
             step: null,
@@ -697,6 +727,7 @@ export function ChatSettingsContent({
             processedMessages: null,
             totalMessages: null,
           });
+          setImportMemoryProgressOpen(true);
           unlistenProgress = await listen("dynamic-memory:progress", (event: any) => {
             const payload = event.payload ?? {};
             if (payload.sessionId !== importedSessionId) return;
@@ -711,21 +742,42 @@ export function ChatSettingsContent({
               totalMessages: typeof payload.totalMessages === "number" ? payload.totalMessages : null,
             });
           });
-          await storageBridge.initializeImportedChatMemory(importedSessionId, memoryWindowSize);
+          for (const eventName of [
+            "dynamic-memory:success",
+            "dynamic-memory:error",
+            "dynamic-memory:cancelled",
+          ]) {
+            const unlisten = await listen(eventName, (event: any) => {
+              if (event.payload?.sessionId !== importedSessionId) return;
+              if (eventName === "dynamic-memory:success") {
+                finishBackgroundTask();
+              } else {
+                finishBackgroundTask(event.payload?.error ?? "Memory extraction was interrupted");
+              }
+            });
+            terminalUnlisteners.push(unlisten);
+          }
+          void storageBridge
+            .initializeImportedChatMemory(importedSessionId, memoryWindowSize)
+            .catch((error) => finishBackgroundTask(error));
         }
       } catch (error) {
         console.error("Failed to import chat:", error);
         alert(typeof error === "string" ? error : t("chats.settings.failedImportChat"));
       } finally {
-      if (unlistenProgress) unlistenProgress();
-      setImportMemoryProgress(null);
-      setImportingChatpkg(false);
-      if (picked.temporary) {
-        void storageBridge.jsonlDiscardUpload(picked.path);
-      }
-      if (importedSessionId) {
-        navigate(Routes.chatSession(characterId, importedSessionId), { replace: true });
-      }
+        if (!backgroundTaskStarted) {
+          unlistenProgress?.();
+          terminalUnlisteners.forEach((unlisten) => unlisten());
+          setImportMemoryProgress(null);
+          setImportMemoryProgressOpen(false);
+          setImportingChatpkg(false);
+          if (picked.temporary) {
+            void storageBridge.jsonlDiscardUpload(picked.path);
+          }
+          if (characterId && importedSessionId) {
+            navigate(Routes.chatSession(characterId, importedSessionId), { replace: true });
+          }
+        }
       }
     },
     [characterId, navigate, t],
@@ -1465,9 +1517,13 @@ export function ChatSettingsContent({
       </BottomMenu>
 
       <BottomMenu
-        isOpen={Boolean(importMemoryProgress)}
-        onClose={() => {}}
-        includeExitIcon={false}
+        isOpen={Boolean(importMemoryProgress) && importMemoryProgressOpen}
+        onClose={() => {
+          setImportMemoryProgressOpen(false);
+          if (characterId && importMemorySessionId) {
+            navigate(Routes.chatSession(characterId, importMemorySessionId), { replace: true });
+          }
+        }}
         title={t("chats.settings.extractingImportedMemory")}
       >
         <MenuSection>
@@ -1488,23 +1544,34 @@ export function ChatSettingsContent({
                 </div>
               </div>
             </div>
+            <div className="rounded-lg border border-emerald-300/15 bg-emerald-300/5 px-3 py-2 text-xs leading-relaxed text-fg/60">
+              {t("chats.settings.importMemoryRunsInBackground")}
+            </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-fg/10">
               <div
                 className="h-full rounded-full bg-emerald-400/80 transition-all duration-500"
                 style={{
-                  width: `${
-                    importMemoryProgress?.processedMessages && importMemoryProgress.totalMessages
-                      ? Math.max(
-                          6,
-                          Math.min(
-                            100,
-                            (importMemoryProgress.processedMessages /
-                              importMemoryProgress.totalMessages) *
-                              100,
-                          ),
-                        )
-                      : 12
-                  }%`,
+                  width: `${(() => {
+                    if (importMemoryProgress?.windowIndex && importMemoryProgress.totalWindows) {
+                      return Math.max(
+                        4,
+                        Math.min(
+                          100,
+                          (importMemoryProgress.windowIndex / importMemoryProgress.totalWindows) * 100,
+                        ),
+                      );
+                    }
+                    if (importMemoryProgress?.processedMessages && importMemoryProgress.totalMessages) {
+                      return Math.max(
+                        4,
+                        Math.min(
+                          100,
+                          (importMemoryProgress.processedMessages / importMemoryProgress.totalMessages) * 100,
+                        ),
+                      );
+                    }
+                    return 4;
+                  })()}%`,
                 }}
               />
             </div>

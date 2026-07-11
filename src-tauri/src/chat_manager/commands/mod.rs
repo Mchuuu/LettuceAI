@@ -1074,7 +1074,64 @@ pub async fn initialize_imported_chat_memory(
     session_id: String,
     window_size: Option<u32>,
 ) -> Result<(), String> {
-    super::memory::flow::initialize_imported_chat_memory(app, session_id, window_size).await
+    if !crate::storage_manager::imported_memory_jobs::try_claim(&session_id)? {
+        return Ok(());
+    }
+    let task_app = app.clone();
+    let task_session_id = session_id.clone();
+    tauri::async_runtime::spawn(async move {
+        let result = super::memory::flow::initialize_imported_chat_memory(
+            task_app.clone(),
+            task_session_id.clone(),
+            window_size,
+        )
+        .await;
+        crate::storage_manager::imported_memory_jobs::release(&task_session_id);
+        if let Err(error) = result {
+            crate::utils::log_error(
+                &task_app,
+                "dynamic_memory",
+                format!(
+                    "imported memory background task failed for session {}: {}",
+                    task_session_id, error
+                ),
+            );
+            let _ = tauri::Emitter::emit(
+                &task_app,
+                "dynamic-memory:error",
+                serde_json::json!({
+                    "sessionId": task_session_id,
+                    "error": error,
+                    "stage": "import_bootstrap"
+                }),
+            );
+        }
+    });
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_imported_memory_job(
+    app: AppHandle,
+    session_id: String,
+) -> Result<Option<crate::storage_manager::imported_memory_jobs::ImportedMemoryJob>, String> {
+    crate::storage_manager::imported_memory_jobs::get(&app, &session_id)
+}
+
+#[tauri::command]
+pub async fn resume_imported_memory_job(app: AppHandle, session_id: String) -> Result<(), String> {
+    super::memory::flow::initialize_imported_chat_memory(app, session_id, None).await
+}
+
+#[tauri::command]
+pub fn pause_imported_memory_job(app: AppHandle, session_id: String) -> Result<(), String> {
+    super::memory::flow::abort_dynamic_memory(app.clone(), session_id.clone())?;
+    crate::storage_manager::imported_memory_jobs::mark_status(
+        &app,
+        &session_id,
+        "paused",
+        Some("Paused by user"),
+    )
 }
 
 #[tauri::command]

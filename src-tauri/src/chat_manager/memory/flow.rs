@@ -2042,27 +2042,71 @@ pub async fn initialize_imported_chat_memory(
         return Err("Dynamic memory is not enabled for this character".to_string());
     }
 
-    let total = session_conversation_count(app.clone(), session.id.clone())?.max(0) as usize;
-    if total == 0 {
+    let live_total = session_conversation_count(app.clone(), session.id.clone())?.max(0) as usize;
+    if live_total == 0 {
         return Ok(());
     }
 
+    let existing_job = crate::storage_manager::imported_memory_jobs::get(&app, &session.id)?;
     let window_size = window_size_override
         .map(|value| value.clamp(50, 200))
-        .unwrap_or_else(|| dynamic.summary_message_interval.max(1)) as usize;
-    let (last_window_end, _) = resolve_last_valid_window_end(&app, &session)?;
-    let mut start = last_window_end.min(total);
-    if start >= total {
+        .or_else(|| existing_job.as_ref().map(|job| job.window_size))
+        .unwrap_or(100) as usize;
+    // Imported bootstrap works on the message snapshot from its first run.
+    // Daily memory cycles intentionally use the live conversation count.
+    let calculated_total_windows = (live_total + window_size - 1) / window_size;
+    let job = crate::storage_manager::imported_memory_jobs::start_or_resume(
+        &app,
+        &session.id,
+        window_size as u32,
+        live_total,
+        calculated_total_windows,
+    )?;
+    // The job owns its snapshot. Do not let the live count or ordinary memory
+    // events move the imported cursor, otherwise daily extraction can skip
+    // part of the imported conversation.
+    let total = job.total_messages;
+    let total_windows = job.total_windows;
+    if total == 0 {
+        let _ = crate::storage_manager::imported_memory_jobs::mark_status(
+            &app,
+            &session.id,
+            "completed",
+            None,
+        );
+        return Ok(());
+    }
+    if job.status == "completed" || job.next_window_start >= total {
+        let _ = crate::storage_manager::imported_memory_jobs::mark_status(
+            &app,
+            &session.id,
+            "completed",
+            None,
+        );
         return Ok(());
     }
 
-    let remaining = total - start;
-    let total_windows = (remaining + window_size - 1) / window_size;
-    let mut index = 1;
+    let mut start = job.next_window_start.min(total);
+    let mut index = job.window_index.max(1);
 
     while start < total {
         let end = (start + window_size).min(total);
-        process_dynamic_memory_cycle_with_model(
+        log_info(
+            &app,
+            "dynamic_memory",
+            format!(
+                "import window scheduled: session_id={} index={}/{} range=[{}, {}) snapshot_total={} checkpoint_next={}",
+                session.id, index, total_windows, start, end, total, job.next_window_start
+            ),
+        );
+        crate::storage_manager::imported_memory_jobs::mark_window_started(
+            &app,
+            &session.id,
+            start,
+            end,
+            index,
+        )?;
+        let result = process_dynamic_memory_cycle_with_model(
             &app,
             &mut session,
             &context.settings,
@@ -2077,10 +2121,37 @@ pub async fn initialize_imported_chat_memory(
                 total: total_windows,
             }),
         )
-        .await?;
+        .await;
+        if let Err(error) = result {
+            let status = if is_cancelled_request_error(&error) {
+                "paused"
+            } else {
+                "failed"
+            };
+            let _ = crate::storage_manager::imported_memory_jobs::mark_status(
+                &app,
+                &session.id,
+                status,
+                Some(&error),
+            );
+            return Err(error);
+        }
         start = end;
         index += 1;
+        crate::storage_manager::imported_memory_jobs::mark_window_completed(
+            &app,
+            &session.id,
+            start,
+            index,
+        )?;
     }
+
+    crate::storage_manager::imported_memory_jobs::mark_status(
+        &app,
+        &session.id,
+        "completed",
+        None,
+    )?;
 
     Ok(())
 }
@@ -2927,7 +2998,7 @@ async fn process_dynamic_memory_cycle_with_model(
         app,
         "dynamic_memory",
         format!(
-            "snapshot taken: window_start={} window_end={} window_count={} window_size={} total_convo_at_start={} total_messages={} non_convo_messages={}",
+            "snapshot taken: window_start={} window_end={} window_count={} window_size={} total_convo_at_start={} total_messages={} non_convo_messages={} first_message={} first_created_at={} last_message={} last_created_at={}",
             window_start,
             window_end,
             convo_window.len(),
@@ -2935,6 +3006,10 @@ async fn process_dynamic_memory_cycle_with_model(
             total_convo_at_start,
             total_messages,
             total_messages.saturating_sub(total_convo_at_start),
+            convo_window.first().map(|message| message.id.as_str()).unwrap_or("none"),
+            convo_window.first().map(|message| message.created_at).unwrap_or(0),
+            convo_window.last().map(|message| message.id.as_str()).unwrap_or("none"),
+            convo_window.last().map(|message| message.created_at).unwrap_or(0),
         ),
     );
 
@@ -3005,10 +3080,13 @@ async fn process_dynamic_memory_cycle_with_model(
             return Err(err);
         }
     }
-    // Set processing state
-    session.memory_status = Some("processing".to_string());
-    session.memory_error = None;
-    session.memory_progress_step = Some(1);
+    // Imported bootstrap jobs have their own persisted job state. Keep the
+    // normal dynamic-memory status reserved for daily memory cycles.
+    if window_override.is_none() {
+        session.memory_status = Some("processing".to_string());
+        session.memory_error = None;
+        session.memory_progress_step = Some(1);
+    }
     if let Err(e) = save_session(app, session) {
         log_warn(
             app,
@@ -3027,7 +3105,10 @@ async fn process_dynamic_memory_cycle_with_model(
     );
     let _ = app.emit(
         "dynamic-memory:processing",
-        json!({ "sessionId": session.id }),
+        json!({
+            "sessionId": session.id,
+            "phase": if window_override.is_some() { "import_bootstrap" } else { "dynamic_memory" }
+        }),
     );
     let _ = app.emit(
         "dynamic-memory:progress",
@@ -3043,7 +3124,14 @@ async fn process_dynamic_memory_cycle_with_model(
 
     ensure_dynamic_memory_not_cancelled(app, session, &cancel_token)?;
 
-    let summary_request_id = dynamic_memory_request_id(&session.id, "summary");
+    let summary_request_id = if window_override.is_some() {
+        format!(
+            "imported-memory:{}",
+            dynamic_memory_request_id(&session.id, "summary")
+        )
+    } else {
+        dynamic_memory_request_id(&session.id, "summary")
+    };
     run_guard.set_active_request_id(Some(summary_request_id.clone()));
 
     let summary = match summarize_messages(
@@ -3065,6 +3153,7 @@ async fn process_dynamic_memory_cycle_with_model(
         &mut debug_steps,
         Some(&summary_request_id),
         Some(&cancel_token),
+        window_override.is_some(),
     )
     .await
     {
@@ -3125,7 +3214,9 @@ async fn process_dynamic_memory_cycle_with_model(
             summary.len()
         ),
     );
-    session.memory_progress_step = Some(2);
+    if window_override.is_none() {
+        session.memory_progress_step = Some(2);
+    }
     let _ = save_session(app, session);
     let _ = app.emit(
         "dynamic-memory:progress",
@@ -3140,7 +3231,14 @@ async fn process_dynamic_memory_cycle_with_model(
     );
     ensure_dynamic_memory_not_cancelled(app, session, &cancel_token)?;
 
-    let tools_request_id = dynamic_memory_request_id(&session.id, "tools");
+    let tools_request_id = if window_override.is_some() {
+        format!(
+            "imported-memory:{}",
+            dynamic_memory_request_id(&session.id, "tools")
+        )
+    } else {
+        dynamic_memory_request_id(&session.id, "tools")
+    };
     run_guard.set_active_request_id(Some(tools_request_id.clone()));
     let actions = match run_memory_tool_update(
         app,
@@ -3157,6 +3255,7 @@ async fn process_dynamic_memory_cycle_with_model(
         &mut debug_steps,
         Some(&tools_request_id),
         Some(&cancel_token),
+        window_override.is_some(),
     )
     .await
     {
@@ -3199,9 +3298,11 @@ async fn process_dynamic_memory_cycle_with_model(
                 let excess = session.memory_tool_events.len() - 50;
                 session.memory_tool_events.drain(0..excess);
             }
-            session.memory_status = Some("failed".to_string());
-            session.memory_error = Some(format!("memory_tools: {}", err));
-            session.memory_progress_step = None;
+            if window_override.is_none() {
+                session.memory_status = Some("failed".to_string());
+                session.memory_error = Some(format!("memory_tools: {}", err));
+                session.memory_progress_step = None;
+            }
             session.updated_at = now_millis()?;
             if let Err(save_err) = save_session(app, session) {
                 record_dynamic_memory_error(app, session, &save_err, "save_session");
@@ -3209,14 +3310,21 @@ async fn process_dynamic_memory_cycle_with_model(
             }
             let _ = app.emit(
                 "dynamic-memory:error",
-                json!({ "sessionId": session.id, "error": err, "stage": "memory_tools" }),
+                json!({
+                    "sessionId": session.id,
+                    "error": err,
+                    "stage": "memory_tools",
+                    "phase": if window_override.is_some() { "import_bootstrap" } else { "dynamic_memory" }
+                }),
             );
             return Ok(());
         }
     };
     run_guard.set_active_request_id(None);
 
-    session.memory_progress_step = Some(3);
+    if window_override.is_none() {
+        session.memory_progress_step = Some(3);
+    }
     let _ = save_session(app, session);
     let _ = app.emit(
         "dynamic-memory:progress",
@@ -3250,7 +3358,9 @@ async fn process_dynamic_memory_cycle_with_model(
         session.memory_tool_events.drain(0..excess);
     }
 
-    session.memory_progress_step = Some(4);
+    if window_override.is_none() {
+        session.memory_progress_step = Some(4);
+    }
     let _ = app.emit(
         "dynamic-memory:progress",
         dynamic_memory_progress_payload(
@@ -3262,9 +3372,11 @@ async fn process_dynamic_memory_cycle_with_model(
             total_convo_at_start,
         ),
     );
-    session.memory_status = Some("idle".to_string());
-    session.memory_error = None;
-    session.memory_progress_step = None;
+    if window_override.is_none() {
+        session.memory_status = Some("idle".to_string());
+        session.memory_error = None;
+        session.memory_progress_step = None;
+    }
     session.updated_at = now_millis()?;
     if let Err(err) = save_session(app, session) {
         if using_local_dynamic_memory_model {
@@ -3660,6 +3772,24 @@ fn tool_extra_fields_with_parallel_disabled(
     }
 }
 
+fn with_thinking_disabled(
+    extra_body_fields: Option<HashMap<String, Value>>,
+) -> Option<HashMap<String, Value>> {
+    let mut extra = extra_body_fields.unwrap_or_default();
+    extra.insert("enable_thinking".to_string(), json!(false));
+
+    let mut chat_template_kwargs = extra
+        .remove("chat_template_kwargs")
+        .unwrap_or_else(|| json!({}));
+    if let Some(object) = chat_template_kwargs.as_object_mut() {
+        object.insert("enable_thinking".to_string(), json!(false));
+    } else {
+        chat_template_kwargs = json!({ "enable_thinking": false });
+    }
+    extra.insert("chat_template_kwargs".to_string(), chat_template_kwargs);
+    Some(extra)
+}
+
 fn tool_config_with_auto_choice(tool_config: &ToolConfig) -> ToolConfig {
     let mut cloned = tool_config.clone();
     cloned.choice = Some(ToolChoice::Auto);
@@ -4013,6 +4143,7 @@ async fn run_memory_tool_update(
     debug_steps: &mut Vec<Value>,
     request_id: Option<&str>,
     cancel_token: Option<&DynamicMemoryCancellationToken>,
+    disable_thinking: bool,
 ) -> Result<Vec<Value>, String> {
     let overwrite_llama_sampler_config = dynamic_memory_llama_sampler_overwrite_enabled(settings);
     let memory_supersede_enabled = companion::is_companion_mode(session, character);
@@ -4115,6 +4246,20 @@ async fn run_memory_tool_update(
         None,
         None,
     );
+    let extra_body_fields = if disable_thinking {
+        log_info(
+            app,
+            "dynamic_memory",
+            format!(
+                "disabling thinking for imported memory tool request model={} request_id={}",
+                model.name,
+                request_id.unwrap_or("none")
+            ),
+        );
+        with_thinking_disabled(extra_body_fields)
+    } else {
+        extra_body_fields
+    };
     let context = ChatContext::initialize(app.clone())?;
     let fallback_format = dynamic_memory_structured_fallback_format(settings);
     let fallback_label = structured_fallback_format_label(fallback_format);
@@ -5341,6 +5486,7 @@ async fn summarize_messages(
     debug_steps: &mut Vec<Value>,
     request_id: Option<&str>,
     cancel_token: Option<&DynamicMemoryCancellationToken>,
+    disable_thinking: bool,
 ) -> Result<String, String> {
     let overwrite_llama_sampler_config = dynamic_memory_llama_sampler_overwrite_enabled(settings);
     let mut messages_for_api = Vec::new();
@@ -5428,6 +5574,20 @@ async fn summarize_messages(
         None,
         None,
     );
+    let extra_body_fields = if disable_thinking {
+        log_info(
+            app,
+            "dynamic_memory",
+            format!(
+                "disabling thinking for imported memory summary request model={} request_id={}",
+                model.name,
+                request_id.unwrap_or("none")
+            ),
+        );
+        with_thinking_disabled(extra_body_fields)
+    } else {
+        extra_body_fields
+    };
     let context = ChatContext::initialize(app.clone())?;
     let tool_attempt = send_dynamic_memory_request(
         app,

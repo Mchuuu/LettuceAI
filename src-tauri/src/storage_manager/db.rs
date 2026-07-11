@@ -453,6 +453,33 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           PRIMARY KEY (session_id, session_kind, memory_id)
         );
 
+        CREATE TABLE IF NOT EXISTS imported_memory_jobs (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL UNIQUE,
+          status TEXT NOT NULL,
+          window_size INTEGER NOT NULL,
+          next_window_start INTEGER NOT NULL DEFAULT 0,
+          window_index INTEGER NOT NULL DEFAULT 1,
+          total_windows INTEGER NOT NULL DEFAULT 0,
+          processed_messages INTEGER NOT NULL DEFAULT 0,
+          total_messages INTEGER NOT NULL DEFAULT 0,
+          current_window_start INTEGER,
+          current_window_end INTEGER,
+          last_error TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_imported_memory_jobs_status
+          ON imported_memory_jobs(status, updated_at DESC);
+
+        -- A Rust task cannot survive process termination. Reclassify stale
+        -- bootstrap jobs so the memory page can offer explicit resume.
+        UPDATE imported_memory_jobs
+        SET status = 'paused', last_error = 'Application was restarted before completion'
+        WHERE status = 'running';
+
         CREATE INDEX IF NOT EXISTS idx_memory_embeddings_session
           ON memory_embeddings (session_id, session_kind);
 
