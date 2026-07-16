@@ -7,7 +7,8 @@ use crate::storage_manager::{
     personas::personas_list_typed,
     sessions::{
         messages_list_internal, messages_list_pinned_internal, messages_upsert_batch_internal,
-        session_get_meta_internal, session_upsert_meta_internal,
+        session_get_meta_internal, session_upsert_memory_meta_internal,
+        session_upsert_meta_internal,
     },
     settings::{read_settings_typed, write_settings_typed},
 };
@@ -363,7 +364,7 @@ pub fn save_session(app: &AppHandle, session: &Session) -> Result<(), String> {
             app,
             &session.id,
         )?;
-    save_session_metadata(app, session, owner.shared)
+    save_session_metadata(app, session, owner.shared, false)
 }
 
 /// Persist the dynamic-memory state together with the session metadata that
@@ -396,13 +397,14 @@ pub fn save_session_memory_state(app: &AppHandle, session: &Session) -> Result<(
         &session.memory_embeddings,
     )?;
 
-    save_session_metadata(app, session, owner.shared)
+    save_session_metadata(app, session, owner.shared, true)
 }
 
 fn save_session_metadata(
     app: &AppHandle,
     session: &Session,
     shared_memory: bool,
+    persist_memory_state: bool,
 ) -> Result<(), String> {
     let mut meta = session.clone();
     meta.messages = Vec::new();
@@ -427,7 +429,11 @@ fn save_session_metadata(
         }
     }
 
-    session_upsert_meta_internal(app, &meta)?;
+    if persist_memory_state {
+        session_upsert_memory_meta_internal(app, &meta)?;
+    } else {
+        session_upsert_meta_internal(app, &meta)?;
+    }
 
     if let Some(last) = session.messages.last() {
         messages_upsert_batch_internal(app, &session.id, std::slice::from_ref(last))?;

@@ -31,6 +31,40 @@ pub fn generate_cache_key(
     result.to_hex().to_string()
 }
 
+pub fn pcm16_mono_to_wav(audio_data: &[u8], sample_rate: u32) -> Result<Vec<u8>, String> {
+    if sample_rate == 0 {
+        return Err("PCM sample rate must be greater than zero".to_string());
+    }
+    if audio_data.len() % 2 != 0 {
+        return Err("PCM16 audio data must contain complete samples".to_string());
+    }
+
+    let data_size = u32::try_from(audio_data.len())
+        .map_err(|_| "PCM audio data is too large for a WAV container".to_string())?;
+    let riff_size = 36u32
+        .checked_add(data_size)
+        .ok_or_else(|| "PCM audio data is too large for a WAV container".to_string())?;
+    let byte_rate = sample_rate
+        .checked_mul(2)
+        .ok_or_else(|| "PCM sample rate is too large for a WAV container".to_string())?;
+
+    let mut wav = Vec::with_capacity(44 + audio_data.len());
+    wav.extend_from_slice(b"RIFF");
+    wav.extend_from_slice(&riff_size.to_le_bytes());
+    wav.extend_from_slice(b"WAVEfmt ");
+    wav.extend_from_slice(&16u32.to_le_bytes());
+    wav.extend_from_slice(&1u16.to_le_bytes());
+    wav.extend_from_slice(&1u16.to_le_bytes());
+    wav.extend_from_slice(&sample_rate.to_le_bytes());
+    wav.extend_from_slice(&byte_rate.to_le_bytes());
+    wav.extend_from_slice(&2u16.to_le_bytes());
+    wav.extend_from_slice(&16u16.to_le_bytes());
+    wav.extend_from_slice(b"data");
+    wav.extend_from_slice(&data_size.to_le_bytes());
+    wav.extend_from_slice(audio_data);
+    Ok(wav)
+}
+
 /// Get the directory for TTS audio cache
 fn tts_audio_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let root = storage_root(app)?;
@@ -291,4 +325,28 @@ pub fn tts_cache_stats(app: tauri::AppHandle) -> Result<TtsCacheStats, String> {
 pub struct TtsCacheStats {
     pub size_bytes: u64,
     pub count: u64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::pcm16_mono_to_wav;
+
+    #[test]
+    fn wraps_pcm16_mono_with_sample_rate_metadata() {
+        let pcm = [0x01, 0x02, 0x03, 0x04];
+        let wav = pcm16_mono_to_wav(&pcm, 24_000).expect("valid PCM should be wrapped");
+
+        assert_eq!(&wav[0..4], b"RIFF");
+        assert_eq!(&wav[8..12], b"WAVE");
+        assert_eq!(u32::from_le_bytes(wav[24..28].try_into().unwrap()), 24_000);
+        assert_eq!(u16::from_le_bytes(wav[22..24].try_into().unwrap()), 1);
+        assert_eq!(u16::from_le_bytes(wav[34..36].try_into().unwrap()), 16);
+        assert_eq!(u32::from_le_bytes(wav[40..44].try_into().unwrap()), 4);
+        assert_eq!(&wav[44..], &pcm);
+    }
+
+    #[test]
+    fn rejects_incomplete_pcm16_sample() {
+        assert!(pcm16_mono_to_wav(&[0x01], 24_000).is_err());
+    }
 }

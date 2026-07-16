@@ -698,6 +698,49 @@ fn upsert_character_value(app: &tauri::AppHandle, c: &JsonValue) -> Result<JsonV
             serde_json::to_string(v).ok()
         }
     });
+    let shared_memory_enabled = mode == "companion"
+        && companion
+            .as_deref()
+            .map(
+                crate::chat_manager::companion::shared_memory_across_sessions_enabled_from_companion_json,
+            )
+            .unwrap_or(false);
+    let shared_memory_was_enabled = conn
+        .query_row(
+            "SELECT mode, companion FROM characters WHERE id = ?1",
+            params![&id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)),
+        )
+        .optional()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+        .map(|(existing_mode, existing_companion)| {
+            existing_mode == "companion"
+                && existing_companion
+                    .as_deref()
+                    .map(
+                        crate::chat_manager::companion::shared_memory_across_sessions_enabled_from_companion_json,
+                    )
+                    .unwrap_or(false)
+        })
+        .unwrap_or(false);
+    if shared_memory_enabled {
+        if let Some(source_session_id) =
+            super::companion_shared_memory::initialize_from_latest_session(
+                &mut conn,
+                &id,
+                !shared_memory_was_enabled,
+            )?
+        {
+            log_info(
+                app,
+                "character_upsert",
+                format!(
+                    "Initialized companion shared memory: character_id={} source_session_id={}",
+                    id, source_session_id
+                ),
+            );
+        }
+    }
     let prompt_template_id = c
         .get("promptTemplateId")
         .and_then(|v| v.as_str())

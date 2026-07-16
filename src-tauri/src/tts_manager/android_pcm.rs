@@ -53,6 +53,25 @@ mod android {
             }
         }
 
+        pub fn finish(&self) -> Result<(), String> {
+            let accepted = call_bridge(&self.app, |env, _activity, class| {
+                let result = env.call_static_method(class, "finish", "()Z", &[])?;
+                Ok(result.z()?)
+            })?;
+            if accepted {
+                Ok(())
+            } else {
+                Err("Android AudioTrack rejected stream completion".to_string())
+            }
+        }
+
+        pub fn status(&self) -> Result<i32, String> {
+            call_bridge(&self.app, |env, _activity, class| {
+                let result = env.call_static_method(class, "status", "()I", &[])?;
+                Ok(result.i()?)
+            })
+        }
+
         pub fn stop(&self) {
             let _ = call_bridge(&self.app, |env, _activity, class| {
                 env.call_static_method(class, "stop", "()V", &[])?;
@@ -131,6 +150,14 @@ impl Player {
 
     pub fn write(&self, _bytes: &[u8]) -> Result<(), String> {
         Ok(())
+    }
+
+    pub fn finish(&self) -> Result<(), String> {
+        Ok(())
+    }
+
+    pub fn status(&self) -> Result<i32, String> {
+        Ok(1)
     }
 
     pub fn stop(&self) {}

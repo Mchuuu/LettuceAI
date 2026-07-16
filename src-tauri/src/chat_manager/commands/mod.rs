@@ -33,7 +33,10 @@ use super::types::{
     PromptTemplateType, RegenerateResult, Session, Settings, StoredMessage, SystemPromptEntry,
     SystemPromptTemplate,
 };
-use crate::storage_manager::sessions::{messages_upsert_batch_typed, session_upsert_meta_typed};
+use crate::storage_manager::sessions::{
+    messages_search_internal, messages_upsert_batch_typed, session_get_meta_internal,
+    session_upsert_meta_typed,
+};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1326,10 +1329,9 @@ pub async fn search_messages(
     app: AppHandle,
     session_id: String,
     query: String,
+    request_id: Option<String>,
 ) -> Result<Vec<super::types::MessageSearchResult>, String> {
-    let context = ChatContext::initialize(app.clone())?;
-
-    let session = match context.load_session(&session_id)? {
+    let session = match session_get_meta_internal(&app, &session_id)? {
         Some(s) => s,
         None => {
             return Err(crate::utils::err_msg(
@@ -1340,19 +1342,24 @@ pub async fn search_messages(
         }
     };
 
-    let query_lower = query.to_lowercase();
-    let results: Vec<super::types::MessageSearchResult> = session
-        .messages
-        .iter()
-        .filter(|msg| {
-            msg.content.to_lowercase().contains(&query_lower)
-                && (msg.role == "user" || msg.role == "assistant")
-        })
-        .map(|msg| super::types::MessageSearchResult {
-            message_id: msg.id.clone(),
-            content: msg.content.clone(),
-            created_at: msg.created_at,
-            role: msg.role.clone(),
+    use tauri::Manager;
+    let cancel_rx = request_id.as_ref().map(|request_id| {
+        app.state::<crate::abort_manager::AbortRegistry>()
+            .register(request_id.clone())
+    });
+    let search_result = messages_search_internal(&app, &session.id, &query, cancel_rx);
+    if let Some(request_id) = request_id.as_deref() {
+        app.state::<crate::abort_manager::AbortRegistry>()
+            .unregister(request_id);
+    }
+
+    let results = search_result?
+        .into_iter()
+        .map(|message| super::types::MessageSearchResult {
+            message_id: message.message_id,
+            content: message.content,
+            created_at: message.created_at,
+            role: message.role,
         })
         .collect();
 

@@ -1349,7 +1349,7 @@ export function EditCharacterPage() {
                           console.log("[EditCharacter] onAvatarChange", {
                             path: summarizeAvatarValue(path),
                           });
-                          setFields({ avatarPath: path });
+                          setFields({ avatarPath: path, avatarRemoved: path.length === 0 });
                         }}
                         promptSubjectName={name}
                         promptSubjectDescription={definition}
@@ -1372,6 +1372,7 @@ export function EditCharacterPage() {
                           onClick={() =>
                             setFields({
                               avatarPath: "",
+                              avatarRemoved: true,
                               avatarCrop: null,
                               avatarRoundPath: null,
                               avatarBannerPath: null,

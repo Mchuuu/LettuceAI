@@ -494,8 +494,11 @@ export const storageBridge = {
       sessionId,
       assistantMessageId,
     }).then((s) => (typeof s === "string" ? JSON.parse(s) : null)),
-  sessionUpsert: (session: unknown) =>
-    invoke("session_upsert", { sessionJson: JSON.stringify(session) }) as Promise<void>,
+  sessionUpsert: (session: unknown, persistMemoryState = false) =>
+    invoke("session_upsert", {
+      sessionJson: JSON.stringify(session),
+      persistMemoryState,
+    }) as Promise<void>,
   sessionUpsertMeta: (session: unknown) =>
     invoke("session_upsert_meta", { sessionJson: JSON.stringify(session) }) as Promise<void>,
   sessionDelete: (id: string) => invoke("session_delete", { id }) as Promise<void>,
@@ -556,6 +559,17 @@ export const storageBridge = {
       beforeCreatedAt: beforeCreatedAt ?? null,
       beforeId: beforeId ?? null,
     }).then((s) => JSON.parse(s) as any[]),
+  messagesListAfter: (sessionId: string, limit: number, afterCreatedAt: number, afterId: string) =>
+    invoke<string>("messages_list_after", {
+      sessionId,
+      limit,
+      afterCreatedAt,
+      afterId,
+    }).then((s) => JSON.parse(s) as any[]),
+  messagesWindow: (sessionId: string, messageId: string) =>
+    invoke<string | null>("messages_window", { sessionId, messageId }).then((s) =>
+      typeof s === "string" ? JSON.parse(s) : null,
+    ),
   messagesListPinned: (sessionId: string) =>
     invoke<string>("messages_list_pinned", { sessionId }).then((s) => JSON.parse(s) as any[]),
   messageDelete: (sessionId: string, messageId: string) =>
@@ -606,7 +620,7 @@ export const storageBridge = {
     }>,
 
   // Search
-  searchMessages: (sessionId: string, query: string) =>
+  searchMessages: (sessionId: string, query: string, requestId?: string) =>
     invoke<
       {
         messageId: string;
@@ -614,7 +628,7 @@ export const storageBridge = {
         createdAt: number;
         role: string;
       }[]
-    >("search_messages", { sessionId, query }),
+    >("search_messages", { sessionId, query, requestId: requestId ?? null }),
 
   groupSearchMessages: (
     sessionId: string,

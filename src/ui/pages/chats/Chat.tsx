@@ -232,6 +232,8 @@ export function ChatConversationPage() {
     null,
   );
   const loadingOlderRef = useRef(false);
+  const loadingNewerRef = useRef(false);
+  const handledJumpTargetRef = useRef<string | null>(null);
   const isAtBottomRef = useRef(true);
   const [isAtBottom, setIsAtBottom] = useState(true);
 
@@ -600,8 +602,10 @@ export function ChatConversationPage() {
     handleRegenerate,
     handleAbort,
     hasMoreMessagesBefore,
+    hasMoreMessagesAfter,
     loadOlderMessages,
-    ensureMessageLoaded,
+    loadNewerMessages,
+    loadMessageWindow,
     getVariantState,
     handleVariantDrag,
     handleSaveEdit,
@@ -2052,6 +2056,20 @@ export function ChatConversationPage() {
     }
   }, [hasMoreMessagesBefore, loadOlderMessages]);
 
+  const loadNewerFromDb = useCallback(async () => {
+    if (!hasMoreMessagesAfter || loadingNewerRef.current) return;
+    loadingNewerRef.current = true;
+    // Appending a historical page must not trigger the normal "stick to latest"
+    // behavior, otherwise a single scroll reaches every remaining page at once.
+    isAtBottomRef.current = false;
+    setIsAtBottom(false);
+    try {
+      await loadNewerMessages();
+    } finally {
+      loadingNewerRef.current = false;
+    }
+  }, [hasMoreMessagesAfter, loadNewerMessages]);
+
   const updateIsAtBottom = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container) return null;
@@ -2070,7 +2088,10 @@ export function ChatConversationPage() {
     if (scrollTop <= AUTOLOAD_TOP_THRESHOLD_PX && hasMoreMessagesBefore) {
       void loadOlderFromDb();
     }
-  }, [hasMoreMessagesBefore, loadOlderFromDb, updateIsAtBottom]);
+    if (isAtBottomRef.current && hasMoreMessagesAfter) {
+      void loadNewerFromDb();
+    }
+  }, [hasMoreMessagesAfter, hasMoreMessagesBefore, loadNewerFromDb, loadOlderFromDb, updateIsAtBottom]);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     const container = scrollContainerRef.current;
@@ -2594,7 +2615,15 @@ export function ChatConversationPage() {
   }, [messages.length]);
 
   useEffect(() => {
-    if (!jumpToMessageId || loading) return;
+    if (!jumpToMessageId) {
+      handledJumpTargetRef.current = null;
+      return;
+    }
+    if (loading) return;
+
+    const jumpTargetKey = `${sessionId ?? ""}:${jumpToMessageId}`;
+    if (handledJumpTargetRef.current === jumpTargetKey) return;
+    handledJumpTargetRef.current = jumpTargetKey;
 
     let cancelled = false;
     const rafIds: number[] = [];
@@ -2619,8 +2648,9 @@ export function ChatConversationPage() {
     };
 
     const run = async () => {
-      await ensureMessageLoaded(jumpToMessageId);
+      const loaded = await loadMessageWindow(jumpToMessageId);
       if (cancelled) return;
+      if (!loaded) return;
 
       isAtBottomRef.current = false;
       setIsAtBottom(false);
@@ -2667,7 +2697,7 @@ export function ChatConversationPage() {
         window.clearTimeout(highlightTimeoutId);
       }
     };
-  }, [ensureMessageLoaded, jumpToMessageId, loading]);
+  }, [jumpToMessageId, loadMessageWindow, loading, sessionId]);
 
   if (loading) {
     return <LoadingSpinner />;

@@ -3,9 +3,11 @@ import { useCallback, useEffect } from "react";
 import {
   createSession,
   getDefaultPersona,
+  getMessageWindow,
   getSessionMeta,
   listCharacters,
   listMessages,
+  listMessagesAfter,
   listPersonas,
   listSessionPreviews,
   SESSION_UPDATED_EVENT,
@@ -21,6 +23,7 @@ import type { ChatState } from "./chatReducer";
 
 const INITIAL_MESSAGE_LIMIT = 50;
 const OLDER_MESSAGE_PAGE = 50;
+const NEWER_MESSAGE_PAGE = 50;
 
 function sortMessages(messages: StoredMessage[]): StoredMessage[] {
   return [...messages].sort((left, right) =>
@@ -55,7 +58,9 @@ export function useChatSessionController({
     dispatch,
     messagesRef,
     hasMoreMessagesBeforeRef,
+    hasMoreMessagesAfterRef,
     loadingOlderRef,
+    loadingNewerRef,
     sessionOperationRef,
     log,
     recordSessionTimestamp,
@@ -228,6 +233,7 @@ export function useChatSessionController({
         if (targetSession.messages && targetSession.messages.length > 0) {
           orderedMessages = [...targetSession.messages].sort((a, b) => a.createdAt - b.createdAt);
           hasMoreMessagesBeforeRef.current = false;
+          hasMoreMessagesAfterRef.current = false;
         } else {
           const fetched = await listMessages(targetSession.id, {
             limit: INITIAL_MESSAGE_LIMIT,
@@ -240,6 +246,7 @@ export function useChatSessionController({
           });
           orderedMessages = [...fetched].sort((a, b) => a.createdAt - b.createdAt);
           hasMoreMessagesBeforeRef.current = orderedMessages.length >= INITIAL_MESSAGE_LIMIT;
+          hasMoreMessagesAfterRef.current = false;
         }
 
         orderedMessages = normalizeStartingSceneMessage(
@@ -387,6 +394,7 @@ export function useChatSessionController({
 
       messagesRef.current = orderedMessages;
       hasMoreMessagesBeforeRef.current = orderedMessages.length >= limit;
+      hasMoreMessagesAfterRef.current = false;
 
       if (meta) {
         dispatch({
@@ -404,6 +412,7 @@ export function useChatSessionController({
     [
       dispatch,
       hasMoreMessagesBeforeRef,
+      hasMoreMessagesAfterRef,
       messagesRef,
       normalizeStartingSceneMessage,
       state.character,
@@ -447,21 +456,80 @@ export function useChatSessionController({
     }
   }, [dispatch, hasMoreMessagesBeforeRef, loadingOlderRef, messagesRef, state.session]);
 
-  const ensureMessageLoaded = useCallback(
-    async (messageId: string) => {
-      const maxPages = 20;
-      for (let index = 0; index < maxPages; index += 1) {
-        if (messagesRef.current.some((message) => message.id === messageId)) return;
-        if (!hasMoreMessagesBeforeRef.current) return;
-        await loadOlderMessages();
+  const loadNewerMessages = useCallback(async () => {
+    if (!state.session || !hasMoreMessagesAfterRef.current || loadingNewerRef.current) return;
+    const last = messagesRef.current[messagesRef.current.length - 1];
+    if (!last) return;
+
+    loadingNewerRef.current = true;
+    try {
+      const newer = await listMessagesAfter(state.session.id, {
+        limit: NEWER_MESSAGE_PAGE,
+        after: { createdAt: last.createdAt, id: last.id },
+      });
+      if (newer.length === 0) {
+        hasMoreMessagesAfterRef.current = false;
+        return;
       }
+
+      const merged = sortMessages([...messagesRef.current, ...newer]);
+      const deduped = merged.filter(
+        (message, index) => index === 0 || merged[index - 1].id !== message.id,
+      );
+      messagesRef.current = deduped;
+      hasMoreMessagesAfterRef.current = newer.length >= NEWER_MESSAGE_PAGE;
+      dispatch({ type: "SET_MESSAGES", payload: deduped });
+      dispatch({ type: "SET_SESSION", payload: { ...state.session, messages: deduped } });
+    } catch (err) {
+      console.warn("ChatSessionController: failed to load newer messages", err);
+    } finally {
+      loadingNewerRef.current = false;
+    }
+  }, [dispatch, hasMoreMessagesAfterRef, loadingNewerRef, messagesRef, state.session]);
+
+  const loadMessageWindow = useCallback(
+    async (messageId: string) => {
+      if (!state.session) return false;
+      const window = await getMessageWindow(state.session.id, messageId);
+      if (!window) {
+        console.warn("ChatSessionController: message window target was not found", { messageId });
+        return false;
+      }
+
+      let messages = sortMessages(window.messages);
+      if (state.character) {
+        messages = normalizeStartingSceneMessage(
+          messages,
+          state.character,
+          state.session.selectedSceneId,
+        );
+      }
+      messagesRef.current = messages;
+      hasMoreMessagesBeforeRef.current = window.hasMoreBefore;
+      hasMoreMessagesAfterRef.current = window.hasMoreAfter;
+      dispatch({
+        type: "BATCH",
+        actions: [
+          { type: "SET_MESSAGES", payload: messages },
+          { type: "SET_SESSION", payload: { ...state.session, messages } },
+        ],
+      });
+      return true;
     },
-    [hasMoreMessagesBeforeRef, loadOlderMessages, messagesRef],
+    [
+      dispatch,
+      hasMoreMessagesAfterRef,
+      hasMoreMessagesBeforeRef,
+      messagesRef,
+      state.character,
+      state.session,
+    ],
   );
 
   return {
     reloadSessionStateFromStorage,
     loadOlderMessages,
-    ensureMessageLoaded,
+    loadNewerMessages,
+    loadMessageWindow,
   };
 }

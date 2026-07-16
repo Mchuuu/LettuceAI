@@ -109,6 +109,8 @@ macro_rules! invoke_handler {
             crate::storage_manager::sessions::session_get_meta,
             crate::storage_manager::sessions::session_message_count,
             crate::storage_manager::sessions::messages_list,
+            crate::storage_manager::sessions::messages_list_after,
+            crate::storage_manager::sessions::messages_window,
             crate::storage_manager::sessions::messages_list_pinned,
             crate::storage_manager::sessions::session_upsert_meta,
             crate::storage_manager::sessions::messages_upsert_batch,

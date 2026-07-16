@@ -14,6 +14,8 @@ import {
 const DOUBAO_STREAM_BUFFER_SECONDS = 0.7;
 const S16_MAX = 32768;
 const PCM_MIME_TYPE = "audio/pcm";
+const WAV_MIME_TYPE = "audio/wav";
+const DEFAULT_DOUBAO_SAMPLE_RATE = 44100;
 // PCM responses can already peak near full scale. Extra amplification clips
 // clone voices and makes them sound muffled, so keep playback at unity gain.
 const PCM_PLAYBACK_GAIN = 1.0;
@@ -104,6 +106,23 @@ function pcm16ToWav(bytes: Uint8Array, sampleRate: number, channels = 1): Uint8A
   return wav;
 }
 
+function resolvePcmSampleRate(request: MessageAudioRequest): number {
+  if (Number.isFinite(request.sampleRate) && (request.sampleRate ?? 0) > 0) {
+    return Math.round(request.sampleRate as number);
+  }
+  if (request.prompt) {
+    try {
+      const value = JSON.parse(request.prompt) as { sampleRate?: unknown };
+      if (typeof value.sampleRate === "number" && Number.isFinite(value.sampleRate)) {
+        return Math.max(8000, Math.min(48000, Math.round(value.sampleRate)));
+      }
+    } catch {
+      // Invalid prompt JSON is reported by the backend when generating new audio.
+    }
+  }
+  return DEFAULT_DOUBAO_SAMPLE_RATE;
+}
+
 function pcm16ToFloat32(bytes: Uint8Array): Float32Array<ArrayBuffer> {
   const sampleCount = Math.floor(bytes.byteLength / 2);
   const out = new Float32Array(sampleCount);
@@ -116,9 +135,7 @@ function pcm16ToFloat32(bytes: Uint8Array): Float32Array<ArrayBuffer> {
 
 class PcmStreamQueue {
   private audioContext: AudioContext | null = null;
-  // Doubao streaming PCM is requested at 44.1 kHz. Cached PCM does not carry
-  // sample-rate metadata, so keep the fallback aligned with that stream.
-  private sampleRate = 44100;
+  private sampleRate = DEFAULT_DOUBAO_SAMPLE_RATE;
   private queue: Float32Array<ArrayBuffer>[] = [];
   private queuedSamples = 0;
   private started = false;
@@ -323,12 +340,19 @@ async function startDoubaoStreamPlayback(
   );
   const cached = request.cached ?? (await getTtsCached(cacheKey));
   if (cached) {
+    const legacyPcmSampleRate =
+      cached.format === PCM_MIME_TYPE ? resolvePcmSampleRate(request) : undefined;
+    console.debug("[Doubao TTS] cache hit", {
+      voiceId: request.voiceId,
+      format: cached.format,
+      legacyPcmSampleRate,
+    });
     request.onCache?.(cached);
     if (cached.format === PCM_MIME_TYPE) {
       return startCachedPcmWavPlayback(
         request,
         cached.audioBase64,
-        request.sampleRate ?? 24000,
+        legacyPcmSampleRate ?? DEFAULT_DOUBAO_SAMPLE_RATE,
       );
     }
     return startBufferedPlayback({ ...request, cached });
@@ -346,6 +370,7 @@ async function startDoubaoStreamPlayback(
   let streamError: Error | null = null;
   let stopped = false;
   const audioChunks: Uint8Array[] = [];
+  let streamSampleRate = resolvePcmSampleRate(request);
   let streamedBytes = 0;
   let loggedFirstChunk = false;
 
@@ -367,6 +392,7 @@ async function startDoubaoStreamPlayback(
     if (payload.type === "start") {
       console.debug("[Doubao TTS] stream start", payload);
       nativePcm = payload.nativePcm === true;
+      streamSampleRate = payload.sampleRate;
       console.debug("[Doubao TTS] playback route", {
         nativePcm,
         route: nativePcm ? "android-audiotrack" : "webaudio",
@@ -431,9 +457,16 @@ async function startDoubaoStreamPlayback(
   });
   const cacheSave = command.then(async () => {
     if (stopped || audioChunks.length === 0) return;
-    const audioBase64 = encodeBase64Bytes(concatByteChunks(audioChunks));
-    request.onCache?.({ audioBase64, format: PCM_MIME_TYPE });
-    await saveTtsToCache(cacheKey, audioBase64, PCM_MIME_TYPE).catch((error) => {
+    const pcm = concatByteChunks(audioChunks);
+    const wav = pcm16ToWav(pcm, streamSampleRate);
+    const audioBase64 = encodeBase64Bytes(wav);
+    console.debug("[Doubao TTS] WebAudio stream cached as WAV", {
+      pcmBytes: pcm.byteLength,
+      wavBytes: wav.byteLength,
+      sampleRate: streamSampleRate,
+    });
+    request.onCache?.({ audioBase64, format: WAV_MIME_TYPE });
+    await saveTtsToCache(cacheKey, audioBase64, WAV_MIME_TYPE).catch((error) => {
       console.warn("Failed to save streamed Doubao TTS audio to cache:", error);
     });
   });

@@ -1019,6 +1019,8 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
         CREATE INDEX IF NOT EXISTS idx_sessions_character ON sessions(character_id);
         CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);
         CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
+        CREATE INDEX IF NOT EXISTS idx_messages_session_created_id
+          ON messages(session_id, created_at, id);
         CREATE INDEX IF NOT EXISTS idx_creation_helper_sessions_goal_updated
           ON creation_helper_sessions(creation_goal, updated_at DESC);
         CREATE INDEX IF NOT EXISTS idx_scenes_character ON scenes(character_id);

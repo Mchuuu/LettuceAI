@@ -1110,7 +1110,8 @@ pub async fn tts_stream_doubao(
         .as_deref()
         .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok())
         .and_then(|value| value.get("sampleRate").and_then(|rate| rate.as_u64()))
-        .unwrap_or(44100);
+        .unwrap_or(44100)
+        .clamp(8000, 48000) as u32;
     log_info(
         &app,
         "tts",
@@ -1125,7 +1126,7 @@ pub async fn tts_stream_doubao(
         ),
     );
     let mut native_pcm_player =
-        match crate::tts_manager::android_pcm::Player::start(&app, requested_sample_rate as u32) {
+        match crate::tts_manager::android_pcm::Player::start(&app, requested_sample_rate) {
             Ok(player) => player,
             Err(error) => {
                 log_warn(
@@ -1146,6 +1147,16 @@ pub async fn tts_stream_doubao(
     );
     let event_name = format!("tts-stream://{}", request_id);
     let mut streamed_bytes = 0usize;
+    let mut streamed_pcm = if native_pcm { Some(Vec::new()) } else { None };
+    let native_cache_key = native_pcm.then(|| {
+        super::audio_cache::generate_cache_key(
+            &provider_id,
+            &model_id,
+            &voice_id,
+            &text,
+            prompt.as_deref(),
+        )
+    });
     let mut logged_stream_start = false;
     let mut abort_rx = {
         use tauri::Manager;
@@ -1205,6 +1216,9 @@ pub async fn tts_stream_doubao(
                             );
                         }
                     }
+                    if let Some(pcm) = streamed_pcm.as_mut() {
+                        pcm.extend_from_slice(&bytes);
+                    }
                     if !logged_stream_start {
                         log_info(
                             &app_for_stream,
@@ -1223,13 +1237,15 @@ pub async fn tts_stream_doubao(
                         );
                         logged_stream_start = true;
                     }
-                    let _ = app_for_stream.emit(
-                        &event_name,
-                        serde_json::json!({
-                            "type": "chunk",
-                            "audioBase64": STANDARD.encode(bytes),
-                        }),
-                    );
+                    if !native_pcm {
+                        let _ = app_for_stream.emit(
+                            &event_name,
+                            serde_json::json!({
+                                "type": "chunk",
+                                "audioBase64": STANDARD.encode(bytes),
+                            }),
+                        );
+                    }
                 }
                 doubao::DoubaoAudioStreamEvent::End => {
                     log_info(
@@ -1237,21 +1253,101 @@ pub async fn tts_stream_doubao(
                         "tts",
                         format!("Doubao stream end: total_pcm_bytes={}", streamed_bytes),
                     );
-                    let _ = app_for_stream.emit(&event_name, serde_json::json!({ "type": "end" }));
                 }
             }
             Ok(())
         },
     );
 
-    let result = tokio::select! {
+    let mut result = tokio::select! {
         _ = &mut abort_rx => Err("Audio generation aborted".to_string()),
         value = stream_audio => value,
     };
 
+    if result.is_ok() {
+        if let (Some(cache_key), Some(pcm)) = (native_cache_key.as_deref(), streamed_pcm.as_deref())
+        {
+            match super::audio_cache::pcm16_mono_to_wav(pcm, requested_sample_rate) {
+                Ok(wav) => {
+                    if let Err(error) =
+                        super::audio_cache::save_audio_to_cache(&app, cache_key, &wav, "audio/wav")
+                    {
+                        log_warn(
+                            &app,
+                            "tts",
+                            format!("Failed to save native WAV stream cache: {error}"),
+                        );
+                    } else {
+                        log_info(
+                            &app,
+                            "tts",
+                            format!(
+                                "Native PCM stream cached as WAV: pcm_bytes={} wav_bytes={} sample_rate={}",
+                                pcm.len(),
+                                wav.len(),
+                                requested_sample_rate
+                            ),
+                        );
+                    }
+                }
+                Err(error) => {
+                    log_warn(
+                        &app,
+                        "tts",
+                        format!("Failed to wrap native PCM stream cache as WAV: {error}"),
+                    );
+                }
+            }
+        }
+
+        if let Some(player) = native_pcm_player.as_ref() {
+            if let Err(error) = player.finish() {
+                result = Err(error);
+            } else {
+                let drain_started = std::time::Instant::now();
+                log_info(&app, "tts", "Native AudioTrack drain started");
+                while result.is_ok() {
+                    match player.status() {
+                        Ok(1) => break,
+                        Ok(0) => {}
+                        Ok(status) => {
+                            result = Err(format!(
+                                "Android AudioTrack playback worker failed with status {status}"
+                            ));
+                            break;
+                        }
+                        Err(error) => {
+                            result = Err(error);
+                            break;
+                        }
+                    }
+                    let aborted = tokio::select! {
+                        _ = &mut abort_rx => true,
+                        _ = tokio::time::sleep(std::time::Duration::from_millis(50)) => false,
+                    };
+                    if aborted {
+                        result = Err("Audio playback aborted".to_string());
+                    }
+                }
+                if result.is_ok() {
+                    log_info(
+                        &app,
+                        "tts",
+                        format!(
+                            "Native AudioTrack drain completed: elapsed_ms={}",
+                            drain_started.elapsed().as_millis()
+                        ),
+                    );
+                }
+            }
+        }
+    }
+
     if let Some(player) = native_pcm_player.take() {
-        player.stop();
-        log_info(&app, "tts", "Native AudioTrack stopped");
+        if result.is_err() {
+            player.stop();
+            log_info(&app, "tts", "Native AudioTrack stop requested");
+        }
     }
 
     if let Err(err) = &result {
@@ -1262,6 +1358,8 @@ pub async fn tts_stream_doubao(
                 "message": err,
             }),
         );
+    } else {
+        let _ = app.emit(&event_name, serde_json::json!({ "type": "end" }));
     }
 
     {

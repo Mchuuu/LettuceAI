@@ -24,7 +24,9 @@ export interface ChatControllerModuleContext {
 
 export interface ChatControllerPagingContext extends ChatControllerModuleContext {
   hasMoreMessagesBeforeRef: MutableRefObject<boolean>;
+  hasMoreMessagesAfterRef: MutableRefObject<boolean>;
   loadingOlderRef: MutableRefObject<boolean>;
+  loadingNewerRef: MutableRefObject<boolean>;
 }
 
 export async function queueSessionSave(session: Session): Promise<void> {

@@ -6,17 +6,36 @@ import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
 import android.util.Log
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 
 object PcmAudioTrackBridge {
   private const val TAG = "LettuceAudioTrack"
-  private var audioTrack: AudioTrack? = null
-  private var totalBytes = 0L
+  private const val MAX_QUEUED_CHUNKS = 256
+  private const val STATUS_RUNNING = 0
+  private const val STATUS_FINISHED = 1
+  private const val STATUS_QUEUE_FULL = -1001
+
+  private class PlaybackSession(
+    val track: AudioTrack,
+    val queue: LinkedBlockingQueue<ByteArray> =
+      LinkedBlockingQueue(MAX_QUEUED_CHUNKS),
+  ) {
+    @Volatile var inputFinished = false
+    @Volatile var stopRequested = false
+    @Volatile var status = STATUS_RUNNING
+    var totalBytes = 0L
+  }
+
+  private var currentSession: PlaybackSession? = null
+  private var lastStatus = STATUS_FINISHED
 
   @JvmStatic
   @Synchronized
-  fun start(context: Context, sampleRate: Int, channels: Int, bitsPerSample: Int): Boolean {
+  @Suppress("UNUSED_PARAMETER")
+  fun start(_context: Context, sampleRate: Int, channels: Int, bitsPerSample: Int): Boolean {
     Log.i(TAG, "start sampleRate=$sampleRate channels=$channels bits=$bitsPerSample")
-    stop()
+    requestStopLocked()
     if (channels != 1 || bitsPerSample != 16 || sampleRate <= 0) {
       Log.w(TAG, "unsupported PCM format")
       return false
@@ -51,39 +70,148 @@ object PcmAudioTrackBridge {
       return false
     }
 
+    val session = PlaybackSession(track)
+    currentSession = session
+    lastStatus = STATUS_RUNNING
     track.play()
-    audioTrack = track
-    totalBytes = 0
-    Log.i(TAG, "started bufferSize=$bufferSize")
+    Thread({ runPlayback(session) }, "lettuce-pcm-player").apply {
+      isDaemon = true
+      start()
+    }
+    Log.i(TAG, "started bufferSize=$bufferSize queueCapacity=$MAX_QUEUED_CHUNKS")
     return true
   }
 
   @JvmStatic
   @Synchronized
   fun write(bytes: ByteArray): Int {
-    val track = audioTrack ?: return AudioTrack.ERROR_INVALID_OPERATION
-    val written = track.write(bytes, 0, bytes.size, AudioTrack.WRITE_BLOCKING)
-    if (written > 0) {
-      totalBytes += written
-      if (totalBytes == written.toLong()) Log.i(TAG, "first write bytes=$written")
-    } else {
-      Log.w(TAG, "write failed: $written")
+    val session = currentSession ?: return AudioTrack.ERROR_INVALID_OPERATION
+    if (session.stopRequested || session.inputFinished || session.status != STATUS_RUNNING) {
+      return AudioTrack.ERROR_INVALID_OPERATION
     }
-    return written
+    if (!session.queue.offer(bytes)) {
+      Log.e(TAG, "PCM queue full queuedChunks=${session.queue.size}")
+      session.status = STATUS_QUEUE_FULL
+      session.stopRequested = true
+      return STATUS_QUEUE_FULL
+    }
+    if (session.totalBytes == 0L && session.queue.size == 1) {
+      Log.i(TAG, "first enqueue bytes=${bytes.size}")
+    }
+    return bytes.size
+  }
+
+  @JvmStatic
+  @Synchronized
+  fun finish(): Boolean {
+    val session = currentSession ?: return true
+    session.inputFinished = true
+    return true
+  }
+
+  @JvmStatic
+  @Synchronized
+  fun status(): Int {
+    return currentSession?.status ?: lastStatus
   }
 
   @JvmStatic
   @Synchronized
   fun stop() {
-    val track = audioTrack ?: return
-    Log.i(TAG, "stop totalBytes=$totalBytes")
-    audioTrack = null
+    requestStopLocked()
+  }
+
+  @Synchronized
+  private fun requestStopLocked() {
+    val session = currentSession ?: return
+    session.stopRequested = true
+    session.queue.clear()
+  }
+
+  private fun runPlayback(session: PlaybackSession) {
+    var failure = STATUS_FINISHED
     try {
-      track.stop()
+      while (!session.stopRequested) {
+        val bytes = session.queue.poll(20, TimeUnit.MILLISECONDS)
+        if (bytes != null) {
+          val result = writeFully(session, bytes)
+          if (result < 0) {
+            failure = result
+            break
+          }
+        } else if (session.inputFinished) {
+          waitForPlaybackDrain(session)
+          break
+        }
+      }
+    } catch (error: InterruptedException) {
+      Thread.currentThread().interrupt()
+      session.stopRequested = true
+    } catch (error: Throwable) {
+      Log.e(TAG, "playback worker failed", error)
+      failure = AudioTrack.ERROR_INVALID_OPERATION
+    } finally {
+      releaseTrack(session)
+      session.status = when {
+        session.status < 0 -> session.status
+        failure < 0 -> failure
+        else -> STATUS_FINISHED
+      }
+      synchronized(this) {
+        if (currentSession === session) {
+          lastStatus = session.status
+          currentSession = null
+        }
+      }
+      Log.i(
+        TAG,
+        "worker finished status=${session.status} totalBytes=${session.totalBytes}",
+      )
+    }
+  }
+
+  private fun writeFully(session: PlaybackSession, bytes: ByteArray): Int {
+    var offset = 0
+    while (offset < bytes.size && !session.stopRequested) {
+      val written = session.track.write(
+        bytes,
+        offset,
+        bytes.size - offset,
+        AudioTrack.WRITE_BLOCKING,
+      )
+      if (written <= 0) {
+        Log.e(TAG, "AudioTrack write failed: $written")
+        return written
+      }
+      offset += written
+      session.totalBytes += written
+    }
+    return offset
+  }
+
+  private fun waitForPlaybackDrain(session: PlaybackSession) {
+    val targetFrames = session.totalBytes / 2L
+    while (!session.stopRequested) {
+      val playedFrames = session.track.playbackHeadPosition.toLong() and 0xffffffffL
+      if (playedFrames >= targetFrames) return
+      Thread.sleep(10)
+    }
+  }
+
+  private fun releaseTrack(session: PlaybackSession) {
+    val track = session.track
+    try {
+      if (track.playState == AudioTrack.PLAYSTATE_PLAYING) {
+        track.stop()
+      }
     } catch (_: IllegalStateException) {
       // The track may already be stopped after an audio device change.
     }
-    track.flush()
-    track.release()
+    try {
+      track.flush()
+      track.release()
+    } catch (error: Throwable) {
+      Log.w(TAG, "AudioTrack release failed", error)
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { ArrowLeft, Loader2, X, Search } from "lucide-react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { components, colors, interactive, radius, cn } from "../../design-tokens";
@@ -27,29 +27,65 @@ export function SearchMessagesPage() {
     const [error, setError] = useState<string | null>(null);
 
     const searchTimeoutRef = useRef<number | null>(null);
+    const searchRequestRef = useRef(0);
+    const activeRequestIdRef = useRef<string | null>(null);
+
+    const cancelActiveSearch = useCallback(() => {
+        const requestId = activeRequestIdRef.current;
+        activeRequestIdRef.current = null;
+        if (requestId) {
+            void storageBridge.abortRequest(requestId).catch(() => undefined);
+        }
+    }, []);
+
+    useEffect(() => () => {
+        if (searchTimeoutRef.current) {
+            window.clearTimeout(searchTimeoutRef.current);
+        }
+        searchRequestRef.current += 1;
+        cancelActiveSearch();
+    }, [cancelActiveSearch]);
 
     const handleSearch = useCallback(async (searchQuery: string) => {
+        const requestId = ++searchRequestRef.current;
         if (!sessionId || !searchQuery.trim()) {
             setResults([]);
+            setLoading(false);
             return;
         }
 
+        cancelActiveSearch();
+        const backendRequestId = crypto.randomUUID();
+        activeRequestIdRef.current = backendRequestId;
         setLoading(true);
         setError(null);
         try {
-            const data = await storageBridge.searchMessages(sessionId, searchQuery);
-            setResults(data);
+            const data = await storageBridge.searchMessages(sessionId, searchQuery, backendRequestId);
+            if (requestId === searchRequestRef.current) {
+                setResults(data);
+            }
         } catch (err) {
             console.error("Search failed:", err);
-            setError(t("chats.search.failed"));
+            if (requestId === searchRequestRef.current) {
+                setError(t("chats.search.failed"));
+            }
         } finally {
-            setLoading(false);
+            if (activeRequestIdRef.current === backendRequestId) {
+                activeRequestIdRef.current = null;
+            }
+            if (requestId === searchRequestRef.current) {
+                setLoading(false);
+            }
         }
-    }, [sessionId]);
+    }, [cancelActiveSearch, sessionId, t]);
 
     const onQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newQuery = e.target.value;
         setQuery(newQuery);
+        // A full-history query may finish after the user has already typed more.
+        // Ignore it until the debounced request for the latest input completes.
+        searchRequestRef.current += 1;
+        cancelActiveSearch();
 
         if (searchTimeoutRef.current) {
             window.clearTimeout(searchTimeoutRef.current);
@@ -119,6 +155,9 @@ export function SearchMessagesPage() {
                             onClick={() => {
                                 setQuery("");
                                 setResults([]);
+                                setLoading(false);
+                                searchRequestRef.current += 1;
+                                cancelActiveSearch();
                                 if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
                             }}
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-fg/40 hover:text-fg"

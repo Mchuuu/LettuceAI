@@ -24,6 +24,32 @@ const ALLOWED_MEMORY_CATEGORIES: &[&str] = &[
     "other",
 ];
 
+const MESSAGE_SEARCH_RESULT_LIMIT: i64 = 500;
+const MESSAGE_WINDOW_CONTEXT_SIZE: i64 = 25;
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageSearchEntry {
+    pub message_id: String,
+    pub content: String,
+    pub created_at: u64,
+    pub role: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageWindow {
+    pub messages: Vec<StoredMessage>,
+    pub has_more_before: bool,
+    pub has_more_after: bool,
+}
+
+#[derive(Clone, Copy)]
+enum MessagePageDirection {
+    Before,
+    After,
+}
+
 struct LoadedMemoryFields {
     memories_json: String,
     memory_embeddings: Vec<MemoryEmbedding>,
@@ -296,6 +322,7 @@ fn persist_shared_memory_from_session_json(
     memory_status: Option<String>,
     memory_error: Option<String>,
     memory_progress_step: Option<i64>,
+    persist_memory_state: bool,
 ) -> Result<bool, String> {
     let owner = crate::storage_manager::companion_shared_memory::resolve_effective_memory_owner(
         conn,
@@ -305,6 +332,10 @@ fn persist_shared_memory_from_session_json(
     )?;
     if !owner.shared {
         return Ok(false);
+    }
+
+    if !persist_memory_state {
+        return Ok(true);
     }
 
     let shared_state = crate::storage_manager::companion_shared_memory::SharedMemoryState {
@@ -729,18 +760,38 @@ fn fetch_messages_page_typed(
     conn: &rusqlite::Connection,
     session_id: &str,
     limit: i64,
-    before_created_at: Option<i64>,
-    before_id: Option<&str>,
+    cursor_created_at: Option<i64>,
+    cursor_id: Option<&str>,
+    direction: MessagePageDirection,
+    include_cursor: bool,
 ) -> Result<Vec<StoredMessage>, String> {
     let mut sql = String::from(
         "SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second, model_id, mtp_stats FROM messages WHERE session_id = ?1",
     );
 
-    let use_before = before_created_at.is_some() && before_id.is_some();
-    if use_before {
-        sql.push_str(" AND (created_at < ?2 OR (created_at = ?2 AND id < ?3))");
+    let use_cursor = cursor_created_at.is_some() && cursor_id.is_some();
+    if use_cursor {
+        match direction {
+            MessagePageDirection::Before => {
+                sql.push_str(if include_cursor {
+                    " AND (created_at < ?2 OR (created_at = ?2 AND id <= ?3))"
+                } else {
+                    " AND (created_at < ?2 OR (created_at = ?2 AND id < ?3))"
+                });
+            }
+            MessagePageDirection::After => {
+                sql.push_str(if include_cursor {
+                    " AND (created_at > ?2 OR (created_at = ?2 AND id >= ?3))"
+                } else {
+                    " AND (created_at > ?2 OR (created_at = ?2 AND id > ?3))"
+                });
+            }
+        }
     }
-    sql.push_str(" ORDER BY created_at DESC, id DESC LIMIT ");
+    match direction {
+        MessagePageDirection::Before => sql.push_str(" ORDER BY created_at DESC, id DESC LIMIT "),
+        MessagePageDirection::After => sql.push_str(" ORDER BY created_at ASC, id ASC LIMIT "),
+    }
     sql.push_str(&limit.to_string());
 
     type RawMessageRow = (
@@ -767,10 +818,10 @@ fn fetch_messages_page_typed(
         let mut stmt = conn
             .prepare(&sql)
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-        if use_before {
+        if use_cursor {
             let rows = stmt
                 .query_map(
-                    params![session_id, before_created_at.unwrap(), before_id.unwrap()],
+                    params![session_id, cursor_created_at.unwrap(), cursor_id.unwrap()],
                     |r| {
                         Ok((
                             r.get::<_, String>(0)?,
@@ -925,7 +976,9 @@ fn fetch_messages_page_typed(
         });
     }
 
-    out.reverse();
+    if matches!(direction, MessagePageDirection::Before) {
+        out.reverse();
+    }
     Ok(out)
 }
 
@@ -1091,7 +1144,11 @@ fn fetch_pinned_messages_typed(
     Ok(messages)
 }
 
-fn upsert_session_meta_value(app: &tauri::AppHandle, s: &JsonValue) -> Result<(), String> {
+fn upsert_session_meta_value(
+    app: &tauri::AppHandle,
+    s: &JsonValue,
+    persist_memory_state: bool,
+) -> Result<(), String> {
     let mut conn = open_db(app)?;
     let id = s
         .get("id")
@@ -1202,6 +1259,7 @@ fn upsert_session_meta_value(app: &tauri::AppHandle, s: &JsonValue) -> Result<()
         memory_status.clone(),
         memory_error.clone(),
         memory_progress_step,
+        persist_memory_state,
     )?;
     let session_memories_json = if shared_memory_enabled {
         "[]".to_string()
@@ -1526,7 +1584,168 @@ pub fn messages_list_internal(
     before_id: Option<&str>,
 ) -> Result<Vec<StoredMessage>, String> {
     let conn = open_db(app)?;
-    fetch_messages_page_typed(&conn, session_id, limit, before_created_at, before_id)
+    fetch_messages_page_typed(
+        &conn,
+        session_id,
+        limit,
+        before_created_at,
+        before_id,
+        MessagePageDirection::Before,
+        false,
+    )
+}
+
+pub fn messages_list_after_internal(
+    app: &tauri::AppHandle,
+    session_id: &str,
+    limit: i64,
+    after_created_at: i64,
+    after_id: &str,
+) -> Result<Vec<StoredMessage>, String> {
+    let conn = open_db(app)?;
+    fetch_messages_page_typed(
+        &conn,
+        session_id,
+        limit,
+        Some(after_created_at),
+        Some(after_id),
+        MessagePageDirection::After,
+        false,
+    )
+}
+
+pub fn messages_search_internal(
+    app: &tauri::AppHandle,
+    session_id: &str,
+    query: &str,
+    cancel_rx: Option<tokio::sync::oneshot::Receiver<()>>,
+) -> Result<Vec<MessageSearchEntry>, String> {
+    let query = query.trim();
+    if query.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let started_at = std::time::Instant::now();
+    let conn = open_db(app)?;
+    if let Some(cancel_rx) = cancel_rx {
+        let interrupt_handle = conn.get_interrupt_handle();
+        std::thread::spawn(move || {
+            if cancel_rx.blocking_recv().is_ok() {
+                interrupt_handle.interrupt();
+            }
+        });
+    }
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, content, created_at, role
+             FROM messages
+             WHERE session_id = ?1
+               AND role IN ('user', 'assistant')
+               AND instr(lower(content), lower(?2)) > 0
+             ORDER BY created_at ASC, id ASC
+             LIMIT ?3",
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let rows = stmt
+        .query_map(
+            params![session_id, query, MESSAGE_SEARCH_RESULT_LIMIT],
+            |row| {
+                Ok(MessageSearchEntry {
+                    message_id: row.get(0)?,
+                    content: row.get(1)?,
+                    created_at: row.get::<_, i64>(2)? as u64,
+                    role: row.get(3)?,
+                })
+            },
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    let mut results = Vec::new();
+    for row in rows {
+        results.push(row.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?);
+    }
+    log_info(
+        app,
+        "chat_search",
+        format!(
+            "Full-history search completed: session_id={} query_len={} results={} elapsed_ms={}",
+            session_id,
+            query.chars().count(),
+            results.len(),
+            started_at.elapsed().as_millis(),
+        ),
+    );
+    Ok(results)
+}
+
+pub fn messages_window_internal(
+    app: &tauri::AppHandle,
+    session_id: &str,
+    message_id: &str,
+) -> Result<Option<MessageWindow>, String> {
+    let conn = open_db(app)?;
+    let target = conn
+        .query_row(
+            "SELECT created_at, id FROM messages WHERE session_id = ?1 AND id = ?2",
+            params![session_id, message_id],
+            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
+        )
+        .optional()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let Some((target_created_at, target_id)) = target else {
+        return Ok(None);
+    };
+
+    let before = fetch_messages_page_typed(
+        &conn,
+        session_id,
+        MESSAGE_WINDOW_CONTEXT_SIZE,
+        Some(target_created_at),
+        Some(&target_id),
+        MessagePageDirection::Before,
+        false,
+    )?;
+    let mut target_and_after = fetch_messages_page_typed(
+        &conn,
+        session_id,
+        MESSAGE_WINDOW_CONTEXT_SIZE + 1,
+        Some(target_created_at),
+        Some(&target_id),
+        MessagePageDirection::After,
+        true,
+    )?;
+
+    let mut messages = before;
+    messages.append(&mut target_and_after);
+    messages.sort_by(|left, right| {
+        left.created_at
+            .cmp(&right.created_at)
+            .then_with(|| left.id.cmp(&right.id))
+    });
+    messages.dedup_by(|left, right| left.id == right.id);
+
+    let has_more_before = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM messages WHERE session_id = ?1 AND (created_at < ?2 OR (created_at = ?2 AND id < ?3)))",
+            params![session_id, messages.first().map(|message| message.created_at as i64).unwrap_or(target_created_at), messages.first().map(|message| message.id.as_str()).unwrap_or(target_id.as_str())],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+        != 0;
+    let has_more_after = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM messages WHERE session_id = ?1 AND (created_at > ?2 OR (created_at = ?2 AND id > ?3)))",
+            params![session_id, messages.last().map(|message| message.created_at as i64).unwrap_or(target_created_at), messages.last().map(|message| message.id.as_str()).unwrap_or(target_id.as_str())],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+        != 0;
+
+    Ok(Some(MessageWindow {
+        messages,
+        has_more_before,
+        has_more_after,
+    }))
 }
 
 pub fn messages_list_pinned_internal(
@@ -1543,7 +1762,16 @@ pub fn session_upsert_meta_internal(
 ) -> Result<(), String> {
     let value = serde_json::to_value(session)
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-    upsert_session_meta_value(app, &value)
+    upsert_session_meta_value(app, &value, false)
+}
+
+pub fn session_upsert_memory_meta_internal(
+    app: &tauri::AppHandle,
+    session: &Session,
+) -> Result<(), String> {
+    let value = serde_json::to_value(session)
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    upsert_session_meta_value(app, &value, true)
 }
 
 pub fn session_update_companion_state_internal(
@@ -2534,7 +2762,7 @@ where
 {
     let value = serde_json::to_value(session)
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-    upsert_session_meta_value(app, &value)
+    upsert_session_meta_value(app, &value, false)
 }
 
 pub fn messages_upsert_batch_typed<T>(
@@ -2574,6 +2802,35 @@ pub fn messages_list(
         before_id.as_deref(),
     )?;
     serde_json::to_string(&messages)
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
+}
+
+#[tauri::command]
+pub fn messages_list_after(
+    app: tauri::AppHandle,
+    session_id: String,
+    limit: i64,
+    after_created_at: i64,
+    after_id: String,
+) -> Result<String, String> {
+    let messages = messages_list_after_internal(
+        &app,
+        &session_id,
+        limit.clamp(0, 500),
+        after_created_at,
+        &after_id,
+    )?;
+    serde_json::to_string(&messages)
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
+}
+
+#[tauri::command]
+pub fn messages_window(
+    app: tauri::AppHandle,
+    session_id: String,
+    message_id: String,
+) -> Result<String, String> {
+    serde_json::to_string(&messages_window_internal(&app, &session_id, &message_id)?)
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
 }
 
@@ -2887,6 +3144,7 @@ pub fn session_upsert_meta(app: tauri::AppHandle, session_json: String) -> Resul
         memory_status.clone(),
         memory_error.clone(),
         memory_progress_step,
+        false,
     )?;
     let session_memories_json = if shared_memory_enabled {
         "[]".to_string()
@@ -3305,7 +3563,11 @@ pub fn messages_delete_after(
 }
 
 #[tauri::command]
-pub fn session_upsert(app: tauri::AppHandle, session_json: String) -> Result<(), String> {
+pub fn session_upsert(
+    app: tauri::AppHandle,
+    session_json: String,
+    persist_memory_state: Option<bool>,
+) -> Result<(), String> {
     let mut conn = open_db(&app)?;
     let s: JsonValue = serde_json::from_str(&session_json)
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -3426,6 +3688,7 @@ pub fn session_upsert(app: tauri::AppHandle, session_json: String) -> Result<(),
         None,
         None,
         None,
+        persist_memory_state.unwrap_or(false),
     )?;
     let session_memories_json = if shared_memory_enabled {
         "[]".to_string()

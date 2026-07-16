@@ -180,6 +180,128 @@ pub fn upsert_state(
     Ok(())
 }
 
+/// Seed a newly enabled shared-memory owner from the character's richest recent
+/// session. On an off-to-on transition, a larger local snapshot repairs a stale
+/// or previously truncated shared owner without discarding a richer shared one.
+pub fn initialize_from_latest_session(
+    conn: &mut Connection,
+    character_id: &str,
+    compare_existing_on_transition: bool,
+) -> Result<Option<String>, String> {
+    let existing_shared_count = super::memory_embeddings::count_for_session(
+        conn,
+        character_id,
+        SessionKind::CompanionShared,
+    )?;
+    let shared_state_exists = conn
+        .query_row(
+            "SELECT 1 FROM companion_shared_memory_state WHERE character_id = ?1 LIMIT 1",
+            params![character_id],
+            |_| Ok(()),
+        )
+        .optional()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?
+        .is_some();
+
+    if shared_state_exists && !compare_existing_on_transition {
+        return Ok(None);
+    }
+
+    let source = conn
+        .query_row(
+            r#"
+            SELECT id, memories, memory_embeddings, memory_summary,
+                   memory_summary_token_count, memory_tool_events,
+                   memory_status, memory_error, memory_progress_step
+            FROM sessions
+            WHERE character_id = ?1
+            ORDER BY
+                (
+                    SELECT COUNT(*) FROM memory_embeddings normalized
+                    WHERE normalized.session_id = sessions.id
+                      AND normalized.session_kind = 'session'
+                ) DESC,
+                CASE WHEN json_valid(memory_embeddings)
+                     THEN json_array_length(memory_embeddings)
+                     ELSE 0 END DESC,
+                CASE WHEN memories <> '[]'
+                       OR memory_embeddings <> '[]'
+                       OR EXISTS (
+                           SELECT 1 FROM memory_embeddings normalized
+                           WHERE normalized.session_id = sessions.id
+                             AND normalized.session_kind = 'session'
+                       )
+                     THEN 0 ELSE 1 END,
+                updated_at DESC,
+                created_at DESC
+            LIMIT 1
+            "#,
+            params![character_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, String>(5)?,
+                    row.get::<_, Option<String>>(6)?,
+                    row.get::<_, Option<String>>(7)?,
+                    row.get::<_, Option<i64>>(8)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+
+    let Some((
+        session_id,
+        memories_json,
+        legacy_embeddings_json,
+        memory_summary,
+        memory_summary_token_count,
+        memory_tool_events_json,
+        memory_status,
+        memory_error,
+        memory_progress_step,
+    )) = source
+    else {
+        return Ok(None);
+    };
+
+    let mut embeddings =
+        super::memory_embeddings::load_for_session(conn, &session_id, SessionKind::Session)?;
+    if embeddings.is_empty() {
+        embeddings = super::memory_embeddings::parse_legacy_json(&legacy_embeddings_json);
+    }
+
+    if shared_state_exists && existing_shared_count >= embeddings.len() as i64 {
+        return Ok(None);
+    }
+
+    super::memory_embeddings::replace_all(
+        conn,
+        character_id,
+        SessionKind::CompanionShared,
+        &embeddings,
+    )?;
+    upsert_state(
+        conn,
+        character_id,
+        &SharedMemoryState {
+            memories_json,
+            memory_summary,
+            memory_summary_token_count: memory_summary_token_count.max(0),
+            memory_tool_events_json,
+            memory_status,
+            memory_error,
+            memory_progress_step,
+        },
+    )?;
+
+    Ok(Some(session_id))
+}
+
 pub fn export_all(app: &AppHandle) -> Result<Vec<JsonValue>, String> {
     let conn = open_db(app)?;
     let mut stmt = conn

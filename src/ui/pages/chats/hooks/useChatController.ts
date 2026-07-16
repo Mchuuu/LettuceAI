@@ -42,8 +42,10 @@ export interface ChatController {
   streamingReasoning: Record<string, string>;
   scenePromptStreaming: boolean;
   hasMoreMessagesBefore: boolean;
+  hasMoreMessagesAfter: boolean;
   loadOlderMessages: () => Promise<void>;
-  ensureMessageLoaded: (messageId: string) => Promise<void>;
+  loadNewerMessages: () => Promise<void>;
+  loadMessageWindow: (messageId: string) => Promise<boolean>;
 
   // Setters
   setDraft: (value: string) => void;
@@ -103,7 +105,9 @@ export function useChatController(
   const messagesRef = useRef<StoredMessage[]>([]);
   const abortedRequestIdsRef = useRef<Set<string>>(new Set());
   const hasMoreMessagesBeforeRef = useRef<boolean>(true);
+  const hasMoreMessagesAfterRef = useRef<boolean>(false);
   const loadingOlderRef = useRef<boolean>(false);
+  const loadingNewerRef = useRef<boolean>(false);
   const sessionOperationRef = useRef<boolean>(false);
   const lastKnownSessionTimestampRef = useRef<number>(0);
   const recordSessionTimestamp = useCallback((updatedAt: number) => {
@@ -134,7 +138,9 @@ export function useChatController(
   const pagingContext = {
     ...controllerContext,
     hasMoreMessagesBeforeRef,
+    hasMoreMessagesAfterRef,
     loadingOlderRef,
+    loadingNewerRef,
   };
   const {
     applySceneImagePrompt,
@@ -146,7 +152,7 @@ export function useChatController(
     context: controllerContext,
   });
 
-  const { reloadSessionStateFromStorage, loadOlderMessages, ensureMessageLoaded } =
+  const { reloadSessionStateFromStorage, loadOlderMessages, loadNewerMessages, loadMessageWindow } =
     useChatSessionController({
       context: pagingContext,
       characterId,
@@ -294,6 +300,7 @@ export function useChatController(
     streamingReasoning: state.streamingReasoning,
     scenePromptStreaming: state.scenePromptStreaming,
     hasMoreMessagesBefore: hasMoreMessagesBeforeRef.current,
+    hasMoreMessagesAfter: hasMoreMessagesAfterRef.current,
 
     // Setters
     setDraft: useCallback(
@@ -353,7 +360,8 @@ export function useChatController(
     handleRegenerate,
     handleAbort,
     loadOlderMessages,
-    ensureMessageLoaded,
+    loadNewerMessages,
+    loadMessageWindow,
     getVariantState,
     applyVariantSelection,
     handleVariantSwipe,

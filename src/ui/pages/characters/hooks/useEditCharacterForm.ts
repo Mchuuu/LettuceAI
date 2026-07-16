@@ -51,6 +51,7 @@ type EditCharacterState = {
   sourceText: string;
   tagsText: string;
   avatarPath: string;
+  avatarRemoved: boolean;
   avatarCrop: AvatarCrop | null;
   avatarRoundPath: string | null;
   avatarBannerPath: string | null;
@@ -120,6 +121,7 @@ const initialState: EditCharacterState = {
   sourceText: "",
   tagsText: "",
   avatarPath: "",
+  avatarRemoved: false,
   avatarCrop: null,
   avatarRoundPath: null,
   avatarBannerPath: null,
@@ -353,6 +355,7 @@ export function useEditCharacterForm(characterId: string | undefined) {
         sourceText: Array.isArray(character.source) ? character.source.join(", ") : "",
         tagsText: Array.isArray(character.tags) ? character.tags.join(", ") : "",
         avatarPath: loadedAvatarPath,
+        avatarRemoved: false,
         avatarCrop: character.avatarCrop ?? null,
         avatarRoundPath: loadedAvatarRoundPath,
         avatarBannerPath: loadedAvatarBannerPath,
@@ -549,6 +552,7 @@ export function useEditCharacterForm(characterId: string | undefined) {
           );
           if (!avatarFilename) {
             console.error("[EditCharacter] Failed to save avatar image");
+            throw new Error("Failed to save avatar image");
           } else {
             invalidateAvatarCache("character", characterId);
             if (!state.disableAvatarGradient) {
@@ -565,6 +569,12 @@ export function useEditCharacterForm(characterId: string | undefined) {
                 ? persistedMediaRef.current.avatarFilename
                 : effectiveAvatarPath;
         }
+      } else if (!state.avatarRemoved && persistedMediaRef.current.avatarFilename) {
+        avatarFilename = persistedMediaRef.current.avatarFilename;
+        console.info("[EditCharacter] Preserving persisted avatar after unavailable preview", {
+          characterId,
+          avatarFilename,
+        });
       } else {
         invalidateAvatarCache("character", characterId);
       }
@@ -659,7 +669,16 @@ export function useEditCharacterForm(characterId: string | undefined) {
         sourceText: state.sourceText.trim(),
         tagsText: state.tagsText.trim(),
         activeLorebookIds: state.activeLorebookIds,
+        avatarRemoved: false,
       });
+
+      persistedMediaRef.current = {
+        ...persistedMediaRef.current,
+        avatarFilename,
+        avatarUrl: avatarFilename && state.avatarPath ? state.avatarPath : undefined,
+        avatarBannerUrl:
+          avatarFilename && state.avatarBannerPath ? state.avatarBannerPath : undefined,
+      };
 
       // Update initial state ref to match current state (for change detection)
       initialStateRef.current = {
@@ -867,6 +886,7 @@ export function useEditCharacterForm(characterId: string | undefined) {
       reader.onload = () => {
         setFields({
           avatarPath: reader.result as string,
+          avatarRemoved: false,
           avatarCrop: null,
           avatarRoundPath: null,
           avatarBannerPath: null,
@@ -895,6 +915,7 @@ export function useEditCharacterForm(characterId: string | undefined) {
       sourceText: initial.sourceText,
       tagsText: initial.tagsText,
       avatarPath: initial.avatarPath,
+      avatarRemoved: false,
       avatarCrop: JSON.parse(initial.avatarCrop) as AvatarCrop | null,
       avatarRoundPath: JSON.parse(initial.avatarRoundPath) as string | null,
       avatarBannerPath: JSON.parse(initial.avatarBannerPath) as string | null,
@@ -971,6 +992,7 @@ export function useEditCharacterForm(characterId: string | undefined) {
           state.sourceText !== initial.sourceText ||
           state.tagsText !== initial.tagsText ||
           state.avatarPath !== initial.avatarPath ||
+          state.avatarRemoved ||
           JSON.stringify(state.avatarCrop ?? null) !== initial.avatarCrop ||
           JSON.stringify(state.avatarRoundPath ?? null) !== initial.avatarRoundPath ||
           JSON.stringify(state.avatarBannerPath ?? null) !== initial.avatarBannerPath ||

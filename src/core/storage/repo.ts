@@ -1381,6 +1381,40 @@ export async function listMessages(
   return z.array(MessageSchema).parse(data);
 }
 
+export async function listMessagesAfter(
+  sessionId: string,
+  options: { limit: number; after: { createdAt: number; id: string } },
+): Promise<StoredMessage[]> {
+  const data = await storageBridge.messagesListAfter(
+    sessionId,
+    options.limit,
+    options.after.createdAt,
+    options.after.id,
+  );
+  return z.array(MessageSchema).parse(data);
+}
+
+export type MessageWindow = {
+  messages: StoredMessage[];
+  hasMoreBefore: boolean;
+  hasMoreAfter: boolean;
+};
+
+export async function getMessageWindow(
+  sessionId: string,
+  messageId: string,
+): Promise<MessageWindow | null> {
+  const data = await storageBridge.messagesWindow(sessionId, messageId);
+  if (!data) return null;
+  return z
+    .object({
+      messages: z.array(MessageSchema),
+      hasMoreBefore: z.boolean(),
+      hasMoreAfter: z.boolean(),
+    })
+    .parse(data);
+}
+
 export async function listPinnedMessages(sessionId: string): Promise<StoredMessage[]> {
   const data = await storageBridge.messagesListPinned(sessionId);
   return z.array(MessageSchema).parse(data);
@@ -1430,7 +1464,7 @@ export async function saveSession(
     }
   }
 
-  await storageBridge.sessionUpsert(sessionToSave);
+  await storageBridge.sessionUpsert(sessionToSave, options.preserveDynamicMemory === false);
   broadcastSessionUpdated();
 }
 
@@ -1566,7 +1600,7 @@ export async function createSession(
   };
   await saveSession(s);
   broadcastSessionUpdated();
-  return s;
+  return (await getSessionMeta(id)) ?? s;
 }
 
 export async function createBranchedSession(
