@@ -110,6 +110,19 @@ impl DynamicMemoryRunManager {
             .unwrap_or(false)
     }
 
+    pub fn cancel_chat_run_if_active(
+        &self,
+        abort_registry: &AbortRegistry,
+        session_id: &str,
+    ) -> Result<bool, String> {
+        let key = format!("chat:{session_id}");
+        if !self.is_run_active(&key) {
+            return Ok(false);
+        }
+        self.cancel_run(abort_registry, &key)?;
+        Ok(true)
+    }
+
     fn set_active_request_id(&self, key: &str, request_id: Option<String>) {
         if let Ok(mut map) = self.inner.lock() {
             if let Some(state) = map.get_mut(key) {

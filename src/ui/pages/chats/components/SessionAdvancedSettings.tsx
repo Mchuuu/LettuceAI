@@ -8,6 +8,7 @@ import type { AdvancedModelSettings } from "../../../../core/storage/schemas";
 import { LlamaSamplerOrderEditor } from "../../../components/LlamaSamplerOrderEditor";
 import { Switch } from "../../../components/Switch";
 import { NumberInput } from "../../../components/NumberInput";
+import { ResponseLengthSettings } from "../../../components/ResponseLengthSettings";
 import {
   ADVANCED_TEMPERATURE_RANGE,
   ADVANCED_TOP_P_RANGE,
@@ -192,6 +193,7 @@ export function SessionAdvancedSettings({
       {isOpen && (
         <motion.div
           className="fixed inset-x-0 bottom-0 top-[var(--titlebar-h,0px)] z-50 flex flex-col bg-surface"
+          style={{ paddingTop: "var(--lettuce-safe-area-inset-top)" }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
@@ -375,6 +377,11 @@ export function SessionAdvancedSettings({
                               />
                             )}
                           </div>
+
+                          <ResponseLengthSettings
+                            settings={draft}
+                            onChange={onDraftChange}
+                          />
 
                           <ParameterField
                             label={t("sessionAdvanced.outputPenalties.frequencyPenalty")}

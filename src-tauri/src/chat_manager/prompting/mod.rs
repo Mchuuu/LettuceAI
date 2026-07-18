@@ -6,4 +6,6 @@ pub mod prompt_engine;
 pub mod prompts;
 pub mod request;
 pub mod request_builder;
+pub mod response_length;
+pub mod speech_expression;
 pub mod turn_builder;

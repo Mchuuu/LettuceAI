@@ -5,6 +5,7 @@ use tauri::AppHandle;
 
 use super::lorebook_matcher::{format_lorebook_for_prompt, get_active_lorebook_entries_for_ids};
 use super::prompts;
+use super::response_length;
 use crate::chat_manager::companion;
 use crate::chat_manager::execution::RequestSettings;
 use crate::chat_manager::memory::manual::{has_manual_memories, render_manual_memory_lines};
@@ -2728,6 +2729,7 @@ pub fn default_local_roleplay_entries() -> Vec<SystemPromptEntry> {
             conditions: None,
             prompt_entry_payload: None,
         },
+        response_length_rules_entry("local_rp_response_length"),
     ]
 }
 
@@ -2847,6 +2849,7 @@ pub fn default_companion_entries() -> Vec<SystemPromptEntry> {
             conditions: None,
             prompt_entry_payload: None,
         },
+        response_length_rules_entry("companion_response_length"),
     ]
 }
 
@@ -2985,6 +2988,7 @@ pub fn default_modular_prompt_entries() -> Vec<SystemPromptEntry> {
         conditions: None,
         prompt_entry_payload: None,
         },
+        crate::chat_manager::speech_expression::protocol_entry(),
         SystemPromptEntry {
             id: "entry_instructions".to_string(),
             name: "Instructions".to_string(),
@@ -2999,7 +3003,25 @@ pub fn default_modular_prompt_entries() -> Vec<SystemPromptEntry> {
         conditions: None,
         prompt_entry_payload: None,
         },
+        response_length_rules_entry("entry_response_length"),
     ]
+}
+
+fn response_length_rules_entry(id: &str) -> SystemPromptEntry {
+    SystemPromptEntry {
+        id: id.to_string(),
+        name: "Response Length Rules".to_string(),
+        role: PromptEntryRole::System,
+        content: response_length::PLACEHOLDER.to_string(),
+        enabled: true,
+        injection_position: PromptEntryPosition::Relative,
+        injection_depth: 0,
+        conditional_min_messages: None,
+        interval_turns: None,
+        system_prompt: false,
+        conditions: None,
+        prompt_entry_payload: None,
+    }
 }
 
 fn single_entry_from_content(content: &str) -> Vec<SystemPromptEntry> {
@@ -3341,6 +3363,7 @@ pub fn build_system_prompt_entries(
         .any(|msg| msg.role.eq_ignore_ascii_case("scene") && !msg.content.trim().is_empty());
     let skip_scene_placeholder_entries = session.selected_scene_id.is_none() && !has_scene_message;
     let request_settings = RequestSettings::resolve(session, model, settings);
+    let response_length_rules = response_length::render_rules(session, model, settings);
     let recent_text = recent_message_window_text(session);
     let (has_scene, has_scene_direction) = scene_state(character, session);
     let has_memory_summary = session
@@ -3445,7 +3468,8 @@ pub fn build_system_prompt_entries(
             session,
             settings,
             scheduled_notes_text.as_deref(),
-        );
+        )
+        .replace(response_length::PLACEHOLDER, &response_length_rules);
         if rendered.trim().is_empty() {
             continue;
         }

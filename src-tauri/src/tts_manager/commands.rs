@@ -1106,23 +1106,42 @@ pub async fn tts_stream_doubao(
     }
 
     let api_key = api_key.ok_or("API key not configured")?;
-    let requested_sample_rate = prompt
+    let prompt_json = prompt
         .as_deref()
-        .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok())
+        .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok());
+    let requested_sample_rate = prompt_json
+        .as_ref()
         .and_then(|value| value.get("sampleRate").and_then(|rate| rate.as_u64()))
         .unwrap_or(44100)
         .clamp(8000, 48000) as u32;
+    let request_body_model = prompt_json
+        .as_ref()
+        .and_then(|value| value.get("model").and_then(|model| model.as_str()))
+        .unwrap_or("<none>");
+    let context_texts = prompt_json
+        .as_ref()
+        .and_then(|value| value.get("contextTexts").and_then(|texts| texts.as_array()));
+    let context_count = context_texts.map_or(0, |texts| texts.len());
+    let context_chars = context_texts.map_or(0, |texts| {
+        texts
+            .iter()
+            .filter_map(|value| value.as_str())
+            .map(|text| text.chars().count())
+            .sum::<usize>()
+    });
     log_info(
         &app,
         "tts",
         format!(
-            "Doubao stream request: resource_id={} model={} voice_id={} format=pcm sample_rate={} text_len={} prompt={}",
+            "Doubao stream request: resource_id={} model={} body_model={} voice_id={} format=pcm sample_rate={} text_len={} context_texts={} context_chars={}",
             resource_id.as_deref().unwrap_or("<default>"),
             model_id,
+            request_body_model,
             voice_id,
             requested_sample_rate,
             text.chars().count(),
-            prompt.as_deref().unwrap_or("<none>")
+            context_count,
+            context_chars,
         ),
     );
     let mut native_pcm_player =

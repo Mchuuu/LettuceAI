@@ -5,6 +5,7 @@ import {
   playAudioFromBase64,
 } from "../../../../core/storage/audioProviders";
 import type { CharacterVoiceConfig } from "../../../../core/storage/schemas";
+import { Switch } from "../../../components/Switch";
 import {
   DEFAULT_DOUBAO_VOICE_SETTINGS,
   buildDoubaoVoicePrompt,
@@ -27,6 +28,8 @@ interface DoubaoVoiceSettingsPanelProps {
     pitch: string;
     speechRate: string;
     loudnessRate: string;
+    speechExpression: string;
+    speechExpressionHint: string;
     previewPlaceholder: string;
     previewPlay: string;
     previewStop: string;
@@ -56,7 +59,7 @@ export function DoubaoVoiceSettingsPanel({
     };
   }, []);
 
-  const updateSetting = (key: keyof DoubaoVoiceSettings, value: number) => {
+  const updateSetting = (key: "pitch" | "speechRate" | "loudnessRate", value: number) => {
     onChange({
       ...normalized,
       [key]: clampDoubaoVoiceSetting(key, value),
@@ -81,7 +84,9 @@ export function DoubaoVoiceSettingsPanel({
         modelId,
         voiceId,
         previewText.trim() || DEFAULT_PREVIEW_TEXT,
-        buildDoubaoVoicePrompt(normalized),
+        buildDoubaoVoicePrompt(normalized, undefined, {
+          expressiveClone: modelId === "seed-icl-2.0",
+        }),
       );
       const audio = playAudioFromBase64(response.audioBase64, response.format);
       audioRef.current = audio;
@@ -123,6 +128,22 @@ export function DoubaoVoiceSettingsPanel({
         >
           {labels.reset}
         </button>
+      </div>
+
+      <div className="flex items-center justify-between gap-4 border-b border-fg/10 pb-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-fg/80">{labels.speechExpression}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-fg/45">
+            {labels.speechExpressionHint}
+          </p>
+        </div>
+        <Switch
+          checked={normalized.speechExpressionEnabled}
+          onChange={(checked) =>
+            onChange({ ...normalized, speechExpressionEnabled: checked })
+          }
+          aria-label={labels.speechExpression}
+        />
       </div>
 
       {sliders.map((item) => (

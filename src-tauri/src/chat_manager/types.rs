@@ -596,6 +596,10 @@ pub struct AdvancedModelSettings {
     pub temperature: Option<f64>,
     pub top_p: Option<f64>,
     pub max_output_tokens: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_length_preset: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_length_chars: Option<u32>,
     pub context_length: Option<u32>,
     pub frequency_penalty: Option<f64>,
     pub presence_penalty: Option<f64>,
@@ -740,6 +744,8 @@ impl Default for AdvancedModelSettings {
             temperature: None,
             top_p: None,
             max_output_tokens: Some(2048),
+            response_length_preset: Some("auto".to_string()),
+            response_length_chars: None,
             context_length: None,
             frequency_penalty: None,
             presence_penalty: None,
@@ -869,6 +875,9 @@ pub struct StoredMessage {
     /// Model used to generate this message (assistant messages)
     #[serde(default)]
     pub model_id: Option<String>,
+    /// Per-reply speaking direction generated for expressive TTS.
+    #[serde(default)]
+    pub tts_context_text: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -883,6 +892,8 @@ pub struct MessageVariant {
     pub attachments: Vec<ImageAttachment>,
     #[serde(default)]
     pub reasoning: Option<String>,
+    #[serde(default)]
+    pub tts_context_text: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -1114,6 +1125,8 @@ pub struct Character {
     pub group_chat_prompt_template_id: Option<String>,
     #[serde(default)]
     pub group_chat_roleplay_prompt_template_id: Option<String>,
+    #[serde(default)]
+    pub voice_config: Option<Value>,
     /// DEPRECATED: Old system prompt field (migrated to templates)
     #[serde(default, skip_serializing)]
     #[allow(dead_code)]

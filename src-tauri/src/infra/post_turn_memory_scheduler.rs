@@ -74,4 +74,13 @@ impl PostTurnMemoryScheduler {
         map.remove(session_id);
         false
     }
+
+    pub fn cancel_session(&self, session_id: &str) -> usize {
+        self.inner
+            .lock()
+            .ok()
+            .and_then(|mut map| map.remove(session_id))
+            .map(|state| state.pending.len())
+            .unwrap_or(0)
+    }
 }

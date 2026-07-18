@@ -411,6 +411,11 @@ export const AdvancedModelSettingsSchema = z.object({
   temperature: z.number().min(0).max(2).nullable().optional(),
   topP: z.number().min(0).max(1).nullable().optional(),
   maxOutputTokens: z.number().int().min(1).nullable().optional(),
+  responseLengthPreset: z
+    .enum(["auto", "short", "medium", "long", "custom"])
+    .nullable()
+    .optional(),
+  responseLengthChars: z.number().int().min(20).max(2000).nullable().optional(),
   contextLength: z.number().int().min(0).nullable().optional(),
   frequencyPenalty: z.number().min(-2).max(2).nullable().optional(),
   presencePenalty: z.number().min(-2).max(2).nullable().optional(),
@@ -2402,6 +2407,8 @@ export const MessageVariantSchema = z.object({
   attachments: z.array(ImageAttachmentSchema).optional(),
   /** Reasoning/thinking content from thinking models */
   reasoning: z.string().nullish(),
+  /** Per-reply speaking direction generated for expressive TTS. */
+  ttsContextText: z.string().nullish(),
 });
 export type MessageVariant = z.infer<typeof MessageVariantSchema>;
 
@@ -2426,6 +2433,8 @@ export const MessageSchema = z.object({
   reasoning: z.string().nullish(),
   /** Model actually used for this message generation */
   modelId: z.uuid().nullish(),
+  /** Speaking direction associated with the currently selected reply variant. */
+  ttsContextText: z.string().nullish(),
 });
 export type StoredMessage = z.infer<typeof MessageSchema>;
 
@@ -3205,6 +3214,7 @@ export const CharacterVoiceConfigSchema = z.object({
       pitch: z.number().int().min(-12).max(12).default(0),
       speechRate: z.number().int().min(-50).max(100).default(0),
       loudnessRate: z.number().int().min(-50).max(100).default(0),
+      speechExpressionEnabled: z.boolean().default(true),
     })
     .optional(),
 });
@@ -3735,6 +3745,8 @@ export type Persona = z.infer<typeof PersonaSchema>;
 export function createDefaultAdvancedModelSettings(): AdvancedModelSettings {
   return {
     maxOutputTokens: 2048,
+    responseLengthPreset: "auto",
+    responseLengthChars: null,
     llamaLastRuntimeReport: null,
     llamaStrictMode: null,
     llamaStreamingEnabled: null,

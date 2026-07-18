@@ -2101,6 +2101,8 @@ export function EditCharacterPage() {
                           pitch: t("characters.edit.voicePitch"),
                           speechRate: t("characters.edit.voiceSpeechRate"),
                           loudnessRate: t("characters.edit.voiceLoudnessRate"),
+                          speechExpression: t("characters.edit.voiceSpeechExpression"),
+                          speechExpressionHint: t("characters.edit.voiceSpeechExpressionHint"),
                           previewPlaceholder: t("characters.edit.voicePreviewPlaceholder"),
                           previewPlay: t("characters.edit.voicePreviewPlay"),
                           previewStop: t("characters.edit.voicePreviewStop"),

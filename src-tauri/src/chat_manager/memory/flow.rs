@@ -1175,7 +1175,26 @@ fn resolve_conversation_index_by_message_id(
 /// This self-heals when messages are deleted (counts shrink) or the conversation is rewound.
 /// Returns (window_end_index, cursor_rewound).
 fn memory_event_advances_cursor(event: &Value) -> bool {
-    !matches!(event.get("status").and_then(Value::as_str), Some("error"))
+    event.get("revertedAt").map(Value::is_null).unwrap_or(true)
+        && !matches!(event.get("status").and_then(Value::as_str), Some("error"))
+}
+
+fn memory_event_belongs_to_session(event: &Value, session_id: &str) -> bool {
+    event
+        .get("sourceSessionId")
+        .and_then(Value::as_str)
+        .map(|source_session_id| source_session_id == session_id)
+        .unwrap_or(true)
+}
+
+fn memory_event_is_zero_cursor_anchor(event: &Value) -> bool {
+    event.get("type").and_then(Value::as_str) == Some("rewind_anchor")
+        && event.get("windowEnd").and_then(Value::as_u64) == Some(0)
+        && event
+            .get("windowMessageIds")
+            .and_then(Value::as_array)
+            .map(Vec::is_empty)
+            .unwrap_or(false)
 }
 
 fn resolve_last_valid_window_end(
@@ -1191,9 +1210,15 @@ fn resolve_last_valid_window_end(
         .memory_tool_events
         .iter()
         .rev()
-        .filter(|event| memory_event_advances_cursor(event))
+        .filter(|event| {
+            memory_event_advances_cursor(event)
+                && memory_event_belongs_to_session(event, &session.id)
+        })
         .enumerate()
     {
+        if memory_event_is_zero_cursor_anchor(event) {
+            return Ok((0, rev_idx != 0));
+        }
         let end_id = event
             .get("windowMessageIds")
             .and_then(|v| v.as_array())
@@ -1218,7 +1243,10 @@ fn resolve_last_valid_window_end(
 
 #[cfg(test)]
 mod memory_cursor_tests {
-    use super::memory_event_advances_cursor;
+    use super::{
+        memory_event_advances_cursor, memory_event_belongs_to_session,
+        memory_event_is_zero_cursor_anchor,
+    };
     use serde_json::json;
 
     #[test]
@@ -1233,6 +1261,30 @@ mod memory_cursor_tests {
     fn successful_legacy_memory_event_advances_cursor() {
         assert!(memory_event_advances_cursor(&json!({
             "windowEnd": 288
+        })));
+    }
+
+    #[test]
+    fn reverted_memory_event_does_not_advance_cursor() {
+        assert!(!memory_event_advances_cursor(&json!({
+            "windowEnd": 288,
+            "revertedAt": 123
+        })));
+    }
+
+    #[test]
+    fn shared_event_from_another_session_is_ignored() {
+        let event = json!({ "sourceSessionId": "other-session" });
+        assert!(!memory_event_belongs_to_session(&event, "current-session"));
+        assert!(memory_event_belongs_to_session(&event, "other-session"));
+    }
+
+    #[test]
+    fn zero_cursor_repair_anchor_is_valid() {
+        assert!(memory_event_is_zero_cursor_anchor(&json!({
+            "type": "rewind_anchor",
+            "windowEnd": 0,
+            "windowMessageIds": []
         })));
     }
 }
@@ -1308,6 +1360,7 @@ fn fetch_conversation_messages_range(
                 attachments: Vec::new(),
                 reasoning: None,
                 model_id: None,
+                tts_context_text: None,
             })
         })
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -2859,7 +2912,63 @@ async fn process_dynamic_memory_cycle_with_model(
     //   then future cycles continue at window_size cadence.
     // - Forced cycles (retry/manual trigger/model override) summarize the most recent window_size
     //   messages, even if there are no new messages.
-    let (last_window_end, cursor_rewound) = resolve_last_valid_window_end(app, session)?;
+    let (mut last_window_end, mut cursor_rewound) = resolve_last_valid_window_end(app, session)?;
+
+    if cursor_rewound && window_override.is_none() {
+        let repair = {
+            let conn = open_db(app)?;
+            crate::storage_manager::memory_rewind::repair_orphaned_history(
+                &conn,
+                &session.id,
+                window_size,
+                now_millis()?,
+            )
+        };
+        let repair = match repair {
+            Ok(outcome) => outcome,
+            Err(error) => {
+                record_dynamic_memory_error(app, session, &error, "history_repair");
+                return Err(error);
+            }
+        };
+        log_info(
+            app,
+            "dynamic_memory",
+            format!(
+                "orphaned history repaired: session_id={} shared={} missing_message_ids={} reverted_events={} removed_memories={} restored_memories={} unrestorable_actions={} anchor_window_end={} recent_window_size={}",
+                session.id,
+                repair.rewind.shared,
+                repair.missing_message_ids,
+                repair.rewind.reverted_events,
+                repair.rewind.removed_memories,
+                repair.rewind.restored_memories,
+                repair.rewind.unrestorable_actions,
+                repair.anchor_window_end,
+                window_size,
+            ),
+        );
+        let _ = app.emit(
+            "dynamic-memory:history-repaired",
+            json!({
+                "sessionId": session.id,
+                "shared": repair.rewind.shared,
+                "missingMessageIds": repair.missing_message_ids,
+                "revertedEvents": repair.rewind.reverted_events,
+                "removedMemories": repair.rewind.removed_memories,
+                "anchorWindowEnd": repair.anchor_window_end,
+            }),
+        );
+
+        let session_id = session.id.clone();
+        *session = crate::chat_manager::storage::load_session(app, &session_id)?
+            .ok_or_else(|| "Session not found after memory history repair".to_string())?;
+        (last_window_end, cursor_rewound) = resolve_last_valid_window_end(app, session)?;
+        if cursor_rewound {
+            let error = "Memory history repair did not produce a valid cursor".to_string();
+            record_dynamic_memory_error(app, session, &error, "history_repair");
+            return Err(error);
+        }
+    }
 
     let new_convo = total_convo_at_start.saturating_sub(last_window_end);
     log_info(
@@ -3099,8 +3208,15 @@ async fn process_dynamic_memory_cycle_with_model(
         app,
         "dynamic_memory",
         format!(
-            "running summarisation with model={} window_size={} total_convo_at_start={} window_start={} window_end={} window_ids={:?}",
-            summary_model.name, window_size, total_convo_at_start, window_start, window_end, window_message_ids
+            "running summarisation with model={} window_size={} total_convo_at_start={} window_start={} window_end={} window_id_count={} first_window_id={:?} last_window_id={:?}",
+            summary_model.name,
+            window_size,
+            total_convo_at_start,
+            window_start,
+            window_end,
+            window_message_ids.len(),
+            window_message_ids.first(),
+            window_message_ids.last(),
         ),
     );
     let _ = app.emit(
@@ -3163,10 +3279,12 @@ async fn process_dynamic_memory_cycle_with_model(
             if debug_capture_enabled && !debug_steps.is_empty() {
                 let event = json!({
                     "id": Uuid::new_v4().to_string(),
+                    "sourceSessionId": session.id,
                     "windowStart": window_start,
                     "windowEnd": window_end,
                     "windowMessageIds": window_message_ids,
                     "summary": "",
+                    "summaryTokenCount": 0,
                     "actions": [],
                     "error": err,
                     "status": "error",
@@ -3280,10 +3398,12 @@ async fn process_dynamic_memory_cycle_with_model(
 
             let event = json!({
                 "id": Uuid::new_v4().to_string(),
+                "sourceSessionId": session.id,
                 "windowStart": window_start,
                 "windowEnd": window_end,
                 "windowMessageIds": window_message_ids,
                 "summary": summary,
+                "summaryTokenCount": crate::embedding::tokenizer::count_tokens(app, &summary).unwrap_or(0),
                 "actions": [],
                 "error": err,
                 "status": "error",
@@ -3344,10 +3464,12 @@ async fn process_dynamic_memory_cycle_with_model(
         crate::embedding::tokenizer::count_tokens(app, &summary).unwrap_or(0);
     let event = json!({
         "id": Uuid::new_v4().to_string(),
+        "sourceSessionId": session.id,
         "windowStart": window_start,
         "windowEnd": window_end,
         "windowMessageIds": window_message_ids,
         "summary": summary,
+        "summaryTokenCount": session.memory_summary_token_count,
         "actions": actions,
         "debugSteps": if debug_capture_enabled { Value::Array(debug_steps.clone()) } else { Value::Null },
         "createdAt": now_millis().unwrap_or_default(),
@@ -4718,11 +4840,15 @@ async fn run_memory_tool_update(
                         let id = sanitize_memory_id(raw_id);
                         if let Some(mem) = session.memory_embeddings.iter_mut().find(|m| m.id == id)
                         {
+                            let previous_is_pinned = mem.is_pinned;
+                            let previous_importance_score = mem.importance_score;
                             mem.is_pinned = true;
                             mem.importance_score = 1.0; // Reset score when pinned
                             actions_log.push(json!({
                                 "name": "pin_memory",
                                 "arguments": call.arguments,
+                                "previousIsPinned": previous_is_pinned,
+                                "previousImportanceScore": previous_importance_score,
                                 "timestamp": now_millis().unwrap_or_default(),
                             }));
                             tool_results.push(json!({
@@ -4751,10 +4877,14 @@ async fn run_memory_tool_update(
                         let id = sanitize_memory_id(raw_id);
                         if let Some(mem) = session.memory_embeddings.iter_mut().find(|m| m.id == id)
                         {
+                            let previous_is_pinned = mem.is_pinned;
+                            let previous_importance_score = mem.importance_score;
                             mem.is_pinned = false;
                             actions_log.push(json!({
                                 "name": "unpin_memory",
                                 "arguments": call.arguments,
+                                "previousIsPinned": previous_is_pinned,
+                                "previousImportanceScore": previous_importance_score,
                                 "timestamp": now_millis().unwrap_or_default(),
                             }));
                             tool_results.push(json!({

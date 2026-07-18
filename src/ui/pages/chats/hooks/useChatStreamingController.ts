@@ -209,7 +209,8 @@ export function useChatStreamingController({
                 ).content;
                 if (
                   !scenePromptNotified &&
-                  (sceneDirectiveState.insideTag || sceneDirectiveState.extractedPrompt !== null)
+                  (sceneDirectiveState.activeDirective === "scene" ||
+                    sceneDirectiveState.extractedPrompt !== null)
                 ) {
                   scenePromptNotified = true;
                   dispatch({ type: "SET_SCENE_PROMPT_STREAMING", payload: true });
@@ -492,7 +493,8 @@ export function useChatStreamingController({
                 ).content;
                 if (
                   !scenePromptNotified &&
-                  (sceneDirectiveState.insideTag || sceneDirectiveState.extractedPrompt !== null)
+                  (sceneDirectiveState.activeDirective === "scene" ||
+                    sceneDirectiveState.extractedPrompt !== null)
                 ) {
                   scenePromptNotified = true;
                   dispatch({ type: "SET_SCENE_PROMPT_STREAMING", payload: true });
@@ -787,7 +789,8 @@ export function useChatStreamingController({
                 ).content;
                 if (
                   !scenePromptNotified &&
-                  (sceneDirectiveState.insideTag || sceneDirectiveState.extractedPrompt !== null)
+                  (sceneDirectiveState.activeDirective === "scene" ||
+                    sceneDirectiveState.extractedPrompt !== null)
                 ) {
                   scenePromptNotified = true;
                   dispatch({ type: "SET_SCENE_PROMPT_STREAMING", payload: true });

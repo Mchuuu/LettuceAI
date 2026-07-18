@@ -720,6 +720,7 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           used_lorebook_entries TEXT NOT NULL DEFAULT '[]',
           attachments TEXT NOT NULL DEFAULT '[]',
           reasoning TEXT,
+          tts_context_text TEXT,
           FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
         );
 
@@ -793,6 +794,7 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           tokens_per_second REAL,
           mtp_stats TEXT,
           reasoning TEXT,
+          tts_context_text TEXT,
           FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE
         );
 
@@ -1467,6 +1469,11 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
     if !has_variant_reasoning {
         let _ = conn.execute("ALTER TABLE message_variants ADD COLUMN reasoning TEXT", []);
     }
+    let _ = conn.execute("ALTER TABLE messages ADD COLUMN tts_context_text TEXT", []);
+    let _ = conn.execute(
+        "ALTER TABLE message_variants ADD COLUMN tts_context_text TEXT",
+        [],
+    );
 
     let mut stmt_sessions = conn
         .prepare("PRAGMA table_info(sessions)")

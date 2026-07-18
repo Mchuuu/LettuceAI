@@ -738,6 +738,7 @@ pub fn ensure_assistant_variant(message: &mut StoredMessage) {
             usage: message.usage.clone(),
             attachments: Vec::new(),
             reasoning: None,
+            tts_context_text: message.tts_context_text.clone(),
         });
         message.selected_variant_id = Some(id);
     } else if message.selected_variant_id.is_none() {
@@ -751,6 +752,7 @@ pub fn new_assistant_variant(
     content: String,
     usage: Option<UsageSummary>,
     created_at: u64,
+    tts_context_text: Option<String>,
 ) -> MessageVariant {
     MessageVariant {
         id: Uuid::new_v4().to_string(),
@@ -759,6 +761,7 @@ pub fn new_assistant_variant(
         usage,
         attachments: Vec::new(),
         reasoning: None,
+        tts_context_text,
     }
 }
 

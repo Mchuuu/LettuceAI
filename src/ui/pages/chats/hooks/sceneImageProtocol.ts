@@ -1,19 +1,26 @@
 const SCENE_TAG_OPEN = "<img>";
 const SCENE_CLOSE_TOKENS = ["</img>", "[continue]", "[/continue]"];
+const VOICE_EXP_TAG_OPEN = "<voice_exp>";
+const VOICE_EXP_CLOSE_TOKENS = ["</voice_exp>"];
+type DirectiveKind = "scene" | "voice_exp";
 
 export type SceneDirectiveStreamState = {
   carry: string;
-  insideTag: boolean;
+  activeDirective: DirectiveKind | null;
   promptBuffer: string;
   extractedPrompt: string | null;
+  voiceExpressionBuffer: string;
+  extractedVoiceExpression: string | null;
 };
 
 export function createSceneDirectiveStreamState(): SceneDirectiveStreamState {
   return {
     carry: "",
-    insideTag: false,
+    activeDirective: null,
     promptBuffer: "",
     extractedPrompt: null,
+    voiceExpressionBuffer: "",
+    extractedVoiceExpression: null,
   };
 }
 
@@ -56,23 +63,28 @@ function longestAnyTokenPrefixSuffixLength(value: string, tokens: string[]): num
 export function consumeSceneDirectiveDelta(
   state: SceneDirectiveStreamState,
   text: string,
-): { content: string; prompt: string | null } {
+): { content: string; prompt: string | null; voiceExpression: string | null } {
   let remaining = state.carry + text;
   let visibleContent = "";
   state.carry = "";
 
   while (remaining.length > 0) {
-    if (!state.insideTag) {
-      const openMatch = findEarliestTokenIndex(remaining, [SCENE_TAG_OPEN]);
+    if (!state.activeDirective) {
+      const openMatch = findEarliestTokenIndex(remaining, [SCENE_TAG_OPEN, VOICE_EXP_TAG_OPEN]);
       if (openMatch) {
         visibleContent += remaining.slice(0, openMatch.index);
         remaining = remaining.slice(openMatch.index + openMatch.token.length);
-        state.insideTag = true;
-        state.promptBuffer = "";
+        state.activeDirective =
+          openMatch.token.toLowerCase() === VOICE_EXP_TAG_OPEN ? "voice_exp" : "scene";
+        if (state.activeDirective === "scene") state.promptBuffer = "";
+        else state.voiceExpressionBuffer = "";
         continue;
       }
 
-      const partialLength = longestAnyTokenPrefixSuffixLength(remaining, [SCENE_TAG_OPEN]);
+      const partialLength = longestAnyTokenPrefixSuffixLength(remaining, [
+        SCENE_TAG_OPEN,
+        VOICE_EXP_TAG_OPEN,
+      ]);
       const visibleLength = remaining.length - partialLength;
       if (visibleLength > 0) {
         visibleContent += remaining.slice(0, visibleLength);
@@ -81,41 +93,60 @@ export function consumeSceneDirectiveDelta(
       break;
     }
 
-    const closeMatch = findEarliestTokenIndex(remaining, SCENE_CLOSE_TOKENS);
+    const closeTokens =
+      state.activeDirective === "scene" ? SCENE_CLOSE_TOKENS : VOICE_EXP_CLOSE_TOKENS;
+    const closeMatch = findEarliestTokenIndex(remaining, closeTokens);
     if (closeMatch) {
-      state.promptBuffer += remaining.slice(0, closeMatch.index);
-      const prompt = state.promptBuffer.trim();
-      if (!state.extractedPrompt && prompt) {
-        state.extractedPrompt = prompt;
+      const value = remaining.slice(0, closeMatch.index);
+      if (state.activeDirective === "scene") {
+        state.promptBuffer += value;
+        const prompt = state.promptBuffer.trim();
+        if (!state.extractedPrompt && prompt) state.extractedPrompt = prompt;
+        state.promptBuffer = "";
+      } else {
+        state.voiceExpressionBuffer += value;
+        const expression = state.voiceExpressionBuffer.trim();
+        if (expression) state.extractedVoiceExpression = expression;
+        state.voiceExpressionBuffer = "";
       }
-      state.promptBuffer = "";
       remaining = remaining.slice(closeMatch.index + closeMatch.token.length);
-      state.insideTag = false;
+      state.activeDirective = null;
       continue;
     }
 
-    const partialLength = longestAnyTokenPrefixSuffixLength(remaining, SCENE_CLOSE_TOKENS);
-    const promptLength = remaining.length - partialLength;
-    if (promptLength > 0) {
-      state.promptBuffer += remaining.slice(0, promptLength);
+    const partialLength = longestAnyTokenPrefixSuffixLength(remaining, closeTokens);
+    const valueLength = remaining.length - partialLength;
+    if (valueLength > 0) {
+      if (state.activeDirective === "scene") {
+        state.promptBuffer += remaining.slice(0, valueLength);
+      } else {
+        state.voiceExpressionBuffer += remaining.slice(0, valueLength);
+      }
     }
-    state.carry = remaining.slice(promptLength);
+    state.carry = remaining.slice(valueLength);
     break;
   }
 
   return {
     content: visibleContent,
     prompt: state.extractedPrompt,
+    voiceExpression: state.extractedVoiceExpression,
   };
 }
 
 export function finalizeSceneDirectiveStream(
   state: SceneDirectiveStreamState,
-): { content: string; prompt: string | null } {
-  if (state.insideTag) {
+): { content: string; prompt: string | null; voiceExpression: string | null } {
+  if (state.activeDirective) {
     state.carry = "";
     state.promptBuffer = "";
-    return { content: "", prompt: state.extractedPrompt };
+    state.voiceExpressionBuffer = "";
+    state.activeDirective = null;
+    return {
+      content: "",
+      prompt: state.extractedPrompt,
+      voiceExpression: state.extractedVoiceExpression,
+    };
   }
 
   const tail = state.carry;
@@ -123,12 +154,14 @@ export function finalizeSceneDirectiveStream(
   return {
     content: tail,
     prompt: state.extractedPrompt,
+    voiceExpression: state.extractedVoiceExpression,
   };
 }
 
 export function sanitizeAssistantSceneDirective(content: string): {
   cleanContent: string;
   scenePrompt: string | null;
+  ttsContextText: string | null;
 } {
   const streamState = createSceneDirectiveStreamState();
   const firstPass = consumeSceneDirectiveDelta(streamState, content);
@@ -137,5 +170,7 @@ export function sanitizeAssistantSceneDirective(content: string): {
   return {
     cleanContent: `${firstPass.content}${tail.content}`.trim(),
     scenePrompt: tail.prompt?.trim() || firstPass.prompt?.trim() || null,
+    ttsContextText:
+      tail.voiceExpression?.trim() || firstPass.voiceExpression?.trim() || null,
   };
 }

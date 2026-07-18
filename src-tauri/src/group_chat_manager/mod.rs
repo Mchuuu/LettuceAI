@@ -5078,11 +5078,13 @@ fn load_character(conn: &rusqlite::Connection, character_id: &str) -> Result<Cha
         Option<String>,
         Option<String>,
         Option<String>,
+        Option<String>,
     ) = conn
         .query_row(
             "SELECT id, name, avatar_path, design_description, design_reference_image_ids, background_image_path,
                     description, definition, created_at, updated_at, default_model_id, memory_type,
-                    prompt_template_id, group_chat_prompt_template_id, group_chat_roleplay_prompt_template_id
+                    prompt_template_id, group_chat_prompt_template_id, group_chat_roleplay_prompt_template_id,
+                    voice_config
              FROM characters WHERE id = ?1",
             rusqlite::params![character_id],
             |row| {
@@ -5102,6 +5104,7 @@ fn load_character(conn: &rusqlite::Connection, character_id: &str) -> Result<Cha
                     row.get(12)?,
                     row.get(13)?,
                     row.get(14)?,
+                    row.get(15)?,
                 ))
             },
         )
@@ -5144,6 +5147,10 @@ fn load_character(conn: &rusqlite::Connection, character_id: &str) -> Result<Cha
         group_chat_prompt_template_id: row.13,
         group_chat_roleplay_prompt_template_id: row.14,
         system_prompt: None,
+        voice_config: row
+            .15
+            .as_deref()
+            .and_then(|value| serde_json::from_str(value).ok()),
         created_at: row.8 as u64,
         updated_at: row.9 as u64,
     })

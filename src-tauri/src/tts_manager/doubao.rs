@@ -95,6 +95,8 @@ struct TtsAudioParams<'a> {
 struct TtsReqParams<'a> {
     text: &'a str,
     speaker: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    model: Option<&'a str>,
     audio_params: TtsAudioParams<'a>,
     #[serde(skip_serializing_if = "Option::is_none")]
     additions: Option<String>,
@@ -126,6 +128,7 @@ struct DoubaoPromptOptions {
     loudness_rate: Option<i32>,
     pitch: Option<i32>,
     enable_subtitle: Option<bool>,
+    model: Option<String>,
     additions: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
@@ -189,9 +192,13 @@ impl DoubaoPromptOptions {
         if let Some(enable_subtitle) = value.get("enableSubtitle").and_then(|v| v.as_bool()) {
             options.enable_subtitle = Some(enable_subtitle);
         }
+        if let Some(model) = value.get("model").and_then(|v| v.as_str()) {
+            options.model = non_empty_string(model);
+        }
 
         let mut additions = serde_json::Map::new();
         copy_json_field(&value, &mut additions, "contextTexts", "context_texts");
+        copy_json_field(&value, &mut additions, "useTagParser", "use_tag_parser");
         copy_json_field(&value, &mut additions, "sectionId", "section_id");
         copy_json_field(
             &value,
@@ -290,6 +297,9 @@ pub async fn generate_speech(
         req_params: TtsReqParams {
             text,
             speaker,
+            model: (resource_id == "seed-icl-2.0")
+                .then_some(options.model.as_deref())
+                .flatten(),
             audio_params: TtsAudioParams {
                 format: &options.format,
                 sample_rate: options.sample_rate,
@@ -420,6 +430,9 @@ where
         req_params: TtsReqParams {
             text,
             speaker,
+            model: (resource_id == "seed-icl-2.0")
+                .then_some(options.model.as_deref())
+                .flatten(),
             audio_params: TtsAudioParams {
                 format: &options.format,
                 sample_rate: options.sample_rate,

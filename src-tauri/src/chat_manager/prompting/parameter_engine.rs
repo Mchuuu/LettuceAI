@@ -137,6 +137,11 @@ fn direct_chat_variables() -> Vec<PromptVariableDefinition> {
             "Content Rules",
             "Resolved content rules and safety constraints.",
         ),
+        variable(
+            "{{response_length_rules}}",
+            "Response Length Rules",
+            "Resolved per-session or per-model reply length limit.",
+        ),
     ]
 }
 

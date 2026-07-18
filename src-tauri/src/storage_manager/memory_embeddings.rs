@@ -369,14 +369,29 @@ pub fn replace_all(
         .transaction()
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
-    tx.execute(
+    replace_all_in_connection(&tx, session_id, kind, memories)?;
+
+    tx.commit()
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    Ok(())
+}
+
+/// Replace every row using the caller's connection or transaction. This keeps
+/// multi-table operations atomic without nesting SQLite transactions.
+pub(crate) fn replace_all_in_connection(
+    conn: &Connection,
+    session_id: &str,
+    kind: SessionKind,
+    memories: &[MemoryEmbedding],
+) -> Result<(), String> {
+    conn.execute(
         "DELETE FROM memory_embeddings WHERE session_id = ?1 AND session_kind = ?2",
         params![session_id, kind.as_str()],
     )
     .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
     {
-        let mut stmt = tx
+        let mut stmt = conn
             .prepare(
                 "INSERT INTO memory_embeddings (\
                     session_id, session_kind, memory_id, embedding, embedding_dim, \
@@ -441,8 +456,6 @@ pub fn replace_all(
         }
     }
 
-    tx.commit()
-        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     Ok(())
 }
 

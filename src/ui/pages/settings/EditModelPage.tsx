@@ -45,6 +45,7 @@ import { BottomMenu, MenuButton, MenuSection } from "../../components/BottomMenu
 import { GuidedTour, useGuidedTour } from "../../components/GuidedTour";
 import { ModelSelectionBottomMenu } from "../../components/ModelSelectionBottomMenu";
 import { NumberInput } from "../../components/NumberInput";
+import { ResponseLengthSettings } from "../../components/ResponseLengthSettings";
 import {
   Info,
   Brain,
@@ -3405,6 +3406,11 @@ export function EditModelPage() {
                                     <span>{ADVANCED_MAX_TOKENS_RANGE.max.toLocaleString()}</span>
                                   </div>
                                 </div>
+
+                                <ResponseLengthSettings
+                                  settings={modelAdvancedDraft}
+                                  onChange={setModelAdvancedDraft}
+                                />
 
                                 {/* Top K */}
                                 <div className="space-y-4">

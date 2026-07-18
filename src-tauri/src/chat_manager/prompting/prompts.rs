@@ -1065,9 +1065,21 @@ pub fn ensure_app_default_template(app: &AppHandle) -> Result<String, String> {
             APP_DEFAULT_TEMPLATE_ID,
             "entry_scene_image_protocol",
             defaults
-                .into_iter()
+                .iter()
+                .cloned()
                 .find(|entry| entry.id == "entry_scene_image_protocol")
                 .expect("scene image protocol entry should exist"),
+        );
+        let _ = append_missing_entry(
+            app,
+            APP_DEFAULT_TEMPLATE_ID,
+            crate::chat_manager::speech_expression::SPEECH_EXPRESSION_ENTRY_ID,
+            defaults
+                .into_iter()
+                .find(|entry| {
+                    entry.id == crate::chat_manager::speech_expression::SPEECH_EXPRESSION_ENTRY_ID
+                })
+                .expect("speech expression protocol entry should exist"),
         );
         return Ok(existing.id);
     }

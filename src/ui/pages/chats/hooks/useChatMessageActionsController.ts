@@ -84,6 +84,7 @@ export function useChatMessageActionsController({ context }: UseChatMessageActio
         content: targetVariant.content,
         usage: targetVariant.usage ?? currentMessage.usage,
         reasoning: targetVariant.reasoning,
+        ttsContextText: targetVariant.ttsContextText,
         selectedVariantId: targetVariant.id,
       };
 

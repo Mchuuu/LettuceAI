@@ -267,24 +267,27 @@ impl RegenerateFlow {
             }
         }
 
-        let prompt_entries = if swap_places {
-            let (prompt_character, prompt_persona) =
-                swapped_prompt_entities(&character, persona.as_ref());
-            append_image_directive_instructions(
-                context.build_system_prompt(
-                    &prompt_character,
-                    &model,
-                    prompt_persona.as_ref(),
-                    &session,
-                ),
-                settings,
-            )
-        } else {
-            append_image_directive_instructions(
-                context.build_system_prompt(&character, &model, persona.as_ref(), &session),
-                settings,
-            )
-        };
+        let prompt_entries = crate::chat_manager::speech_expression::apply_protocol(
+            if swap_places {
+                let (prompt_character, prompt_persona) =
+                    swapped_prompt_entities(&character, persona.as_ref());
+                append_image_directive_instructions(
+                    context.build_system_prompt(
+                        &prompt_character,
+                        &model,
+                        prompt_persona.as_ref(),
+                        &session,
+                    ),
+                    settings,
+                )
+            } else {
+                append_image_directive_instructions(
+                    context.build_system_prompt(&character, &model, persona.as_ref(), &session),
+                    settings,
+                )
+            },
+            &character,
+        );
         let used_lorebook_entries =
             crate::chat_manager::prompt_engine::resolve_used_lorebook_entries(
                 &app,
@@ -651,6 +654,9 @@ impl RegenerateFlow {
         } else {
             text
         };
+        let parsed_speech_expression = crate::chat_manager::speech_expression::parse(&text);
+        let text = parsed_speech_expression.content;
+        let tts_context_text = parsed_speech_expression.context_text;
         let usage = extract_usage(api_response.data());
         let reasoning =
             extract_reasoning(api_response.data(), Some(&selected_credential.provider_id));
@@ -691,7 +697,12 @@ impl RegenerateFlow {
         }
 
         let created_at = now_millis()?;
-        let new_variant = new_assistant_variant(text.clone(), usage.clone(), created_at);
+        let new_variant = new_assistant_variant(
+            text.clone(),
+            usage.clone(),
+            created_at,
+            tts_context_text.clone(),
+        );
 
         let mut assistant_generated_attachments: Vec<ImageAttachment> = Vec::new();
         for data_url in images_from_sse {
@@ -738,6 +749,7 @@ impl RegenerateFlow {
             assistant_message.usage = usage.clone();
             assistant_message.reasoning = reasoning.clone();
             assistant_message.model_id = Some(selected_model.id.clone());
+            assistant_message.tts_context_text = tts_context_text;
             push_assistant_variant(assistant_message, new_variant);
 
             if dynamic_memory_enabled {

@@ -29,6 +29,7 @@ fn make_character() -> Character {
         group_chat_prompt_template_id: None,
         group_chat_roleplay_prompt_template_id: None,
         system_prompt: None,
+        voice_config: None,
         created_at: 0,
         updated_at: 0,
     }

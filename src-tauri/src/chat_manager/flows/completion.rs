@@ -168,6 +168,7 @@ impl CompletionFlow {
             attachments: persisted_attachments,
             reasoning: None,
             model_id: None,
+            tts_context_text: None,
         };
         if companion::update_state_for_user_message(
             &app,
@@ -201,24 +202,27 @@ impl CompletionFlow {
             }),
         );
 
-        let prompt_entries = if swap_places {
-            let (prompt_character, prompt_persona) =
-                swapped_prompt_entities(&character, persona.as_ref());
-            append_image_directive_instructions(
-                context.build_system_prompt(
-                    &prompt_character,
-                    &model,
-                    prompt_persona.as_ref(),
-                    &session,
-                ),
-                settings,
-            )
-        } else {
-            append_image_directive_instructions(
-                context.build_system_prompt(&character, &model, persona.as_ref(), &session),
-                settings,
-            )
-        };
+        let prompt_entries = crate::chat_manager::speech_expression::apply_protocol(
+            if swap_places {
+                let (prompt_character, prompt_persona) =
+                    swapped_prompt_entities(&character, persona.as_ref());
+                append_image_directive_instructions(
+                    context.build_system_prompt(
+                        &prompt_character,
+                        &model,
+                        prompt_persona.as_ref(),
+                        &session,
+                    ),
+                    settings,
+                )
+            } else {
+                append_image_directive_instructions(
+                    context.build_system_prompt(&character, &model, persona.as_ref(), &session),
+                    settings,
+                )
+            },
+            &character,
+        );
 
         let used_lorebook_entries =
             crate::chat_manager::prompt_engine::resolve_used_lorebook_entries(
@@ -700,6 +704,9 @@ impl CompletionFlow {
         } else {
             text
         };
+        let parsed_speech_expression = crate::chat_manager::speech_expression::parse(&text);
+        let text = parsed_speech_expression.content;
+        let tts_context_text = parsed_speech_expression.context_text;
         let usage = extract_usage(api_response.data());
         let reasoning =
             extract_reasoning(api_response.data(), Some(&selected_credential.provider_id));
@@ -753,7 +760,12 @@ impl CompletionFlow {
         );
 
         let assistant_created_at = now_millis()?;
-        let variant = new_assistant_variant(text.clone(), usage.clone(), assistant_created_at);
+        let variant = new_assistant_variant(
+            text.clone(),
+            usage.clone(),
+            assistant_created_at,
+            tts_context_text.clone(),
+        );
         let variant_id = variant.id.clone();
         let assistant_message_id = Uuid::new_v4().to_string();
 
@@ -820,6 +832,7 @@ impl CompletionFlow {
             attachments: persisted_assistant_attachments,
             reasoning,
             model_id: Some(selected_model.id.clone()),
+            tts_context_text,
         };
 
         let companion_update_base_session = companion_mode_enabled.then(|| session.clone());

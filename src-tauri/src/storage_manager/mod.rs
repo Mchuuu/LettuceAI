@@ -15,6 +15,7 @@ pub mod llm_metrics;
 pub mod lorebook;
 pub mod media;
 pub mod memory_embeddings;
+pub mod memory_rewind;
 pub mod models;
 pub mod personas;
 pub mod providers;

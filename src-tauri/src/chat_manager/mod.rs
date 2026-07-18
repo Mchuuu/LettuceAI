@@ -23,7 +23,8 @@ pub mod types;
 
 pub use persistence::{attachments, repository, storage};
 pub use prompting::{
-    lorebook_matcher, messages, prompt_engine, prompts, request, request_builder, turn_builder,
+    lorebook_matcher, messages, prompt_engine, prompts, request, request_builder,
+    speech_expression, turn_builder,
 };
 
 pub use commands::{

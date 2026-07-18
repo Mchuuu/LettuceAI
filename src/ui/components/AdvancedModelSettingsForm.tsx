@@ -12,6 +12,7 @@ import { NumberInput } from "./NumberInput";
 export const ADVANCED_TEMPERATURE_RANGE = { min: 0, max: 2 };
 export const ADVANCED_TOP_P_RANGE = { min: 0, max: 1 };
 export const ADVANCED_MAX_TOKENS_RANGE = { min: 0, max: 32768 };
+export const ADVANCED_RESPONSE_LENGTH_RANGE = { min: 20, max: 2000 };
 export const ADVANCED_CONTEXT_LENGTH_RANGE = { min: 0, max: 262144 };
 export const ADVANCED_FREQUENCY_PENALTY_RANGE = { min: -2, max: 2 };
 export const ADVANCED_PRESENCE_PENALTY_RANGE = { min: -2, max: 2 };
@@ -125,6 +126,12 @@ export function sanitizeAdvancedModelSettings(input: AdvancedModelSettings): Adv
     temperature: sanitize(input.temperature, ADVANCED_TEMPERATURE_RANGE, false),
     topP: sanitize(input.topP, ADVANCED_TOP_P_RANGE, false),
     maxOutputTokens: sanitize(input.maxOutputTokens, ADVANCED_MAX_TOKENS_RANGE, true),
+    responseLengthPreset: input.responseLengthPreset ?? "auto",
+    responseLengthChars: sanitize(
+      input.responseLengthChars,
+      ADVANCED_RESPONSE_LENGTH_RANGE,
+      true,
+    ),
     contextLength: sanitize(input.contextLength, ADVANCED_CONTEXT_LENGTH_RANGE, true),
     frequencyPenalty: sanitize(input.frequencyPenalty, ADVANCED_FREQUENCY_PENALTY_RANGE, false),
     presencePenalty: sanitize(input.presencePenalty, ADVANCED_PRESENCE_PENALTY_RANGE, false),

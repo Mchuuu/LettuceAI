@@ -1458,11 +1458,21 @@ export function ChatConversationPage() {
           provider.resourceId === "seed-icl-2.0"
             ? getCachedDoubaoVoicePreviewMetadata(providerId, voiceId)?.sampleRate
             : undefined;
+        const selectedVariant = message.selectedVariantId
+          ? message.variants?.find((variant) => variant.id === message.selectedVariantId)
+          : message.variants?.[message.variants.length - 1];
+        const ttsContextText = selectedVariant?.ttsContextText ?? message.ttsContextText;
         const prompt =
           provider.providerType === "doubao_tts"
             ? buildDoubaoVoicePrompt(
                 character.voiceConfig.doubaoVoiceSettings,
                 cloneSampleRate,
+                {
+                  contextText: ttsContextText,
+                  expressiveClone:
+                    provider.resourceId === "seed-icl-2.0" ||
+                    character.voiceConfig.modelId === "seed-icl-2.0",
+                },
               )
             : undefined;
         const cacheKey = buildAudioCacheKey({
