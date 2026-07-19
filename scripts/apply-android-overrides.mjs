@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const repoRoot = process.cwd();
@@ -13,6 +13,8 @@ const valuesNightDir = path.join(androidAppDir, "src", "main", "res", "values-ni
 const drawableDir = path.join(androidAppDir, "src", "main", "res", "drawable");
 const proguardRulesPath = path.join(androidAppDir, "proguard-rules.pro");
 const buildGradlePath = path.join(androidAppDir, "build.gradle.kts");
+const sherpaVersion = "1.13.4";
+const sherpaAarName = `sherpa-onnx-${sherpaVersion}.aar`;
 
 async function main() {
   const packageName = await readBasePackageName(tauriConfigPath);
@@ -25,7 +27,10 @@ async function main() {
     "CrashMonitorService.kt",
     "KokoroPhonemizerBridge.kt",
     "PcmAudioTrackBridge.kt",
+    "SenseVoiceBridge.kt",
+    "ZipformerCtcBridge.kt",
   ]);
+  await ensureSherpaAndroidRuntime();
 
   await applyTemplate("MainActivity.kt.template", path.join(targetJavaDir, "MainActivity.kt"), {
     __PACKAGE__: packageName,
@@ -51,6 +56,20 @@ async function main() {
       __PACKAGE__: packageName,
     },
   );
+  await applyTemplate(
+    "SenseVoiceBridge.kt.template",
+    path.join(targetJavaDir, "SenseVoiceBridge.kt"),
+    {
+      __PACKAGE__: packageName,
+    },
+  );
+  await applyTemplate(
+    "ZipformerCtcBridge.kt.template",
+    path.join(targetJavaDir, "ZipformerCtcBridge.kt"),
+    {
+      __PACKAGE__: packageName,
+    },
+  );
   await applyTemplate("AndroidManifest.xml", manifestPath, {
     __PACKAGE__: packageName,
   });
@@ -72,6 +91,40 @@ async function main() {
   console.log(
     `Applied Android overrides for package ${packageName} (applicationId override via LETTUCE_ANDROID_APPLICATION_ID)`,
   );
+}
+
+async function ensureSherpaAndroidRuntime() {
+  const libsDir = path.join(androidAppDir, "libs");
+  const aarPath = path.join(libsDir, sherpaAarName);
+  await mkdir(libsDir, { recursive: true });
+  if (!(await pathExists(aarPath))) {
+    const url = `https://github.com/k2-fsa/sherpa-onnx/releases/download/v${sherpaVersion}/${sherpaAarName}`;
+    const tempPath = `${aarPath}.part`;
+    console.log(`Downloading sherpa-onnx Android runtime ${sherpaVersion}...`);
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to download ${url}: HTTP ${response.status}`);
+    }
+    await writeFile(tempPath, Buffer.from(await response.arrayBuffer()));
+    await rename(tempPath, aarPath);
+  }
+
+  // The AAR owns ONNX Runtime on Android. A second copy from jniLibs causes
+  // duplicate packaging and can load an ABI-incompatible runtime.
+  for (const abi of ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"]) {
+    await rm(path.join(androidAppDir, "src", "main", "jniLibs", abi, "libonnxruntime.so"), {
+      force: true,
+    });
+  }
+}
+
+async function pathExists(targetPath) {
+  try {
+    await access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function readBasePackageName(filePath) {

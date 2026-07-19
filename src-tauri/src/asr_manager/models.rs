@@ -63,7 +63,7 @@ pub struct AsrInstalledWhisperModel {
     pub quantized: bool,
 }
 
-fn whisper_models_dir(app: &AppHandle) -> Result<PathBuf, String> {
+pub(super) fn whisper_models_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let lettuce_dir = crate::infra::utils::ensure_lettuce_dir(app)?;
     let dir = lettuce_dir.join("models").join("whisper");
     std::fs::create_dir_all(&dir)
@@ -197,7 +197,7 @@ fn validate_model_id(model_id: &str) -> Result<(), String> {
     Ok(())
 }
 
-async fn fetch_remote_whisper_models() -> Result<Vec<AsrWhisperModelPreset>, String> {
+pub(super) async fn fetch_remote_whisper_models() -> Result<Vec<AsrWhisperModelPreset>, String> {
     let client = reqwest::Client::builder()
         .user_agent("LettuceAI/1.0")
         .redirect(reqwest::redirect::Policy::limited(10))
@@ -355,7 +355,13 @@ pub async fn asr_whisper_queue_model_download(
 pub async fn asr_whisper_list_installed_models(
     app: AppHandle,
 ) -> Result<Vec<AsrInstalledWhisperModel>, String> {
-    let models_dir = whisper_models_dir(&app)?;
+    list_installed_whisper_models(&app)
+}
+
+pub(super) fn list_installed_whisper_models(
+    app: &AppHandle,
+) -> Result<Vec<AsrInstalledWhisperModel>, String> {
+    let models_dir = whisper_models_dir(app)?;
     let mut results = Vec::new();
     let entries = std::fs::read_dir(&models_dir)
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;

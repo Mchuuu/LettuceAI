@@ -97,6 +97,55 @@ export interface AsrWhisperSegment {
   speakerTurnNext: boolean;
 }
 
+export type AsrEngine = "whisper" | "senseVoice" | "zipformerCtc";
+
+export interface AsrModelRef {
+  engine: AsrEngine;
+  path: string;
+  tokensPath?: string | null;
+  punctuationPath?: string | null;
+}
+
+export interface AsrTranscribePcmRequest extends Omit<AsrWhisperTranscribePcmRequest, "modelPath"> {
+  model: AsrModelRef;
+}
+
+export interface AsrTranscribeFileRequest extends Omit<AsrWhisperTranscribeRequest, "modelPath"> {
+  model: AsrModelRef;
+}
+
+export interface AsrRuntimeLoadRequest extends Omit<AsrWhisperRuntimeLoadRequest, "modelPath"> {
+  model: AsrModelRef;
+  threads?: number | null;
+}
+
+export type AsrTranscriptionResponse = AsrWhisperTranscriptionResponse;
+
+export interface AsrModelPreset extends AsrWhisperModelPreset {
+  engine: AsrEngine;
+  tokensFilename?: string | null;
+  punctuationFilename?: string | null;
+  supportsGpu: boolean;
+  supportsInitialPrompt: boolean;
+}
+
+export interface AsrInstalledModel extends AsrInstalledWhisperModel {
+  engine: AsrEngine;
+  tokensPath?: string | null;
+  punctuationPath?: string | null;
+  supportsGpu: boolean;
+  supportsInitialPrompt: boolean;
+}
+
+export function asrModelRef(model: AsrInstalledModel): AsrModelRef {
+  return {
+    engine: model.engine,
+    path: model.path,
+    tokensPath: model.tokensPath ?? null,
+    punctuationPath: model.punctuationPath ?? null,
+  };
+}
+
 export interface AsrWhisperTranscribePcmRequest {
   modelPath: string;
   pcmBytes: Uint8Array;
@@ -340,4 +389,44 @@ export function asrWhisperListInstalledModels(): Promise<AsrInstalledWhisperMode
 
 export function asrWhisperDeleteInstalledModel(filePath: string): Promise<void> {
   return invoke<void>("asr_whisper_delete_installed_model", { filePath });
+}
+
+export function asrTranscribeFile(
+  request: AsrTranscribeFileRequest,
+): Promise<AsrTranscriptionResponse> {
+  return invoke<AsrTranscriptionResponse>("asr_transcribe_file", { request });
+}
+
+export function asrTranscribePcm(
+  request: AsrTranscribePcmRequest,
+): Promise<AsrTranscriptionResponse> {
+  return invoke<AsrTranscriptionResponse>("asr_transcribe_pcm", { request });
+}
+
+export function asrRuntimeClearCache(): Promise<number> {
+  return invoke<number>("asr_runtime_clear_cache");
+}
+
+export function asrRuntimePreloadModel(request: AsrRuntimeLoadRequest): Promise<void> {
+  return invoke<void>("asr_runtime_preload_model", { request });
+}
+
+export function asrListAvailableModels(): Promise<AsrModelPreset[]> {
+  return invoke<AsrModelPreset[]>("asr_list_available_models");
+}
+
+export function asrGetModelsDir(): Promise<string> {
+  return invoke<string>("asr_get_models_dir");
+}
+
+export function asrQueueModelDownload(engine: AsrEngine, modelId: string): Promise<string> {
+  return invoke<string>("asr_queue_model_download", { engine, modelId });
+}
+
+export function asrListInstalledModels(): Promise<AsrInstalledModel[]> {
+  return invoke<AsrInstalledModel[]>("asr_list_installed_models");
+}
+
+export function asrDeleteInstalledModel(model: AsrModelRef): Promise<void> {
+  return invoke<void>("asr_delete_installed_model", { model });
 }

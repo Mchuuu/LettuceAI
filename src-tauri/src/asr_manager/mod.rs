@@ -1,5 +1,10 @@
+mod audio;
+pub mod catalog;
+pub mod engine;
 pub mod models;
 pub mod runtime;
+pub mod sense_voice;
+pub mod zipformer_ctc;
 
 use regex::Regex;
 use rusqlite::{params, ToSql};

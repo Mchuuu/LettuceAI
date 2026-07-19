@@ -51,10 +51,14 @@ fn main() {
     println!("cargo:rerun-if-env-changed=KOKORO_ESPEAK_ANDROID_BUNDLE_PATH");
     println!("cargo:rerun-if-env-changed=KOKORO_ANDROID_BRIDGE_CLASS");
     println!("cargo:rerun-if-env-changed=PCM_AUDIO_TRACK_ANDROID_BRIDGE_CLASS");
+    println!("cargo:rerun-if-env-changed=SENSE_VOICE_ANDROID_BRIDGE_CLASS");
+    println!("cargo:rerun-if-env-changed=ZIPFORMER_CTC_ANDROID_BRIDGE_CLASS");
     println!("cargo:rerun-if-changed=tauri.conf.json");
 
     export_android_bridge_class();
     export_pcm_audio_track_bridge_class();
+    export_sense_voice_bridge_class();
+    export_zipformer_ctc_bridge_class();
 
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     match target_os.as_str() {
@@ -137,6 +141,32 @@ fn export_pcm_audio_track_bridge_class() {
     println!("cargo:rustc-env=PCM_AUDIO_TRACK_ANDROID_BRIDGE_CLASS={value}");
 }
 
+fn export_sense_voice_bridge_class() {
+    let value = env::var("SENSE_VOICE_ANDROID_BRIDGE_CLASS")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| {
+            let identifier =
+                read_tauri_identifier().unwrap_or_else(|_| "com.lettuceai.app".to_string());
+            format!("{}.SenseVoiceBridge", identifier)
+        });
+    println!("cargo:rustc-env=SENSE_VOICE_ANDROID_BRIDGE_CLASS={value}");
+}
+
+fn export_zipformer_ctc_bridge_class() {
+    let value = env::var("ZIPFORMER_CTC_ANDROID_BRIDGE_CLASS")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| {
+            let identifier =
+                read_tauri_identifier().unwrap_or_else(|_| "com.lettuceai.app".to_string());
+            format!("{}.ZipformerCtcBridge", identifier)
+        });
+    println!("cargo:rustc-env=ZIPFORMER_CTC_ANDROID_BRIDGE_CLASS={value}");
+}
+
 fn read_tauri_identifier() -> anyhow::Result<String> {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR")?);
     let path = manifest_dir.join("tauri.conf.json");
@@ -159,6 +189,12 @@ fn ensure_resource_dir() -> anyhow::Result<PathBuf> {
 }
 
 fn setup_android_libs() -> anyhow::Result<()> {
+    if PathBuf::from("gen/android/app/libs/sherpa-onnx-1.13.4.aar").is_file() {
+        println!(
+            "cargo:warning=sherpa-onnx Android runtime supplies ONNX Runtime; skipping standalone copy."
+        );
+        return Ok(());
+    }
     let resource_dir = ensure_resource_dir()?;
     println!(
         "cargo:warning=Ensured ONNX Runtime resource dir at {:?} for Android build",

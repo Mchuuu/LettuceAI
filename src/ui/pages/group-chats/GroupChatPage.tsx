@@ -52,11 +52,17 @@ import { DynamicMemoryApprovalGate } from "../../components/DynamicMemoryApprova
 import {
   asrCorrectionUpsert,
   asrIgnoreSuggestion,
+  asrListInstalledModels,
+  asrModelRef,
+  ASR_ACTIVE_MODEL_CHANGED_EVENT,
+  ASR_INPUT_BEHAVIOR_CHANGED_EVENT,
+  getAsrInputBehavior,
+  resolveActiveAsrModel,
   asrSuggestCorrectionsFromEdit,
-  asrWhisperListInstalledModels,
-  asrWhisperTranscribePcm,
+  asrTranscribePcm,
   micConstraintsWithStoredDevice,
-  type AsrInstalledWhisperModel,
+  type AsrInstalledModel,
+  type AsrInputBehavior,
   type AsrLearnedSuggestion,
 } from "../../../core/asr";
 import {
@@ -101,8 +107,7 @@ export function GroupChatPage() {
   useBeetrootEasterEgg({ messages, fire: beetrootRain.fire });
   const [_participationStats, setParticipationStats] = useState<GroupParticipation[]>([]);
   const [loading, setLoading] = useState(true);
-  const { shouldShow: showGroupTour, dismiss: dismissGroupTour } =
-    useGuidedTour("groupChatDetail");
+  const { shouldShow: showGroupTour, dismiss: dismissGroupTour } = useGuidedTour("groupChatDetail");
   const [sending, setSending] = useState(false);
   const [sendingStatus, setSendingStatus] = useState<"selecting" | "generating" | null>(null);
   const [_selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
@@ -137,9 +142,7 @@ export function GroupChatPage() {
     startedAt: number;
   } | null>(null);
   const footerRecordingTimerRef = useRef<number | null>(null);
-  const [footerAsrMode, setFooterAsrMode] = useState<
-    "idle" | "recording" | "transcribing"
-  >("idle");
+  const [footerAsrMode, setFooterAsrMode] = useState<"idle" | "recording" | "transcribing">("idle");
   const [footerRecordingMs, setFooterRecordingMs] = useState(0);
   const [footerAnalyser, setFooterAnalyser] = useState<AnalyserNode | null>(null);
   const [footerAsrBusy, setFooterAsrBusy] = useState(false);
@@ -147,9 +150,12 @@ export function GroupChatPage() {
   const [footerAsrBaseText, setFooterAsrBaseText] = useState("");
   const [footerAsrSuggestions, setFooterAsrSuggestions] = useState<AsrLearnedSuggestion[]>([]);
   const [footerAsrLearning, setFooterAsrLearning] = useState(false);
-  const [installedWhisperModels, setInstalledWhisperModels] = useState<
-    AsrInstalledWhisperModel[]
-  >([]);
+  const [activeAsrModel, setActiveAsrModelState] = useState<AsrInstalledModel | null>(null);
+  const [asrInputBehavior, setAsrInputBehaviorState] =
+    useState<AsrInputBehavior>(getAsrInputBehavior);
+  const [voiceComposerActive, setVoiceComposerActive] = useState(
+    () => getAsrInputBehavior() === "holdToSend",
+  );
   const [keyboardInset, setKeyboardInset] = useState(0);
   const [directorSelectedId, setDirectorSelectedId] = useState<string | null>(null);
   const [directorWiggleNonce, setDirectorWiggleNonce] = useState(0);
@@ -405,6 +411,17 @@ export function GroupChatPage() {
     return () => window.removeEventListener(SETTINGS_UPDATED_EVENT, updateHapticsState);
   }, []);
 
+  useEffect(() => {
+    const handleInputBehaviorChange = (event: Event) => {
+      const behavior = (event as CustomEvent<AsrInputBehavior>).detail;
+      setAsrInputBehaviorState(behavior);
+      setVoiceComposerActive(behavior === "holdToSend");
+    };
+    window.addEventListener(ASR_INPUT_BEHAVIOR_CHANGED_EVENT, handleInputBehaviorChange);
+    return () =>
+      window.removeEventListener(ASR_INPUT_BEHAVIOR_CHANGED_EVENT, handleInputBehaviorChange);
+  }, []);
+
   const triggerTypingHaptic = useCallback(async () => {
     if (!hapticsEnabledRef.current) return;
     const isMobile = platformRef.current === "android" || platformRef.current === "ios";
@@ -628,10 +645,11 @@ export function GroupChatPage() {
     [groupSessionId, messages.length, scrollToBottom],
   );
 
-  const handleSend = useCallback(async () => {
-    if (!groupSessionId || !draft.trim() || sending) return;
+  const handleSend = useCallback(async (contentOverride?: string) => {
+    const resolvedContent = contentOverride ?? draft;
+    if (!groupSessionId || !resolvedContent.trim() || sending) return;
 
-    const userMessage = draft.trim();
+    const userMessage = resolvedContent.trim();
     const requestId = crypto.randomUUID();
     activeRequestIdRef.current = requestId;
     setDraft("");
@@ -1324,16 +1342,18 @@ export function GroupChatPage() {
   useEffect(() => {
     let cancelled = false;
     const loadInstalled = () =>
-      asrWhisperListInstalledModels()
+      asrListInstalledModels()
         .then((list) => {
-          if (!cancelled) setInstalledWhisperModels(list);
+          if (!cancelled) setActiveAsrModelState(resolveActiveAsrModel(list));
         })
         .catch((err) => {
-          console.error("Failed to load installed Whisper models:", err);
+          console.error("Failed to load installed ASR models:", err);
         });
     loadInstalled();
+    window.addEventListener(ASR_ACTIVE_MODEL_CHANGED_EVENT, loadInstalled);
     return () => {
       cancelled = true;
+      window.removeEventListener(ASR_ACTIVE_MODEL_CHANGED_EVENT, loadInstalled);
     };
   }, []);
 
@@ -1370,11 +1390,7 @@ export function GroupChatPage() {
   }, []);
 
   useEffect(() => {
-    if (
-      !footerAsrRawText.trim() ||
-      !draft.trim() ||
-      draft.trim() === footerAsrBaseText.trim()
-    ) {
+    if (!footerAsrRawText.trim() || !draft.trim() || draft.trim() === footerAsrBaseText.trim()) {
       setFooterAsrSuggestions([]);
       return;
     }
@@ -1389,8 +1405,7 @@ export function GroupChatPage() {
           setFooterAsrSuggestions((prev) => {
             const seen = new Set<string>();
             const merged: AsrLearnedSuggestion[] = [];
-            const key = (s: AsrLearnedSuggestion) =>
-              `${s.normalizedWrong} ${s.normalizedCorrect}`;
+            const key = (s: AsrLearnedSuggestion) => `${s.normalizedWrong} ${s.normalizedCorrect}`;
             for (const s of prev) {
               if (next.some((n) => key(n) === key(s))) {
                 seen.add(key(s));
@@ -1422,8 +1437,12 @@ export function GroupChatPage() {
     setFooterAnalyser(null);
   }, []);
 
-  const stopFooterRecording = useCallback(async () => {
+  const stopFooterRecording = useCallback(async (sendAfterTranscription = false) => {
     const session = footerRecorderRef.current;
+    console.info("[ASR hold-to-send] group stop requested", {
+      hasSession: Boolean(session),
+      sendAfterTranscription,
+    });
     if (!session) return;
     footerRecorderRef.current = null;
     setFooterAsrMode("transcribing");
@@ -1436,6 +1455,10 @@ export function GroupChatPage() {
     } catch {}
 
     try {
+      if (Date.now() - session.startedAt < 300) {
+        setFooterAsrMode("idle");
+        return;
+      }
       const total = session.chunks.reduce((sum, chunk) => sum + chunk.length, 0);
       if (total === 0) {
         stopFooterRecordingVisuals();
@@ -1450,8 +1473,8 @@ export function GroupChatPage() {
         merged.set(chunk, offset);
         offset += chunk.length;
       }
-      const modelPath = installedWhisperModels[0]?.path;
-      if (!modelPath) {
+      const model = activeAsrModel;
+      if (!model) {
         stopFooterRecordingVisuals();
         setFooterAsrMode("idle");
         setFooterAsrBusy(false);
@@ -1459,21 +1482,30 @@ export function GroupChatPage() {
         return;
       }
       const pcmBytes = new Uint8Array(merged.buffer, merged.byteOffset, merged.byteLength);
-      const result = await asrWhisperTranscribePcm({
-        modelPath,
+      const result = await asrTranscribePcm({
+        model: asrModelRef(model),
         pcmBytes,
         sampleRateHz: session.sampleRate,
         channels: 1,
         scopes: ["conversation", "global"],
-        useGpu: true,
-        forceCpu: false,
+        useGpu: model.supportsGpu,
+        forceCpu: !model.supportsGpu,
         keepModelLoaded: true,
       });
       const nextDraft = result.correctedText?.trim() || result.rawText?.trim();
-      setFooterAsrRawText(result.rawText || "");
-      setFooterAsrBaseText(nextDraft || "");
-      setDraft(nextDraft || "");
-      setFooterAsrSuggestions([]);
+      if (!nextDraft) {
+        setError(t("groupChats.pageExtra.noAudioCaptured"));
+      } else if (sendAfterTranscription) {
+        void handleSend(nextDraft);
+        setFooterAsrRawText("");
+        setFooterAsrBaseText("");
+        setFooterAsrSuggestions([]);
+      } else {
+        setFooterAsrRawText(result.rawText || "");
+        setFooterAsrBaseText(nextDraft);
+        setDraft(nextDraft);
+        setFooterAsrSuggestions([]);
+      }
       setFooterAsrMode("idle");
     } catch (error) {
       console.error("Failed to transcribe group footer recording:", error);
@@ -1483,7 +1515,7 @@ export function GroupChatPage() {
       stopFooterRecordingVisuals();
       setFooterAsrBusy(false);
     }
-  }, [installedWhisperModels, setDraft, setError, stopFooterRecordingVisuals]);
+  }, [activeAsrModel, handleSend, setDraft, setError, stopFooterRecordingVisuals, t]);
 
   const handleFooterMicClick = useCallback(async () => {
     if (sending || footerAsrBusy) return;
@@ -1524,6 +1556,9 @@ export function GroupChatPage() {
         sampleRate: audioContext.sampleRate,
         startedAt: Date.now(),
       };
+      console.info("[ASR hold-to-send] group recorder started", {
+        sampleRate: audioContext.sampleRate,
+      });
       setFooterAnalyser(analyser);
       setFooterAsrRawText("");
       setFooterAsrBaseText("");
@@ -1918,9 +1953,7 @@ export function GroupChatPage() {
 
   const widgetCharacter = groupCharacters[0] ?? null;
   const widgetCtxValue = useMemo<WidgetActionContext>(() => {
-    const persistSlotMutation = async (
-      mutate: (nodes: WidgetNode[]) => WidgetNode[],
-    ) => {
+    const persistSlotMutation = async (mutate: (nodes: WidgetNode[]) => WidgetNode[]) => {
       if (!group) return;
       const existing = (group.chatAppearance ?? {}) as Record<string, unknown>;
       const slots = (existing.chatWidgetSlots as WidgetSlots | undefined) ?? {
@@ -2062,11 +2095,7 @@ export function GroupChatPage() {
   const columnLayout = getChatColumnLayout(chatAppearance);
   const participantsBarVisible =
     groupCharacters.length >= 2 && (chatAppearance.participantsBarEnabled || isDirectorMode);
-  const messagesPadBottom = participantsBarVisible
-    ? isDirectorMode
-      ? "pb-28"
-      : "pb-20"
-    : "pb-6";
+  const messagesPadBottom = participantsBarVisible ? (isDirectorMode ? "pb-28" : "pb-20") : "pb-6";
   const headerInside = widgetsOn && chatAppearance.chatHeaderMoves;
   const footerInside = widgetsOn && chatAppearance.chatFooterMoves;
   const applyHeaderColumnClass = !widgetsOn && chatAppearance.chatHeaderMoves;
@@ -2140,7 +2169,7 @@ export function GroupChatPage() {
         onFileInputTriggered={() => setShouldTriggerFileInput(false)}
         inlinePanel={footerInlinePanel}
         onMicClick={
-          installedWhisperModels.length === 0
+          !activeAsrModel
             ? undefined
             : () => {
                 void handleFooterMicClick();
@@ -2153,6 +2182,19 @@ export function GroupChatPage() {
         recordingAnalyser={footerAnalyser}
         recordingTranscribing={footerAsrMode === "transcribing"}
         composerDisabled={footerAsrMode !== "idle"}
+        holdToSendEnabled={
+          asrInputBehavior === "holdToSend" && !!activeAsrModel && !isDirectorMode
+        }
+        voiceComposerActive={
+          asrInputBehavior === "holdToSend" &&
+          !!activeAsrModel &&
+          !isDirectorMode &&
+          voiceComposerActive
+        }
+        onVoiceComposerActiveChange={setVoiceComposerActive}
+        onHoldToTalkStart={handleFooterMicClick}
+        onHoldToTalkRelease={() => stopFooterRecording(true)}
+        onHoldToTalkCancel={cancelFooterRecording}
         mutedCharacterIds={mutedCharacterIds}
         onToggleMute={handleToggleMute}
         participantsBarEnabled={chatAppearance.participantsBarEnabled}
@@ -2174,9 +2216,7 @@ export function GroupChatPage() {
     >
       {beetrootRain.overlay}
       {/* Content layer - on top of background */}
-      <div
-        className="relative z-10 flex h-full flex-col"
-      >
+      <div className="relative z-10 flex h-full flex-col">
         {!headerInside && headerNode}
 
         {/* Main content area - flex-1 takes remaining space */}
@@ -2200,76 +2240,76 @@ export function GroupChatPage() {
                 }
               }}
             >
-        {headerInside && headerNode}
-        <main
-          ref={scrollContainerRef}
-          onScroll={handleScroll}
-          className="relative w-full flex-1 overflow-y-auto px-2 pb-2"
-        >
-          <div
-            className={`${getChatColumnLayout(chatAppearance).className} ${chatAppearance.messageGap === "tight" ? "space-y-2" : chatAppearance.messageGap === "relaxed" ? "space-y-6" : "space-y-4"} ${messagesPadBottom} pt-4`}
-            style={{
-              ...getChatColumnLayout(chatAppearance).style,
-              backgroundColor: backgroundImageData
-                ? theme.contentOverlay || "transparent"
-                : "transparent",
-            }}
-          >
-            {messages.length === 0 ? (
-              <div className="flex min-h-[50vh] items-center justify-center">
-                <p className="text-fg/30 text-center">
-                  Start a conversation with {groupCharacters.map((c) => c.name).join(", ")}
-                </p>
-              </div>
-            ) : (
-              <AnimatePresence initial={false}>
-                {messages.map((message, index) => {
-                  const parsed = splitThinkTags(message.content);
-                  const combinedReasoning = [message.reasoning ?? "", parsed.reasoning]
-                    .filter(Boolean)
-                    .join("\n");
-                  return (
-                    <GroupChatMessage
-                      key={message.id}
-                      message={message}
-                      index={index}
-                      messagesLength={messages.length}
-                      heldMessageId={heldMessageId}
-                      regeneratingMessageId={regeneratingMessageId}
-                      sending={sending}
-                      character={getCharacterById(message.speakerCharacterId)}
-                      persona={currentPersona}
-                      characters={groupCharacters}
-                      theme={theme}
-                      chatAppearance={chatAppearance}
-                      getVariantState={getVariantState}
-                      handleVariantDrag={handleVariantDrag}
-                      handleRegenerate={async (msg) => {
-                        await handleRegenerate(msg.id);
-                      }}
-                      onLongPress={(msg) => openMessageActions(msg)}
-                      displayContent={parsed.content}
-                      reasoning={combinedReasoning || undefined}
-                    />
-                  );
-                })}
-              </AnimatePresence>
-            )}
-
-            {/* Sending Indicator - only show during selection phase */}
-            {sending && sendingStatus === "selecting" && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 mt-4 text-fg/50"
+              {headerInside && headerNode}
+              <main
+                ref={scrollContainerRef}
+                onScroll={handleScroll}
+                className="relative w-full flex-1 overflow-y-auto px-2 pb-2"
               >
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm">Selecting character...</span>
-              </motion.div>
-            )}
-          </div>
-        </main>
-        {footerInside && footerNode}
+                <div
+                  className={`${getChatColumnLayout(chatAppearance).className} ${chatAppearance.messageGap === "tight" ? "space-y-2" : chatAppearance.messageGap === "relaxed" ? "space-y-6" : "space-y-4"} ${messagesPadBottom} pt-4`}
+                  style={{
+                    ...getChatColumnLayout(chatAppearance).style,
+                    backgroundColor: backgroundImageData
+                      ? theme.contentOverlay || "transparent"
+                      : "transparent",
+                  }}
+                >
+                  {messages.length === 0 ? (
+                    <div className="flex min-h-[50vh] items-center justify-center">
+                      <p className="text-fg/30 text-center">
+                        Start a conversation with {groupCharacters.map((c) => c.name).join(", ")}
+                      </p>
+                    </div>
+                  ) : (
+                    <AnimatePresence initial={false}>
+                      {messages.map((message, index) => {
+                        const parsed = splitThinkTags(message.content);
+                        const combinedReasoning = [message.reasoning ?? "", parsed.reasoning]
+                          .filter(Boolean)
+                          .join("\n");
+                        return (
+                          <GroupChatMessage
+                            key={message.id}
+                            message={message}
+                            index={index}
+                            messagesLength={messages.length}
+                            heldMessageId={heldMessageId}
+                            regeneratingMessageId={regeneratingMessageId}
+                            sending={sending}
+                            character={getCharacterById(message.speakerCharacterId)}
+                            persona={currentPersona}
+                            characters={groupCharacters}
+                            theme={theme}
+                            chatAppearance={chatAppearance}
+                            getVariantState={getVariantState}
+                            handleVariantDrag={handleVariantDrag}
+                            handleRegenerate={async (msg) => {
+                              await handleRegenerate(msg.id);
+                            }}
+                            onLongPress={(msg) => openMessageActions(msg)}
+                            displayContent={parsed.content}
+                            reasoning={combinedReasoning || undefined}
+                          />
+                        );
+                      })}
+                    </AnimatePresence>
+                  )}
+
+                  {/* Sending Indicator - only show during selection phase */}
+                  {sending && sendingStatus === "selecting" && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center gap-2 mt-4 text-fg/50"
+                    >
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm">Selecting character...</span>
+                    </motion.div>
+                  )}
+                </div>
+              </main>
+              {footerInside && footerNode}
             </ChatWidgetArea>
           </WidgetEditProvider>
         </WidgetContextProvider>
@@ -2304,10 +2344,18 @@ export function GroupChatPage() {
       <DynamicMemoryApprovalGate sessionId={groupSessionId ?? null} variant="group" />
 
       {/* Plus Menu - Upload Image & Help Me Reply */}
-      <BottomMenu isOpen={showPlusMenu} onClose={() => setShowPlusMenu(false)} title={t("groupChats.addContentMenu.title")}>
+      <BottomMenu
+        isOpen={showPlusMenu}
+        onClose={() => setShowPlusMenu(false)}
+        title={t("groupChats.addContentMenu.title")}
+      >
         <div className="space-y-2">
           {supportsImageInput && (
-            <MenuButton icon={Image} title={t("groupChats.addContentMenu.uploadImage")} onClick={handlePlusMenuImageUpload} />
+            <MenuButton
+              icon={Image}
+              title={t("groupChats.addContentMenu.uploadImage")}
+              onClick={handlePlusMenuImageUpload}
+            />
           )}
           {helpMeReplyEnabled && (
             <MenuButton
@@ -2327,9 +2375,7 @@ export function GroupChatPage() {
         title={t("groupChats.helpMeReplyMenu.title")}
       >
         <div className="space-y-2">
-          <p className="text-sm text-fg/60 mb-4">
-            {t("groupChats.helpMeReplyMenu.draftPrompt")}
-          </p>
+          <p className="text-sm text-fg/60 mb-4">{t("groupChats.helpMeReplyMenu.draftPrompt")}</p>
           <MenuButton
             icon={PenLine}
             title={t("groupChats.helpMeReplyMenu.useTextAsBase")}

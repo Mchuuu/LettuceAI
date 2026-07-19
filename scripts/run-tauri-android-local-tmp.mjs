@@ -107,6 +107,12 @@ async function main() {
     TEMP: localTmpDir,
   };
 
+  // Android debug native libraries otherwise retain hundreds of MB of Rust
+  // debuginfo, which can exceed an emulator's installation staging space.
+  if (mode === "dev") {
+    setIfUnset(env, "CARGO_PROFILE_DEV_STRIP", "debuginfo");
+  }
+
   if (!env.LIBCLANG_PATH && (await pathExists(path.join(defaultLlvmBinDir, "libclang.dll")))) {
     env.LIBCLANG_PATH = defaultLlvmBinDir;
     env.Path = envPath;
@@ -126,6 +132,9 @@ async function main() {
   await configureAndroidToolchain(env);
 
   console.log(`[android-local-tmp] Using TMPDIR=${localTmpDir}`);
+  if (env.CARGO_PROFILE_DEV_STRIP) {
+    console.log(`[android-local-tmp] Rust dev strip=${env.CARGO_PROFILE_DEV_STRIP}`);
+  }
   if (env.LIBCLANG_PATH) {
     console.log(`[android-local-tmp] Using LIBCLANG_PATH=${env.LIBCLANG_PATH}`);
   }

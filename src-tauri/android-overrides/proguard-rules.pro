@@ -4,3 +4,7 @@
 -keepclassmembers class __PACKAGE__.PcmAudioTrackBridge {
   public static *;
 }
+
+-keep class __PACKAGE__.SenseVoiceBridge { *; }
+-keep class __PACKAGE__.ZipformerCtcBridge { *; }
+-keep class com.k2fsa.sherpa.onnx.** { *; }

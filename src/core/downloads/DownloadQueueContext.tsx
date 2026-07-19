@@ -96,6 +96,7 @@ export function isCreateableModelDownload(item: QueuedDownload): boolean {
   return (
     item.queueKind !== "kokoro" &&
     item.queueKind !== "whisper" &&
+    item.queueKind !== "asr" &&
     item.queueKind !== "sd" &&
     item.queueKind !== "sdcpp" &&
     !isSidecarDownload(item)

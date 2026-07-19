@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowUp, Check, ChevronsRight, Mic, Plus, Square, X } from "lucide-react";
+import { ArrowUp, Check, ChevronsRight, Keyboard, Mic, Plus, Square, X } from "lucide-react";
 import type { Character, ImageAttachment } from "../../../../core/storage/schemas";
 import { radius, typography, interactive, shadows, cn } from "../../../design-tokens";
 import { getPlatform } from "../../../../core/utils/platform";
@@ -7,6 +7,10 @@ import { useI18n } from "../../../../core/i18n/context";
 import { BottomMenu } from "../../../components/BottomMenu";
 import { ChatErrorBanner } from "./ChatErrorBanner";
 import { AudioAttachmentPlayer } from "./AudioAttachmentPlayer";
+import {
+  VoiceComposerControl,
+  VoiceRecordingIndicator,
+} from "../../../components/VoiceComposerControl";
 
 const SYSTEM_SEND_CONFIRMATION_DISABLED_STORAGE_KEY =
   "lettuce.chat.systemSendConfirmationDisabled";
@@ -44,6 +48,12 @@ interface ChatFooterProps {
   recordingAnalyser?: AnalyserNode | null;
   recordingTranscribing?: boolean;
   composerDisabled?: boolean;
+  holdToSendEnabled?: boolean;
+  voiceComposerActive?: boolean;
+  onVoiceComposerActiveChange?: (active: boolean) => void;
+  onHoldToTalkStart?: () => Promise<void> | void;
+  onHoldToTalkRelease?: () => Promise<void> | void;
+  onHoldToTalkCancel?: () => Promise<void> | void;
 }
 
 export function ChatFooter({
@@ -78,6 +88,12 @@ export function ChatFooter({
   recordingAnalyser = null,
   recordingTranscribing = false,
   composerDisabled = false,
+  holdToSendEnabled = false,
+  voiceComposerActive = false,
+  onVoiceComposerActiveChange,
+  onHoldToTalkStart,
+  onHoldToTalkRelease,
+  onHoldToTalkCancel,
 }: ChatFooterProps) {
   const { t } = useI18n();
   const hasDraft = draft.trim().length > 0;
@@ -411,9 +427,9 @@ export function ChatFooter({
           </button>
         )}
 
-        {micActive ? (
+        {micActive && !voiceComposerActive ? (
           <>
-            <RecordingIndicator
+            <VoiceRecordingIndicator
               elapsedMs={recordingElapsedMs}
               analyser={recordingAnalyser}
               frozen={recordingTranscribing}
@@ -473,27 +489,74 @@ export function ChatFooter({
           </>
         ) : (
           <>
-            <textarea
-              ref={textareaRef}
-              data-tour-id="chat-composer"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={t("chats.footer.sendMessagePlaceholder")}
-              rows={1}
-              className={cn(
-                "max-h-32 flex-1 resize-none bg-transparent py-2.5",
-                typography.body.size,
-                hasFooterColor
-                  ? "text-[var(--footer-fg)] placeholder:text-[var(--footer-fg-muted)]"
-                  : "text-fg placeholder:text-fg/40",
-                "focus:outline-none",
-              )}
-              disabled={sending || composerDisabled}
-            />
+            {voiceComposerActive && onHoldToTalkStart && onHoldToTalkRelease && onHoldToTalkCancel ? (
+              <VoiceComposerControl
+                recording={micActive && !recordingTranscribing}
+                transcribing={recordingTranscribing}
+                disabled={sending || micDisabled}
+                elapsedMs={recordingElapsedMs}
+                analyser={recordingAnalyser}
+                idleLabel={t("chats.footer.holdToTalk")}
+                recordingLabel={t("chats.footer.releaseToSend")}
+                cancelLabel={t("chats.footer.releaseToCancel")}
+                transcribingLabel={t("chats.footer.transcribing")}
+                onStart={onHoldToTalkStart}
+                onRelease={onHoldToTalkRelease}
+                onCancel={onHoldToTalkCancel}
+              />
+            ) : (
+              <textarea
+                ref={textareaRef}
+                data-tour-id="chat-composer"
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={t("chats.footer.sendMessagePlaceholder")}
+                rows={1}
+                className={cn(
+                  "max-h-32 flex-1 resize-none bg-transparent py-2.5",
+                  typography.body.size,
+                  hasFooterColor
+                    ? "text-[var(--footer-fg)] placeholder:text-[var(--footer-fg-muted)]"
+                    : "text-fg placeholder:text-fg/40",
+                  "focus:outline-none",
+                )}
+                disabled={sending || composerDisabled}
+              />
+            )}
 
 
-            {onMicClick && !hasDraft && !hasAttachments && !sending && (
+            {holdToSendEnabled && onVoiceComposerActiveChange && (
+              <button
+                type="button"
+                onClick={() => onVoiceComposerActiveChange(!voiceComposerActive)}
+                disabled={sending || micDisabled}
+                className={cn(
+                  "mb-0.5 flex h-10.75 w-10.75 shrink-0 items-center justify-center self-end",
+                  radius.full,
+                  footerIconIdle,
+                  interactive.transition.fast,
+                  interactive.active.scale,
+                  "hover:bg-fg/10",
+                  footerIconHover,
+                  "disabled:cursor-not-allowed disabled:opacity-40",
+                )}
+                title={
+                  voiceComposerActive
+                    ? t("chats.footer.switchToKeyboard")
+                    : t("chats.footer.switchToVoice")
+                }
+                aria-label={
+                  voiceComposerActive
+                    ? t("chats.footer.switchToKeyboard")
+                    : t("chats.footer.switchToVoice")
+                }
+              >
+                {voiceComposerActive ? <Keyboard size={19} /> : <Mic size={18} strokeWidth={2} />}
+              </button>
+            )}
+
+            {!holdToSendEnabled && onMicClick && !hasDraft && !hasAttachments && !sending && (
               <button
                 onClick={onMicClick}
                 disabled={micDisabled}
@@ -611,144 +674,5 @@ export function ChatFooter({
         </div>
       </BottomMenu>
     </>
-  );
-}
-
-function formatElapsed(ms: number) {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-}
-
-export function RecordingIndicator({
-  elapsedMs,
-  analyser,
-  frozen = false,
-}: {
-  elapsedMs: number;
-  analyser: AnalyserNode | null;
-  frozen?: boolean;
-}) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const samplesRef = useRef<number[]>([]);
-  const frameRef = useRef<number | null>(null);
-  const lastPushRef = useRef(0);
-  const dataRef = useRef<Uint8Array | null>(null);
-  const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(() => {
-      const rect = el.getBoundingClientRect();
-      setSize({ w: Math.max(0, Math.floor(rect.width)), h: Math.max(0, Math.floor(rect.height)) });
-    });
-    observer.observe(el);
-    const rect = el.getBoundingClientRect();
-    setSize({ w: Math.max(0, Math.floor(rect.width)), h: Math.max(0, Math.floor(rect.height)) });
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    samplesRef.current = [];
-    lastPushRef.current = 0;
-    if (analyser) {
-      dataRef.current = new Uint8Array(new ArrayBuffer(analyser.fftSize));
-    } else {
-      dataRef.current = null;
-    }
-  }, [analyser]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const dpr = window.devicePixelRatio || 1;
-    const cssWidth = size.w;
-    const cssHeight = size.h || 20;
-    if (cssWidth <= 0) return;
-    canvas.width = Math.floor(cssWidth * dpr);
-    canvas.height = Math.floor(cssHeight * dpr);
-    canvas.style.width = `${cssWidth}px`;
-    canvas.style.height = `${cssHeight}px`;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.scale(dpr, dpr);
-
-    const BAR_W = 2; // bar width
-    const GAP = 2; // gap between bars
-    const STEP = BAR_W + GAP;
-    const SAMPLE_INTERVAL_MS = 50; // ~20 Hz push rate
-    const maxBars = Math.ceil(cssWidth / STEP) + 4;
-    const MIN_BAR = 3; // minimum visible bar height
-    const MAX_BAR = cssHeight - 2;
-
-    const draw = (now: number) => {
-      if (!frozen && analyser && dataRef.current) {
-        if (now - lastPushRef.current >= SAMPLE_INTERVAL_MS) {
-          analyser.getByteTimeDomainData(dataRef.current as Uint8Array<ArrayBuffer>);
-          const data = dataRef.current;
-          let sumSq = 0;
-          for (let i = 0; i < data.length; i++) {
-            const v = (data[i] - 128) / 128;
-            sumSq += v * v;
-          }
-          const rms = Math.sqrt(sumSq / data.length); // 0..1 (typical speech ~0.02–0.15 with AGC)
-          const amp = Math.min(1, Math.pow(rms * 18, 0.5));
-          samplesRef.current.push(amp);
-          if (samplesRef.current.length > maxBars) {
-            samplesRef.current.splice(0, samplesRef.current.length - maxBars);
-          }
-          lastPushRef.current = now;
-        }
-      }
-
-      ctx.clearRect(0, 0, cssWidth, cssHeight);
-      const samples = samplesRef.current;
-      const centerY = cssHeight / 2;
-      const startIdx = Math.max(0, samples.length - maxBars);
-      for (let i = startIdx; i < samples.length; i++) {
-        const ageFromRight = samples.length - 1 - i; // 0 = newest
-        const x = cssWidth - BAR_W - ageFromRight * STEP;
-        if (x + BAR_W < 0) break;
-        const amp = samples[i];
-        const h = Math.max(MIN_BAR, amp * MAX_BAR);
-        const ageRatio = ageFromRight / Math.max(1, maxBars - 1);
-        const alpha = 0.95 - ageRatio * 0.55;
-        ctx.fillStyle = `rgba(244, 252, 248, ${alpha.toFixed(3)})`;
-        ctx.fillRect(x, centerY - h / 2, BAR_W, h);
-      }
-
-      frameRef.current = window.requestAnimationFrame(draw);
-    };
-    frameRef.current = window.requestAnimationFrame(draw);
-    return () => {
-      if (frameRef.current != null) window.cancelAnimationFrame(frameRef.current);
-      frameRef.current = null;
-    };
-  }, [analyser, size.w, size.h, frozen]);
-
-  return (
-    <div className="flex min-w-0 flex-1 items-center gap-2 py-2.5">
-      <div
-        ref={containerRef}
-        className="relative h-5 min-w-0 flex-1 overflow-hidden"
-      >
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute left-0 right-0 top-1/2 h-px -translate-y-1/2"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle, currentColor 1px, transparent 1px)",
-            backgroundSize: "6px 1px",
-            backgroundRepeat: "repeat-x",
-            color: "rgba(255,255,255,0.25)",
-          }}
-        />
-        <canvas ref={canvasRef} className="relative block h-full w-full" />
-      </div>
-      <span className="shrink-0 text-[11px] tabular-nums text-fg/55">{formatElapsed(elapsedMs)}</span>
-    </div>
   );
 }

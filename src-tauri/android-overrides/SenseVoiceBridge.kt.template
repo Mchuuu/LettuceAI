@@ -1,0 +1,92 @@
+package __PACKAGE__
+
+import com.k2fsa.sherpa.onnx.FeatureConfig
+import com.k2fsa.sherpa.onnx.OfflineModelConfig
+import com.k2fsa.sherpa.onnx.OfflineRecognizer
+import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
+import com.k2fsa.sherpa.onnx.OfflineSenseVoiceModelConfig
+
+object SenseVoiceBridge {
+  private data class RuntimeKey(
+    val modelPath: String,
+    val tokensPath: String,
+    val language: String,
+    val threads: Int,
+  )
+
+  private var runtimeKey: RuntimeKey? = null
+  private var recognizer: OfflineRecognizer? = null
+
+  @JvmStatic
+  @Synchronized
+  fun preload(
+    modelPath: String,
+    tokensPath: String,
+    language: String,
+    threads: Int,
+  ) {
+    getOrCreate(modelPath, tokensPath, language, threads)
+  }
+
+  @JvmStatic
+  @Synchronized
+  fun transcribe(
+    modelPath: String,
+    tokensPath: String,
+    language: String,
+    threads: Int,
+    samples: FloatArray,
+    sampleRate: Int,
+  ): String {
+    val active = getOrCreate(modelPath, tokensPath, language, threads)
+    val stream = active.createStream()
+    return try {
+      stream.acceptWaveform(samples, sampleRate)
+      active.decode(stream)
+      active.getResult(stream).text
+    } finally {
+      stream.release()
+    }
+  }
+
+  @JvmStatic
+  @Synchronized
+  fun clearCache(): Int {
+    val cleared = if (recognizer == null) 0 else 1
+    recognizer?.release()
+    recognizer = null
+    runtimeKey = null
+    return cleared
+  }
+
+  private fun getOrCreate(
+    modelPath: String,
+    tokensPath: String,
+    language: String,
+    threads: Int,
+  ): OfflineRecognizer {
+    val key = RuntimeKey(modelPath, tokensPath, language, threads.coerceAtLeast(1))
+    if (runtimeKey == key) {
+      return checkNotNull(recognizer)
+    }
+
+    recognizer?.release()
+    val config = OfflineRecognizerConfig(
+      featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80),
+      modelConfig = OfflineModelConfig(
+        senseVoice = OfflineSenseVoiceModelConfig(
+          model = modelPath,
+          language = language,
+          useInverseTextNormalization = true,
+        ),
+        numThreads = key.threads,
+        provider = "cpu",
+        tokens = tokensPath,
+      ),
+    )
+    return OfflineRecognizer(config = config).also {
+      recognizer = it
+      runtimeKey = key
+    }
+  }
+}

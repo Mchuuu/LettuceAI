@@ -1207,6 +1207,11 @@ export const enMessages = {
       audioAttachmentLabel: "Audio attachment",
       removeAttachment: "Remove attachment",
       recordVoice: "Record voice",
+      holdToTalk: "Hold to talk",
+      releaseToSend: "Release to send",
+      releaseToCancel: "Release to cancel",
+      switchToKeyboard: "Switch to keyboard input",
+      switchToVoice: "Switch to hold-to-talk",
       cancelRecording: "Cancel recording",
       transcribing: "Transcribing",
       stopAndTranscribe: "Stop and transcribe",
@@ -1997,7 +2002,7 @@ export const enMessages = {
       ignore: "Ignore",
       noAudioCaptured: "No audio captured.",
       noModelInstalled:
-        "No installed Whisper model found. Install one in Speech Recognition settings.",
+        "No installed speech recognition model found. Install one in Speech Recognition settings.",
     },
     errors: {
       loadSourceSessionFailed: "Failed to load source session.",
@@ -2484,7 +2489,7 @@ export const enMessages = {
       helpMeReplyFailedGenerate: "Help Me Reply failed to generate a reply.",
       noAudioCaptured: "No audio captured.",
       noWhisperModel:
-        "No installed Whisper model found. Install one in Speech Recognition settings.",
+        "No installed speech recognition model found. Install one in Speech Recognition settings.",
       cancelRecording: "Cancel recording",
       transcribing: "Transcribing",
       stopAndTranscribe: "Stop and transcribe",
@@ -2720,12 +2725,17 @@ export const enMessages = {
       transcribing: "Transcribing",
       stopAndTranscribe: "Stop and transcribe",
       recordVoice: "Record voice",
+      holdToTalk: "Hold to talk",
+      releaseToSend: "Release to send",
+      releaseToCancel: "Release to cancel",
+      switchToKeyboard: "Switch to keyboard input",
+      switchToVoice: "Switch to hold-to-talk",
       attachmentAltDefault: "Attachment",
     },
     pageExtra: {
       noAudioCaptured: "No audio captured.",
       noWhisperModelInstalled:
-        "No installed Whisper model found. Install one in Speech Recognition settings.",
+        "No installed speech recognition model found. Install one in Speech Recognition settings.",
       scrollToBottomAria: "Scroll to bottom",
     },
     addContentMenu: {
@@ -4013,7 +4023,8 @@ export const enMessages = {
       requestPathHint: "Use the provider path if it differs from the OpenAI default",
       doubaoOpenApiHint:
         "Used to refresh the Doubao voice list. Voice clone mode queries the project named below.",
-      doubaoRequestPathHint: "Optional synthesis path override. Leave blank for the official default.",
+      doubaoRequestPathHint:
+        "Optional synthesis path override. Leave blank for the official default.",
       doubaoVoiceModels: {
         tts2: "Speech synthesis 2.0",
         icl2: "Voice clone 2.0",
@@ -4070,9 +4081,9 @@ export const enMessages = {
       chatEndpoint: "Chat Endpoint",
       resolvedChatUrl: "Requests will go to",
       resolvedChatUrlDuplicate:
-        "\"{{segment}}\" is at the end of the Base URL and the start of the Chat Endpoint, so it will be sent twice. Remove it from one of them.",
+        '"{{segment}}" is at the end of the Base URL and the start of the Chat Endpoint, so it will be sent twice. Remove it from one of them.',
       resolvedModelsUrlDuplicate:
-        "\"{{segment}}\" is at the end of the Base URL and the start of the Models Endpoint, so it will be sent twice. Remove it from one of them.",
+        '"{{segment}}" is at the end of the Base URL and the start of the Models Endpoint, so it will be sent twice. Remove it from one of them.',
       fetchModels: "Fetch Models",
       fetchModelsDesc: "Enable model discovery for this custom endpoint",
       authMode: "Auth Mode",
@@ -8399,13 +8410,11 @@ export const enMessages = {
     hfBrowser: {
       panel: {
         title: "Your personal fit report",
-        body:
-          "Everything here is sized to this machine: the verdict up top says whether the model will run, and how comfortably. Change any setting and the verdict updates live.",
+        body: "Everything here is sized to this machine: the verdict up top says whether the model will run, and how comfortably. Change any setting and the verdict updates live.",
       },
       tabs: {
         title: "Two ways to browse",
-        body:
-          "Recommended Settings picks and tunes a file for you. Available Files lists every download in the repo when you'd rather choose by hand.",
+        body: "Recommended Settings picks and tunes a file for you. Available Files lists every download in the repo when you'd rather choose by hand.",
       },
       quant: {
         title: "Pick a quantization",
@@ -9249,8 +9258,7 @@ export const enMessages = {
         fishVoiceHint:
           "Select one of your Fish Audio cloud voice models, or paste a model ID below",
         doubaoVoice: "Doubao Voice",
-        doubaoVoiceHint:
-          "Select a Doubao speaker from ListSpeakers, or paste a VoiceType below",
+        doubaoVoiceHint: "Select a Doubao speaker from ListSpeakers, or paste a VoiceType below",
         fishVoiceIdPlaceholder: "7f92f8afb8ec43bf81429cc1c9199cb1",
         fishVoiceIdHint: "Use the Fish Audio cloud voice model ID returned by the /model endpoint",
         fishSpeechVoiceIdPlaceholder: "my-speaker",
@@ -9384,16 +9392,31 @@ export const enMessages = {
       },
     },
     speechRecognition: {
+      inputBehavior: {
+        title: "Voice input mode",
+        description: "Choose the default voice interaction used by the chat composer.",
+        dictation: "Review before sending",
+        dictationDescription: "Tap to record, then edit the transcript before sending.",
+        holdToSend: "Hold to talk",
+        holdToSendDescription: "Hold to record, then release to transcribe and send.",
+      },
       tabs: {
         vocabulary: "Vocabulary",
-        vocabularyHint: "Names, jargon, and product terms biased into Whisper's prompt.",
+        vocabularyHint:
+          "Names, jargon, and product terms for models that support an initial prompt.",
         corrections: "Corrections",
-        correctionsHint: "Replace consistent mistakes after Whisper finishes.",
+        correctionsHint: "Replace consistent mistakes after speech recognition finishes.",
         voiceExamples: "Voice examples",
         voiceExamplesHint: "Pair recordings with the text they should produce.",
       },
       models: {
         defaultSummary: "Official whisper.cpp model build.",
+        senseVoiceTitle: "SenseVoiceSmall Chinese INT8",
+        senseVoiceSummary:
+          "Local quantized model optimized for Chinese, with Cantonese, English, Japanese, and Korean support.",
+        zipformerCtcTitle: "Zipformer CTC Chinese INT8 + Punctuation",
+        zipformerCtcSummary:
+          "High-accuracy local Chinese recognition with CT-Transformer Chinese-English punctuation restoration.",
         fastestEnglishTitle: "Fastest English",
         fastestEnglishSummary: "Lowest memory use. Best for quick voice notes on weaker devices.",
         fastestMultilingualTitle: "Fastest Multilingual",
@@ -9455,7 +9478,7 @@ export const enMessages = {
           "Built from your vocabulary. Length is bounded, so high-priority terms appear first.",
         show: "Show",
         hide: "Hide",
-        empty: "No vocabulary terms yet. Add some below to influence Whisper.",
+        empty: "No vocabulary terms yet. Add names and jargon below.",
       },
       activeModel: {
         cancelDownload: "Cancel download",
@@ -9465,21 +9488,21 @@ export const enMessages = {
         quantized: "quantized",
         englishOnly: "EN only",
         multilingual: "multilingual",
-        pickToEnable: "Pick a Whisper model to enable speech recognition.",
+        pickToEnable: "Pick a model to enable speech recognition.",
         change: "Change",
         choose: "Choose",
       },
       library: {
         title: "Library",
         description:
-          "Three layers shape Whisper output: the prompt prefix, post-processing corrections, and labelled audio examples.",
+          "Improve recognition with prompt prefixes, post-processing corrections, and labelled audio examples.",
       },
       picker: {
-        title: "Choose a Whisper model",
+        title: "Choose a speech recognition model",
         needDownloadMobile:
-          "You need to download a Whisper model before you can use speech recognition. Pick one from the list below. We recommend the mobile options.",
+          "Download a model before using speech recognition. Pick a recommended mobile option below.",
         needDownloadDesktop:
-          "You need to download a Whisper model before you can use speech recognition. Pick one from the list below. We recommend the desktop options.",
+          "Download a model before using speech recognition. Pick a recommended desktop option below.",
         showingMobile:
           "Showing models recommended for mobile. Tap one to use it; if it isn't downloaded yet, it'll queue and activate automatically when ready.",
         showingDesktop:
@@ -9520,7 +9543,7 @@ export const enMessages = {
         waitingForModel: "Waiting for selected model to finish downloading.",
         chooseModel: "Choose a model",
         pickModelToRecord: "Pick a model to enable recording",
-        tapToRecord: "Tap to record. Streams PCM directly to Whisper on stop.",
+        tapToRecord: "Tap to record. Recognition runs locally after you stop.",
         runAgain: "Run again",
         stopPlayback: "Stop playback",
         playRecording: "Play recording",
@@ -9543,18 +9566,17 @@ export const enMessages = {
       },
       runtime: {
         title: "Runtime",
-        description:
-          "Control how Whisper loads the active model and where library data lives on disk.",
+        description: "Control how the active model loads and where library data lives on disk.",
         useGpu: "Use GPU",
         useGpuDescription:
           "Use CUDA, Vulkan, ROCm, or Metal acceleration when this build supports it. Off forces CPU.",
         keepModelLoaded: "Keep model loaded",
         keepModelLoadedDescription:
-          "Reuse the loaded Whisper context between transcriptions for lower latency.",
-        contextCache: "Whisper context cache",
+          "Reuse the loaded model between transcriptions for lower latency.",
+        contextCache: "Recognition model cache",
         contextCacheReady:
           "Preload the active model now, or clear the cache to force a cold reload later.",
-        contextCacheEmpty: "Pick a model above to preload it into the Whisper runtime cache.",
+        contextCacheEmpty: "Pick a model above to preload it into the runtime cache.",
         preload: "Preload",
         clear: "Clear",
         modelsFolder: "Models folder",

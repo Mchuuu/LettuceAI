@@ -65,7 +65,7 @@ type GroupChatController = {
   getCharacterById: (characterId?: string | null) => Character | undefined;
   getVariantState: (message: GroupMessage) => VariantState;
   handleVariantDrag: (messageId: string, offsetX: number) => void;
-  handleSend: () => Promise<void>;
+  handleSend: (contentOverride?: string) => Promise<void>;
   handleContinue: (forceCharacterId?: string) => Promise<void>;
   handleRegenerate: (messageId: string, forceCharacterId?: string) => Promise<void>;
   openMessageActions: (message: GroupMessage) => void;
@@ -307,10 +307,11 @@ export function useGroupChatController(groupSessionId?: string): GroupChatContro
     }
   }, []);
 
-  const handleSend = useCallback(async () => {
-    if (!groupSessionId || !ui.draft.trim() || ui.sending) return;
+  const handleSend = useCallback(async (contentOverride?: string) => {
+    const resolvedContent = contentOverride ?? ui.draft;
+    if (!groupSessionId || !resolvedContent.trim() || ui.sending) return;
 
-    const userMessage = ui.draft.trim();
+    const userMessage = resolvedContent.trim();
     const requestId = crypto.randomUUID();
     setUi({ draft: "", sending: true, sendingStatus: "selecting", error: null });
 

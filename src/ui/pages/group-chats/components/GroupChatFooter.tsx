@@ -3,6 +3,7 @@ import {
   ArrowUp,
   Check,
   ChevronsRight,
+  Keyboard,
   Mic,
   Plus,
   Square,
@@ -15,7 +16,10 @@ import { radius, typography, interactive, shadows, cn } from "../../../design-to
 import { getPlatform } from "../../../../core/utils/platform";
 import { useAvatar } from "../../../hooks/useAvatar";
 import { AvatarImage } from "../../../components/AvatarImage";
-import { RecordingIndicator } from "../../chats/components/ChatFooter";
+import {
+  VoiceComposerControl,
+  VoiceRecordingIndicator,
+} from "../../../components/VoiceComposerControl";
 import { ChatErrorBanner } from "../../chats/components/ChatErrorBanner";
 import {
   GroupChatParticipantsBar,
@@ -59,6 +63,12 @@ interface GroupChatFooterProps {
   recordingAnalyser?: AnalyserNode | null;
   recordingTranscribing?: boolean;
   composerDisabled?: boolean;
+  holdToSendEnabled?: boolean;
+  voiceComposerActive?: boolean;
+  onVoiceComposerActiveChange?: (active: boolean) => void;
+  onHoldToTalkStart?: () => Promise<void> | void;
+  onHoldToTalkRelease?: () => Promise<void> | void;
+  onHoldToTalkCancel?: () => Promise<void> | void;
   mutedCharacterIds?: Set<string>;
   onToggleMute?: (characterId: string, muted: boolean) => void;
   participantsBarEnabled?: boolean;
@@ -105,6 +115,12 @@ export function GroupChatFooter({
   recordingAnalyser = null,
   recordingTranscribing = false,
   composerDisabled = false,
+  holdToSendEnabled = false,
+  voiceComposerActive = false,
+  onVoiceComposerActiveChange,
+  onHoldToTalkStart,
+  onHoldToTalkRelease,
+  onHoldToTalkCancel,
   mutedCharacterIds,
   onToggleMute,
   participantsBarEnabled = true,
@@ -538,9 +554,9 @@ export function GroupChatFooter({
             </button>
           )}
 
-          {micActive ? (
+          {micActive && !voiceComposerActive ? (
             <>
-              <RecordingIndicator
+              <VoiceRecordingIndicator
                 elapsedMs={recordingElapsedMs}
                 analyser={recordingAnalyser}
                 frozen={recordingTranscribing}
@@ -600,30 +616,77 @@ export function GroupChatFooter({
             </>
           ) : (
             <>
-              <textarea
-                ref={textareaRef}
-                value={draft}
-                onChange={(event) => handleDraftChange(event.target.value)}
-                onKeyDown={handleKeyDown}
-                data-tour-id="group-chat-composer"
-                placeholder={
-                  directorMode
-                    ? t("groupChats.footer.directorPlaceholder")
-                    : t("groupChats.footer.messagePlaceholder")
-                }
-                rows={1}
-                className={cn(
-                  "max-h-32 flex-1 resize-none bg-transparent py-2.5",
-                  typography.body.size,
-                  hasFooterColor
-                    ? "text-[var(--footer-fg)] placeholder:text-[var(--footer-fg-muted)]"
-                    : "text-fg placeholder:text-fg/40",
-                  "focus:outline-none",
-                )}
-                disabled={sending || composerDisabled}
-              />
+              {voiceComposerActive && onHoldToTalkStart && onHoldToTalkRelease && onHoldToTalkCancel ? (
+                <VoiceComposerControl
+                  recording={micActive && !recordingTranscribing}
+                  transcribing={recordingTranscribing}
+                  disabled={sending || micDisabled}
+                  elapsedMs={recordingElapsedMs}
+                  analyser={recordingAnalyser}
+                  idleLabel={t("groupChats.footerExtra.holdToTalk")}
+                  recordingLabel={t("groupChats.footerExtra.releaseToSend")}
+                  cancelLabel={t("groupChats.footerExtra.releaseToCancel")}
+                  transcribingLabel={t("groupChats.footerExtra.transcribing")}
+                  onStart={onHoldToTalkStart}
+                  onRelease={onHoldToTalkRelease}
+                  onCancel={onHoldToTalkCancel}
+                />
+              ) : (
+                <textarea
+                  ref={textareaRef}
+                  value={draft}
+                  onChange={(event) => handleDraftChange(event.target.value)}
+                  onKeyDown={handleKeyDown}
+                  data-tour-id="group-chat-composer"
+                  placeholder={
+                    directorMode
+                      ? t("groupChats.footer.directorPlaceholder")
+                      : t("groupChats.footer.messagePlaceholder")
+                  }
+                  rows={1}
+                  className={cn(
+                    "max-h-32 flex-1 resize-none bg-transparent py-2.5",
+                    typography.body.size,
+                    hasFooterColor
+                      ? "text-[var(--footer-fg)] placeholder:text-[var(--footer-fg-muted)]"
+                      : "text-fg placeholder:text-fg/40",
+                    "focus:outline-none",
+                  )}
+                  disabled={sending || composerDisabled}
+                />
+              )}
 
-              {onMicClick && !hasDraft && !hasAttachments && !sending && (
+              {holdToSendEnabled && onVoiceComposerActiveChange && (
+                <button
+                  type="button"
+                  onClick={() => onVoiceComposerActiveChange(!voiceComposerActive)}
+                  disabled={sending || micDisabled}
+                  className={cn(
+                    "mb-0.5 flex h-[43px] w-[43px] shrink-0 items-center justify-center self-end",
+                    radius.full,
+                    footerIconIdle,
+                    interactive.transition.fast,
+                    interactive.active.scale,
+                    "hover:bg-fg/10",
+                    footerIconHover,
+                    "disabled:cursor-not-allowed disabled:opacity-40",
+                  )}
+                  title={
+                    voiceComposerActive
+                      ? t("groupChats.footerExtra.switchToKeyboard")
+                      : t("groupChats.footerExtra.switchToVoice")
+                  }
+                  aria-label={
+                    voiceComposerActive
+                      ? t("groupChats.footerExtra.switchToKeyboard")
+                      : t("groupChats.footerExtra.switchToVoice")
+                  }
+                >
+                  {voiceComposerActive ? <Keyboard size={19} /> : <Mic size={18} strokeWidth={2} />}
+                </button>
+              )}
+
+              {!holdToSendEnabled && onMicClick && !hasDraft && !hasAttachments && !sending && (
                 <button
                   onClick={onMicClick}
                   disabled={micDisabled}

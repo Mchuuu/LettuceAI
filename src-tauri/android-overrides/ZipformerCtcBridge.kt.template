@@ -1,0 +1,122 @@
+package __PACKAGE__
+
+import com.k2fsa.sherpa.onnx.FeatureConfig
+import com.k2fsa.sherpa.onnx.OfflineModelConfig
+import com.k2fsa.sherpa.onnx.OfflinePunctuation
+import com.k2fsa.sherpa.onnx.OfflinePunctuationConfig
+import com.k2fsa.sherpa.onnx.OfflinePunctuationModelConfig
+import com.k2fsa.sherpa.onnx.OfflineRecognizer
+import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
+import com.k2fsa.sherpa.onnx.OfflineZipformerCtcModelConfig
+
+object ZipformerCtcBridge {
+  private data class RuntimeKey(
+    val modelPath: String,
+    val tokensPath: String,
+    val punctuationPath: String,
+    val threads: Int,
+  )
+
+  private var runtimeKey: RuntimeKey? = null
+  private var recognizer: OfflineRecognizer? = null
+  private var punctuation: OfflinePunctuation? = null
+
+  @JvmStatic
+  @Synchronized
+  fun preload(
+    modelPath: String,
+    tokensPath: String,
+    punctuationPath: String,
+    threads: Int,
+  ) {
+    getOrCreate(modelPath, tokensPath, punctuationPath, threads)
+  }
+
+  @JvmStatic
+  @Synchronized
+  fun transcribe(
+    modelPath: String,
+    tokensPath: String,
+    punctuationPath: String,
+    threads: Int,
+    samples: FloatArray,
+    sampleRate: Int,
+  ): String {
+    val active = getOrCreate(modelPath, tokensPath, punctuationPath, threads).first
+    val stream = active.createStream()
+    return try {
+      stream.acceptWaveform(samples, sampleRate)
+      active.decode(stream)
+      active.getResult(stream).text
+    } finally {
+      stream.release()
+    }
+  }
+
+  @JvmStatic
+  @Synchronized
+  fun addPunctuation(
+    modelPath: String,
+    tokensPath: String,
+    punctuationPath: String,
+    threads: Int,
+    text: String,
+  ): String = getOrCreate(modelPath, tokensPath, punctuationPath, threads).second.addPunctuation(text)
+
+  @JvmStatic
+  @Synchronized
+  fun clearCache(): Int {
+    var cleared = 0
+    if (recognizer != null) cleared += 1
+    if (punctuation != null) cleared += 1
+    recognizer?.release()
+    punctuation?.release()
+    recognizer = null
+    punctuation = null
+    runtimeKey = null
+    return cleared
+  }
+
+  private fun getOrCreate(
+    modelPath: String,
+    tokensPath: String,
+    punctuationPath: String,
+    threads: Int,
+  ): Pair<OfflineRecognizer, OfflinePunctuation> {
+    val key = RuntimeKey(modelPath, tokensPath, punctuationPath, threads.coerceAtLeast(1))
+    if (runtimeKey == key) {
+      return Pair(checkNotNull(recognizer), checkNotNull(punctuation))
+    }
+
+    recognizer?.release()
+    punctuation?.release()
+
+    val recognizerConfig = OfflineRecognizerConfig(
+      featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80),
+      modelConfig = OfflineModelConfig(
+        zipformerCtc = OfflineZipformerCtcModelConfig(model = modelPath),
+        numThreads = key.threads,
+        provider = "cpu",
+        tokens = tokensPath,
+      ),
+    )
+    val punctuationConfig = OfflinePunctuationConfig(
+      model = OfflinePunctuationModelConfig(
+        ctTransformer = punctuationPath,
+        numThreads = key.threads,
+        provider = "cpu",
+      ),
+    )
+    val nextRecognizer = OfflineRecognizer(config = recognizerConfig)
+    return try {
+      val nextPunctuation = OfflinePunctuation(config = punctuationConfig)
+      recognizer = nextRecognizer
+      punctuation = nextPunctuation
+      runtimeKey = key
+      Pair(nextRecognizer, nextPunctuation)
+    } catch (error: Throwable) {
+      nextRecognizer.release()
+      throw error
+    }
+  }
+}

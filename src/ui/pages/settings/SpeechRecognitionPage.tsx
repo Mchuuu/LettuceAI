@@ -53,25 +53,31 @@ import {
   asrVoiceExampleSuggestCorrection,
   asrVoiceExampleUpsert,
   asrVoiceExamplesList,
-  asrWhisperRuntimeClearCache,
-  asrWhisperDeleteInstalledModel,
-  asrWhisperGetModelsDir,
-  asrWhisperListAvailableModels,
-  asrWhisperListInstalledModels,
-  asrWhisperQueueModelDownload,
-  asrWhisperRuntimePreloadModel,
-  asrWhisperTranscribeFile,
-  asrWhisperTranscribePcm,
+  asrDeleteInstalledModel,
+  asrGetModelsDir,
+  asrListAvailableModels,
+  asrListInstalledModels,
+  asrModelRef,
+  asrQueueModelDownload,
+  asrRuntimeClearCache,
+  asrRuntimePreloadModel,
+  resolveActiveAsrModel,
+  setActiveAsrModel,
+  asrTranscribeFile,
+  asrTranscribePcm,
   getStoredMicDeviceId,
+  getAsrInputBehavior,
   micConstraintsWithStoredDevice,
   setStoredMicDeviceId,
+  setAsrInputBehavior,
+  type AsrInputBehavior,
   type AsrCorrection,
   type AsrExportBundle,
-  type AsrInstalledWhisperModel,
+  type AsrInstalledModel,
   type AsrLearnedSuggestion,
+  type AsrModelPreset,
+  type AsrTranscriptionResponse,
   type AsrVocabularyTerm,
-  type AsrWhisperModelPreset,
-  type AsrWhisperTranscriptionResponse,
   type AsrVoiceExample,
 } from "../../../core/asr";
 
@@ -83,25 +89,25 @@ const LIBRARY_TABS: {
   icon: React.ComponentType<{ className?: string }>;
   hintKey: string;
 }[] = [
-    {
-      key: "vocabulary",
-      labelKey: "voices.speechRecognition.tabs.vocabulary",
-      icon: BookOpen,
-      hintKey: "voices.speechRecognition.tabs.vocabularyHint",
-    },
-    {
-      key: "corrections",
-      labelKey: "voices.speechRecognition.tabs.corrections",
-      icon: Wand2,
-      hintKey: "voices.speechRecognition.tabs.correctionsHint",
-    },
-    {
-      key: "voiceExamples",
-      labelKey: "voices.speechRecognition.tabs.voiceExamples",
-      icon: AudioLines,
-      hintKey: "voices.speechRecognition.tabs.voiceExamplesHint",
-    },
-  ];
+  {
+    key: "vocabulary",
+    labelKey: "voices.speechRecognition.tabs.vocabulary",
+    icon: BookOpen,
+    hintKey: "voices.speechRecognition.tabs.vocabularyHint",
+  },
+  {
+    key: "corrections",
+    labelKey: "voices.speechRecognition.tabs.corrections",
+    icon: Wand2,
+    hintKey: "voices.speechRecognition.tabs.correctionsHint",
+  },
+  {
+    key: "voiceExamples",
+    labelKey: "voices.speechRecognition.tabs.voiceExamples",
+    icon: AudioLines,
+    hintKey: "voices.speechRecognition.tabs.voiceExamplesHint",
+  },
+];
 
 const SECTION_TITLE = cn(typography.h3.size, typography.h3.weight, "text-fg");
 const SECTION_SUB = cn(typography.bodySmall.size, "text-fg/55 leading-relaxed");
@@ -358,6 +364,14 @@ const WHISPER_LANGUAGES: { code: string; name: string }[] = [
 ];
 
 const FRIENDLY_MODEL_COPY: Record<string, { titleKey: string; summaryKey: string }> = {
+  "sensevoice-small-int8": {
+    titleKey: "voices.speechRecognition.models.senseVoiceTitle",
+    summaryKey: "voices.speechRecognition.models.senseVoiceSummary",
+  },
+  "zipformer-ctc-zh-int8": {
+    titleKey: "voices.speechRecognition.models.zipformerCtcTitle",
+    summaryKey: "voices.speechRecognition.models.zipformerCtcSummary",
+  },
   "tiny.en": {
     titleKey: "voices.speechRecognition.models.fastestEnglishTitle",
     summaryKey: "voices.speechRecognition.models.fastestEnglishSummary",
@@ -458,16 +472,17 @@ export function SpeechRecognitionPage() {
   const [corrections, setCorrections] = useState<AsrCorrection[]>([]);
   const [examples, setExamples] = useState<AsrVoiceExample[]>([]);
   const [modelsDir, setModelsDir] = useState("");
-  const [availableModels, setAvailableModels] = useState<AsrWhisperModelPreset[]>([]);
-  const [installedModels, setInstalledModels] = useState<AsrInstalledWhisperModel[]>([]);
+  const [availableModels, setAvailableModels] = useState<AsrModelPreset[]>([]);
+  const [installedModels, setInstalledModels] = useState<AsrInstalledModel[]>([]);
   const [previewPrompt, setPreviewPrompt] = useState<string>("");
   const [showApprovedOnly, setShowApprovedOnly] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [loadingWhisperModels, setLoadingWhisperModels] = useState(true);
+  const [loadingAsrModels, setLoadingAsrModels] = useState(true);
   const [loadingInstalledModels, setLoadingInstalledModels] = useState(true);
   const [queueingModelId, setQueueingModelId] = useState<string | null>(null);
   const [deletingModelPath, setDeletingModelPath] = useState<string | null>(null);
   const [selectedTestModelPath, setSelectedTestModelPath] = useState("");
+  const [inputBehavior, setInputBehavior] = useState<AsrInputBehavior>(getAsrInputBehavior);
   const [testPrompt, setTestPrompt] = useState("");
   const [testLanguage, setTestLanguage] = useState("");
   const [testUseGpu, setTestUseGpu] = useState(true);
@@ -480,11 +495,16 @@ export function SpeechRecognitionPage() {
   const [isPreloadingModel, setIsPreloadingModel] = useState(false);
   const [hasLastRecording, setHasLastRecording] = useState(false);
   const [isPlayingLastRecording, setIsPlayingLastRecording] = useState(false);
-  const [testResult, setTestResult] = useState<AsrWhisperTranscriptionResponse | null>(null);
+  const [testResult, setTestResult] = useState<AsrTranscriptionResponse | null>(null);
   const [editor, setEditor] = useState<EditorState>({ kind: "none" });
   const recorderRef = useRef<RecorderSession | null>(null);
   const lastRecordingRef = useRef<{ pcm: Float32Array; sampleRate: number } | null>(null);
   const playbackRef = useRef<PlaybackSession | null>(null);
+
+  const handleInputBehaviorChange = useCallback((behavior: AsrInputBehavior) => {
+    setInputBehavior(behavior);
+    setAsrInputBehavior(behavior);
+  }, []);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -515,46 +535,43 @@ export function SpeechRecognitionPage() {
   const reloadInstalledModels = useCallback(async () => {
     setLoadingInstalledModels(true);
     try {
-      const [dir, installed] = await Promise.all([
-        asrWhisperGetModelsDir(),
-        asrWhisperListInstalledModels(),
-      ]);
+      const [dir, installed] = await Promise.all([asrGetModelsDir(), asrListInstalledModels()]);
       setModelsDir(dir);
       setInstalledModels(installed);
     } catch (error) {
-      console.error("Failed to load installed Whisper models:", error);
+      console.error("Failed to load installed ASR models:", error);
       toast.error(t("voices.speechRecognition.toasts.loadInstalledFailed"), String(error));
     } finally {
       setLoadingInstalledModels(false);
     }
   }, [t]);
 
-  const reloadWhisperCatalog = useCallback(async () => {
-    setLoadingWhisperModels(true);
+  const reloadAsrCatalog = useCallback(async () => {
+    setLoadingAsrModels(true);
     try {
-      setAvailableModels(await asrWhisperListAvailableModels());
+      setAvailableModels(await asrListAvailableModels());
     } catch (error) {
-      console.error("Failed to load Whisper models:", error);
+      console.error("Failed to load ASR models:", error);
       toast.error(t("voices.speechRecognition.toasts.loadCatalogFailed"), String(error));
     } finally {
-      setLoadingWhisperModels(false);
+      setLoadingAsrModels(false);
     }
   }, [t]);
 
   useEffect(() => {
     void reloadInstalledModels();
-    void reloadWhisperCatalog();
-  }, [reloadInstalledModels, reloadWhisperCatalog]);
+    void reloadAsrCatalog();
+  }, [reloadAsrCatalog, reloadInstalledModels]);
 
   useEffect(() => {
     const handler = () => {
       void reload();
       void reloadInstalledModels();
-      void reloadWhisperCatalog();
+      void reloadAsrCatalog();
     };
     window.addEventListener("asr:refresh", handler);
     return () => window.removeEventListener("asr:refresh", handler);
-  }, [reload, reloadInstalledModels, reloadWhisperCatalog]);
+  }, [reload, reloadAsrCatalog, reloadInstalledModels]);
 
   const promptedNoModelsRef = useRef(false);
   useEffect(() => {
@@ -580,13 +597,18 @@ export function SpeechRecognitionPage() {
 
   useEffect(() => {
     if (!selectedTestModelPath && installedModels.length > 0) {
-      setSelectedTestModelPath(installedModels[0]?.path ?? "");
+      setSelectedTestModelPath(resolveActiveAsrModel(installedModels)?.path ?? "");
     } else if (
       selectedTestModelPath &&
       !installedModels.some((model) => model.path === selectedTestModelPath)
     ) {
-      setSelectedTestModelPath(installedModels[0]?.path ?? "");
+      setSelectedTestModelPath(resolveActiveAsrModel(installedModels)?.path ?? "");
     }
+  }, [installedModels, selectedTestModelPath]);
+
+  useEffect(() => {
+    const selected = installedModels.find((model) => model.path === selectedTestModelPath);
+    if (selected) setActiveAsrModel(selected);
   }, [installedModels, selectedTestModelPath]);
 
   useEffect(() => {
@@ -682,7 +704,7 @@ export function SpeechRecognitionPage() {
 
   const handleClearCache = useCallback(async () => {
     try {
-      const cleared = await asrWhisperRuntimeClearCache();
+      const cleared = await asrRuntimeClearCache();
       toast.success(
         t("voices.speechRecognition.toasts.cacheCleared"),
         cleared === 1
@@ -690,7 +712,7 @@ export function SpeechRecognitionPage() {
           : t("voices.speechRecognition.toasts.cacheClearedCountPlural", { count: cleared }),
       );
     } catch (error) {
-      console.error("Failed to clear whisper cache:", error);
+      console.error("Failed to clear ASR cache:", error);
       toast.error(t("voices.speechRecognition.toasts.cacheClearFailed"), String(error));
     }
   }, [t]);
@@ -708,13 +730,13 @@ export function SpeechRecognitionPage() {
   );
 
   const handleQueueModel = useCallback(
-    async (modelId: string) => {
-      setQueueingModelId(modelId);
+    async (model: AsrModelPreset) => {
+      setQueueingModelId(model.id);
       try {
-        await asrWhisperQueueModelDownload(modelId);
-        toast.success(t("voices.speechRecognition.toasts.downloadQueued"), modelId);
+        await asrQueueModelDownload(model.engine, model.id);
+        toast.success(t("voices.speechRecognition.toasts.downloadQueued"), model.label);
       } catch (error) {
-        console.error("Failed to queue Whisper model:", error);
+        console.error("Failed to queue ASR model:", error);
         toast.error(t("voices.speechRecognition.toasts.queueFailed"), String(error));
       } finally {
         setQueueingModelId(null);
@@ -724,14 +746,14 @@ export function SpeechRecognitionPage() {
   );
 
   const handleDeleteInstalledModel = useCallback(
-    async (model: AsrInstalledWhisperModel) => {
+    async (model: AsrInstalledModel) => {
       setDeletingModelPath(model.path);
       try {
-        await asrWhisperDeleteInstalledModel(model.path);
+        await asrDeleteInstalledModel(asrModelRef(model));
         toast.success(t("voices.speechRecognition.toasts.modelDeleted"), model.filename);
         await reloadInstalledModels();
       } catch (error) {
-        console.error("Failed to delete Whisper model:", error);
+        console.error("Failed to delete ASR model:", error);
         toast.error(t("voices.speechRecognition.toasts.deleteModelFailed"), String(error));
       } finally {
         setDeletingModelPath(null);
@@ -742,7 +764,8 @@ export function SpeechRecognitionPage() {
 
   const runTestTranscription = useCallback(
     async (pcm: Float32Array, sampleRateHz: number) => {
-      if (!selectedTestModelPath) {
+      const selectedModel = installedModels.find((model) => model.path === selectedTestModelPath);
+      if (!selectedModel) {
         toast.warning(t("voices.speechRecognition.toasts.chooseModelFirst"));
         return;
       }
@@ -751,24 +774,22 @@ export function SpeechRecognitionPage() {
       setTestResult(null);
       try {
         const pcmBytes = new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength);
-        const result = await asrWhisperTranscribePcm({
-          modelPath: selectedTestModelPath,
+        const result = await asrTranscribePcm({
+          model: asrModelRef(selectedModel),
           pcmBytes,
           sampleRateHz,
           channels: 1,
           language: testLanguage.trim() || filter.language.trim() || null,
           scopes: filter.scope.trim() ? [filter.scope.trim()] : null,
-          initialPrompt: testPrompt.trim() || null,
-          useGpu: testUseGpu,
-          forceCpu: !testUseGpu,
+          initialPrompt: selectedModel.supportsInitialPrompt ? testPrompt.trim() || null : null,
+          useGpu: selectedModel.supportsGpu && testUseGpu,
+          forceCpu: !selectedModel.supportsGpu || !testUseGpu,
           keepModelLoaded: testKeepModelLoaded,
         });
         setTestResult(result);
         toast.success(
           t("voices.speechRecognition.toasts.transcriptionComplete"),
-          result.correctedText ||
-            result.rawText ||
-            t("voices.speechRecognition.result.noText"),
+          result.correctedText || result.rawText || t("voices.speechRecognition.result.noText"),
         );
       } catch (error) {
         console.error("Failed to transcribe test audio:", error);
@@ -780,6 +801,7 @@ export function SpeechRecognitionPage() {
     [
       filter.language,
       filter.scope,
+      installedModels,
       selectedTestModelPath,
       testKeepModelLoaded,
       testLanguage,
@@ -790,29 +812,30 @@ export function SpeechRecognitionPage() {
   );
 
   const handlePreloadSelectedModel = useCallback(async () => {
-    if (!selectedTestModelPath) {
+    const selectedModel = installedModels.find((model) => model.path === selectedTestModelPath);
+    if (!selectedModel) {
       toast.warning(t("voices.speechRecognition.toasts.chooseModelFirst"));
       return;
     }
 
     setIsPreloadingModel(true);
     try {
-      await asrWhisperRuntimePreloadModel({
-        modelPath: selectedTestModelPath,
-        useGpu: testUseGpu,
-        forceCpu: !testUseGpu,
+      await asrRuntimePreloadModel({
+        model: asrModelRef(selectedModel),
+        useGpu: selectedModel.supportsGpu && testUseGpu,
+        forceCpu: !selectedModel.supportsGpu || !testUseGpu,
       });
       toast.success(
         t("voices.speechRecognition.toasts.modelPreloaded"),
         t("voices.speechRecognition.toasts.modelPreloadedDescription"),
       );
     } catch (error) {
-      console.error("Failed to preload Whisper model:", error);
+      console.error("Failed to preload ASR model:", error);
       toast.error(t("voices.speechRecognition.toasts.preloadFailed"), String(error));
     } finally {
       setIsPreloadingModel(false);
     }
-  }, [selectedTestModelPath, testUseGpu, t]);
+  }, [installedModels, selectedTestModelPath, testUseGpu, t]);
 
   const stopRecording = useCallback(async () => {
     const session = recorderRef.current;
@@ -942,26 +965,29 @@ export function SpeechRecognitionPage() {
     }
   }, [isRecording, selectedTestModelPath, stopPlayback, t]);
 
-  const whisperQueue = useMemo(
-    () => (downloadQueue?.queue ?? []).filter((item) => item.queueKind === "whisper"),
+  const asrQueue = useMemo(
+    () =>
+      (downloadQueue?.queue ?? []).filter(
+        (item) => item.queueKind === "whisper" || item.queueKind === "asr",
+      ),
     [downloadQueue],
   );
-  const previousWhisperQueueRef = useRef<string>("");
+  const previousAsrQueueRef = useRef<string>("");
   useEffect(() => {
     const snapshot = JSON.stringify(
-      whisperQueue.map((item) => ({
+      asrQueue.map((item) => ({
         id: item.id,
         status: item.status,
         variant: item.variant ?? null,
       })),
     );
-    if (snapshot === previousWhisperQueueRef.current) {
+    if (snapshot === previousAsrQueueRef.current) {
       return;
     }
 
     const previousById = new Map(
-      (previousWhisperQueueRef.current
-        ? (JSON.parse(previousWhisperQueueRef.current) as Array<{
+      (previousAsrQueueRef.current
+        ? (JSON.parse(previousAsrQueueRef.current) as Array<{
             id: string;
             status: string;
             variant: string | null;
@@ -970,10 +996,10 @@ export function SpeechRecognitionPage() {
       ).map((item) => [item.id, item]),
     );
 
-    previousWhisperQueueRef.current = snapshot;
+    previousAsrQueueRef.current = snapshot;
 
     let shouldReloadInstalledModels = false;
-    for (const item of whisperQueue) {
+    for (const item of asrQueue) {
       const previous = previousById.get(item.id);
       if (!previous || previous.status === item.status) {
         continue;
@@ -993,7 +1019,7 @@ export function SpeechRecognitionPage() {
     if (shouldReloadInstalledModels) {
       void reloadInstalledModels();
     }
-  }, [pendingModelId, reloadInstalledModels, whisperQueue]);
+  }, [asrQueue, pendingModelId, reloadInstalledModels]);
   const filterActive = filter.language.trim().length > 0 || filter.scope.trim().length > 0;
   const activeTab = LIBRARY_TABS.find((entry) => entry.key === tab)!;
   const tabCount = useMemo(() => {
@@ -1019,220 +1045,246 @@ export function SpeechRecognitionPage() {
                   availableModels={availableModels}
                   selectedTestModelPath={selectedTestModelPath}
                   pendingModelId={pendingModelId}
-                  whisperQueue={whisperQueue}
+                  asrQueue={asrQueue}
                   onOpen={() => setModelPickerOpen(true)}
                   onClearPending={() => setPendingModelId(null)}
                 />
               </div>
 
-          <section data-tour-id="asr-library" className="space-y-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
-              <div className="min-w-0">
-                <h2 className={SECTION_TITLE}>{t("voices.speechRecognition.library.title")}</h2>
-                <p className={cn("mt-0.5", SECTION_SUB)}>
-                  {t("voices.speechRecognition.library.description")}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setFiltersOpen((v) => !v)}
-                className={cn(
-                  ghostButton("self-start sm:self-auto"),
-                  filterActive && "border-accent/40 bg-accent/10 text-accent",
-                )}
-              >
-                <ListFilter className="h-3.5 w-3.5" />
-                {t("voices.speechRecognition.filter.title")}
-                {filterActive && (
-                  <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-accent" />
-                )}
-              </button>
-            </div>
+              <InputBehaviorSection
+                value={inputBehavior}
+                onChange={handleInputBehaviorChange}
+              />
 
-            <AnimatePresence initial={false}>
-              {filtersOpen && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.18 }}
-                  className="overflow-hidden"
-                >
-                  <FilterPanel
-                    filter={filter}
-                    setFilter={setFilter}
-                    onReset={() => setFilter(DEFAULT_FILTER)}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
+              <section data-tour-id="asr-library" className="space-y-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
+                  <div className="min-w-0">
+                    <h2 className={SECTION_TITLE}>{t("voices.speechRecognition.library.title")}</h2>
+                    <p className={cn("mt-0.5", SECTION_SUB)}>
+                      {t("voices.speechRecognition.library.description")}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFiltersOpen((v) => !v)}
+                    className={cn(
+                      ghostButton("self-start sm:self-auto"),
+                      filterActive && "border-accent/40 bg-accent/10 text-accent",
+                    )}
+                  >
+                    <ListFilter className="h-3.5 w-3.5" />
+                    {t("voices.speechRecognition.filter.title")}
+                    {filterActive && (
+                      <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-accent" />
+                    )}
+                  </button>
+                </div>
 
-            <LayoutGroup id="asr-library-tabs">
-              <div className="flex gap-1 overflow-x-auto rounded-2xl border border-fg/10 bg-fg/4 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {LIBRARY_TABS.map((entry) => {
-                  const Icon = entry.icon;
-                  const active = tab === entry.key;
-                  const count =
-                    entry.key === "vocabulary"
-                      ? vocabulary.length
-                      : entry.key === "corrections"
-                        ? corrections.length
-                        : examples.length;
-                  return (
-                    <button
-                      key={entry.key}
-                      type="button"
-                      onClick={() => setTab(entry.key)}
-                      className={cn(
-                        "relative flex flex-1 min-w-fit items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold",
-                        interactive.transition.fast,
-                        active ? "text-fg" : "text-fg/55 hover:text-fg/85",
-                      )}
+                <AnimatePresence initial={false}>
+                  {filtersOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.18 }}
+                      className="overflow-hidden"
                     >
-                      {active && (
-                        <motion.span
-                          layoutId="asr-tab-pill"
-                          className="absolute inset-0 rounded-xl bg-fg/10 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]"
-                          transition={{ type: "spring", stiffness: 420, damping: 36, mass: 0.7 }}
-                        />
-                      )}
-                      <span className="relative flex items-center gap-1.5">
-                        <Icon className="h-3.5 w-3.5" />
-                        <span>{t(entry.labelKey as Parameters<typeof t>[0])}</span>
-                        <motion.span
-                          layout
-                          transition={{ type: "spring", stiffness: 420, damping: 36, mass: 0.7 }}
+                      <FilterPanel
+                        filter={filter}
+                        setFilter={setFilter}
+                        onReset={() => setFilter(DEFAULT_FILTER)}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <LayoutGroup id="asr-library-tabs">
+                  <div className="flex gap-1 overflow-x-auto rounded-2xl border border-fg/10 bg-fg/4 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {LIBRARY_TABS.map((entry) => {
+                      const Icon = entry.icon;
+                      const active = tab === entry.key;
+                      const count =
+                        entry.key === "vocabulary"
+                          ? vocabulary.length
+                          : entry.key === "corrections"
+                            ? corrections.length
+                            : examples.length;
+                      return (
+                        <button
+                          key={entry.key}
+                          type="button"
+                          onClick={() => setTab(entry.key)}
                           className={cn(
-                            "ml-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold leading-none",
-                            active ? "bg-accent/15 text-accent" : "bg-fg/8 text-fg/45",
+                            "relative flex flex-1 min-w-fit items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold",
+                            interactive.transition.fast,
+                            active ? "text-fg" : "text-fg/55 hover:text-fg/85",
                           )}
                         >
-                          {count}
-                        </motion.span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </LayoutGroup>
+                          {active && (
+                            <motion.span
+                              layoutId="asr-tab-pill"
+                              className="absolute inset-0 rounded-xl bg-fg/10 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]"
+                              transition={{
+                                type: "spring",
+                                stiffness: 420,
+                                damping: 36,
+                                mass: 0.7,
+                              }}
+                            />
+                          )}
+                          <span className="relative flex items-center gap-1.5">
+                            <Icon className="h-3.5 w-3.5" />
+                            <span>{t(entry.labelKey as Parameters<typeof t>[0])}</span>
+                            <motion.span
+                              layout
+                              transition={{
+                                type: "spring",
+                                stiffness: 420,
+                                damping: 36,
+                                mass: 0.7,
+                              }}
+                              className={cn(
+                                "ml-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold leading-none",
+                                active ? "bg-accent/15 text-accent" : "bg-fg/8 text-fg/45",
+                              )}
+                            >
+                              {count}
+                            </motion.span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </LayoutGroup>
 
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.p
-                key={activeTab.key}
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 4 }}
-                transition={{ duration: 0.15 }}
-                className="px-1 text-[11px] text-fg/40"
-              >
-                {t(activeTab.hintKey as Parameters<typeof t>[0])}
-              </motion.p>
-            </AnimatePresence>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.p
+                    key={activeTab.key}
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 4 }}
+                    transition={{ duration: 0.15 }}
+                    className="px-1 text-[11px] text-fg/40"
+                  >
+                    {t(activeTab.hintKey as Parameters<typeof t>[0])}
+                  </motion.p>
+                </AnimatePresence>
 
-            {tab === "vocabulary" && (
-              <PromptPreviewCard prompt={previewPrompt} />
-            )}
+                {tab === "vocabulary" && <PromptPreviewCard prompt={previewPrompt} />}
 
-            {tab === "vocabulary" && (
-              <VocabularySection
-                items={vocabulary}
-                count={tabCount}
-                loading={loading}
-                onAdd={() =>
-                  setEditor({
-                    kind: "vocabulary",
-                    value: {
-                      term: "",
-                      category: "",
-                      priority: 50,
-                      language: filter.language,
-                      scope: filter.scope,
-                    },
-                  })
-                }
-                onEdit={(term) => setEditor({ kind: "vocabulary", value: term })}
-                onDelete={async (term) => {
-                  if (term.id == null) return;
-                  try {
-                    await asrVocabularyDelete(term.id);
-                    toast.success(t("voices.speechRecognition.toasts.deletedVocabulary"));
-                    void reload();
-                  } catch (error) {
-                    toast.error(t("voices.speechRecognition.toasts.deleteFailed"), String(error));
-                  }
-                }}
-              />
-            )}
+                {tab === "vocabulary" && (
+                  <VocabularySection
+                    items={vocabulary}
+                    count={tabCount}
+                    loading={loading}
+                    onAdd={() =>
+                      setEditor({
+                        kind: "vocabulary",
+                        value: {
+                          term: "",
+                          category: "",
+                          priority: 50,
+                          language: filter.language,
+                          scope: filter.scope,
+                        },
+                      })
+                    }
+                    onEdit={(term) => setEditor({ kind: "vocabulary", value: term })}
+                    onDelete={async (term) => {
+                      if (term.id == null) return;
+                      try {
+                        await asrVocabularyDelete(term.id);
+                        toast.success(t("voices.speechRecognition.toasts.deletedVocabulary"));
+                        void reload();
+                      } catch (error) {
+                        toast.error(
+                          t("voices.speechRecognition.toasts.deleteFailed"),
+                          String(error),
+                        );
+                      }
+                    }}
+                  />
+                )}
 
-            {tab === "corrections" && (
-              <CorrectionsSection
-                items={corrections}
-                count={tabCount}
-                loading={loading}
-                approvedOnly={showApprovedOnly}
-                onToggleApprovedOnly={setShowApprovedOnly}
-                onAdd={() =>
-                  setEditor({
-                    kind: "correction",
-                    value: {
-                      wrong: "",
-                      correct: "",
-                      confidence: 0.9,
-                      userApproved: true,
-                      language: filter.language,
-                      scope: filter.scope,
-                    },
-                  })
-                }
-                onEdit={(item) => setEditor({ kind: "correction", value: item })}
-                onDelete={async (item) => {
-                  if (item.id == null) return;
-                  try {
-                    await asrCorrectionDelete(item.id);
-                    toast.success(t("voices.speechRecognition.toasts.deletedCorrection"));
-                    void reload();
-                  } catch (error) {
-                    toast.error(t("voices.speechRecognition.toasts.deleteFailed"), String(error));
-                  }
-                }}
-              />
-            )}
+                {tab === "corrections" && (
+                  <CorrectionsSection
+                    items={corrections}
+                    count={tabCount}
+                    loading={loading}
+                    approvedOnly={showApprovedOnly}
+                    onToggleApprovedOnly={setShowApprovedOnly}
+                    onAdd={() =>
+                      setEditor({
+                        kind: "correction",
+                        value: {
+                          wrong: "",
+                          correct: "",
+                          confidence: 0.9,
+                          userApproved: true,
+                          language: filter.language,
+                          scope: filter.scope,
+                        },
+                      })
+                    }
+                    onEdit={(item) => setEditor({ kind: "correction", value: item })}
+                    onDelete={async (item) => {
+                      if (item.id == null) return;
+                      try {
+                        await asrCorrectionDelete(item.id);
+                        toast.success(t("voices.speechRecognition.toasts.deletedCorrection"));
+                        void reload();
+                      } catch (error) {
+                        toast.error(
+                          t("voices.speechRecognition.toasts.deleteFailed"),
+                          String(error),
+                        );
+                      }
+                    }}
+                  />
+                )}
 
-            {tab === "voiceExamples" && (
-              <VoiceExamplesSection
-                items={examples}
-                count={tabCount}
-                loading={loading}
-                onAdd={() =>
-                  setEditor({
-                    kind: "voiceExample",
-                    value: {
-                      audioPath: "",
-                      expectedText: "",
-                      whisperOutput: "",
-                      language: filter.language,
-                      scope: filter.scope,
-                    },
-                  })
-                }
-                onEdit={(item) => setEditor({ kind: "voiceExample", value: item })}
-                onDelete={async (item) => {
-                  if (item.id == null) return;
-                  try {
-                    await asrVoiceExampleDelete(item.id);
-                    toast.success(t("voices.speechRecognition.toasts.deletedVoiceExample"));
-                    void reload();
-                  } catch (error) {
-                    toast.error(t("voices.speechRecognition.toasts.deleteFailed"), String(error));
-                  }
-                }}
-              />
-            )}
-          </section>
+                {tab === "voiceExamples" && (
+                  <VoiceExamplesSection
+                    items={examples}
+                    count={tabCount}
+                    loading={loading}
+                    onAdd={() =>
+                      setEditor({
+                        kind: "voiceExample",
+                        value: {
+                          audioPath: "",
+                          expectedText: "",
+                          whisperOutput: "",
+                          language: filter.language,
+                          scope: filter.scope,
+                        },
+                      })
+                    }
+                    onEdit={(item) => setEditor({ kind: "voiceExample", value: item })}
+                    onDelete={async (item) => {
+                      if (item.id == null) return;
+                      try {
+                        await asrVoiceExampleDelete(item.id);
+                        toast.success(t("voices.speechRecognition.toasts.deletedVoiceExample"));
+                        void reload();
+                      } catch (error) {
+                        toast.error(
+                          t("voices.speechRecognition.toasts.deleteFailed"),
+                          String(error),
+                        );
+                      }
+                    }}
+                  />
+                )}
+              </section>
 
               <div data-tour-id="asr-runtime">
                 <RuntimeSection
                   selectedTestModelPath={selectedTestModelPath}
+                  supportsGpu={
+                    installedModels.find((model) => model.path === selectedTestModelPath)
+                      ?.supportsGpu ?? false
+                  }
                   modelsDir={modelsDir}
                   testUseGpu={testUseGpu}
                   setTestUseGpu={setTestUseGpu}
@@ -1248,10 +1300,7 @@ export function SpeechRecognitionPage() {
               </div>
             </div>
 
-            <aside
-              data-tour-id="asr-mic-test"
-              className="min-w-0 lg:sticky lg:top-4 lg:self-start"
-            >
+            <aside data-tour-id="asr-mic-test" className="min-w-0 lg:sticky lg:top-4 lg:self-start">
               <MicTestSection
                 installedModels={installedModels}
                 selectedTestModelPath={selectedTestModelPath}
@@ -1282,12 +1331,12 @@ export function SpeechRecognitionPage() {
         onClose={() => setModelPickerOpen(false)}
         installedModels={installedModels}
         availableModels={availableModels}
-        whisperQueue={whisperQueue}
+        asrQueue={asrQueue}
         queueingModelId={queueingModelId}
         deletingModelPath={deletingModelPath}
         selectedTestModelPath={selectedTestModelPath}
         pendingModelId={pendingModelId}
-        loadingCatalog={loadingWhisperModels}
+        loadingCatalog={loadingAsrModels}
         loadingInstalled={loadingInstalledModels}
         onSelectInstalled={(model) => {
           setSelectedTestModelPath(model.path);
@@ -1295,7 +1344,7 @@ export function SpeechRecognitionPage() {
         }}
         onSelectAndQueue={async (model) => {
           setPendingModelId(model.id);
-          await handleQueueModel(model.id);
+          await handleQueueModel(model);
         }}
         onDelete={(model) => void handleDeleteInstalledModel(model)}
       />
@@ -1324,7 +1373,9 @@ export function SpeechRecognitionPage() {
         {editor.kind === "voiceExample" && (
           <VoiceExampleEditor
             initial={editor.value}
-            activeModelPath={selectedTestModelPath}
+            activeModel={
+              installedModels.find((model) => model.path === selectedTestModelPath) ?? null
+            }
             onClose={() => setEditor({ kind: "none" })}
             onSaved={() => {
               setEditor({ kind: "none" });
@@ -1336,6 +1387,73 @@ export function SpeechRecognitionPage() {
 
       {showTour && <GuidedTour tour="speechRecognition" onDismiss={dismissTour} />}
     </motion.div>
+  );
+}
+
+function InputBehaviorSection({
+  value,
+  onChange,
+}: {
+  value: AsrInputBehavior;
+  onChange: (value: AsrInputBehavior) => void;
+}) {
+  const { t } = useI18n();
+  const options: Array<{
+    value: AsrInputBehavior;
+    icon: typeof Mic;
+    title: string;
+    description: string;
+  }> = [
+    {
+      value: "dictation",
+      icon: Pencil,
+      title: t("voices.speechRecognition.inputBehavior.dictation"),
+      description: t("voices.speechRecognition.inputBehavior.dictationDescription"),
+    },
+    {
+      value: "holdToSend",
+      icon: AudioLines,
+      title: t("voices.speechRecognition.inputBehavior.holdToSend"),
+      description: t("voices.speechRecognition.inputBehavior.holdToSendDescription"),
+    },
+  ];
+
+  return (
+    <section className="space-y-2.5">
+      <div>
+        <h2 className={SECTION_TITLE}>{t("voices.speechRecognition.inputBehavior.title")}</h2>
+        <p className={cn("mt-0.5", SECTION_SUB)}>
+          {t("voices.speechRecognition.inputBehavior.description")}
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {options.map((option) => {
+          const Icon = option.icon;
+          const active = value === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onChange(option.value)}
+              className={cn(
+                "flex min-w-0 items-start gap-2 rounded-xl border px-3 py-2.5 text-left transition",
+                active
+                  ? "border-accent/35 bg-accent/12 text-fg"
+                  : "border-fg/8 bg-fg/4 text-fg/55 hover:bg-fg/6 hover:text-fg/80",
+              )}
+            >
+              <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", active && "text-accent")} />
+              <span className="min-w-0">
+                <span className="block text-xs font-semibold">{option.title}</span>
+                <span className="mt-0.5 block text-[10px] leading-relaxed text-fg/45">
+                  {option.description}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -1353,7 +1471,6 @@ interface SectionProps<T> {
   onEdit: (item: T) => void;
   onDelete: (item: T) => void | Promise<void>;
 }
-
 
 function FilterPanel({
   filter,
@@ -1402,7 +1519,6 @@ function FilterPanel({
     </div>
   );
 }
-
 
 function PromptPreviewCard({ prompt }: { prompt: string }) {
   const { t } = useI18n();
@@ -1454,19 +1570,19 @@ function PromptPreviewCard({ prompt }: { prompt: string }) {
   );
 }
 
-
-type WhisperQueueItems = ReturnType<typeof useDownloadQueueOptional> extends infer Q
-  ? Q extends { queue: infer Items }
-    ? Items
-    : never
-  : never;
+type AsrQueueItems =
+  ReturnType<typeof useDownloadQueueOptional> extends infer Q
+    ? Q extends { queue: infer Items }
+      ? Items
+      : never
+    : never;
 
 interface ActiveModelCardProps {
-  installedModels: AsrInstalledWhisperModel[];
-  availableModels: AsrWhisperModelPreset[];
+  installedModels: AsrInstalledModel[];
+  availableModels: AsrModelPreset[];
   selectedTestModelPath: string;
   pendingModelId: string | null;
-  whisperQueue: WhisperQueueItems;
+  asrQueue: AsrQueueItems;
   onOpen: () => void;
   onClearPending: () => void;
 }
@@ -1476,7 +1592,7 @@ function ActiveModelCard({
   availableModels,
   selectedTestModelPath,
   pendingModelId,
-  whisperQueue,
+  asrQueue,
   onOpen,
   onClearPending,
 }: ActiveModelCardProps) {
@@ -1486,24 +1602,36 @@ function ActiveModelCard({
     [installedModels, selectedTestModelPath],
   );
   const pendingMeta = useMemo(
-    () =>
-      pendingModelId ? availableModels.find((m) => m.id === pendingModelId) ?? null : null,
+    () => (pendingModelId ? (availableModels.find((m) => m.id === pendingModelId) ?? null) : null),
     [pendingModelId, availableModels],
   );
-  const pendingQueueEntry = useMemo(
-    () =>
-      pendingModelId
-        ? (whisperQueue as Array<{
-            variant?: string | null;
-            status?: string;
-            downloaded: number;
-            total: number;
-            speedBytesPerSec?: number;
-            filename?: string;
-          }>).find((q) => q.variant === pendingModelId)
-        : undefined,
-    [pendingModelId, whisperQueue],
-  );
+  const pendingQueueEntry = useMemo(() => {
+    if (!pendingModelId) return undefined;
+    const entries = (
+      asrQueue as Array<{
+        variant?: string | null;
+        status?: string;
+        downloaded: number;
+        total: number;
+        speedBytesPerSec?: number;
+        filename?: string;
+      }>
+    ).filter((item) => item.variant === pendingModelId);
+    if (entries.length === 0) return undefined;
+    return {
+      status: entries.some((item) => item.status === "downloading")
+        ? "downloading"
+        : entries.some((item) => item.status === "queued")
+          ? "queued"
+          : entries.every((item) => item.status === "complete")
+            ? "complete"
+            : entries[0]?.status,
+      downloaded: entries.reduce((sum, item) => sum + item.downloaded, 0),
+      total: entries.reduce((sum, item) => sum + item.total, 0),
+      speedBytesPerSec: entries.reduce((sum, item) => sum + (item.speedBytesPerSec ?? 0), 0),
+      filename: entries.length === 1 ? entries[0]?.filename : pendingMeta?.label,
+    };
+  }, [asrQueue, pendingMeta?.label, pendingModelId]);
   const pendingPct =
     pendingQueueEntry && pendingQueueEntry.total > 0
       ? Math.min(100, Math.round((pendingQueueEntry.downloaded / pendingQueueEntry.total) * 100))
@@ -1511,8 +1639,7 @@ function ActiveModelCard({
 
   if (pendingModelId) {
     const filename =
-      pendingQueueEntry?.filename ??
-      (pendingMeta ? `ggml-${pendingMeta.id}.bin` : pendingModelId);
+      pendingQueueEntry?.filename ?? (pendingMeta ? `ggml-${pendingMeta.id}.bin` : pendingModelId);
     const downloading = pendingQueueEntry?.status === "downloading";
     return (
       <div
@@ -1665,18 +1792,18 @@ function ActiveModelCard({
 interface ModelPickerSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  installedModels: AsrInstalledWhisperModel[];
-  availableModels: AsrWhisperModelPreset[];
-  whisperQueue: WhisperQueueItems;
+  installedModels: AsrInstalledModel[];
+  availableModels: AsrModelPreset[];
+  asrQueue: AsrQueueItems;
   queueingModelId: string | null;
   deletingModelPath: string | null;
   selectedTestModelPath: string;
   pendingModelId: string | null;
   loadingCatalog: boolean;
   loadingInstalled: boolean;
-  onSelectInstalled: (model: AsrInstalledWhisperModel) => void;
-  onSelectAndQueue: (model: AsrWhisperModelPreset) => void | Promise<void>;
-  onDelete: (model: AsrInstalledWhisperModel) => void;
+  onSelectInstalled: (model: AsrInstalledModel) => void;
+  onSelectAndQueue: (model: AsrModelPreset) => void | Promise<void>;
+  onDelete: (model: AsrInstalledModel) => void;
 }
 
 function ModelPickerSheet({
@@ -1684,7 +1811,7 @@ function ModelPickerSheet({
   onClose,
   installedModels,
   availableModels,
-  whisperQueue,
+  asrQueue,
   queueingModelId,
   deletingModelPath,
   selectedTestModelPath,
@@ -1702,12 +1829,12 @@ function ModelPickerSheet({
   const isMobile = useMemo(() => getPlatform().type === "mobile", []);
 
   const installedById = useMemo(() => {
-    const map = new Map<string, AsrInstalledWhisperModel>();
+    const map = new Map<string, AsrInstalledModel>();
     for (const m of installedModels) map.set(m.id, m);
     return map;
   }, [installedModels]);
 
-  const recommendedForPlatform = (model: AsrWhisperModelPreset) =>
+  const recommendedForPlatform = (model: AsrModelPreset) =>
     isMobile ? model.recommendedForMobile : model.recommendedForDesktop;
 
   const rows = useMemo(() => {
@@ -1730,7 +1857,11 @@ function ModelPickerSheet({
   }, [availableModels, installedById, downloadedOnly, search, showAllPresets, isMobile]);
 
   return (
-    <BottomMenu isOpen={isOpen} onClose={onClose} title={t("voices.speechRecognition.picker.title")}>
+    <BottomMenu
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t("voices.speechRecognition.picker.title")}
+    >
       <div className="space-y-3 pb-2">
         {installedModels.length === 0 && !loadingInstalled && (
           <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/8 px-3 py-2.5">
@@ -1799,10 +1930,9 @@ function ModelPickerSheet({
             />
           ) : (
             rows.map(({ model, installed }) => {
-              const isActive =
-                installed != null && installed.path === selectedTestModelPath;
+              const isActive = installed != null && installed.path === selectedTestModelPath;
               const isPending = pendingModelId === model.id;
-              const busy = isBusy(queueingModelId, whisperQueue, model.id);
+              const busy = isBusy(queueingModelId, asrQueue, model.id);
               return (
                 <PickerRow
                   key={model.id}
@@ -1841,8 +1971,8 @@ function PickerRow({
   onSelect,
   onDelete,
 }: {
-  model: AsrWhisperModelPreset;
-  installed: AsrInstalledWhisperModel | null;
+  model: AsrModelPreset;
+  installed: AsrInstalledModel | null;
   isActive: boolean;
   isPending: boolean;
   busy: boolean;
@@ -1968,7 +2098,6 @@ function PickerRow({
   );
 }
 
-
 function isBusy(
   queueingModelId: string | null,
   queue: { variant?: string | null; status?: string }[],
@@ -1978,21 +2107,24 @@ function isBusy(
     queueingModelId === modelId ||
     queue.some(
       (item) =>
-        item.variant === modelId &&
-        (item.status === "queued" || item.status === "downloading"),
+        item.variant === modelId && (item.status === "queued" || item.status === "downloading"),
     )
   );
 }
 
-function ModelMeta({
-  model,
-}: {
-  model: AsrWhisperModelPreset | AsrInstalledWhisperModel;
-}) {
+function ModelMeta({ model }: { model: AsrModelPreset | AsrInstalledModel }) {
   const { t } = useI18n();
+  const engineLabel =
+    model.engine === "senseVoice"
+      ? "SenseVoice"
+      : model.engine === "zipformerCtc"
+        ? "Zipformer CTC"
+        : "Whisper";
   return (
     <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-fg/50">
       <span className="tabular-nums">{formatBytes(model.sizeBytes)}</span>
+      <span className="opacity-40">·</span>
+      <span>{engineLabel}</span>
       <span className="opacity-40">·</span>
       <span>
         {model.englishOnly
@@ -2009,9 +2141,8 @@ function ModelMeta({
   );
 }
 
-
 interface MicTestSectionProps {
-  installedModels: AsrInstalledWhisperModel[];
+  installedModels: AsrInstalledModel[];
   selectedTestModelPath: string;
   pendingModelId: string | null;
   onOpenPicker: () => void;
@@ -2024,7 +2155,7 @@ interface MicTestSectionProps {
   isTranscribingTest: boolean;
   isPlayingLastRecording: boolean;
   hasLastRecording: boolean;
-  testResult: AsrWhisperTranscriptionResponse | null;
+  testResult: AsrTranscriptionResponse | null;
   onStart: () => void;
   onStop: () => void;
   onRerun: () => void;
@@ -2100,18 +2231,20 @@ function MicTestSection({
             ))}
           </select>
         </FieldShell>
-        <FieldShell
-          label={t("voices.speechRecognition.micTest.extraPrompt")}
-          hint={t("voices.speechRecognition.micTest.extraPromptHint")}
-        >
-          <input
-            type="text"
-            className={inputClass()}
-            placeholder={t("voices.speechRecognition.micTest.extraPromptPlaceholder")}
-            value={testPrompt}
-            onChange={(event) => setTestPrompt(event.target.value)}
-          />
-        </FieldShell>
+        {activeModel?.supportsInitialPrompt && (
+          <FieldShell
+            label={t("voices.speechRecognition.micTest.extraPrompt")}
+            hint={t("voices.speechRecognition.micTest.extraPromptHint")}
+          >
+            <input
+              type="text"
+              className={inputClass()}
+              placeholder={t("voices.speechRecognition.micTest.extraPromptPlaceholder")}
+              value={testPrompt}
+              onChange={(event) => setTestPrompt(event.target.value)}
+            />
+          </FieldShell>
+        )}
 
         <div
           className={cn(
@@ -2246,7 +2379,7 @@ function RecordButton({
   );
 }
 
-function TranscriptionResultCard({ result }: { result: AsrWhisperTranscriptionResponse }) {
+function TranscriptionResultCard({ result }: { result: AsrTranscriptionResponse }) {
   const { t } = useI18n();
   return (
     <motion.div
@@ -2289,16 +2422,12 @@ function TranscriptionResultCard({ result }: { result: AsrWhisperTranscriptionRe
         <Stat label={t("voices.speechRecognition.result.corrections")}>
           {result.appliedCorrections.length}
         </Stat>
-        <Stat label={t("voices.speechRecognition.result.segments")}>
-          {result.segments.length}
-        </Stat>
+        <Stat label={t("voices.speechRecognition.result.segments")}>{result.segments.length}</Stat>
       </div>
 
       {result.appliedCorrections.length > 0 && (
         <div className="rounded-xl border border-fg/10 bg-fg/5 px-3 py-3">
-          <div className={OVERLINE}>
-            {t("voices.speechRecognition.result.appliedCorrections")}
-          </div>
+          <div className={OVERLINE}>{t("voices.speechRecognition.result.appliedCorrections")}</div>
           <div className="mt-2 space-y-1">
             {result.appliedCorrections.map((item, index) => (
               <div
@@ -2364,6 +2493,7 @@ function TranscriptionResultCard({ result }: { result: AsrWhisperTranscriptionRe
 
 function RuntimeSection({
   selectedTestModelPath,
+  supportsGpu,
   modelsDir,
   testUseGpu,
   setTestUseGpu,
@@ -2377,6 +2507,7 @@ function RuntimeSection({
   onLibraryExport,
 }: {
   selectedTestModelPath: string;
+  supportsGpu: boolean;
   modelsDir: string;
   testUseGpu: boolean;
   setTestUseGpu: (value: boolean) => void;
@@ -2401,7 +2532,7 @@ function RuntimeSection({
       </div>
 
       <div className={panelClass("space-y-3")}>
-        {!isMobile && (
+        {!isMobile && supportsGpu && (
           <RuntimeRow
             icon={<Sparkles className="h-4 w-4" />}
             title={t("voices.speechRecognition.runtime.useGpu")}
@@ -2597,7 +2728,10 @@ function MicInputRow() {
       </div>
       <div className="flex items-center gap-2 pl-12 sm:pl-0 sm:shrink-0">
         <select
-          className={cn(inputClass(), "h-9 min-w-0 flex-1 py-0 sm:w-56 sm:flex-none sm:max-w-[60vw]")}
+          className={cn(
+            inputClass(),
+            "h-9 min-w-0 flex-1 py-0 sm:w-56 sm:flex-none sm:max-w-[60vw]",
+          )}
           value={selectedId}
           onChange={(event) => handleChange(event.target.value)}
           disabled={devices.length === 0}
@@ -2649,7 +2783,6 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
     </div>
   );
 }
-
 
 function LibraryHeader({
   title,
@@ -2739,7 +2872,10 @@ function VocabularySection({
                         value: item.scope ?? "global",
                       },
                       typeof item.useCount === "number" && item.useCount > 0
-                        ? { label: t("voices.speechRecognition.chips.uses"), value: String(item.useCount) }
+                        ? {
+                            label: t("voices.speechRecognition.chips.uses"),
+                            value: String(item.useCount),
+                          }
                         : null,
                     ]}
                   />
@@ -2866,7 +3002,10 @@ function CorrectionsSection({
                         tone: item.userApproved ? "info" : "muted",
                       },
                       typeof item.confidence === "number"
-                        ? { label: t("voices.speechRecognition.chips.conf"), value: item.confidence.toFixed(2) }
+                        ? {
+                            label: t("voices.speechRecognition.chips.conf"),
+                            value: item.confidence.toFixed(2),
+                          }
                         : null,
                       item.language && {
                         label: t("voices.speechRecognition.chips.lang"),
@@ -2877,19 +3016,36 @@ function CorrectionsSection({
                         value: item.scope ?? "global",
                       },
                       typeof item.useCount === "number" && item.useCount > 0
-                        ? { label: t("voices.speechRecognition.chips.uses"), value: String(item.useCount) }
+                        ? {
+                            label: t("voices.speechRecognition.chips.uses"),
+                            value: String(item.useCount),
+                          }
                         : null,
                       typeof item.acceptedCount === "number" && item.acceptedCount > 0
-                        ? { label: t("voices.speechRecognition.chips.accepted"), value: String(item.acceptedCount), tone: "info" }
+                        ? {
+                            label: t("voices.speechRecognition.chips.accepted"),
+                            value: String(item.acceptedCount),
+                            tone: "info",
+                          }
                         : null,
                       typeof item.rejectedCount === "number" && item.rejectedCount > 0
-                        ? { label: t("voices.speechRecognition.chips.ignored"), value: String(item.rejectedCount), tone: "muted" }
+                        ? {
+                            label: t("voices.speechRecognition.chips.ignored"),
+                            value: String(item.rejectedCount),
+                            tone: "muted",
+                          }
                         : null,
                       typeof item.seenCount === "number" && item.seenCount > 0
-                        ? { label: t("voices.speechRecognition.chips.seen"), value: String(item.seenCount) }
+                        ? {
+                            label: t("voices.speechRecognition.chips.seen"),
+                            value: String(item.seenCount),
+                          }
                         : null,
                       item.lastSeenAt
-                        ? { label: t("voices.speechRecognition.chips.last"), value: item.lastSeenAt }
+                        ? {
+                            label: t("voices.speechRecognition.chips.last"),
+                            value: item.lastSeenAt,
+                          }
                         : null,
                     ]}
                   />
@@ -3046,10 +3202,16 @@ function VoiceExamplesSection({
                         value: item.scope ?? "global",
                       },
                       item.correctionId != null
-                        ? { label: t("voices.speechRecognition.chips.correction"), value: `#${item.correctionId}` }
+                        ? {
+                            label: t("voices.speechRecognition.chips.correction"),
+                            value: `#${item.correctionId}`,
+                          }
                         : null,
                       item.termId != null
-                        ? { label: t("voices.speechRecognition.chips.term"), value: `#${item.termId}` }
+                        ? {
+                            label: t("voices.speechRecognition.chips.term"),
+                            value: `#${item.termId}`,
+                          }
                         : null,
                     ]}
                   />
@@ -3166,17 +3328,12 @@ function SkeletonList({ rows = 3 }: { rows?: number }) {
       {Array.from({ length: rows }).map((_, idx) => (
         <div
           key={idx}
-          className={cn(
-            "h-16 w-full animate-pulse",
-            radius.lg,
-            "border border-fg/5 bg-fg/5",
-          )}
+          className={cn("h-16 w-full animate-pulse", radius.lg, "border border-fg/5 bg-fg/5")}
         />
       ))}
     </div>
   );
 }
-
 
 interface EditorShellProps {
   title: string;
@@ -3348,9 +3505,7 @@ function VocabularyEditor({
           max={100}
           className={inputClass()}
           value={draft.priority ?? 50}
-          onChange={(next) =>
-            setDraft((p) => ({ ...p, priority: next ?? 50 }))
-          }
+          onChange={(next) => setDraft((p) => ({ ...p, priority: next ?? 50 }))}
         />
       </FieldShell>
     </EditorSheet>
@@ -3455,9 +3610,7 @@ function CorrectionEditor({
           decimals={2}
           className={inputClass()}
           value={draft.confidence ?? 0.9}
-          onChange={(next) =>
-            setDraft((p) => ({ ...p, confidence: next ?? 0.9 }))
-          }
+          onChange={(next) => setDraft((p) => ({ ...p, confidence: next ?? 0.9 }))}
         />
       </FieldShell>
       <div className="flex items-center justify-between rounded-xl border border-fg/10 bg-fg/5 px-3 py-2.5">
@@ -3483,12 +3636,12 @@ function VoiceExampleEditor({
   initial,
   onClose,
   onSaved,
-  activeModelPath,
+  activeModel,
 }: {
   initial: AsrVoiceExample;
   onClose: () => void;
   onSaved: () => void;
-  activeModelPath: string;
+  activeModel: AsrInstalledModel | null;
 }) {
   const { t } = useI18n();
   const [draft, setDraft] = useState<AsrVoiceExample>(initial);
@@ -3620,7 +3773,7 @@ function VoiceExampleEditor({
       toast.warning(t("voices.speechRecognition.voiceExampleEditor.pickAudioFileFirst"));
       return;
     }
-    if (!activeModelPath) {
+    if (!activeModel) {
       toast.warning(
         t("voices.speechRecognition.voiceExampleEditor.noActiveModel"),
         t("voices.speechRecognition.voiceExampleEditor.noActiveModelDescription"),
@@ -3629,8 +3782,8 @@ function VoiceExampleEditor({
     }
     setTranscribing(true);
     try {
-      const result = await asrWhisperTranscribeFile({
-        modelPath: activeModelPath,
+      const result = await asrTranscribeFile({
+        model: asrModelRef(activeModel),
         audioPath: draft.audioPath.trim(),
         language: draft.language?.trim() || null,
         scopes: draft.scope?.trim() ? [draft.scope.trim()] : null,
@@ -3852,14 +4005,14 @@ function VoiceExampleEditor({
             <button
               type="button"
               onClick={() => void transcribeAudio()}
-              disabled={transcribing || !draft.audioPath.trim() || !activeModelPath}
+              disabled={transcribing || !draft.audioPath.trim() || !activeModel}
               className={cn(
                 ghostButton(),
-                (transcribing || !draft.audioPath.trim() || !activeModelPath) &&
+                (transcribing || !draft.audioPath.trim() || !activeModel) &&
                   "cursor-not-allowed opacity-60",
               )}
               title={
-                !activeModelPath
+                !activeModel
                   ? t("voices.speechRecognition.voiceExampleEditor.pickActiveModelFirst")
                   : !draft.audioPath.trim()
                     ? t("voices.speechRecognition.voiceExampleEditor.pickAudioFirst")

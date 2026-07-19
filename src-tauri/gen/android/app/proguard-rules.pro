@@ -4,3 +4,7 @@
 -keepclassmembers class com.lettuceai.app.PcmAudioTrackBridge {
   public static *;
 }
+
+-keep class com.lettuceai.app.SenseVoiceBridge { *; }
+-keep class com.lettuceai.app.ZipformerCtcBridge { *; }
+-keep class com.k2fsa.sherpa.onnx.** { *; }

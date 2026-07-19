@@ -128,11 +128,17 @@ import { CHAT_ASSISTANT_FINALIZED_EVENT } from "./hooks/useChatStreamingControll
 import {
   asrCorrectionUpsert,
   asrIgnoreSuggestion,
+  asrListInstalledModels,
+  asrModelRef,
   asrSuggestCorrectionsFromEdit,
-  asrWhisperListInstalledModels,
-  asrWhisperTranscribePcm,
+  asrTranscribePcm,
+  ASR_ACTIVE_MODEL_CHANGED_EVENT,
+  ASR_INPUT_BEHAVIOR_CHANGED_EVENT,
+  getAsrInputBehavior,
   micConstraintsWithStoredDevice,
-  type AsrInstalledWhisperModel,
+  resolveActiveAsrModel,
+  type AsrInstalledModel,
+  type AsrInputBehavior,
   type AsrLearnedSuggestion,
 } from "../../../core/asr";
 
@@ -335,7 +341,12 @@ export function ChatConversationPage() {
   const [footerAsrBaseText, setFooterAsrBaseText] = useState("");
   const [footerAsrSuggestions, setFooterAsrSuggestions] = useState<AsrLearnedSuggestion[]>([]);
   const [footerAsrLearning, setFooterAsrLearning] = useState(false);
-  const [installedWhisperModels, setInstalledWhisperModels] = useState<AsrInstalledWhisperModel[]>([]);
+  const [activeAsrModel, setActiveAsrModelState] = useState<AsrInstalledModel | null>(null);
+  const [asrInputBehavior, setAsrInputBehaviorState] =
+    useState<AsrInputBehavior>(getAsrInputBehavior);
+  const [voiceComposerActive, setVoiceComposerActive] = useState(
+    () => getAsrInputBehavior() === "holdToSend",
+  );
   const shouldRestoreFooterFocusRef = useRef(false);
   const previousSettingsDrawerOpenRef = useRef(false);
   const helpMeReplyRequestIdRef = useRef<string | null>(null);
@@ -530,11 +541,26 @@ export function ChatConversationPage() {
   }, [parentSessionId, branchedFromMessageId]);
 
   useEffect(() => {
-    void asrWhisperListInstalledModels()
-      .then(setInstalledWhisperModels)
-      .catch((error) => {
-        console.error("Failed to load installed Whisper models for chat footer:", error);
-      });
+    const loadActiveModel = () =>
+      asrListInstalledModels()
+        .then((models) => setActiveAsrModelState(resolveActiveAsrModel(models)))
+        .catch((error) => {
+          console.error("Failed to load installed ASR models for chat footer:", error);
+        });
+    void loadActiveModel();
+    window.addEventListener(ASR_ACTIVE_MODEL_CHANGED_EVENT, loadActiveModel);
+    return () => window.removeEventListener(ASR_ACTIVE_MODEL_CHANGED_EVENT, loadActiveModel);
+  }, []);
+
+  useEffect(() => {
+    const handleInputBehaviorChange = (event: Event) => {
+      const behavior = (event as CustomEvent<AsrInputBehavior>).detail;
+      setAsrInputBehaviorState(behavior);
+      setVoiceComposerActive(behavior === "holdToSend");
+    };
+    window.addEventListener(ASR_INPUT_BEHAVIOR_CHANGED_EVENT, handleInputBehaviorChange);
+    return () =>
+      window.removeEventListener(ASR_INPUT_BEHAVIOR_CHANGED_EVENT, handleInputBehaviorChange);
   }, []);
 
   useEffect(() => {
@@ -994,7 +1020,7 @@ export function ChatConversationPage() {
             const seen = new Set<string>();
             const merged: AsrLearnedSuggestion[] = [];
             const key = (s: AsrLearnedSuggestion) =>
-              `${s.normalizedWrong} ${s.normalizedCorrect}`;
+              JSON.stringify([s.normalizedWrong, s.normalizedCorrect]);
             for (const s of prev) {
               if (next.some((n) => key(n) === key(s))) {
                 seen.add(key(s));
@@ -2187,8 +2213,12 @@ export function ChatConversationPage() {
     setFooterAnalyser(null);
   }, []);
 
-  const stopFooterRecording = useCallback(async () => {
+  const stopFooterRecording = useCallback(async (sendAfterTranscription = false) => {
     const session = footerRecorderRef.current;
+    console.info("[ASR hold-to-send] stop requested", {
+      hasSession: Boolean(session),
+      sendAfterTranscription,
+    });
     if (!session) return;
 
     footerRecorderRef.current = null;
@@ -2201,6 +2231,10 @@ export function ChatConversationPage() {
     await session.audioContext.close();
 
     try {
+      if (Date.now() - session.startedAt < 300) {
+        setFooterAsrMode("idle");
+        return;
+      }
       const merged = mergeFloat32Chunks(session.chunks);
       if (merged.length === 0) {
         stopFooterRecordingVisuals();
@@ -2210,8 +2244,8 @@ export function ChatConversationPage() {
         return;
       }
 
-      const modelPath = installedWhisperModels[0]?.path;
-      if (!modelPath) {
+      const model = activeAsrModel;
+      if (!model) {
         stopFooterRecordingVisuals();
         setFooterAsrMode("idle");
         setFooterAsrBusy(false);
@@ -2220,22 +2254,33 @@ export function ChatConversationPage() {
       }
 
       const pcmBytes = new Uint8Array(merged.buffer, merged.byteOffset, merged.byteLength);
-      const result = await asrWhisperTranscribePcm({
-        modelPath,
+      const result = await asrTranscribePcm({
+        model: asrModelRef(model),
         pcmBytes,
         sampleRateHz: session.sampleRate,
         channels: 1,
         scopes: ["conversation", "global"],
-        useGpu: true,
-        forceCpu: false,
+        useGpu: model.supportsGpu,
+        forceCpu: !model.supportsGpu,
         keepModelLoaded: true,
       });
 
       const nextDraft = result.correctedText?.trim() || result.rawText?.trim();
-      setFooterAsrRawText(result.rawText || "");
-      setFooterAsrBaseText(nextDraft || "");
-      setDraft(nextDraft || "");
-      setFooterAsrSuggestions([]);
+      if (!nextDraft) {
+        setError(t("chats.asr.noAudioCaptured"));
+      } else if (sendAfterTranscription) {
+        playAccessibilitySound("send", accessibilitySettings);
+        scrollToBottom("auto");
+        void handleSend(nextDraft, undefined, { swapPlaces });
+        setFooterAsrRawText("");
+        setFooterAsrBaseText("");
+        setFooterAsrSuggestions([]);
+      } else {
+        setFooterAsrRawText(result.rawText || "");
+        setFooterAsrBaseText(nextDraft);
+        setDraft(nextDraft);
+        setFooterAsrSuggestions([]);
+      }
       setFooterAsrMode("idle");
     } catch (error) {
       console.error("Failed to transcribe footer recording:", error);
@@ -2245,7 +2290,17 @@ export function ChatConversationPage() {
       stopFooterRecordingVisuals();
       setFooterAsrBusy(false);
     }
-  }, [installedWhisperModels, setDraft, setError, stopFooterRecordingVisuals]);
+  }, [
+    accessibilitySettings,
+    activeAsrModel,
+    handleSend,
+    scrollToBottom,
+    setDraft,
+    setError,
+    stopFooterRecordingVisuals,
+    swapPlaces,
+    t,
+  ]);
 
   const handleFooterMicClick = useCallback(async () => {
     if (sending || footerAsrBusy) return;
@@ -2289,6 +2344,7 @@ export function ChatConversationPage() {
         sampleRate: audioContext.sampleRate,
         startedAt: Date.now(),
       };
+      console.info("[ASR hold-to-send] recorder started", { sampleRate: audioContext.sampleRate });
       setFooterAnalyser(analyser);
       setFooterAsrRawText("");
       setFooterAsrBaseText("");
@@ -3117,7 +3173,7 @@ export function ChatConversationPage() {
           }
           onOpenPlusMenu={handleOpenPlusMenu}
           onMicClick={
-            installedWhisperModels.length === 0
+            !activeAsrModel
               ? undefined
               : () => {
                   void handleFooterMicClick();
@@ -3130,6 +3186,14 @@ export function ChatConversationPage() {
           recordingTranscribing={footerAsrMode === "transcribing"}
           onMicCancel={cancelFooterRecording}
           composerDisabled={footerAsrMode !== "idle"}
+          holdToSendEnabled={asrInputBehavior === "holdToSend" && !!activeAsrModel}
+          voiceComposerActive={
+            asrInputBehavior === "holdToSend" && !!activeAsrModel && voiceComposerActive
+          }
+          onVoiceComposerActiveChange={setVoiceComposerActive}
+          onHoldToTalkStart={handleFooterMicClick}
+          onHoldToTalkRelease={() => stopFooterRecording(true)}
+          onHoldToTalkCancel={cancelFooterRecording}
           triggerFileInput={shouldTriggerFileInput}
           onFileInputTriggered={() => setShouldTriggerFileInput(false)}
           triggerAudioInput={shouldTriggerAudioInput}
@@ -3185,7 +3249,7 @@ export function ChatConversationPage() {
           }
           onOpenPlusMenu={handleOpenPlusMenu}
           onMicClick={
-            installedWhisperModels.length === 0
+            !activeAsrModel
               ? undefined
               : () => {
                   void handleFooterMicClick();
@@ -3198,6 +3262,14 @@ export function ChatConversationPage() {
           recordingTranscribing={footerAsrMode === "transcribing"}
           onMicCancel={cancelFooterRecording}
           composerDisabled={footerAsrMode !== "idle"}
+          holdToSendEnabled={asrInputBehavior === "holdToSend" && !!activeAsrModel}
+          voiceComposerActive={
+            asrInputBehavior === "holdToSend" && !!activeAsrModel && voiceComposerActive
+          }
+          onVoiceComposerActiveChange={setVoiceComposerActive}
+          onHoldToTalkStart={handleFooterMicClick}
+          onHoldToTalkRelease={() => stopFooterRecording(true)}
+          onHoldToTalkCancel={cancelFooterRecording}
           triggerFileInput={shouldTriggerFileInput}
           onFileInputTriggered={() => setShouldTriggerFileInput(false)}
           triggerAudioInput={shouldTriggerAudioInput}
