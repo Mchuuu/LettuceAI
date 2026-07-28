@@ -1330,6 +1330,8 @@ export const enMessages = {
       failedLoad: "Failed to load data",
       failedDelete: "Failed to delete: {{error}}",
       failedRename: "Failed to rename: {{error}}",
+      selectedVariantsOnly:
+        "When generated multiple times, export only the currently selected reply.",
       chatPackageExportedTo: "Chat exported to:\n{{path}}",
       sillyTavernExportedTo: "Chat exported to:\n{{path}}",
       failedExportChatPackage: "Failed to export chat",

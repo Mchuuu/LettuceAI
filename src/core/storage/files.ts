@@ -4,6 +4,10 @@ import { open } from "@tauri-apps/plugin-dialog";
 
 const JSONL_UPLOAD_CHUNK_SIZE = 512 * 1024;
 
+export interface JsonlSingleChatExportOptions {
+  selectedVariantsOnly?: boolean;
+}
+
 async function readJsonCommand<T>(
   command: string,
   args?: Record<string, unknown>,
@@ -737,8 +741,8 @@ export const storageBridge = {
   backupDisableDynamicMemory: () => invoke("backup_disable_dynamic_memory") as Promise<void>,
 
   // JSONL chat export/import (SillyTavern format)
-  jsonlExportSingleChat: (sessionId: string) =>
-    invoke<string>("jsonl_export_single_chat", { sessionId }),
+  jsonlExportSingleChat: (sessionId: string, options?: JsonlSingleChatExportOptions) =>
+    invoke<string>("jsonl_export_single_chat", { sessionId, options }),
   jsonlExportGroupChat: (sessionId: string) =>
     invoke<string>("jsonl_export_group_chat", { sessionId }),
   jsonlInspect: (path: string) =>

@@ -1,4 +1,6 @@
-interface AndroidWindowInsetsSnapshot {
+export const ANDROID_WINDOW_INSETS_EVENT = "lettuce:window-insets";
+
+export interface AndroidWindowInsetsSnapshot {
   imeBottomPx?: unknown;
   statusBarTopPx?: unknown;
   source?: unknown;

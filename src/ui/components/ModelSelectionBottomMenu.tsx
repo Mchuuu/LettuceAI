@@ -6,6 +6,7 @@ import { getProviderIcon } from "../../core/utils/providerIcons";
 import { cn } from "../design-tokens";
 import { BottomMenu } from "./BottomMenu";
 import { useI18n } from "../../core/i18n/context";
+import { getPlatform } from "../../core/utils/platform";
 
 type MenuTheme = "default" | "dark";
 type SelectionTone = "accent" | "emerald" | "info";
@@ -133,6 +134,7 @@ export function ModelSelectionBottomMenu({
   const setQuery = onSearchChange ?? setInternalQuery;
   const themeStyles = THEME_STYLES[theme];
   const toneStyles = TONE_STYLES[tone];
+  const isDesktop = useMemo(() => getPlatform().type === "desktop", []);
 
   useEffect(() => {
     if (!isOpen && searchQuery === undefined) {
@@ -176,7 +178,7 @@ export function ModelSelectionBottomMenu({
             onChange={(e) => setQuery(e.target.value)}
             placeholder={searchPlaceholder ?? t("components.extra.searchModelsPlaceholder")}
             className={themeStyles.input}
-            autoFocus
+            autoFocus={isDesktop}
           />
           <Search
             className={cn(

@@ -7,6 +7,8 @@ use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
+use crate::infra::utils::log_info_global;
+
 use super::types::{AudioModel, ProviderVoice};
 
 type HmacSha256 = Hmac<Sha256>;
@@ -313,6 +315,7 @@ pub async fn generate_speech(
             additions,
         },
     };
+    log_tts_request("buffered", resource_id, model, &request);
 
     let url = format!(
         "{}{}",
@@ -446,6 +449,7 @@ where
             additions,
         },
     };
+    log_tts_request("stream", resource_id, model, &request);
 
     let url = format!(
         "{}{}",
@@ -1186,6 +1190,45 @@ fn mime_for_format(format: &str) -> &'static str {
         "pcm" => "audio/pcm",
         _ => "audio/mpeg",
     }
+}
+
+fn log_tts_request(mode: &str, resource_id: &str, requested_model: &str, request: &TtsRequest<'_>) {
+    let additions = request
+        .req_params
+        .additions
+        .as_deref()
+        .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok());
+    let pitch = additions
+        .as_ref()
+        .and_then(|value| value.pointer("/post_process/pitch"))
+        .and_then(serde_json::Value::as_i64)
+        .unwrap_or(0);
+    let context_count = additions
+        .as_ref()
+        .and_then(|value| value.get("context_texts"))
+        .and_then(serde_json::Value::as_array)
+        .map_or(0, Vec::len);
+
+    log_info_global(
+        "tts",
+        format!(
+            "Doubao request built: mode={} resource_id={} requested_model={} body_model={} \
+             voice_id={} format={} sample_rate={} pitch={} speech_rate={} loudness_rate={} \
+             text_len={} context_texts={}",
+            mode,
+            resource_id,
+            requested_model,
+            request.req_params.model.unwrap_or("<none>"),
+            request.req_params.speaker,
+            request.req_params.audio_params.format,
+            request.req_params.audio_params.sample_rate,
+            pitch,
+            request.req_params.audio_params.speech_rate.unwrap_or(0),
+            request.req_params.audio_params.loudness_rate.unwrap_or(0),
+            request.req_params.text.chars().count(),
+            context_count,
+        ),
+    );
 }
 
 fn insert_label(labels: &mut HashMap<String, String>, key: &str, value: Option<String>) {

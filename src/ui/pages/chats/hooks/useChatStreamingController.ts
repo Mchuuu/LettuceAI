@@ -35,7 +35,7 @@ function emitFinalAssistantMessage(sessionId: string, message: StoredMessage) {
   );
 }
 
-function createStreamBatcher(dispatch: ChatControllerPagingContext["dispatch"]) {
+function createStreamBatcher(applyAction: ChatControllerPagingContext["dispatch"]) {
   const pendingContentByMessage = new Map<string, string>();
   const messageOrder: string[] = [];
   let rafId: number | null = null;
@@ -62,9 +62,9 @@ function createStreamBatcher(dispatch: ChatControllerPagingContext["dispatch"]) 
         );
 
       if (actions.length === 1) {
-        dispatch(actions[0]);
+        applyAction(actions[0]);
       } else if (actions.length > 1) {
-        dispatch({ type: "BATCH", actions });
+        applyAction({ type: "BATCH", actions });
       }
 
       pendingContentByMessage.clear();
@@ -85,6 +85,12 @@ function createStreamBatcher(dispatch: ChatControllerPagingContext["dispatch"]) 
       if (rafId === null) {
         rafId = requestAnimationFrame(flush);
       }
+    },
+    flush: () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+      flush();
     },
     cancel: () => {
       if (rafId !== null) {
@@ -184,7 +190,9 @@ export function useChatStreamingController({
       });
 
       let unlistenNormalized: UnlistenFn | null = null;
-      const streamBatcher = createStreamBatcher(dispatch);
+      const streamBatcher = createStreamBatcher((action) =>
+        applyLiveChatAction(currentSessionId, state, action),
+      );
       const thinkState = createThinkStreamState();
       const sceneDirectiveState = createSceneDirectiveStreamState();
       let scenePromptNotified = false;
@@ -217,10 +225,6 @@ export function useChatStreamingController({
                 }
                 if (sceneContent) {
                   streamBatcher.update(assistantPlaceholder.id, sceneContent);
-                  applyLiveChatAction(currentSessionId, state, {
-                    type: "UPDATE_MESSAGE_CONTENT",
-                    payload: { messageId: assistantPlaceholder.id, content: sceneContent },
-                  });
                 }
               }
               if (reasoning) {
@@ -382,14 +386,7 @@ export function useChatStreamingController({
         if (tail.content) {
           const tailContent = consumeSceneDirectiveDelta(sceneDirectiveState, tail.content).content;
           if (tailContent) {
-            dispatch({
-              type: "UPDATE_MESSAGE_CONTENT",
-              payload: { messageId: assistantPlaceholder.id, content: tailContent },
-            });
-            applyLiveChatAction(currentSessionId, state, {
-              type: "UPDATE_MESSAGE_CONTENT",
-              payload: { messageId: assistantPlaceholder.id, content: tailContent },
-            });
+            streamBatcher.update(assistantPlaceholder.id, tailContent);
           }
         }
         if (tail.reasoning) {
@@ -404,15 +401,9 @@ export function useChatStreamingController({
         }
         const sceneTail = finalizeSceneDirectiveStream(sceneDirectiveState);
         if (sceneTail.content) {
-          dispatch({
-            type: "UPDATE_MESSAGE_CONTENT",
-            payload: { messageId: assistantPlaceholder.id, content: sceneTail.content },
-          });
-          applyLiveChatAction(currentSessionId, state, {
-            type: "UPDATE_MESSAGE_CONTENT",
-            payload: { messageId: assistantPlaceholder.id, content: sceneTail.content },
-          });
+          streamBatcher.update(assistantPlaceholder.id, sceneTail.content);
         }
+        streamBatcher.flush();
         streamBatcher.cancel();
         if (unlistenNormalized) unlistenNormalized();
         dispatch({
@@ -468,7 +459,9 @@ export function useChatStreamingController({
       });
 
       let unlistenNormalized: UnlistenFn | null = null;
-      const streamBatcher = createStreamBatcher(dispatch);
+      const streamBatcher = createStreamBatcher((action) =>
+        applyLiveChatAction(currentSessionId, state, action),
+      );
       const thinkState = createThinkStreamState();
       const sceneDirectiveState = createSceneDirectiveStreamState();
       let scenePromptNotified = false;
@@ -501,10 +494,6 @@ export function useChatStreamingController({
                 }
                 if (sceneContent) {
                   streamBatcher.update(assistantPlaceholder.id, sceneContent);
-                  applyLiveChatAction(currentSessionId, state, {
-                    type: "UPDATE_MESSAGE_CONTENT",
-                    payload: { messageId: assistantPlaceholder.id, content: sceneContent },
-                  });
                 }
               }
               if (reasoning) {
@@ -652,14 +641,7 @@ export function useChatStreamingController({
         if (tail.content) {
           const tailContent = consumeSceneDirectiveDelta(sceneDirectiveState, tail.content).content;
           if (tailContent) {
-            dispatch({
-              type: "UPDATE_MESSAGE_CONTENT",
-              payload: { messageId: assistantPlaceholder.id, content: tailContent },
-            });
-            applyLiveChatAction(currentSessionId, state, {
-              type: "UPDATE_MESSAGE_CONTENT",
-              payload: { messageId: assistantPlaceholder.id, content: tailContent },
-            });
+            streamBatcher.update(assistantPlaceholder.id, tailContent);
           }
         }
         if (tail.reasoning) {
@@ -674,15 +656,9 @@ export function useChatStreamingController({
         }
         const sceneTail = finalizeSceneDirectiveStream(sceneDirectiveState);
         if (sceneTail.content) {
-          dispatch({
-            type: "UPDATE_MESSAGE_CONTENT",
-            payload: { messageId: assistantPlaceholder.id, content: sceneTail.content },
-          });
-          applyLiveChatAction(currentSessionId, state, {
-            type: "UPDATE_MESSAGE_CONTENT",
-            payload: { messageId: assistantPlaceholder.id, content: sceneTail.content },
-          });
+          streamBatcher.update(assistantPlaceholder.id, sceneTail.content);
         }
+        streamBatcher.flush();
         streamBatcher.cancel();
         if (unlistenNormalized) unlistenNormalized();
         dispatch({
@@ -764,7 +740,9 @@ export function useChatStreamingController({
         ],
       });
 
-      const streamBatcher = createStreamBatcher(dispatch);
+      const streamBatcher = createStreamBatcher((action) =>
+        applyLiveChatAction(currentSessionId, state, action),
+      );
       const thinkState = createThinkStreamState();
       const sceneDirectiveState = createSceneDirectiveStreamState();
       let scenePromptNotified = false;
@@ -797,10 +775,6 @@ export function useChatStreamingController({
                 }
                 if (sceneContent) {
                   streamBatcher.update(message.id, sceneContent);
-                  applyLiveChatAction(currentSessionId, state, {
-                    type: "UPDATE_MESSAGE_CONTENT",
-                    payload: { messageId: message.id, content: sceneContent },
-                  });
                 }
               }
               if (reasoning) {
@@ -961,14 +935,7 @@ export function useChatStreamingController({
         if (tail.content) {
           const tailContent = consumeSceneDirectiveDelta(sceneDirectiveState, tail.content).content;
           if (tailContent) {
-            dispatch({
-              type: "UPDATE_MESSAGE_CONTENT",
-              payload: { messageId: message.id, content: tailContent },
-            });
-            applyLiveChatAction(currentSessionId, state, {
-              type: "UPDATE_MESSAGE_CONTENT",
-              payload: { messageId: message.id, content: tailContent },
-            });
+            streamBatcher.update(message.id, tailContent);
           }
         }
         if (tail.reasoning) {
@@ -983,15 +950,9 @@ export function useChatStreamingController({
         }
         const sceneTail = finalizeSceneDirectiveStream(sceneDirectiveState);
         if (sceneTail.content) {
-          dispatch({
-            type: "UPDATE_MESSAGE_CONTENT",
-            payload: { messageId: message.id, content: sceneTail.content },
-          });
-          applyLiveChatAction(currentSessionId, state, {
-            type: "UPDATE_MESSAGE_CONTENT",
-            payload: { messageId: message.id, content: sceneTail.content },
-          });
+          streamBatcher.update(message.id, sceneTail.content);
         }
+        streamBatcher.flush();
         streamBatcher.cancel();
         if (unlistenNormalized) unlistenNormalized();
         dispatch({

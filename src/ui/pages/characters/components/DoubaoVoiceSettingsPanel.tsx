@@ -21,6 +21,7 @@ interface DoubaoVoiceSettingsPanelProps {
   providerId?: string;
   modelId?: string;
   voiceId?: string;
+  expressiveClone?: boolean;
   onChange: (settings: DoubaoVoiceSettings) => void;
   labels: {
     title: string;
@@ -42,6 +43,7 @@ export function DoubaoVoiceSettingsPanel({
   providerId,
   modelId,
   voiceId,
+  expressiveClone = false,
   onChange,
   labels,
 }: DoubaoVoiceSettingsPanelProps) {
@@ -85,7 +87,7 @@ export function DoubaoVoiceSettingsPanel({
         voiceId,
         previewText.trim() || DEFAULT_PREVIEW_TEXT,
         buildDoubaoVoicePrompt(normalized, undefined, {
-          expressiveClone: modelId === "seed-icl-2.0",
+          expressiveClone,
         }),
       );
       const audio = playAudioFromBase64(response.audioBase64, response.format);

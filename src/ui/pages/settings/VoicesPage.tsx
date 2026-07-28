@@ -29,6 +29,7 @@ import {
   createVoiceFromPreview,
   getTtsCacheStats,
   clearTtsCache,
+  resolveUserVoicePrompt,
   type AudioProvider,
   type AudioProviderType,
   type AudioModel,
@@ -367,10 +368,15 @@ export function VoicesPage() {
                     <div className="flex-1 min-w-0">
                       <p className="truncate text-sm font-medium text-fg">{voice.name}</p>
                       <p className="truncate text-xs text-fg/50">
-                        {provider?.label} •{" "}
-                        {voice.prompt
-                          ? `"${voice.prompt.slice(0, 30)}..."`
-                          : t("voices.extra.page.noPrompt")}
+                        {provider?.label}
+                        {provider?.providerType !== "doubao_tts" && (
+                          <>
+                            {" "}•{" "}
+                            {voice.prompt
+                              ? `"${voice.prompt.slice(0, 30)}..."`
+                              : t("voices.extra.page.noPrompt")}
+                          </>
+                        )}
                       </p>
                     </div>
                     <ChevronRight className="h-4 w-4 text-fg/30 group-hover:text-fg/60" />
@@ -815,6 +821,7 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
     try {
       let finalVoiceData = { ...formData };
       const provider = providers.find((p) => p.id === formData.providerId);
+      finalVoiceData.prompt = resolveUserVoicePrompt(provider?.providerType, formData.prompt);
 
       if (provider?.providerType === "elevenlabs" && !formData.id) {
         if (!generatedPreviewId) {
@@ -939,7 +946,7 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
           // But if it's existing, use the ID.
           resolvedVoiceId || "preview",
           textSample,
-          formData.prompt,
+          resolveUserVoicePrompt(provider.providerType, formData.prompt),
         );
         playAudioFromBase64(response.audioBase64, response.format);
       }
@@ -1181,20 +1188,23 @@ function VoiceEditor({ isOpen, voice, providers, onClose, onSave }: VoiceEditorP
           </div>
         )}
 
-        {/* Prompt */}
-        <div>
-          <label className="mb-1 block text-[11px] font-medium text-fg/70">
-            {t("voices.extra.editor.voicePrompt")}
-          </label>
-          <textarea
-            value={formData.prompt ?? ""}
-            onChange={(e) => setFormData({ ...formData, prompt: e.target.value })}
-            placeholder={t("voices.extra.editor.voicePromptPlaceholder")}
-            rows={3}
-            className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none resize-none"
-          />
-          <p className="mt-1 text-[10px] text-fg/40">{t("voices.extra.editor.voicePromptHint")}</p>
-        </div>
+        {activeProvider?.providerType !== "doubao_tts" && (
+          <div>
+            <label className="mb-1 block text-[11px] font-medium text-fg/70">
+              {t("voices.extra.editor.voicePrompt")}
+            </label>
+            <textarea
+              value={formData.prompt ?? ""}
+              onChange={(e) => setFormData({ ...formData, prompt: e.target.value })}
+              placeholder={t("voices.extra.editor.voicePromptPlaceholder")}
+              rows={3}
+              className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-3 py-2 text-sm text-fg placeholder-fg/40 focus:border-fg/30 focus:outline-none resize-none"
+            />
+            <p className="mt-1 text-[10px] text-fg/40">
+              {t("voices.extra.editor.voicePromptHint")}
+            </p>
+          </div>
+        )}
 
         {/* Example Text */}
         <div>

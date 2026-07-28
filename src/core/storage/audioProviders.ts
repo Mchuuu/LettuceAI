@@ -55,6 +55,13 @@ export interface UserVoice {
   updatedAt?: number;
 }
 
+export function resolveUserVoicePrompt(
+  providerType: AudioProviderType | undefined,
+  prompt: string | undefined,
+): string | undefined {
+  return providerType === "doubao_tts" ? undefined : prompt;
+}
+
 export interface TtsPreviewResponse {
   audioBase64: string;
   format: string;

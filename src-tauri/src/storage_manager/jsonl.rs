@@ -27,6 +27,13 @@ pub struct JsonlImportOptions {
     pub participant_character_map: Option<HashMap<String, String>>,
 }
 
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct JsonlSingleChatExportOptions {
+    #[serde(default)]
+    pub selected_variants_only: bool,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct JsonlInspectParticipant {
@@ -122,6 +129,28 @@ fn pick_message_content(message: &JsonValue) -> String {
     String::new()
 }
 
+fn selected_message_content(message: &JsonValue) -> String {
+    let selected = message
+        .get("selectedVariantId")
+        .and_then(JsonValue::as_str)
+        .and_then(|selected_id| {
+            message
+                .get("variants")
+                .and_then(JsonValue::as_array)
+                .and_then(|variants| {
+                    variants.iter().find(|variant| {
+                        variant.get("id").and_then(JsonValue::as_str) == Some(selected_id)
+                    })
+                })
+        })
+        .and_then(|variant| variant.get("content"))
+        .and_then(JsonValue::as_str);
+
+    selected
+        .map(str::to_owned)
+        .unwrap_or_else(|| pick_message_content(message))
+}
+
 /// Converts Lettuce message variants to SillyTavern's swipe representation.
 /// Returns `None` when the message has no usable alternatives.
 fn message_swipes(message: &JsonValue) -> Option<(Vec<String>, usize)> {
@@ -163,6 +192,17 @@ fn message_swipes(message: &JsonValue) -> Option<(Vec<String>, usize)> {
     Some((swipes, selected))
 }
 
+fn export_message_fields(
+    message: &JsonValue,
+    selected_variants_only: bool,
+) -> (String, Option<(Vec<String>, usize)>) {
+    if selected_variants_only {
+        return (selected_message_content(message), None);
+    }
+
+    (pick_message_content(message), message_swipes(message))
+}
+
 fn sillytavern_message(
     name: &str,
     is_user: bool,
@@ -193,7 +233,9 @@ fn sillytavern_message(
 pub fn jsonl_export_single_chat(
     app: tauri::AppHandle,
     session_id: String,
+    options: Option<JsonlSingleChatExportOptions>,
 ) -> Result<String, String> {
+    let options = options.unwrap_or_default();
     let session_json = super::sessions::session_get(app.clone(), session_id)?
         .ok_or_else(|| crate::utils::err_msg(module_path!(), line!(), "Session not found"))?;
     let session: JsonValue = serde_json::from_str(&session_json)
@@ -261,7 +303,7 @@ pub fn jsonl_export_single_chat(
             .get("createdAt")
             .and_then(|v| v.as_i64())
             .unwrap_or_else(|| now_ms() as i64);
-        let content = pick_message_content(&message);
+        let (content, swipes) = export_message_fields(&message, options.selected_variants_only);
         if content.trim().is_empty() {
             continue;
         }
@@ -271,7 +313,6 @@ pub fn jsonl_export_single_chat(
             "system" => ("System", false, true),
             _ => (character_name.as_str(), false, false),
         };
-        let swipes = message_swipes(&message);
         let line = sillytavern_message(name, is_user, is_system, created_at, content, swipes);
         lines.push(serde_json::to_string(&line).unwrap());
     }
@@ -1113,6 +1154,27 @@ mod tests {
         let (variants, selected) = imported_variants(&entry, 0);
         assert_eq!(variants.len(), 2);
         assert_eq!(selected, variants[1]["id"].as_str().map(str::to_owned));
+    }
+
+    #[test]
+    fn selected_only_export_omits_swipes_and_uses_selected_variant() {
+        let message = json!({
+            "content": "Stale content",
+            "selectedVariantId": "b",
+            "variants": [
+                {"id": "a", "content": "First"},
+                {"id": "b", "content": "Second"}
+            ]
+        });
+
+        let (content, swipes) = export_message_fields(&message, true);
+        assert_eq!(content, "Second");
+        assert!(swipes.is_none());
+
+        let entry = sillytavern_message("Character", false, false, 0, content, swipes);
+        assert_eq!(entry["mes"], "Second");
+        assert!(entry.get("swipes").is_none());
+        assert!(entry.get("swipe_id").is_none());
     }
 
     #[test]

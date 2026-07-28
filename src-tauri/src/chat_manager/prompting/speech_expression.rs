@@ -51,9 +51,6 @@ pub fn is_enabled(character: &Character) -> bool {
     else {
         return false;
     };
-    if config.get("source").and_then(|value| value.as_str()) != Some("provider") {
-        return false;
-    }
     let Some(settings) = config
         .get("doubaoVoiceSettings")
         .and_then(|value| value.as_object())
@@ -119,7 +116,9 @@ fn normalize_context_text(value: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse;
+    use super::{is_enabled, parse};
+    use crate::chat_manager::types::Character;
+    use serde_json::json;
 
     #[test]
     fn extracts_voice_expression_without_leaking_tag() {
@@ -145,5 +144,32 @@ mod tests {
         let parsed = parse("正文<voice_exp>请用悲伤的语气");
         assert_eq!(parsed.content, "正文");
         assert!(parsed.context_text.is_none());
+    }
+
+    #[test]
+    fn enables_expression_for_user_voice_with_doubao_settings() {
+        let mut character = Character::default();
+        character.voice_config = Some(json!({
+            "source": "user",
+            "userVoiceId": "voice-1",
+            "doubaoVoiceSettings": {
+                "speechExpressionEnabled": true
+            }
+        }));
+
+        assert!(is_enabled(&character));
+    }
+
+    #[test]
+    fn respects_disabled_expression_for_any_voice_source() {
+        let mut character = Character::default();
+        character.voice_config = Some(json!({
+            "source": "provider",
+            "doubaoVoiceSettings": {
+                "speechExpressionEnabled": false
+            }
+        }));
+
+        assert!(!is_enabled(&character));
     }
 }

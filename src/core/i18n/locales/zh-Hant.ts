@@ -1220,6 +1220,7 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       failedLoad: "無法載入資料",
       failedDelete: "刪除失敗：{{error}}",
       failedRename: "重新命名失敗：{{error}}",
+      selectedVariantsOnly: "多次生成時僅匯出目前選擇的回覆。",
       chatPackageExportedTo: "對話包已匯出至：\n{{path}}",
       sillyTavernExportedTo: "SillyTavern 對話已匯出至：\n{{path}}",
       failedExportChatPackage: "無法匯出對話包",

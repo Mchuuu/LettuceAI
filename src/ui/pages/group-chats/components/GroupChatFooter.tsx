@@ -375,7 +375,7 @@ export function GroupChatFooter({
   return (
     <footer
       className={cn(
-        "relative z-20 shrink-0 px-4 pb-3 pt-3",
+        "relative z-20 shrink-0 px-4 pb-6 pt-3",
         hasBackgroundImage ? "bg-transparent" : "bg-surface",
       )}
     >

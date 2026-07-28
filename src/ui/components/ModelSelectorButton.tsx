@@ -4,6 +4,7 @@ import { BottomMenu } from "./BottomMenu";
 import { cn, typography, interactive } from "../design-tokens";
 import type { Model } from "../../core/storage/schemas";
 import { useI18n } from "../../core/i18n/context";
+import { getPlatform } from "../../core/utils/platform";
 import GroqIcon from "../../assets/groq.svg";
 import CerebrasIcon from "../../assets/cerebras.svg";
 
@@ -77,6 +78,7 @@ export function ModelSelectorButton({
   const clearLabel = clearLabelProp ?? t("components.modelSelector.clearLabel");
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const isDesktop = useMemo(() => getPlatform().type === "desktop", []);
 
   const selectedModel = useMemo(
     () => models.find((m) => m.id === selectedModelId),
@@ -219,7 +221,7 @@ export function ModelSelectorButton({
                 "px-4 py-2.5 pl-10 text-sm text-white placeholder-white/40",
                 "focus:border-white/20 focus:outline-none",
               )}
-              autoFocus
+              autoFocus={isDesktop}
             />
           </div>
 

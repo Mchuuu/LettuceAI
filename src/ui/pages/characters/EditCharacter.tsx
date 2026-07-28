@@ -87,6 +87,7 @@ import {
   normalizeDoubaoVoiceSettings,
 } from "../../../core/voice/doubaoVoiceSettings";
 import { playDoubaoVoicePreview } from "../../../core/voice/doubaoVoicePreview";
+import { resolveCharacterVoiceTarget } from "../../../core/voice/characterVoiceTarget";
 
 const wordCount = (text: string) => {
   const trimmed = text.trim();
@@ -626,11 +627,13 @@ export function EditCharacterPage() {
     }
     return "";
   })();
-  const selectedVoiceProvider = voiceConfig?.providerId
-    ? audioProviders.find((provider) => provider.id === voiceConfig.providerId)
-    : undefined;
+  const selectedVoiceTarget = resolveCharacterVoiceTarget(
+    voiceConfig,
+    audioProviders,
+    userVoices,
+  );
   const showDoubaoVoiceSettings =
-    voiceConfig?.source === "provider" && selectedVoiceProvider?.providerType === "doubao_tts";
+    selectedVoiceTarget?.provider.providerType === "doubao_tts";
   const doubaoVoiceSettings = normalizeDoubaoVoiceSettings(voiceConfig?.doubaoVoiceSettings);
 
   React.useEffect(() => {
@@ -2083,9 +2086,16 @@ export function EditCharacterPage() {
                     {showDoubaoVoiceSettings && (
                       <DoubaoVoiceSettingsPanel
                         settings={doubaoVoiceSettings}
-                        providerId={voiceConfig?.providerId}
-                        modelId={voiceConfig?.modelId ?? resolveDoubaoModelId(selectedVoiceProvider)}
-                        voiceId={voiceConfig?.voiceId}
+                        providerId={selectedVoiceTarget.providerId}
+                        modelId={
+                          selectedVoiceTarget.modelId ??
+                          resolveDoubaoModelId(selectedVoiceTarget.provider)
+                        }
+                        voiceId={selectedVoiceTarget.voiceId}
+                        expressiveClone={
+                          selectedVoiceTarget.provider.resourceId === "seed-icl-2.0" ||
+                          selectedVoiceTarget.modelId === "seed-icl-2.0"
+                        }
                         onChange={(settings) =>
                           voiceConfig &&
                           setFields({
@@ -2827,9 +2837,9 @@ export function EditCharacterPage() {
                   .map((voice) => {
                     const value = buildUserVoiceValue(voice.id);
                     const isSelected = voiceSelectionValue === value;
+                    const voiceProvider = audioProviders.find((p) => p.id === voice.providerId);
                     const providerLabel =
-                      audioProviders.find((p) => p.id === voice.providerId)?.label ??
-                      t("characters.edit.providerFallback");
+                      voiceProvider?.label ?? t("characters.edit.providerFallback");
                     return (
                       <button
                         key={voice.id}
@@ -2841,6 +2851,12 @@ export function EditCharacterPage() {
                               providerId: voice.providerId,
                               modelId: voice.modelId,
                               voiceName: voice.name,
+                              doubaoVoiceSettings:
+                                voiceProvider?.providerType === "doubao_tts"
+                                  ? normalizeDoubaoVoiceSettings(
+                                      voiceConfig?.doubaoVoiceSettings,
+                                    )
+                                  : undefined,
                             },
                           });
                           setShowVoiceMenu(false);

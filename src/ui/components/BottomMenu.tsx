@@ -1,8 +1,17 @@
 import { motion, AnimatePresence, useDragControls, PanInfo } from "framer-motion";
 import { X, ChevronRight, LucideIcon, Loader2 } from "lucide-react";
-import { ReactNode, useCallback, useMemo, useEffect, useId, isValidElement, useState } from "react";
+import {
+  ReactNode,
+  useCallback,
+  useMemo,
+  useEffect,
+  useId,
+  isValidElement,
+  useRef,
+} from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "../../core/i18n/context";
+import { useKeyboardAwareOverlay } from "../hooks/useKeyboardAwareOverlay";
 
 const ICON_ACCENT_MAP: Record<string, string> = {
   "from-blue-500 to-blue-600":
@@ -76,7 +85,11 @@ export function BottomMenu({
   const isBottomMenu = location === "bottom";
   const dragControls = useDragControls();
   const titleId = useId();
-  const [keyboardInset, setKeyboardInset] = useState(0);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const { keyboardInset } = useKeyboardAwareOverlay({
+    enabled: isOpen && isBottomMenu,
+    containerRef: menuRef,
+  });
 
   const handleDragEnd = useCallback(
     (_: unknown, info: PanInfo) => {
@@ -112,40 +125,6 @@ export function BottomMenu({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  useEffect(() => {
-    if (
-      !isOpen ||
-      !isBottomMenu ||
-      typeof window === "undefined" ||
-      typeof window.visualViewport === "undefined"
-    ) {
-      setKeyboardInset(0);
-      return;
-    }
-
-    const visualViewport = window.visualViewport;
-
-    const updateKeyboardInset = () => {
-      const baseHeight = window.innerHeight;
-      const viewportHeight = visualViewport?.height ?? baseHeight;
-      const viewportOffsetTop = visualViewport?.offsetTop ?? 0;
-      const nextInset = Math.max(0, baseHeight - viewportHeight - viewportOffsetTop);
-      setKeyboardInset(nextInset > 0 ? Math.round(nextInset) : 0);
-    };
-
-    updateKeyboardInset();
-    visualViewport?.addEventListener("resize", updateKeyboardInset);
-    visualViewport?.addEventListener("scroll", updateKeyboardInset);
-    window.addEventListener("orientationchange", updateKeyboardInset);
-
-    return () => {
-      visualViewport?.removeEventListener("resize", updateKeyboardInset);
-      visualViewport?.removeEventListener("scroll", updateKeyboardInset);
-      window.removeEventListener("orientationchange", updateKeyboardInset);
-      setKeyboardInset(0);
-    };
-  }, [isBottomMenu, isOpen]);
-
   const menuVariants = useMemo(
     () => ({
       hidden: {
@@ -169,8 +148,8 @@ export function BottomMenu({
     : "fixed top-[var(--titlebar-h,0px)] left-0 right-0 rounded-b-3xl";
   const bottomMenuStyle = isBottomMenu
     ? {
-        bottom: `${keyboardInset}px`,
-        maxHeight: `calc(100dvh - var(--lettuce-safe-area-inset-top) - 8px - ${keyboardInset}px)`,
+        bottom: keyboardInset,
+        maxHeight: `calc(100dvh - var(--lettuce-safe-area-inset-top) - 8px - ${keyboardInset})`,
       }
     : undefined;
 
@@ -189,6 +168,7 @@ export function BottomMenu({
           />
 
           <motion.div
+            ref={menuRef}
             className={`${menuClasses} z-110 mx-auto max-w-xl border border-fg/10 bg-surface-el/98 p-1 text-fg ${isBottomMenu ? "max-h-[90vh]" : "max-h-[95vh]"} overflow-hidden flex flex-col ${className}`}
             style={bottomMenuStyle}
             variants={menuVariants}
@@ -251,7 +231,10 @@ export function BottomMenu({
               </div>
             </div>
 
-            <div className={`px-6 ${isBottomMenu ? "pb-8" : "pt-2 pb-4"} overflow-y-auto flex-1`}>
+            <div
+              className={`px-6 ${isBottomMenu ? "pb-8" : "pt-2 pb-4"} overflow-y-auto flex-1`}
+              style={{ scrollPaddingBlock: "16px" }}
+            >
               {children}
             </div>
           </motion.div>

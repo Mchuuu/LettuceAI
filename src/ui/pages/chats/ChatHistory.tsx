@@ -49,8 +49,10 @@ export function ChatHistoryPage() {
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<SessionPreview | null>(null);
   const [renameTarget, setRenameTarget] = useState<SessionPreview | null>(null);
+  const [exportTarget, setExportTarget] = useState<SessionPreview | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
-  const [, setExporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [selectedVariantsOnly, setSelectedVariantsOnly] = useState(false);
   const [groupPages, setGroupPages] = useState<Record<string, number>>({});
   const [query, setQuery] = useState(() => {
     const storageKey = characterId ? `chatHistoryQuery:${characterId}` : "chatHistoryQuery";
@@ -156,10 +158,13 @@ export function ChatHistoryPage() {
   }, []);
 
   const handleExportJsonl = useCallback(
-    async (session: SessionPreview) => {
+    async (session: SessionPreview, selectedVariantsOnly: boolean) => {
       try {
         setExporting(true);
-        const path = await storageBridge.jsonlExportSingleChat(session.id);
+        const path = await storageBridge.jsonlExportSingleChat(session.id, {
+          selectedVariantsOnly,
+        });
+        setExportTarget(null);
         alert(t("chats.history.chatPackageExportedTo", { path }));
       } catch (err) {
         console.error("Failed to export chat:", err);
@@ -459,7 +464,10 @@ export function ChatHistoryPage() {
                           session={session}
                           onSelect={() => go(Routes.chatSession(characterId!, session.id))}
                           onDelete={() => setDeleteTarget(session)}
-                          onExport={() => void handleExportJsonl(session)}
+                          onExport={() => {
+                            setSelectedVariantsOnly(false);
+                            setExportTarget(session);
+                          }}
                           onRename={() => setRenameTarget(session)}
                           isBusy={busyIds.has(session.id)}
                         />
@@ -513,6 +521,78 @@ export function ChatHistoryPage() {
           )}
         </div>
       </main>
+
+      <BottomMenu
+        isOpen={exportTarget != null}
+        onClose={() => {
+          if (!exporting) setExportTarget(null);
+        }}
+        title={t("common.buttons.export")}
+      >
+        <div className="space-y-4 text-fg">
+          <div>
+            <p className={cn(typography.bodySmall.size, "truncate font-semibold text-fg/90")}>
+              {exportTarget?.title || t("chats.untitledChat")}
+            </p>
+            {exportTarget ? (
+              <p className={cn(typography.caption.size, "mt-1 text-fg/45")}>
+                {t("chats.history.messagesCount", {
+                  count: exportTarget.messageCount.toLocaleString(),
+                })}
+              </p>
+            ) : null}
+          </div>
+
+          <label className="flex cursor-pointer items-start gap-3 py-2">
+            <input
+              type="checkbox"
+              checked={selectedVariantsOnly}
+              onChange={(event) => setSelectedVariantsOnly(event.target.checked)}
+              disabled={exporting}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-accent"
+            />
+            <span className={cn(typography.bodySmall.size, "leading-relaxed text-fg/75")}>
+              {t("chats.history.selectedVariantsOnly")}
+            </span>
+          </label>
+
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setExportTarget(null)}
+              disabled={exporting}
+              className={cn(
+                "flex-1 border border-fg/10 bg-fg/5 px-4 py-2.5 text-fg/65",
+                radius.lg,
+                typography.bodySmall.size,
+                "font-medium transition-all hover:bg-fg/8 hover:text-fg/80",
+                interactive.active.scale,
+                "disabled:pointer-events-none disabled:opacity-40",
+              )}
+            >
+              {t("common.buttons.cancel")}
+            </button>
+            <button
+              type="button"
+              disabled={!exportTarget || exporting}
+              onClick={() => {
+                if (!exportTarget) return;
+                void handleExportJsonl(exportTarget, selectedVariantsOnly);
+              }}
+              className={cn(
+                "flex-1 border border-accent/30 bg-accent/15 px-4 py-2.5 text-accent/90",
+                radius.lg,
+                typography.bodySmall.size,
+                "font-medium transition-all hover:bg-accent/25",
+                interactive.active.scale,
+                "disabled:pointer-events-none disabled:opacity-40",
+              )}
+            >
+              {exporting ? t("common.buttons.exporting") : t("common.buttons.export")}
+            </button>
+          </div>
+        </div>
+      </BottomMenu>
 
       <BottomMenu
         isOpen={renameTarget != null}

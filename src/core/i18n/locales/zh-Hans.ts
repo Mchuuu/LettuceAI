@@ -1244,6 +1244,7 @@ export const zhHansMessages: DeepPartialMessageTree<LocaleMessages> = {
       failedLoad: "数据加载失败",
       failedDelete: "删除失败:{{error}}",
       failedRename: "重命名失败:{{error}}",
+      selectedVariantsOnly: "多次生成时仅导出当前选择的回复。",
       chatPackageExportedTo: "聊天包已导出至:\n{{path}}",
       sillyTavernExportedTo: "SillyTavern 聊天已导出至:\n{{path}}",
       failedExportChatPackage: "聊天包导出失败",

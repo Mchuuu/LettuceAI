@@ -41,6 +41,7 @@ import {
   listAudioModels,
   listAudioProviders,
   listUserVoices,
+  resolveUserVoicePrompt,
   type AudioModel,
   type AudioProvider,
   type AudioProviderType,
@@ -74,6 +75,7 @@ import { splitThinkTags } from "../../../core/utils/thinkTags";
 import { getPlatform } from "../../../core/utils/platform";
 import { buildDoubaoVoicePrompt } from "../../../core/voice/doubaoVoiceSettings";
 import { getCachedDoubaoVoicePreviewMetadata } from "../../../core/voice/doubaoVoicePreview";
+import { resolveCharacterVoiceTarget } from "../../../core/voice/characterVoiceTarget";
 import {
   ChatHeader,
   ChatFooter,
@@ -1376,38 +1378,77 @@ export function ChatConversationPage() {
 
       if (character.voiceConfig.source === "user" && character.voiceConfig.userVoiceId) {
         let voices = await ensureUserVoices();
-        let voice = voices.find((v) => v.id === character.voiceConfig?.userVoiceId);
-        if (!voice) {
+        let voiceTarget = resolveCharacterVoiceTarget(
+          character.voiceConfig,
+          providers,
+          voices,
+        );
+        if (!voiceTarget) {
           audioCacheRef.current.userVoices = null;
           voices = await ensureUserVoices();
-          voice = voices.find((v) => v.id === character.voiceConfig?.userVoiceId);
+          voiceTarget = resolveCharacterVoiceTarget(
+            character.voiceConfig,
+            providers,
+            voices,
+          );
         }
-        if (!voice) {
-          throw new Error(t("chats.errors.assignedVoiceNotFound"));
+        if (!voiceTarget || voiceTarget.source !== "user") {
+          const voiceExists = voices.some(
+            (voice) => voice.id === character.voiceConfig?.userVoiceId,
+          );
+          throw new Error(
+            t(
+              voiceExists
+                ? "chats.errors.assignedProviderNotFound"
+                : "chats.errors.assignedVoiceNotFound",
+            ),
+          );
         }
-        const provider = providers.find((p) => p.id === voice.providerId);
-        if (!provider) {
-          throw new Error(t("chats.errors.assignedProviderNotFound"));
+        const { provider, providerId, modelId, voiceId, userVoice } = voiceTarget;
+        if (!modelId) {
+          throw new Error(t("chats.errors.noAudioModelsForProvider"));
         }
+        const cloneSampleRate =
+          provider.resourceId === "seed-icl-2.0"
+            ? getCachedDoubaoVoicePreviewMetadata(providerId, voiceId)?.sampleRate
+            : undefined;
+        const selectedVariant = message.selectedVariantId
+          ? message.variants?.find((variant) => variant.id === message.selectedVariantId)
+          : message.variants?.[message.variants.length - 1];
+        const ttsContextText = selectedVariant?.ttsContextText ?? message.ttsContextText;
+        const voicePrompt =
+          provider.providerType === "doubao_tts"
+            ? buildDoubaoVoicePrompt(
+                character.voiceConfig.doubaoVoiceSettings,
+                cloneSampleRate,
+                {
+                  contextText: ttsContextText,
+                  expressiveClone:
+                    provider.resourceId === "seed-icl-2.0" || modelId === "seed-icl-2.0",
+                },
+              )
+            : resolveUserVoicePrompt(provider.providerType, userVoice.prompt);
 
         const cacheKey = buildAudioCacheKey({
-          providerId: voice.providerId,
-          modelId: voice.modelId,
-          voiceId: voice.voiceId,
+          providerId,
+          modelId,
+          voiceId,
           text: trimmedText,
-          prompt: voice.prompt,
+          prompt: voicePrompt,
         });
         const cached = audioPreviewCacheRef.current.get(cacheKey);
 
         try {
           const playback = await startMessageAudioPlayback({
-            providerId: voice.providerId,
+            providerId,
             providerType: provider.providerType as AudioProviderType,
-            modelId: voice.modelId,
-            voiceId: voice.voiceId,
+            modelId,
+            voiceId,
             text: trimmedText,
-            prompt: voice.prompt,
+            prompt: voicePrompt,
             requestId,
+            sampleRate: cloneSampleRate,
+            streamDoubao: true,
             cached,
             onCache: (response) => cacheAudioPreview(cacheKey, response),
             onPlaybackStart: () => {
