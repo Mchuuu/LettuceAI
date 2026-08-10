@@ -27,6 +27,7 @@ import type {
   AccessibilitySettings,
   Character,
   CompanionTimeOverride,
+  ImageAttachment,
   Model,
   Persona,
   Scene,
@@ -118,6 +119,10 @@ import { sanitizeAssistantSceneDirective } from "./hooks/sceneImageProtocol";
 import { useBeetrootRain } from "./components/BeetrootRain";
 import { useBeetrootEasterEgg } from "./hooks/useBeetrootEasterEgg";
 import { processBackgroundImage } from "../../../core/utils/image";
+import {
+  readProviderImageUploadConfig,
+  resolveModelProviderCredential,
+} from "../../../core/providers/imageUpload";
 import { convertFilePathToDataUrl, convertToImageRef } from "../../../core/storage/images";
 import { useImageData } from "../../hooks/useImageData";
 import { ImageLibraryPanel } from "../library/ImageLibraryPage";
@@ -256,6 +261,7 @@ export function ChatConversationPage() {
   const [selectedImagePromptExpanded, setSelectedImagePromptExpanded] = useState(false);
   const [supportsImageInput, setSupportsImageInput] = useState(false);
   const [supportsAudioInput, setSupportsAudioInput] = useState(false);
+  const [imageUploadCredentialId, setImageUploadCredentialId] = useState<string | null>(null);
   const [statusBarInset, setStatusBarInset] = useState(0);
   const audioCacheRef = useRef<{
     providers: AudioProvider[] | null;
@@ -1166,6 +1172,7 @@ export function ChatConversationPage() {
       if (!character) {
         setSupportsImageInput(false);
         setSupportsAudioInput(false);
+        setImageUploadCredentialId(null);
         return;
       }
       try {
@@ -1176,14 +1183,37 @@ export function ChatConversationPage() {
         const hasAudioScope = currentModel?.inputScopes?.includes("audio") ?? false;
         setSupportsImageInput(hasImageScope);
         setSupportsAudioInput(hasAudioScope);
+        const credential = currentModel
+          ? resolveModelProviderCredential(settings, currentModel)
+          : null;
+        const imageUpload = readProviderImageUploadConfig(credential?.config);
+        setImageUploadCredentialId(
+          hasImageScope && imageUpload.mode === "volcengine-ark-files"
+            ? credential?.id ?? null
+            : null,
+        );
       } catch (err) {
         console.error("Failed to check model capabilities:", err);
         setSupportsImageInput(false);
         setSupportsAudioInput(false);
+        setImageUploadCredentialId(null);
       }
     };
-    checkModelCapabilities();
+    void checkModelCapabilities();
+    window.addEventListener(SETTINGS_UPDATED_EVENT, checkModelCapabilities);
+    return () => window.removeEventListener(SETTINGS_UPDATED_EVENT, checkModelCapabilities);
   }, [character]);
+
+  const preparePendingImageAttachment = useCallback(
+    async (attachment: ImageAttachment) => {
+      if (!imageUploadCredentialId) return;
+      await invoke("prepare_provider_image_upload", {
+        credentialId: imageUploadCredentialId,
+        attachment,
+      });
+    },
+    [imageUploadCredentialId],
+  );
 
   const swapOverlayStyle = useMemo<CSSProperties>(() => {
     const tintRgb = isBackgroundLight ? "22, 101, 52" : "16, 185, 129";
@@ -3209,6 +3239,10 @@ export function ChatConversationPage() {
           onAddAttachment={
             supportsImageInput || supportsAudioInput ? addPendingAttachment : undefined
           }
+          prepareImageAttachment={
+            imageUploadCredentialId ? preparePendingImageAttachment : undefined
+          }
+          onAttachmentError={setError}
           onRemoveAttachment={
             supportsImageInput || supportsAudioInput ? removePendingAttachment : undefined
           }
@@ -3285,6 +3319,10 @@ export function ChatConversationPage() {
           onAddAttachment={
             supportsImageInput || supportsAudioInput ? addPendingAttachment : undefined
           }
+          prepareImageAttachment={
+            imageUploadCredentialId ? preparePendingImageAttachment : undefined
+          }
+          onAttachmentError={setError}
           onRemoveAttachment={
             supportsImageInput || supportsAudioInput ? removePendingAttachment : undefined
           }

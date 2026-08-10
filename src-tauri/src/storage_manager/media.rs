@@ -1,11 +1,15 @@
 use base64::{engine::general_purpose, Engine as _};
 use std::fs;
+use std::io::Cursor;
 use std::path::{Component, Path, PathBuf};
 use std::time::UNIX_EPOCH;
 use tauri::Manager;
 
 use super::legacy::storage_root;
 use crate::utils::{log_debug, log_info, log_warn};
+
+pub const SESSION_IMAGE_MAX_SOURCE_BYTES: usize = 10 * 1024 * 1024;
+pub const SESSION_IMAGE_MAX_PIXELS: u64 = 36_000_000;
 
 pub struct StoredImageInfo {
     pub file_path: String,
@@ -2024,6 +2028,69 @@ fn audio_extension_from_mime(mime: &str) -> &'static str {
     }
 }
 
+fn inspect_session_image(bytes: &[u8]) -> Result<(image::ImageFormat, u32, u32), String> {
+    if bytes.len() > SESSION_IMAGE_MAX_SOURCE_BYTES {
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            format!(
+                "Image attachment exceeds the {} MiB limit",
+                SESSION_IMAGE_MAX_SOURCE_BYTES / 1024 / 1024
+            ),
+        ));
+    }
+
+    let format = image::guess_format(bytes).map_err(|error| {
+        crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            format!("Unsupported or invalid image attachment: {error}"),
+        )
+    })?;
+    if !matches!(
+        format,
+        image::ImageFormat::Jpeg | image::ImageFormat::Png | image::ImageFormat::WebP
+    ) {
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            format!("Unsupported image attachment format: {format:?}"),
+        ));
+    }
+
+    let (width, height) = image::ImageReader::with_format(Cursor::new(bytes), format)
+        .into_dimensions()
+        .map_err(|error| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!("Failed to inspect image attachment: {error}"),
+            )
+        })?;
+    let pixels = u64::from(width).saturating_mul(u64::from(height));
+    if width == 0 || height == 0 || pixels > SESSION_IMAGE_MAX_PIXELS {
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            format!(
+                "Image attachment is {width}x{height} ({pixels} pixels); the limit is {} pixels",
+                SESSION_IMAGE_MAX_PIXELS
+            ),
+        ));
+    }
+
+    Ok((format, width, height))
+}
+
+fn session_image_extension(format: image::ImageFormat) -> &'static str {
+    match format {
+        image::ImageFormat::Jpeg => "jpg",
+        image::ImageFormat::Png => "png",
+        image::ImageFormat::WebP => "webp",
+        _ => "img",
+    }
+}
+
 #[tauri::command]
 pub fn storage_save_session_attachment(
     app: tauri::AppHandle,
@@ -2033,6 +2100,29 @@ pub fn storage_save_session_attachment(
     attachment_id: String,
     role: String, // "user" or "assistant"
     base64_data: String,
+) -> Result<String, String> {
+    storage_save_session_attachment_with_policy(
+        app,
+        character_id,
+        session_id,
+        message_id,
+        attachment_id,
+        role,
+        base64_data,
+        false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn storage_save_session_attachment_with_policy(
+    app: tauri::AppHandle,
+    character_id: String,
+    session_id: String,
+    message_id: String,
+    attachment_id: String,
+    role: String,
+    base64_data: String,
+    preserve_image_source: bool,
 ) -> Result<String, String> {
     let data = if let Some(comma_idx) = base64_data.find(',') {
         &base64_data[comma_idx + 1..]
@@ -2048,6 +2138,20 @@ pub fn storage_save_session_attachment(
         .as_deref()
         .map(|m| m.starts_with("audio/"))
         .unwrap_or(false);
+
+    if !is_audio {
+        let max_base64_len = SESSION_IMAGE_MAX_SOURCE_BYTES.div_ceil(3) * 4;
+        if data.len() > max_base64_len {
+            return Err(crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!(
+                    "Image attachment exceeds the {} MiB limit",
+                    SESSION_IMAGE_MAX_SOURCE_BYTES / 1024 / 1024
+                ),
+            ));
+        }
+    }
 
     let bytes = general_purpose::STANDARD.decode(data).map_err(|e| {
         crate::utils::err_msg(
@@ -2085,26 +2189,42 @@ pub fn storage_save_session_attachment(
         return Ok(relative_path);
     }
 
-    let webp_bytes = match image::load_from_memory(&bytes) {
-        Ok(img) => {
-            let mut webp_data: Vec<u8> = Vec::new();
-            let encoder = image::codecs::webp::WebPEncoder::new_lossless(&mut webp_data);
-            img.write_with_encoder(encoder).map_err(|e| {
-                crate::utils::err_msg(
-                    module_path!(),
-                    line!(),
-                    format!("Failed to encode WebP: {}", e),
-                )
-            })?;
-            webp_data
-        }
-        Err(_) => bytes,
-    };
+    let (image_format, width, height) = inspect_session_image(&bytes)?;
+    let mut stored_extension = session_image_extension(image_format);
+    let mut stored_bytes = bytes;
 
-    // Filename: <role>_<message_id>_<attachment_id>.webp
-    let filename = format!("{}_{}_{}.webp", role_prefix, message_id, attachment_id);
+    if image_format == image::ImageFormat::Png && !preserve_image_source {
+        match image::load_from_memory_with_format(&stored_bytes, image_format) {
+            Ok(img) => {
+                let mut webp_data: Vec<u8> = Vec::new();
+                let encoder = image::codecs::webp::WebPEncoder::new_lossless(&mut webp_data);
+                match img.write_with_encoder(encoder) {
+                    Ok(()) if webp_data.len() < stored_bytes.len() => {
+                        stored_bytes = webp_data;
+                        stored_extension = "webp";
+                    }
+                    Ok(()) => {}
+                    Err(error) => log_debug(
+                        &app,
+                        "session_attachment",
+                        format!("Lossless WebP conversion skipped: {error}"),
+                    ),
+                }
+            }
+            Err(error) => log_debug(
+                &app,
+                "session_attachment",
+                format!("Lossless WebP conversion skipped: {error}"),
+            ),
+        }
+    }
+
+    let filename = format!(
+        "{}_{}_{}.{}",
+        role_prefix, message_id, attachment_id, stored_extension
+    );
     let image_path = sessions_dir.join(&filename);
-    fs::write(&image_path, webp_bytes)
+    fs::write(&image_path, &stored_bytes)
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
     let relative_path = format!("sessions/{}/{}/{}", character_id, session_id, filename);
@@ -2112,7 +2232,15 @@ pub fn storage_save_session_attachment(
     log_debug(
         &app,
         "session_attachment",
-        format!("Saved attachment: {}", relative_path),
+        format!(
+            "Saved image attachment: {} dimensions={}x{} bytes={} format={} preserve_source={}",
+            relative_path,
+            width,
+            height,
+            stored_bytes.len(),
+            stored_extension,
+            preserve_image_source
+        ),
     );
 
     Ok(relative_path)

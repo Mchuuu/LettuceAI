@@ -4,13 +4,16 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
-use std::io::Write;
+use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use tauri::{Manager, State};
 use uuid::Uuid;
 
 use super::db::{now_ms, open_db, SwappablePool};
-use crate::utils::log_info;
+use super::jsonl_media::{
+    attach_images_to_exported_message, export_message_images, import_message_images,
+};
+use crate::utils::{log_info, log_warn};
 #[cfg(target_os = "android")]
 use std::io::Read;
 #[cfg(target_os = "android")]
@@ -77,6 +80,14 @@ fn send_date(created_at_ms: i64) -> String {
         .single()
         .unwrap_or_else(Utc::now)
         .to_rfc3339_opts(SecondsFormat::Millis, true)
+}
+
+fn write_jsonl_line<W: Write>(writer: &mut W, value: &JsonValue) -> Result<(), String> {
+    serde_json::to_writer(&mut *writer, value)
+        .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+    writer
+        .write_all(b"\n")
+        .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))
 }
 
 fn parse_created_at(value: Option<&JsonValue>) -> Option<i64> {
@@ -285,14 +296,24 @@ pub fn jsonl_export_single_chat(
         .and_then(|v| v.as_i64())
         .unwrap_or_else(|| now_ms() as i64);
 
-    let mut lines: Vec<String> = Vec::with_capacity(messages.len() + 1);
+    let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
+    let filename = format!("chat_{}_{}.jsonl", sanitize_filename(title), timestamp);
+    let output_path = get_downloads_dir()?.join(filename);
+    let file = fs::File::create(&output_path)
+        .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+    let mut writer = BufWriter::new(file);
+
     let metadata = json!({
         "user_name": user_name,
         "character_name": character_name,
         "create_date": send_date(first_created_at),
         "chat_metadata": {},
     });
-    lines.push(serde_json::to_string(&metadata).unwrap());
+    write_jsonl_line(&mut writer, &metadata)?;
+
+    let mut exported_messages = 0usize;
+    let mut exported_images = 0usize;
+    let mut skipped_images = 0usize;
 
     for message in messages {
         let role = message
@@ -304,7 +325,9 @@ pub fn jsonl_export_single_chat(
             .and_then(|v| v.as_i64())
             .unwrap_or_else(|| now_ms() as i64);
         let (content, swipes) = export_message_fields(&message, options.selected_variants_only);
-        if content.trim().is_empty() {
+        let inline_images = export_message_images(&app, &message);
+        skipped_images += inline_images.skipped;
+        if content.trim().is_empty() && inline_images.media.is_empty() {
             continue;
         }
 
@@ -313,15 +336,37 @@ pub fn jsonl_export_single_chat(
             "system" => ("System", false, true),
             _ => (character_name.as_str(), false, false),
         };
-        let line = sillytavern_message(name, is_user, is_system, created_at, content, swipes);
-        lines.push(serde_json::to_string(&line).unwrap());
+        let mut line = sillytavern_message(name, is_user, is_system, created_at, content, swipes);
+        exported_images += inline_images.media.len();
+        attach_images_to_exported_message(&mut line, inline_images.media);
+        write_jsonl_line(&mut writer, &line)?;
+        exported_messages += 1;
     }
 
-    let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
-    let filename = format!("chat_{}_{}.jsonl", sanitize_filename(title), timestamp);
-    let output_path = get_downloads_dir()?.join(filename);
-    fs::write(&output_path, lines.join("\n"))
-        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    writer
+        .flush()
+        .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+    log_info(
+        &app,
+        "jsonl_export",
+        format!(
+            "Exported single chat messages={} inline_images={} skipped_images={} selected_variants_only={}",
+            exported_messages,
+            exported_images,
+            skipped_images,
+            options.selected_variants_only
+        ),
+    );
+    if skipped_images > 0 {
+        log_warn(
+            &app,
+            "jsonl_export",
+            format!(
+                "JSONL export completed with {} unreadable image attachment(s)",
+                skipped_images
+            ),
+        );
+    }
     Ok(output_path.to_string_lossy().to_string())
 }
 
@@ -911,18 +956,28 @@ fn import_single(
 
     let mut messages: Vec<JsonValue> = Vec::with_capacity(parsed.messages.len());
     for entry in &parsed.messages {
-        let Some(content) = message_text(entry) else {
-            continue;
-        };
+        let content = message_text(entry).unwrap_or_default();
         let role = message_role(entry);
+        let message_id = Uuid::new_v4().to_string();
+        let attachments = import_message_images(
+            app,
+            entry,
+            &target_character_id,
+            &new_session_id,
+            &message_id,
+            role,
+        )?;
+        if content.trim().is_empty() && attachments.is_empty() {
+            continue;
+        }
         let created_at = message_created_at(entry);
         let (variants, selected_variant_id) = imported_variants(entry, created_at);
         let mut message = json!({
-            "id": Uuid::new_v4().to_string(),
+            "id": message_id,
             "role": role,
             "content": content,
             "createdAt": created_at,
-            "attachments": [],
+            "attachments": attachments,
         });
         if !variants.is_empty() {
             message["variants"] = json!(variants);

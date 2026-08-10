@@ -1205,6 +1205,13 @@ export const enMessages = {
       addImageAttachment: "Add image attachment",
       addAudio: "Add audio",
       audioAttachmentLabel: "Audio attachment",
+      imageTooLarge: '"{{filename}}" is larger than 10 MB and cannot be attached.',
+      imageTooManyPixels:
+        '"{{filename}}" exceeds the 36-megapixel image limit and cannot be attached.',
+      imageReadFailed: 'Could not read "{{filename}}" as an image.',
+      imageUploading: "Uploading image",
+      imageUploadFailed: 'Failed to upload image "{{filename}}". Please retry.',
+      retryImageUpload: "Retry image upload",
       removeAttachment: "Remove attachment",
       recordVoice: "Record voice",
       holdToTalk: "Hold to talk",
@@ -4086,6 +4093,17 @@ export const enMessages = {
         '"{{segment}}" is at the end of the Base URL and the start of the Chat Endpoint, so it will be sent twice. Remove it from one of them.',
       resolvedModelsUrlDuplicate:
         '"{{segment}}" is at the end of the Base URL and the start of the Models Endpoint, so it will be sent twice. Remove it from one of them.',
+      imageUploadMode: "Image upload",
+      imageUploadBase64: "Base64 (universal)",
+      imageUploadBase64Desc: "Include the compressed image directly in the chat request",
+      imageUploadVolcengineFiles: "Volcengine Ark Files API",
+      imageUploadVolcengineFilesDesc: "Upload images first and send their file_id to the chat model",
+      imageUploadEndpoint: "Files API URL",
+      imageUploadApiKeySource: "Files API authentication",
+      imageUploadUseProviderApiKey: "Use provider API key",
+      imageUploadUseCustomApiKey: "Use a separate API key",
+      imageUploadCustomApiKey: "Files API key",
+      imageUploadProjectHint: "The Files API and chat endpoint must be able to access the same Ark project.",
       fetchModels: "Fetch Models",
       fetchModelsDesc: "Enable model discovery for this custom endpoint",
       authMode: "Auth Mode",
@@ -5381,7 +5399,7 @@ export const enMessages = {
     dynamicMemory: {
       title: "Dynamic Memory",
       contextWindow: "Context Window",
-      contextWindowDesc: "Number of recent messages to include (1-1000)",
+      contextWindowDesc: "Recent messages sent to the model with each reply (1-1000)",
       infoText:
         "Dynamic Memory uses AI to automatically summarize and manage conversation context, enabling longer, more coherent conversations.",
       disabledText:

@@ -10,6 +10,7 @@ pub mod group_sessions;
 pub mod imported_memory_jobs;
 pub mod importer;
 pub mod jsonl;
+mod jsonl_media;
 pub mod legacy;
 pub mod llm_metrics;
 pub mod lorebook;

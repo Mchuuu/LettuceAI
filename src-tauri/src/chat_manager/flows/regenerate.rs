@@ -4,15 +4,14 @@ use uuid::Uuid;
 
 use crate::api::{api_request, ApiRequest};
 use crate::chat_manager::attachments::{
-    cleanup_attachments, load_attachment_data, persist_attachments,
+    cleanup_attachments, load_attachment_data_with_mode, persist_attachments,
 };
 use crate::chat_manager::commands::take_aborted_request;
 use crate::chat_manager::companion;
 use crate::chat_manager::execution::{build_provider_extra_fields, RequestSettings};
 use crate::chat_manager::memory::dynamic::{
     context_enrichment_enabled, dynamic_min_similarity, dynamic_retrieval_limit,
-    dynamic_retrieval_strategy, dynamic_window_size, ensure_pinned_hot, mark_memories_accessed,
-    promote_cold_memories,
+    dynamic_retrieval_strategy, ensure_pinned_hot, mark_memories_accessed, promote_cold_memories,
 };
 use crate::chat_manager::memory::flow::select_relevant_memories;
 use crate::chat_manager::messages::{
@@ -28,7 +27,7 @@ use crate::chat_manager::service::{
 };
 use crate::chat_manager::turn_builder::{
     append_image_directive_instructions, build_enriched_query, conversation_window_with_pinned,
-    insert_in_chat_prompt_entries, is_dynamic_memory_active, manual_window_size,
+    generation_context_window_size, insert_in_chat_prompt_entries, is_dynamic_memory_active,
     maybe_swap_message_for_api, message_visible_to_model, partition_prompt_entries,
     role_swap_enabled, swapped_prompt_entities,
 };
@@ -167,7 +166,7 @@ impl RegenerateFlow {
 
         let dynamic_memory_enabled = is_dynamic_memory_active(settings, &character);
         let companion_mode_enabled = companion::is_companion_mode(&session, &character);
-        let dynamic_window = dynamic_window_size(settings);
+        let context_window = generation_context_window_size(settings);
 
         let relevant_memories = if dynamic_memory_enabled && !session.memory_embeddings.is_empty() {
             let fixed = ensure_pinned_hot(&mut session.memory_embeddings);
@@ -337,6 +336,8 @@ impl RegenerateFlow {
                 .input_scopes
                 .iter()
                 .any(|scope| scope.eq_ignore_ascii_case("audio"));
+            let image_load_mode =
+                crate::chat_manager::multimodal::model_image_load_mode(&credential);
 
             let messages_before_target: Vec<StoredMessage> = session
                 .messages
@@ -362,10 +363,10 @@ impl RegenerateFlow {
             let mut chat_messages = Vec::new();
             if dynamic_memory_enabled {
                 let (pinned_msgs, recent_msgs) =
-                    conversation_window_with_pinned(&messages_before_target, dynamic_window);
+                    conversation_window_with_pinned(&messages_before_target, context_window);
 
                 for msg in &pinned_msgs {
-                    let msg_with_data = load_attachment_data(&app, msg);
+                    let msg_with_data = load_attachment_data_with_mode(&app, msg, image_load_mode);
                     let msg_with_data = maybe_swap_message_for_api(&msg_with_data, swap_places);
                     push_user_or_assistant_message_with_context(
                         &mut chat_messages,
@@ -380,7 +381,7 @@ impl RegenerateFlow {
                 }
 
                 for msg in &recent_msgs {
-                    let msg_with_data = load_attachment_data(&app, msg);
+                    let msg_with_data = load_attachment_data_with_mode(&app, msg, image_load_mode);
                     let msg_with_data = maybe_swap_message_for_api(&msg_with_data, swap_places);
                     push_user_or_assistant_message_with_context(
                         &mut chat_messages,
@@ -394,7 +395,7 @@ impl RegenerateFlow {
                     );
                 }
             } else {
-                let start_index = target_index.saturating_sub(manual_window_size(settings));
+                let start_index = target_index.saturating_sub(context_window);
                 for (idx, msg) in session.messages.iter().enumerate() {
                     if idx < start_index {
                         continue;
@@ -405,7 +406,7 @@ impl RegenerateFlow {
                     if idx == target_index {
                         continue;
                     }
-                    let msg_with_data = load_attachment_data(&app, msg);
+                    let msg_with_data = load_attachment_data_with_mode(&app, msg, image_load_mode);
                     let msg_with_data = maybe_swap_message_for_api(&msg_with_data, swap_places);
                     push_user_or_assistant_message_with_context(
                         &mut chat_messages,
@@ -485,11 +486,23 @@ impl RegenerateFlow {
                 &request_settings,
             );
 
+            let prepared_image_messages =
+                crate::chat_manager::multimodal::prepare_messages_for_provider(
+                    &app,
+                    attempt_credential,
+                    &attempt_api_key,
+                    &messages_for_api,
+                )
+                .await;
+            let attempt_messages = prepared_image_messages
+                .as_ref()
+                .unwrap_or(&messages_for_api);
+
             let built = crate::chat_manager::request_builder::build_chat_request(
                 attempt_credential,
                 &attempt_api_key,
                 &attempt_model.name,
-                &messages_for_api,
+                attempt_messages,
                 None,
                 request_settings.temperature,
                 request_settings.top_p,

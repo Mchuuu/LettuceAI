@@ -7,6 +7,27 @@ interface ProcessImageOptions {
   format?: "webp" | "jpeg" | "png";
 }
 
+export const CHAT_IMAGE_MAX_SOURCE_BYTES = 10 * 1024 * 1024;
+export const CHAT_IMAGE_MAX_PIXELS = 36_000_000;
+
+export type ChatImageValidationErrorCode =
+  | "file-too-large"
+  | "too-many-pixels"
+  | "unreadable-image";
+
+export class ChatImageValidationError extends Error {
+  constructor(public readonly code: ChatImageValidationErrorCode) {
+    super(code);
+    this.name = "ChatImageValidationError";
+  }
+}
+
+export interface ValidatedChatImage {
+  dataUrl: string;
+  width: number;
+  height: number;
+}
+
 const DEFAULT_OPTIONS: Required<ProcessImageOptions> = {
   maxDimension: 1920,
   quality: 0.85,
@@ -42,6 +63,34 @@ async function loadImage(dataUrl: string): Promise<HTMLImageElement> {
     img.onerror = () => reject(new Error("Failed to load image"));
     img.src = dataUrl;
   });
+}
+
+export async function readValidatedChatImage(file: File): Promise<ValidatedChatImage> {
+  if (file.size > CHAT_IMAGE_MAX_SOURCE_BYTES) {
+    throw new ChatImageValidationError("file-too-large");
+  }
+
+  try {
+    const dataUrl = await readFileAsDataUrl(file);
+    const image = await loadImage(dataUrl);
+    const width = image.naturalWidth;
+    const height = image.naturalHeight;
+
+    if (width <= 0 || height <= 0) {
+      throw new ChatImageValidationError("unreadable-image");
+    }
+
+    if (width > Math.floor(CHAT_IMAGE_MAX_PIXELS / height)) {
+      throw new ChatImageValidationError("too-many-pixels");
+    }
+
+    return { dataUrl, width, height };
+  } catch (error) {
+    if (error instanceof ChatImageValidationError) {
+      throw error;
+    }
+    throw new ChatImageValidationError("unreadable-image");
+  }
 }
 
 /**

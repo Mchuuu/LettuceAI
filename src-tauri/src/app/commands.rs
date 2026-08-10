@@ -3,6 +3,7 @@ macro_rules! invoke_handler {
         tauri::generate_handler![
             crate::api::api_request,
             crate::api::abort_request,
+            crate::chat_manager::multimodal::prepare_provider_image_upload,
             crate::sync::commands::start_driver,
             crate::sync::commands::connect_as_passenger,
             crate::sync::commands::stop_sync,

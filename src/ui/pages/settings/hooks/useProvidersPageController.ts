@@ -15,6 +15,10 @@ import {
 } from "../../../../core/providers/capabilities";
 import type { ProviderCredential } from "../../../../core/storage/schemas";
 import {
+  readProviderImageUploadConfig,
+  writeProviderImageUploadConfig,
+} from "../../../../core/providers/imageUpload";
+import {
   initialProvidersPageState,
   providersPageReducer,
   type ProvidersPageState,
@@ -272,6 +276,7 @@ export function useProvidersPageController(): ControllerReturn {
 
       const isCustomProvider =
         editorProvider.providerId === "custom" || editorProvider.providerId === "custom-anthropic";
+      let normalizedProviderConfig = editorProvider.config;
       if (isCustomProvider) {
         const cfg = (editorProvider.config ?? {}) as Record<string, unknown>;
         const fetchModelsEnabled = cfg.fetchModelsEnabled === true;
@@ -283,6 +288,48 @@ export function useProvidersPageController(): ControllerReturn {
             payload: "Models endpoint is required when model fetching is enabled.",
           });
           return;
+        }
+
+        if (editorProvider.providerId === "custom") {
+          const imageUpload = readProviderImageUploadConfig(cfg);
+          if (imageUpload.mode === "volcengine-ark-files") {
+            let endpoint: URL;
+            try {
+              endpoint = new URL(imageUpload.endpoint.trim());
+            } catch {
+              dispatch({
+                type: "set_validation_error",
+                payload: "A valid Volcengine Files API URL is required.",
+              });
+              return;
+            }
+            if (endpoint.protocol !== "https:" && endpoint.protocol !== "http:") {
+              dispatch({
+                type: "set_validation_error",
+                payload: "The Volcengine Files API URL must use HTTP or HTTPS.",
+              });
+              return;
+            }
+            if (imageUpload.apiKeySource === "custom" && !imageUpload.apiKey?.trim()) {
+              dispatch({
+                type: "set_validation_error",
+                payload: "A Files API key is required when using separate authentication.",
+              });
+              return;
+            }
+            if (imageUpload.apiKeySource === "provider" && !trimmedKey) {
+              dispatch({
+                type: "set_validation_error",
+                payload: "A provider API key is required for the Volcengine Files API.",
+              });
+              return;
+            }
+            normalizedProviderConfig = writeProviderImageUploadConfig(cfg, {
+              ...imageUpload,
+              endpoint: endpoint.toString(),
+              apiKey: imageUpload.apiKey?.trim() || undefined,
+            });
+          }
         }
       }
 
@@ -322,6 +369,7 @@ export function useProvidersPageController(): ControllerReturn {
 
       const providerToSave: ProviderCredential = {
         ...editorProvider,
+        config: normalizedProviderConfig,
         apiKey: trimmedKey || undefined,
       } as ProviderCredential;
 

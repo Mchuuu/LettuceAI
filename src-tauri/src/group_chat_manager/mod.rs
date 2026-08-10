@@ -60,6 +60,7 @@ use crate::chat_manager::thinking::normalize_thinking_content;
 use crate::chat_manager::tooling::{
     parse_tool_calls, ToolCall, ToolChoice, ToolConfig, ToolDefinition,
 };
+use crate::chat_manager::turn_builder::generation_context_window_size;
 use crate::chat_manager::types::{
     Character, DynamicMemorySettings, MemoryRetrievalStrategy, Model, Persona, PromptEntryChatMode,
     PromptEntryInfoSource, PromptEntryPosition, PromptEntryRole, ProviderCredential, Settings,
@@ -1544,14 +1545,6 @@ fn fetch_group_conversation_messages_range(
         out.push(row.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?);
     }
     Ok(out)
-}
-
-fn manual_window_size(settings: &Settings) -> usize {
-    settings
-        .advanced_settings
-        .as_ref()
-        .and_then(|a| a.manual_mode_context_window)
-        .unwrap_or(50) as usize
 }
 
 fn push_group_memory_event(session: &mut GroupSession, event: Value) {
@@ -6615,30 +6608,24 @@ async fn generate_character_response(
         .find(|c| c.id == selected_character_id)
         .ok_or("Selected character not found")?;
 
-    // Apply conversation window limit for dynamic memory (like normal chat)
-    // This ensures we only send the last N messages to the LLM based on dynamic_window_size
-    let messages_for_generation = if context.session.memory_type == "dynamic" {
-        let window_size = dynamic_settings.summary_message_interval.max(1) as usize;
-        conversation_window(&context.recent_messages, window_size)
+    // Generation history is independent from the dynamic-memory extraction interval.
+    let context_window = generation_context_window_size(settings);
+    let recent_messages = if context.recent_messages.len() >= context_window {
+        context.recent_messages.clone()
     } else {
-        let manual_window = manual_window_size(settings).max(1);
-        let recent_messages = if context.recent_messages.len() >= manual_window {
-            context.recent_messages.clone()
-        } else {
-            match load_recent_group_messages(&conn, &context.session.id, manual_window as i32) {
-                Ok(messages) => messages,
-                Err(err) => {
-                    log_warn(
-                        app,
-                        "group_chat",
-                        format!("Failed to load manual window messages: {}", err),
-                    );
-                    context.recent_messages.clone()
-                }
+        match load_recent_group_messages(&conn, &context.session.id, context_window as i32) {
+            Ok(messages) => messages,
+            Err(err) => {
+                log_warn(
+                    app,
+                    "group_chat",
+                    format!("Failed to load context window messages: {}", err),
+                );
+                context.recent_messages.clone()
             }
-        };
-        conversation_window(&recent_messages, manual_window)
+        }
     };
+    let messages_for_generation = conversation_window(&recent_messages, context_window);
 
     let no_chat_history = messages_for_generation.is_empty();
     let mut api_messages = build_messages_for_api(

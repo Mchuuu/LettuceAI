@@ -120,13 +120,21 @@ pub fn insert_in_chat_prompt_entries(
     }
 }
 
-pub fn manual_window_size(settings: &Settings) -> usize {
+const DEFAULT_GENERATION_CONTEXT_WINDOW: usize = 50;
+const MAX_GENERATION_CONTEXT_WINDOW: usize = 1000;
+
+/// Number of recent conversation messages included in an LLM generation request.
+///
+/// The persisted field keeps its legacy `manual_mode` name for storage compatibility,
+/// but this setting applies to both manual and dynamic-memory conversations.
+pub fn generation_context_window_size(settings: &Settings) -> usize {
     settings
         .advanced_settings
         .as_ref()
         .and_then(|adv| adv.manual_mode_context_window)
         .map(|n| n as usize)
-        .unwrap_or(50)
+        .unwrap_or(DEFAULT_GENERATION_CONTEXT_WINDOW)
+        .clamp(1, MAX_GENERATION_CONTEXT_WINDOW)
 }
 
 pub fn conversation_window_with_pinned(
@@ -213,4 +221,67 @@ pub fn swapped_prompt_entities(
         .unwrap_or_default();
 
     (swapped_character, Some(swapped_persona))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::generation_context_window_size;
+    use crate::chat_manager::types::Settings;
+    use serde_json::json;
+
+    fn settings_with_context_window(value: Option<u32>) -> Settings {
+        let advanced_settings = value.map(|window| {
+            json!({
+                "manualModeContextWindow": window,
+                "dynamicMemory": {
+                    "enabled": true,
+                    "summaryMessageInterval": 20,
+                    "maxEntries": 50,
+                    "minSimilarityThreshold": 0.35,
+                    "retrievalLimit": 5,
+                    "retrievalStrategy": "smart",
+                    "hotMemoryTokenBudget": 2000,
+                    "decayRate": 0.08,
+                    "coldThreshold": 0.3,
+                    "deleteConfidenceDefault": 0.5,
+                    "maxHardDeleteRatioPerCycle": 0.5,
+                    "contextEnrichmentEnabled": true,
+                    "recursiveMemoryLoops": false,
+                    "recursiveMemoryLoopHardCap": 20
+                }
+            })
+        });
+
+        serde_json::from_value(json!({
+            "defaultProviderCredentialId": null,
+            "defaultModelId": null,
+            "providerCredentials": [],
+            "models": [],
+            "advancedSettings": advanced_settings
+        }))
+        .expect("settings fixture should deserialize")
+    }
+
+    #[test]
+    fn generation_context_window_is_independent_from_dynamic_memory_interval() {
+        let settings = settings_with_context_window(Some(120));
+
+        assert_eq!(generation_context_window_size(&settings), 120);
+    }
+
+    #[test]
+    fn generation_context_window_uses_safe_defaults_and_bounds() {
+        assert_eq!(
+            generation_context_window_size(&settings_with_context_window(None)),
+            50
+        );
+        assert_eq!(
+            generation_context_window_size(&settings_with_context_window(Some(0))),
+            1
+        );
+        assert_eq!(
+            generation_context_window_size(&settings_with_context_window(Some(5_000))),
+            1_000
+        );
+    }
 }

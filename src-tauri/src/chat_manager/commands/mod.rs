@@ -13,7 +13,7 @@ use crate::chat_manager::storage::{
 };
 use crate::chat_manager::turn_builder::{
     append_image_directive_instructions, conversation_window_with_pinned,
-    insert_in_chat_prompt_entries, manual_window_size, maybe_swap_message_for_api,
+    generation_context_window_size, insert_in_chat_prompt_entries, maybe_swap_message_for_api,
     message_visible_to_model, partition_prompt_entries,
 };
 use crate::utils::now_millis;
@@ -208,14 +208,11 @@ fn build_debug_completion_messages(
         .unwrap_or(false);
 
     let (pinned_msgs, recent_msgs) = if dynamic_memory_enabled {
-        conversation_window_with_pinned(
-            &session.messages,
-            crate::chat_manager::memory::dynamic::dynamic_window_size(settings),
-        )
+        conversation_window_with_pinned(&session.messages, generation_context_window_size(settings))
     } else {
         (
             Vec::new(),
-            recent_messages(session, manual_window_size(settings)),
+            recent_messages(session, generation_context_window_size(settings)),
         )
     };
 
@@ -320,7 +317,7 @@ fn build_debug_regenerate_messages(
     if dynamic_memory_enabled {
         let (pinned_msgs, recent_msgs) = conversation_window_with_pinned(
             &messages_before_target,
-            crate::chat_manager::memory::dynamic::dynamic_window_size(settings),
+            generation_context_window_size(settings),
         );
         for msg in &pinned_msgs {
             let msg_with_data = load_attachment_data(app, msg);
@@ -351,7 +348,7 @@ fn build_debug_regenerate_messages(
             );
         }
     } else {
-        let start_index = target_index.saturating_sub(manual_window_size(settings));
+        let start_index = target_index.saturating_sub(generation_context_window_size(settings));
         for (idx, msg) in session.messages.iter().enumerate() {
             if idx < start_index {
                 continue;

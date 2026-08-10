@@ -1,8 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowUp, Check, ChevronsRight, Keyboard, Mic, Plus, Square, X } from "lucide-react";
+import {
+  ArrowUp,
+  Check,
+  ChevronsRight,
+  Keyboard,
+  Loader2,
+  Mic,
+  Plus,
+  RefreshCw,
+  Square,
+  X,
+} from "lucide-react";
 import type { Character, ImageAttachment } from "../../../../core/storage/schemas";
 import { radius, typography, interactive, shadows, cn } from "../../../design-tokens";
 import { getPlatform } from "../../../../core/utils/platform";
+import {
+  ChatImageValidationError,
+  readValidatedChatImage,
+} from "../../../../core/utils/image";
 import { useI18n } from "../../../../core/i18n/context";
 import { BottomMenu } from "../../../components/BottomMenu";
 import { ChatErrorBanner } from "./ChatErrorBanner";
@@ -31,6 +46,8 @@ interface ChatFooterProps {
   footerFgMutedColor?: string;
   pendingAttachments?: ImageAttachment[];
   onAddAttachment?: (attachment: ImageAttachment) => void;
+  prepareImageAttachment?: (attachment: ImageAttachment) => Promise<void>;
+  onAttachmentError?: (message: string | null) => void;
   onRemoveAttachment?: (attachmentId: string) => void;
   onOpenPlusMenu?: () => void;
   triggerFileInput?: boolean;
@@ -71,6 +88,8 @@ export function ChatFooter({
   footerFgMutedColor,
   pendingAttachments = [],
   onAddAttachment,
+  prepareImageAttachment,
+  onAttachmentError,
   onRemoveAttachment,
   onOpenPlusMenu,
   triggerFileInput,
@@ -108,6 +127,9 @@ export function ChatFooter({
   const sendLongPressTriggeredRef = useRef(false);
   const [showSystemSendMenu, setShowSystemSendMenu] = useState(false);
   const [sendingSystemMessage, setSendingSystemMessage] = useState(false);
+  const [imageUploadStatus, setImageUploadStatus] = useState<
+    Record<string, "uploading" | "error">
+  >({});
   const [skipSystemSendConfirmation, setSkipSystemSendConfirmation] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem(SYSTEM_SEND_CONFIRMATION_DISABLED_STORAGE_KEY) === "1";
@@ -124,8 +146,59 @@ export function ChatFooter({
   }, [externalTextareaRef]);
 
   const isDesktop = useMemo(() => getPlatform().type === "desktop", []);
+  const hasBlockedImageUploads = Object.keys(imageUploadStatus).length > 0;
   const canOpenSystemSendMenu =
-    !sending && !composerDisabled && (hasDraft || hasAttachments) && Boolean(onSendSystemMessage);
+    !sending &&
+    !composerDisabled &&
+    !hasBlockedImageUploads &&
+    (hasDraft || hasAttachments) &&
+    Boolean(onSendSystemMessage);
+
+  useEffect(() => {
+    if (!prepareImageAttachment) {
+      setImageUploadStatus({});
+      return;
+    }
+    const pendingIds = new Set(pendingAttachments.map((attachment) => attachment.id));
+    setImageUploadStatus((current) => {
+      const next = Object.fromEntries(
+        Object.entries(current).filter(([attachmentId]) => pendingIds.has(attachmentId)),
+      ) as Record<string, "uploading" | "error">;
+      return Object.keys(next).length === Object.keys(current).length ? current : next;
+    });
+  }, [pendingAttachments, prepareImageAttachment]);
+
+  const prepareSelectedImage = useCallback(
+    async (attachment: ImageAttachment) => {
+      if (!prepareImageAttachment) return;
+      onAttachmentError?.(null);
+      setImageUploadStatus((current) => ({
+        ...current,
+        [attachment.id]: "uploading",
+      }));
+      try {
+        await prepareImageAttachment(attachment);
+        setImageUploadStatus((current) => {
+          if (!(attachment.id in current)) return current;
+          const next = { ...current };
+          delete next[attachment.id];
+          return next;
+        });
+      } catch (error) {
+        console.error("Failed to prepare image upload:", error);
+        setImageUploadStatus((current) => ({
+          ...current,
+          [attachment.id]: "error",
+        }));
+        onAttachmentError?.(
+          t("chats.footer.imageUploadFailed", {
+            filename: attachment.filename || t("chats.footer.attachmentAlt"),
+          }),
+        );
+      }
+    },
+    [onAttachmentError, prepareImageAttachment, t],
+  );
 
   const clearSendLongPressTimer = useCallback(() => {
     if (sendLongPressTimerRef.current !== null) {
@@ -156,7 +229,12 @@ export function ChatFooter({
 
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      if (!sending && !composerDisabled && (hasDraft || hasAttachments)) {
+      if (
+        !sending &&
+        !composerDisabled &&
+        !hasBlockedImageUploads &&
+        (hasDraft || hasAttachments)
+      ) {
         onSendMessage();
       }
     }
@@ -165,30 +243,34 @@ export function ChatFooter({
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || !onAddAttachment) return;
+    onAttachmentError?.(null);
 
     for (const file of Array.from(files)) {
       if (!file.type.startsWith("image/")) continue;
 
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = reader.result as string;
-
-        // Create image to get dimensions
-        const img = new Image();
-        img.onload = () => {
-          const attachment: ImageAttachment = {
-            id: crypto.randomUUID(),
-            data: base64,
-            mimeType: file.type,
-            filename: file.name,
-            width: img.width,
-            height: img.height,
-          };
-          onAddAttachment(attachment);
+      try {
+        const image = await readValidatedChatImage(file);
+        const attachment: ImageAttachment = {
+          id: crypto.randomUUID(),
+          data: image.dataUrl,
+          mimeType: file.type,
+          filename: file.name,
+          width: image.width,
+          height: image.height,
         };
-        img.src = base64;
-      };
-      reader.readAsDataURL(file);
+        onAddAttachment(attachment);
+        void prepareSelectedImage(attachment);
+      } catch (error) {
+        const code =
+          error instanceof ChatImageValidationError ? error.code : "unreadable-image";
+        const key =
+          code === "file-too-large"
+            ? "chats.footer.imageTooLarge"
+            : code === "too-many-pixels"
+              ? "chats.footer.imageTooManyPixels"
+              : "chats.footer.imageReadFailed";
+        onAttachmentError?.(t(key, { filename: file.name }));
+      }
     }
 
     event.target.value = "";
@@ -330,15 +412,56 @@ export function ChatFooter({
                       buttonClassName="bg-accent text-black"
                     />
                   ) : (
-                    <img
-                      src={attachment.data}
-                      alt={attachment.filename || t("chats.footer.attachmentAlt")}
-                      className={cn("h-20 w-20 object-cover", radius.md)}
-                    />
+                    <>
+                      <img
+                        src={attachment.data}
+                        alt={attachment.filename || t("chats.footer.attachmentAlt")}
+                        className={cn("h-20 w-20 object-cover", radius.md)}
+                      />
+                      {imageUploadStatus[attachment.id] && (
+                        <div
+                          className={cn(
+                            "absolute inset-0 z-20 flex items-center justify-center bg-black/60 text-white backdrop-blur-[1px]",
+                            radius.md,
+                          )}
+                          aria-live="polite"
+                        >
+                          {imageUploadStatus[attachment.id] === "uploading" ? (
+                            <Loader2
+                              className="h-6 w-6 animate-spin"
+                              aria-label={t("chats.footer.imageUploading")}
+                            />
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => void prepareSelectedImage(attachment)}
+                              className={cn(
+                                "flex h-9 w-9 items-center justify-center bg-black/40 text-white hover:bg-black/60",
+                                radius.full,
+                                interactive.transition.fast,
+                                interactive.active.scale,
+                              )}
+                              title={t("chats.footer.retryImageUpload")}
+                              aria-label={t("chats.footer.retryImageUpload")}
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </>
                   )}
                   {onRemoveAttachment && (
                     <button
-                      onClick={() => onRemoveAttachment(attachment.id)}
+                      onClick={() => {
+                        setImageUploadStatus((current) => {
+                          if (!(attachment.id in current)) return current;
+                          const next = { ...current };
+                          delete next[attachment.id];
+                          return next;
+                        });
+                        onRemoveAttachment(attachment.id);
+                      }}
                       className={cn(
                         "absolute -right-1 -top-1 z-50",
                         interactive.transition.fast,
@@ -585,7 +708,11 @@ export function ChatFooter({
               onPointerCancel={handleSendButtonPointerEnd}
               onClick={handleSendButtonClick}
               onContextMenu={handleSendButtonContextMenu}
-              disabled={(sending && !onAbort) || composerDisabled}
+              disabled={
+                (sending && !onAbort) ||
+                composerDisabled ||
+                (!sending && hasBlockedImageUploads)
+              }
               className={cn(
                 "mb-0.5 flex h-10.75 w-10.75 shrink-0 items-center justify-center self-end",
                 radius.full,
@@ -603,6 +730,8 @@ export function ChatFooter({
               title={
                 sending && onAbort
                   ? t("chats.footer.stopGeneration")
+                  : hasBlockedImageUploads
+                    ? t("chats.footer.imageUploading")
                   : hasDraft || hasAttachments
                     ? t("chats.footer.sendMessage")
                     : t("chats.footer.continueConversation")
@@ -610,6 +739,8 @@ export function ChatFooter({
               aria-label={
                 sending && onAbort
                   ? t("chats.footer.stopGeneration")
+                  : hasBlockedImageUploads
+                    ? t("chats.footer.imageUploading")
                   : hasDraft || hasAttachments
                     ? t("chats.footer.sendMessage")
                     : t("chats.footer.continueConversation")

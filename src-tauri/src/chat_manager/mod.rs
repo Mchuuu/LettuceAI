@@ -9,6 +9,7 @@ pub mod flows;
 pub mod lorebook_entry_generator;
 pub mod lorebook_generator;
 pub mod memory;
+pub mod multimodal;
 pub mod persistence;
 pub mod prompting;
 pub mod provider_adapter;

@@ -109,16 +109,6 @@ pub fn is_dynamic_memory_enabled(settings: &Settings) -> bool {
         .unwrap_or(false)
 }
 
-/// Get the summary message interval (window size) from settings
-pub fn dynamic_window_size(settings: &Settings) -> usize {
-    settings
-        .advanced_settings
-        .as_ref()
-        .and_then(|a| a.dynamic_memory.as_ref())
-        .map(|dm| dm.summary_message_interval.max(1))
-        .unwrap_or(FALLBACK_DYNAMIC_WINDOW) as usize
-}
-
 /// Get the maximum number of memory entries from settings
 pub fn dynamic_max_entries(settings: &Settings) -> usize {
     settings

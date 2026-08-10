@@ -148,27 +148,39 @@ mod tests {
 
     #[test]
     fn enables_expression_for_user_voice_with_doubao_settings() {
-        let mut character = Character::default();
-        character.voice_config = Some(json!({
-            "source": "user",
-            "userVoiceId": "voice-1",
-            "doubaoVoiceSettings": {
-                "speechExpressionEnabled": true
+        let character: Character = serde_json::from_value(json!({
+            "id": "character-1",
+            "name": "Character",
+            "createdAt": 0,
+            "updatedAt": 0,
+            "voiceConfig": {
+                "source": "user",
+                "userVoiceId": "voice-1",
+                "doubaoVoiceSettings": {
+                    "speechExpressionEnabled": true
+                }
             }
-        }));
+        }))
+        .expect("test character should deserialize");
 
         assert!(is_enabled(&character));
     }
 
     #[test]
     fn respects_disabled_expression_for_any_voice_source() {
-        let mut character = Character::default();
-        character.voice_config = Some(json!({
-            "source": "provider",
-            "doubaoVoiceSettings": {
-                "speechExpressionEnabled": false
+        let character: Character = serde_json::from_value(json!({
+            "id": "character-1",
+            "name": "Character",
+            "createdAt": 0,
+            "updatedAt": 0,
+            "voiceConfig": {
+                "source": "provider",
+                "doubaoVoiceSettings": {
+                    "speechExpressionEnabled": false
+                }
             }
-        }));
+        }))
+        .expect("test character should deserialize");
 
         assert!(!is_enabled(&character));
     }

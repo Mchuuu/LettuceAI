@@ -293,7 +293,7 @@ export function AdvancedPage() {
   const [creationHelperEnabled, setCreationHelperEnabled] = useState(false);
   const [dynamicMemoryEnabled, setDynamicMemoryEnabled] = useState(false);
   const [helpMeReplyEnabled, setHelpMeReplyEnabled] = useState(true);
-  const [manualWindow, setManualWindow] = useState<number | null>(50);
+  const [contextWindow, setContextWindow] = useState<number | null>(50);
   const [hostApiEnabled, setHostApiEnabled] = useState(false);
   const [hostApiRunning, setHostApiRunning] = useState(false);
 
@@ -320,7 +320,7 @@ export function AdvancedPage() {
         setCreationHelperEnabled(settings.advancedSettings?.creationHelperEnabled ?? false);
         setDynamicMemoryEnabled(settings.advancedSettings?.dynamicMemory?.enabled ?? false);
         setHelpMeReplyEnabled(settings.advancedSettings?.helpMeReplyEnabled ?? true);
-        setManualWindow(settings.advancedSettings?.manualModeContextWindow ?? 50);
+        setContextWindow(settings.advancedSettings?.manualModeContextWindow ?? 50);
         setHostApiEnabled(settings.advancedSettings?.hostApi?.enabled ?? false);
 
         try {
@@ -401,8 +401,8 @@ export function AdvancedPage() {
     }
   };
 
-  const handleManualWindowChange = async (value: number | null) => {
-    setManualWindow(value);
+  const handleContextWindowChange = async (value: number | null) => {
+    setContextWindow(value);
 
     try {
       const settings = await readSettings();
@@ -577,8 +577,8 @@ export function AdvancedPage() {
                   <NumberInput
                     min={1}
                     max={1000}
-                    value={manualWindow ?? 50}
-                    onChange={(next) => handleManualWindowChange(next)}
+                    value={contextWindow ?? 50}
+                    onChange={(next) => handleContextWindowChange(next)}
                     className={cn(
                       "w-20 rounded-lg border border-fg/15 bg-surface-el/30 px-3 py-1.5",
                       "text-center font-mono text-sm text-fg",

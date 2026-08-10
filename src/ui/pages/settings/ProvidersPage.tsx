@@ -46,6 +46,11 @@ import { useI18n } from "../../../core/i18n/context";
 import { Switch } from "../../components/Switch";
 import type { ProviderCredential } from "../../../core/storage/schemas";
 import { addOrUpdateProviderCredential } from "../../../core/storage/repo";
+import {
+  readProviderImageUploadConfig,
+  writeProviderImageUploadConfig,
+  type ProviderImageUploadConfig,
+} from "../../../core/providers/imageUpload";
 
 const AUDIO_PROVIDER_TYPE_LABEL: Record<AudioProviderType, string> = {
   elevenlabs: "ElevenLabs",
@@ -185,11 +190,13 @@ export function ProvidersPage() {
   const isCustomProvider =
     !!editorProvider &&
     (editorProvider.providerId === "custom" || editorProvider.providerId === "custom-anthropic");
+  const supportsImageUploadSettings = editorProvider?.providerId === "custom";
   const allowsTlsException = !!editorProvider && (isLocalProvider || isCustomProvider);
   const showBaseUrl =
     !!editorProvider && (isLocalProvider || isCustomProvider || isEngineProvider || isHostProvider);
   const isOllamaProvider = !!editorProvider && editorProvider.providerId === "ollama";
   const customConfig = (editorProvider?.config ?? {}) as Record<string, any>;
+  const imageUploadConfig = readProviderImageUploadConfig(customConfig);
   const customFetchModelsEnabled = customConfig.fetchModelsEnabled === true;
   const providerStreamingEnabled = customConfig.streamingEnabled !== false;
   const providerAllowInvalidTls = customConfig.allowInvalidTls === true;
@@ -213,6 +220,17 @@ export function ProvidersPage() {
   const visibleCapabilities = isMobile
     ? capabilities.filter((provider) => provider.id !== "llamacpp")
     : capabilities;
+
+  const updateImageUploadConfig = (updates: Partial<ProviderImageUploadConfig>) => {
+    if (!editorProvider) return;
+    updateEditorProvider({
+      config: writeProviderImageUploadConfig(editorProvider.config, {
+        ...imageUploadConfig,
+        ...updates,
+      }),
+    });
+    if (validationError) setValidationError(null);
+  };
 
   const [audioProviders, setAudioProviders] = useState<AudioProvider[]>([]);
   const [audioLoading, setAudioLoading] = useState(true);
@@ -938,6 +956,73 @@ export function ProvidersPage() {
                         t("providers.editor.resolvedChatUrlDuplicate", { segment })
                       }
                     />
+                    {supportsImageUploadSettings && (
+                      <>
+                        <SelectField
+                          label={t("providers.editor.imageUploadMode")}
+                          value={imageUploadConfig.mode}
+                          onChange={(mode) =>
+                            updateImageUploadConfig({
+                              mode: mode as ProviderImageUploadConfig["mode"],
+                            })
+                          }
+                        >
+                          <option value="base64" className="bg-surface-el">
+                            {t("providers.editor.imageUploadBase64")}
+                          </option>
+                          <option value="volcengine-ark-files" className="bg-surface-el">
+                            {t("providers.editor.imageUploadVolcengineFiles")}
+                          </option>
+                        </SelectField>
+                        <p className="-mt-2 px-1 text-[11px] leading-relaxed text-fg/45">
+                          {imageUploadConfig.mode === "volcengine-ark-files"
+                            ? t("providers.editor.imageUploadVolcengineFilesDesc")
+                            : t("providers.editor.imageUploadBase64Desc")}
+                        </p>
+                        {imageUploadConfig.mode === "volcengine-ark-files" && (
+                          <>
+                            <TextField
+                              label={t("providers.editor.imageUploadEndpoint")}
+                              type="url"
+                              value={imageUploadConfig.endpoint}
+                              onChange={(endpoint) => updateImageUploadConfig({ endpoint })}
+                              placeholder="https://ark.cn-beijing.volces.com/api/v3/files"
+                            />
+                            <SelectField
+                              label={t("providers.editor.imageUploadApiKeySource")}
+                              value={imageUploadConfig.apiKeySource}
+                              onChange={(apiKeySource) =>
+                                updateImageUploadConfig({
+                                  apiKeySource:
+                                    apiKeySource as ProviderImageUploadConfig["apiKeySource"],
+                                })
+                              }
+                            >
+                              <option value="provider" className="bg-surface-el">
+                                {t("providers.editor.imageUploadUseProviderApiKey")}
+                              </option>
+                              <option value="custom" className="bg-surface-el">
+                                {t("providers.editor.imageUploadUseCustomApiKey")}
+                              </option>
+                            </SelectField>
+                            {imageUploadConfig.apiKeySource === "custom" && (
+                              <TextField
+                                label={t("providers.editor.imageUploadCustomApiKey")}
+                                type="password"
+                                value={imageUploadConfig.apiKey ?? ""}
+                                onChange={(imageApiKey) =>
+                                  updateImageUploadConfig({ apiKey: imageApiKey })
+                                }
+                                placeholder={t("providers.editor.apiKeyPlaceholder")}
+                              />
+                            )}
+                            <p className="-mt-2 px-1 text-[11px] leading-relaxed text-amber-400/80">
+                              {t("providers.editor.imageUploadProjectHint")}
+                            </p>
+                          </>
+                        )}
+                      </>
+                    )}
                     <ToggleRow
                       id="fetchModelsEnabled"
                       title={t("providers.editor.fetchModels")}
