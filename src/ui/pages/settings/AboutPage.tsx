@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { ExternalLink, Globe, ScrollText, Sparkles } from "lucide-react";
+import { ExternalLink, Globe, ScrollText, Sparkles, UsersRound } from "lucide-react";
 
+import appIcon from "../../../assets/app-icon.png";
 import githubSvg from "../../../assets/github.svg";
-import logoSvg from "../../../assets/logo.svg";
 import { detectUpdateChannel } from "../../../core/app-updates/checkForAppUpdate";
 import { useI18n } from "../../../core/i18n/context";
 import { readSettings, saveAdvancedSettings } from "../../../core/storage/repo";
@@ -12,10 +12,13 @@ import {
   DISCORD_SERVER_LINK,
   DOWNLOADS_PAGE_LINK,
   GITHUB_REPO_LINK,
+  QQ_GROUP_LINK,
+  QQ_GROUP_NUMBER,
 } from "../../../core/utils/links";
 import { getPlatform } from "../../../core/utils/platform";
 import { openExternalUrl } from "../../../core/utils/openExternal";
 import { isDevelopmentMode, setDeveloperModeOverride } from "../../../core/utils/env";
+import { UPSTREAM_RELEASE_NOTES_ENABLED } from "../../../core/app-updates/config";
 import { toast } from "../../components/toast";
 import { cn, interactive, typography } from "../../design-tokens";
 
@@ -152,10 +155,22 @@ export function AboutPage() {
     ? t("about.buildChannel.dev")
     : t("about.buildChannel.release");
 
-  const openExternal = (url: string) => openExternalUrl(url);
+  const openExternal = (url: string, label?: string) => openExternalUrl(url, label);
 
   const openChangelog = () => {
     void openExternal("https://www.lettuceai.app/changelog");
+  };
+
+  const openQqGroup = async () => {
+    try {
+      await navigator.clipboard.writeText(QQ_GROUP_NUMBER);
+      toast.success(t("about.community.copied"), QQ_GROUP_NUMBER);
+    } catch (error) {
+      console.error("Failed to copy QQ group number:", error);
+      toast.error(t("about.community.copyFailed"), QQ_GROUP_NUMBER);
+    }
+
+    await openExternal(QQ_GROUP_LINK, t("about.community.qqGroup"));
   };
 
   const handleEnableDeveloperMode = async () => {
@@ -190,9 +205,11 @@ export function AboutPage() {
                 className="pointer-events-none absolute -top-16 -right-12 h-48 w-48 rounded-full bg-accent/10 blur-3xl"
               />
               <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-5">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-fg/10 bg-surface/60 shadow-sm">
-                  <img src={logoSvg} alt="LettuceAI" className="h-10 w-10" />
-                </div>
+                <img
+                  src={appIcon}
+                  alt={t("about.appName")}
+                  className="h-16 w-16 shrink-0 rounded-xl border border-fg/10 object-cover shadow-sm"
+                />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <h1
@@ -230,22 +247,24 @@ export function AboutPage() {
                     {t("about.description")}
                   </p>
 
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={openChangelog}
-                      className={cn(
-                        "inline-flex h-9 items-center gap-2 rounded-lg border border-fg/10 bg-transparent px-3.5",
-                        typography.body.size,
-                        "font-medium text-fg/75",
-                        interactive.transition.default,
-                        "hover:bg-fg/[0.04] hover:text-fg",
-                      )}
-                    >
-                      <ScrollText className="h-4 w-4 text-fg/55" />
-                      {t("settings.items.changelog.title")}
-                    </button>
-                  </div>
+                  {UPSTREAM_RELEASE_NOTES_ENABLED && (
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={openChangelog}
+                        className={cn(
+                          "inline-flex h-9 items-center gap-2 rounded-lg border border-fg/10 bg-transparent px-3.5",
+                          typography.body.size,
+                          "font-medium text-fg/75",
+                          interactive.transition.default,
+                          "hover:bg-fg/[0.04] hover:text-fg",
+                        )}
+                      >
+                        <ScrollText className="h-4 w-4 text-fg/55" />
+                        {t("settings.items.changelog.title")}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -266,6 +285,17 @@ export function AboutPage() {
                   </Group>
                 </div>
 
+                <div className="flex flex-col gap-2">
+                  <GroupLabel>{t("about.sections.community")}</GroupLabel>
+                  <Group>
+                    <LinkRow
+                      icon={<UsersRound className="h-[18px] w-[18px]" />}
+                      title={t("about.community.qqGroup")}
+                      subtitle={`${t("about.community.groupNumber")}：${QQ_GROUP_NUMBER} · ${t("about.community.openHint")}`}
+                      onClick={() => void openQqGroup()}
+                    />
+                  </Group>
+                </div>
               </div>
 
               {/* Right column: Links + Advanced */}

@@ -915,7 +915,7 @@ async fn run_with_target(
             credential,
             api_key,
             now_millis().unwrap_or(0),
-            UsageOperationType::ReplyHelper,
+            UsageOperationType::CompanionSoulWriter,
             operation_label,
         )
         .await;
@@ -1085,7 +1085,7 @@ async fn run_with_target(
         credential,
         api_key,
         now_millis().unwrap_or(0),
-        UsageOperationType::ReplyHelper,
+        UsageOperationType::CompanionSoulWriter,
         &format!("{}_fallback", operation_label),
     )
     .await;

@@ -22,7 +22,6 @@ import {
   AlertTriangle,
   RefreshCw,
 } from "lucide-react";
-import { getPromptTypeName } from "./EditPromptTemplate";
 import { cn, typography, radius, interactive } from "../../design-tokens";
 import { useI18n } from "../../../core/i18n/context";
 import {
@@ -52,9 +51,10 @@ import {
   APP_SCENE_GENERATION_TEMPLATE_ID,
   APP_DESIGN_REFERENCE_TEMPLATE_ID,
   APP_COMPANION_SOUL_WRITER_TEMPLATE_ID,
+  getPromptTemplateDisplayName,
+  getPromptTypeName,
   isProtectedPromptTemplate,
   isSystemPromptTemplate,
-  getPromptTypeLabel,
 } from "../../../core/prompts/constants";
 import { BottomMenu, PromptTemplateExportMenu } from "../../components";
 import { describeUsage, promptFeatureRefs } from "../../../core/storage/usage";
@@ -78,12 +78,18 @@ const ALL_PROMPT_TYPES: PromptTemplateType[] = [
   "dynamicMemoryManager",
   "lorebookEntryWriter",
   "lorebookKeywordGenerator",
+  "lorebookGeneratorPlanner",
+  "lorebookGeneratorWriter",
+  "lorebookGeneratorRefine",
+  "lorebookGeneratorCoherence",
   "avatarGeneration",
   "avatarEditRequest",
   "sceneGeneration",
   "scenePromptWriter",
   "designReferenceWriter",
   "companionSoulWriter",
+  "companionGrowthcycle",
+  "companionConsolidation",
   "undefined",
 ];
 
@@ -239,12 +245,18 @@ function normalizeImportedPromptTemplatePayload(
     input.promptType === "replyHelperConversational" ||
     input.promptType === "lorebookEntryWriter" ||
     input.promptType === "lorebookKeywordGenerator" ||
+    input.promptType === "lorebookGeneratorPlanner" ||
+    input.promptType === "lorebookGeneratorWriter" ||
+    input.promptType === "lorebookGeneratorRefine" ||
+    input.promptType === "lorebookGeneratorCoherence" ||
     input.promptType === "avatarGeneration" ||
     input.promptType === "avatarEditRequest" ||
     input.promptType === "sceneGeneration" ||
     input.promptType === "scenePromptWriter" ||
     input.promptType === "designReferenceWriter" ||
     input.promptType === "companionSoulWriter" ||
+    input.promptType === "companionGrowthcycle" ||
+    input.promptType === "companionConsolidation" ||
     input.promptType === "undefined"
       ? input.promptType
       : "undefined";
@@ -559,7 +571,8 @@ function PromptCard({
   const { t } = useI18n();
   const isProtected = isProtectedPromptTemplate(template.id);
   const isSystem = isSystemPromptTemplate(template.id);
-  const typeLabel = getPromptTypeLabel(template.id);
+  const displayName = getPromptTemplateDisplayName(t, template.id, template.name);
+  const typeLabel = getPromptTypeName(t, template.promptType);
   const Icon = getTemplateIcon(template.id);
 
   return (
@@ -589,7 +602,7 @@ function PromptCard({
           {/* Title + Type */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-medium text-fg truncate">{template.name}</h3>
+              <h3 className="text-sm font-medium text-fg truncate">{displayName}</h3>
               {isActiveDefault && <Star className="h-3.5 w-3.5 text-accent fill-accent shrink-0" />}
               {isProtected && <Lock className="h-3.5 w-3.5 text-warning shrink-0" />}
             </div>
@@ -997,7 +1010,9 @@ export function SystemPromptsPage() {
 
   async function handleDuplicate(template: SystemPromptTemplate) {
     try {
-      const name = t("systemPrompts.duplicateSuffix", { name: template.name });
+      const name = t("systemPrompts.duplicateSuffix", {
+        name: getPromptTemplateDisplayName(t, template.id, template.name),
+      });
       const contentToSave = template.content.trim()
         ? template.content
         : getTemplatePreviewText(template);
@@ -1027,16 +1042,19 @@ export function SystemPromptsPage() {
   }
 
   const filtered = useMemo(() => {
-    return templates.filter((t) => {
-      if (selectedTypes.size > 0 && !selectedTypes.has(t.promptType)) return false;
+    return templates.filter((template) => {
+      if (selectedTypes.size > 0 && !selectedTypes.has(template.promptType)) return false;
 
       const q = search.trim().toLowerCase();
       if (!q) return true;
+      const displayName = getPromptTemplateDisplayName(t, template.id, template.name);
       return (
-        t.name.toLowerCase().includes(q) || getTemplatePreviewText(t).toLowerCase().includes(q)
+        displayName.toLowerCase().includes(q) ||
+        template.name.toLowerCase().includes(q) ||
+        getTemplatePreviewText(template).toLowerCase().includes(q)
       );
     });
-  }, [templates, selectedTypes, search]);
+  }, [templates, selectedTypes, search, t]);
 
   return (
     <div className="flex h-full flex-col">
@@ -1238,7 +1256,7 @@ export function SystemPromptsPage() {
                     : "text-fg/75 hover:bg-fg/5 hover:text-fg",
                 )}
               >
-                <span className="text-sm">{getPromptTypeName(type)}</span>
+                <span className="text-sm">{getPromptTypeName(t, type)}</span>
                 <span
                   className={cn(
                     "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border",

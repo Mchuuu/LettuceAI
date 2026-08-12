@@ -9,7 +9,10 @@ import type {
 } from "../../../core/storage/schemas";
 import { readSettings, saveAdvancedSettings } from "../../../core/storage/repo";
 import { listPromptTemplates } from "../../../core/prompts/service";
-import { APP_COMPANION_SOUL_WRITER_TEMPLATE_ID } from "../../../core/prompts/constants";
+import {
+  APP_COMPANION_SOUL_WRITER_TEMPLATE_ID,
+  getPromptTemplateDisplayName,
+} from "../../../core/prompts/constants";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
 import { useI18n, type TranslationKey } from "../../../core/i18n/context";
 import { cn } from "../../design-tokens";
@@ -281,7 +284,7 @@ export function CompanionSoulWriterPage() {
                     .filter((template) => template.id !== APP_COMPANION_SOUL_WRITER_TEMPLATE_ID)
                     .map((template) => (
                       <option key={template.id} value={template.id}>
-                        {template.name}
+                        {getPromptTemplateDisplayName(t, template.id, template.name)}
                       </option>
                     ))}
                 </select>

@@ -6,6 +6,14 @@
   "permissions": [
     "core:default",
     "opener:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "mqqapi://card/show_pslcard?src_type=internal&version=1&uin=1060199385&card_type=group&source=qrcode"
+        }
+      ]
+    },
     "app-events:default",
     "process:default",
     "dialog:default",

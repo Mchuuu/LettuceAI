@@ -35,6 +35,7 @@ import {
   APP_DYNAMIC_MEMORY_LOCAL_TEMPLATE_ID,
   APP_DYNAMIC_MEMORY_TEMPLATE_ID,
   APP_DYNAMIC_SUMMARY_TEMPLATE_ID,
+  getPromptTemplateDisplayName,
 } from "../../../core/prompts/constants";
 import { cn, interactive } from "../../design-tokens";
 import { useNavigate } from "react-router-dom";
@@ -1352,7 +1353,7 @@ export function DynamicMemoryPage() {
                       <option value="">{t("dynamicMemory.page.useBuiltInDefault")}</option>
                       {summaryPromptTemplates.map((template) => (
                         <option key={template.id} value={template.id}>
-                          {template.name}
+                          {getPromptTemplateDisplayName(t, template.id, template.name)}
                         </option>
                       ))}
                     </select>
@@ -1380,7 +1381,7 @@ export function DynamicMemoryPage() {
                       <option value="">{t("dynamicMemory.page.useBuiltInDefault")}</option>
                       {memoryManagerPromptTemplates.map((template) => (
                         <option key={template.id} value={template.id}>
-                          {template.name}
+                          {getPromptTemplateDisplayName(t, template.id, template.name)}
                         </option>
                       ))}
                     </select>

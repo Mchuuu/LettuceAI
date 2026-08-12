@@ -103,7 +103,7 @@ pub async fn run_growthcycle(
         credential,
         &api_key,
         now_millis().unwrap_or(0),
-        UsageOperationType::ReplyHelper,
+        UsageOperationType::CompanionState,
         "companion_growth",
     )
     .await;

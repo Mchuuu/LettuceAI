@@ -29,6 +29,7 @@ import {
   APP_COMPANION_TEMPLATE_ID,
   APP_GROUP_CHAT_ROLEPLAY_TEMPLATE_ID,
   APP_GROUP_CHAT_TEMPLATE_ID,
+  getPromptTemplateDisplayName,
 } from "../../../../core/prompts/constants";
 import { InteractionModeSelector } from "./InteractionModeSelector";
 import { playDoubaoVoicePreview } from "../../../../core/voice/doubaoVoicePreview";
@@ -594,7 +595,7 @@ export function DescriptionStep({
               </option>
               {directPromptTemplates.map((template) => (
                 <option key={template.id} value={template.id} className="bg-surface-el text-fg">
-                  {template.name}
+                  {getPromptTemplateDisplayName(t, template.id, template.name)}
                 </option>
               ))}
             </select>
@@ -648,7 +649,7 @@ export function DescriptionStep({
               </option>
               {groupChatTemplates.map((template) => (
                 <option key={template.id} value={template.id} className="bg-surface-el text-fg">
-                  {template.name}
+                  {getPromptTemplateDisplayName(t, template.id, template.name)}
                 </option>
               ))}
             </select>
@@ -701,7 +702,7 @@ export function DescriptionStep({
               </option>
               {groupChatRoleplayTemplates.map((template) => (
                 <option key={template.id} value={template.id} className="bg-surface-el text-fg">
-                  {template.name}
+                  {getPromptTemplateDisplayName(t, template.id, template.name)}
                 </option>
               ))}
             </select>
@@ -761,7 +762,7 @@ export function DescriptionStep({
               </option>
               {companionPromptTemplates.map((template) => (
                 <option key={template.id} value={template.id} className="bg-surface-el text-fg">
-                  {template.name}
+                  {getPromptTemplateDisplayName(t, template.id, template.name)}
                 </option>
               ))}
             </select>

@@ -16,6 +16,7 @@ import { listPromptTemplates } from "../../../core/prompts/service";
 import {
   APP_HELP_ME_REPLY_CONVERSATIONAL_TEMPLATE_ID,
   APP_HELP_ME_REPLY_TEMPLATE_ID,
+  getPromptTemplateDisplayName,
 } from "../../../core/prompts/constants";
 import type { Model, SystemPromptTemplate } from "../../../core/storage/schemas";
 import { cn, colors } from "../../design-tokens";
@@ -523,7 +524,7 @@ export function HelpMeReplyPage() {
                       <option value="">{t("helpMeReply.promptTemplates.useBuiltInDefault")}</option>
                       {conversationalTemplates.map((template) => (
                         <option key={template.id} value={template.id}>
-                          {template.name}
+                          {getPromptTemplateDisplayName(t, template.id, template.name)}
                         </option>
                       ))}
                     </select>
@@ -549,7 +550,7 @@ export function HelpMeReplyPage() {
                       <option value="">{t("helpMeReply.promptTemplates.useBuiltInDefault")}</option>
                       {roleplayTemplates.map((template) => (
                         <option key={template.id} value={template.id}>
-                          {template.name}
+                          {getPromptTemplateDisplayName(t, template.id, template.name)}
                         </option>
                       ))}
                     </select>

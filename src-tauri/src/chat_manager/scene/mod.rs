@@ -1763,7 +1763,7 @@ pub async fn chat_generate_scene_prompt(
         credential,
         &api_key,
         now_millis().unwrap_or(0),
-        UsageOperationType::ReplyHelper,
+        UsageOperationType::SceneGeneration,
         "scene_prompt",
     )
     .await;

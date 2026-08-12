@@ -39,6 +39,7 @@ import { hasLlmMetrics } from "../../../core/storage/metrics";
 import { useNavigationManager } from "../../navigation";
 import { isDevelopmentMode } from "../../../core/utils/env";
 import { openExternalUrl } from "../../../core/utils/openExternal";
+import { UPSTREAM_RELEASE_NOTES_ENABLED } from "../../../core/app-updates/config";
 
 interface NavItem {
   key: string;
@@ -373,20 +374,24 @@ export function SettingsLayout() {
         matchPath: "/settings/about",
         onSelect: () => navigate("/settings/about"),
       },
-      {
-        key: "whatsNew",
-        icon: <Sparkles />,
-        label: t("settings.items.whatsNew.title"),
-        matchPath: "__never__",
-        onSelect: () => window.dispatchEvent(new Event("whatsnew:open")),
-      },
-      {
-        key: "changelog",
-        icon: <ScrollText />,
-        label: t("settings.items.changelog.title"),
-        matchPath: "/settings/changelog",
-        onSelect: () => void openExternalUrl("https://www.lettuceai.app/changelog"),
-      },
+      ...(UPSTREAM_RELEASE_NOTES_ENABLED
+        ? [
+            {
+              key: "whatsNew",
+              icon: <Sparkles />,
+              label: t("settings.items.whatsNew.title"),
+              matchPath: "__never__",
+              onSelect: () => window.dispatchEvent(new Event("whatsnew:open")),
+            },
+            {
+              key: "changelog",
+              icon: <ScrollText />,
+              label: t("settings.items.changelog.title"),
+              matchPath: "/settings/changelog",
+              onSelect: () => void openExternalUrl("https://www.lettuceai.app/changelog"),
+            },
+          ]
+        : []),
       {
         key: "docs",
         icon: <HelpCircle />,

@@ -14,6 +14,8 @@ import {
   Upload,
   NotebookPen,
   Loader2,
+  CalendarClock,
+  Clock,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -66,7 +68,7 @@ import {
 } from "./components/ImportMemoryWindowSizeControl";
 import { CompanionScheduledNotesEditor } from "../characters/components/CompanionScheduledNotesEditor";
 import { CompanionTimeOverrideCard } from "./components/CompanionTimeOverrideCard";
-import { CalendarClock, Clock } from "lucide-react";
+import { CompanionCalendarSettings } from "./components/CompanionCalendarSettings";
 import { useI18n } from "../../../core/i18n/context";
 import { isRenderableImageUrl } from "../../../core/utils/image";
 
@@ -1244,6 +1246,11 @@ export function ChatSettingsContent({
                 session={currentSession ?? null}
                 onApply={handleApplyCompanionTimeOverride}
                 disabled={!currentSession}
+              />
+
+              <CompanionCalendarSettings
+                session={currentSession}
+                onSessionChange={setCurrentSession}
               />
 
               {characterId ? (

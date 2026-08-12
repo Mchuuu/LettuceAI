@@ -224,6 +224,7 @@ macro_rules! invoke_handler {
             crate::chat_manager::lorebook_generator::commands::lorebook_gen_cancel,
             crate::chat_manager::get_default_character_rules,
             crate::chat_manager::get_default_system_prompt_template,
+            crate::chat_manager::companion_calendar_upcoming,
             crate::chat_manager::search_messages,
             crate::chat_manager::chat_generate_user_reply,
             crate::chat_manager::retry_dynamic_memory,

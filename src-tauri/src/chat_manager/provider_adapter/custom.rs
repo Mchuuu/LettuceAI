@@ -34,6 +34,14 @@ impl CustomGenericAdapter {
             .unwrap_or(true)
     }
 
+    fn stream_usage_enabled(&self) -> bool {
+        self.credential_config
+            .as_ref()
+            .and_then(|v| v.get("streamUsageEnabled"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true)
+    }
+
     fn auth_mode(&self) -> String {
         self.config_value("authMode")
             .unwrap_or_else(|| "header".to_string())
@@ -255,6 +263,15 @@ impl ProviderAdapter for CustomGenericAdapter {
 
         let mut val = serde_json::to_value(request).unwrap();
 
+        if should_stream && self.stream_usage_enabled() {
+            if let Some(obj) = val.as_object_mut() {
+                obj.insert(
+                    "stream_options".to_string(),
+                    json!({ "include_usage": true }),
+                );
+            }
+        }
+
         // Inject chat_template_kwargs if explicitly enabled in provider config
         if self
             .credential_config
@@ -309,4 +326,58 @@ fn combine_same_role_messages(messages: &[Value]) -> Vec<Value> {
     }
 
     combined
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn request_body(config: Option<Value>, should_stream: bool) -> Value {
+        let adapter = CustomGenericAdapter {
+            credential_config: config,
+        };
+        let messages = vec![json!({ "role": "user", "content": "hello" })];
+
+        adapter.body(
+            "test-model",
+            &messages,
+            None,
+            None,
+            None,
+            1024,
+            None,
+            should_stream,
+            None,
+            None,
+            None,
+            None,
+            false,
+            None,
+            None,
+        )
+    }
+
+    #[test]
+    fn requests_usage_for_streaming_by_default() {
+        let body = request_body(None, true);
+
+        assert_eq!(
+            body.pointer("/stream_options/include_usage"),
+            Some(&json!(true))
+        );
+    }
+
+    #[test]
+    fn omits_stream_options_for_non_streaming_requests() {
+        let body = request_body(None, false);
+
+        assert!(body.get("stream_options").is_none());
+    }
+
+    #[test]
+    fn allows_stream_usage_reporting_to_be_disabled() {
+        let body = request_body(Some(json!({ "streamUsageEnabled": false })), true);
+
+        assert!(body.get("stream_options").is_none());
+    }
 }

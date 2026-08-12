@@ -1249,6 +1249,24 @@ export function ProvidersPage() {
                         }
                       />
                     </div>
+                    {editorProvider.providerId === "custom" && (
+                      <ToggleRow
+                        id="streamUsageEnabled"
+                        title={t("providers.editor.streamUsage")}
+                        description={t("providers.editor.streamUsageDesc")}
+                        checked={
+                          (customConfig.streamUsageEnabled as boolean | undefined) ?? true
+                        }
+                        onChange={(next) =>
+                          updateEditorProvider({
+                            config: {
+                              ...editorProvider.config,
+                              streamUsageEnabled: next,
+                            },
+                          })
+                        }
+                      />
+                    )}
                     <div className="flex items-center justify-between pt-1">
                       <span className="text-sm font-medium text-fg/70">
                         {t("providers.editor.mergeSameRoleMessages")}

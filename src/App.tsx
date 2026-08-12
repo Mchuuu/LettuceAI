@@ -122,6 +122,7 @@ import { V3UpgradeToast } from "./ui/components/V3UpgradeToast";
 import { ConfirmBottomMenuHost } from "./ui/components/ConfirmBottomMenu";
 import { getLastSeenAppVersion, isOnboardingCompleted } from "./core/storage/appState";
 import { WhatsNewDrawer, WHATS_NEW_OPEN_EVENT } from "./ui/pages/whats-new/WhatsNewPage";
+import { UPSTREAM_RELEASE_NOTES_ENABLED } from "./core/app-updates/config";
 import { TopNav, BottomNav, TitleBar, WindowResizeHandles } from "./ui/components/App";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen, UnlistenFn } from "@tauri-apps/api/event";
@@ -350,6 +351,7 @@ function App() {
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
 
   useEffect(() => {
+    if (!UPSTREAM_RELEASE_NOTES_ENABLED) return;
     const onOpen = () => setWhatsNewOpen(true);
     window.addEventListener(WHATS_NEW_OPEN_EVENT, onOpen);
     return () => window.removeEventListener(WHATS_NEW_OPEN_EVENT, onOpen);
@@ -602,7 +604,9 @@ function App() {
               }}
             />
             <ConfirmBottomMenuHost />
-            <WhatsNewDrawer isOpen={whatsNewOpen} onClose={() => setWhatsNewOpen(false)} />
+            {UPSTREAM_RELEASE_NOTES_ENABLED && (
+              <WhatsNewDrawer isOpen={whatsNewOpen} onClose={() => setWhatsNewOpen(false)} />
+            )}
             <DownloadQueueProvider>
               <AppContent />
             </DownloadQueueProvider>
@@ -1182,7 +1186,16 @@ function AppContent() {
                 />
                 <Route path="/settings/embedding-test" element={<EmbeddingTestPage />} />
                 <Route path="/settings/developer/kokoro-test" element={<KokoroTestPage />} />
-                <Route path="/settings/changelog" element={<ChangelogPage />} />
+                <Route
+                  path="/settings/changelog"
+                  element={
+                    UPSTREAM_RELEASE_NOTES_ENABLED ? (
+                      <ChangelogPage />
+                    ) : (
+                      <Navigate to="/settings/about" replace />
+                    )
+                  }
+                />
                 <Route path="/settings/help" element={<HelpPage />} />
                 <Route path="/settings/developer" element={<DeveloperPage />} />
                 <Route path="/settings/reset" element={<ResetPage />} />
@@ -1326,14 +1339,16 @@ function OnboardingCheck() {
         return;
       }
 
-      try {
-        const currentVersion = await invoke<string>("get_app_version");
-        const lastSeen = await getLastSeenAppVersion();
-        if (cancelled) return;
-        if (lastSeen !== currentVersion) {
-          window.dispatchEvent(new Event(WHATS_NEW_OPEN_EVENT));
-        }
-      } catch {}
+      if (UPSTREAM_RELEASE_NOTES_ENABLED) {
+        try {
+          const currentVersion = await invoke<string>("get_app_version");
+          const lastSeen = await getLastSeenAppVersion();
+          if (cancelled) return;
+          if (lastSeen !== currentVersion) {
+            window.dispatchEvent(new Event(WHATS_NEW_OPEN_EVENT));
+          }
+        } catch {}
+      }
 
       if (!cancelled) setIsChecking(false);
     };

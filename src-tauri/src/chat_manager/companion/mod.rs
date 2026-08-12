@@ -334,13 +334,39 @@ pub const CHANGEABLE_SOUL_CATEGORIES: &[&str] = &[
 
 pub const CORE_SOUL_CATEGORIES: &[&str] = &["essence", "traits"];
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+fn default_calendar_awareness_enabled() -> bool {
+    true
+}
+
+fn default_calendar_lookahead_days() -> u32 {
+    30
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompanionPreferences {
     #[serde(default)]
     pub time_awareness_enabled: bool,
+    #[serde(default = "default_calendar_awareness_enabled")]
+    pub calendar_awareness_enabled: bool,
+    #[serde(default)]
+    pub calendar_disabled_event_ids: Vec<String>,
+    #[serde(default = "default_calendar_lookahead_days")]
+    pub calendar_lookahead_days: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub time_override: Option<CompanionTimeOverridePref>,
+}
+
+impl Default for CompanionPreferences {
+    fn default() -> Self {
+        Self {
+            time_awareness_enabled: false,
+            calendar_awareness_enabled: true,
+            calendar_disabled_event_ids: Vec::new(),
+            calendar_lookahead_days: default_calendar_lookahead_days(),
+            time_override: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -1123,7 +1149,7 @@ fn default_state(config: &CompanionConfig) -> CompanionSessionState {
         active_signals: Vec::new(),
         preferences: CompanionPreferences {
             time_awareness_enabled: config.time_awareness || config.context.time_awareness,
-            time_override: None,
+            ..CompanionPreferences::default()
         },
         soul_growth: Vec::new(),
         updated_at: 0,

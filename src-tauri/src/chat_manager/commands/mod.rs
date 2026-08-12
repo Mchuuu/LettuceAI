@@ -1322,6 +1322,22 @@ pub async fn chat_generate_lorebook_keyword_draft(
 }
 
 #[tauri::command]
+pub fn companion_calendar_upcoming(
+    app: AppHandle,
+    session_id: String,
+    days: Option<u32>,
+) -> Result<Vec<super::calendar_context::CalendarEvent>, String> {
+    let session = session_get_meta_internal(&app, &session_id)?
+        .ok_or_else(|| crate::utils::err_msg(module_path!(), line!(), "Session not found"))?;
+    let lookahead_days =
+        days.unwrap_or_else(|| super::calendar_context::calendar_lookahead_days(&session));
+    Ok(super::calendar_context::upcoming_events_for_session(
+        &session,
+        lookahead_days,
+    ))
+}
+
+#[tauri::command]
 pub async fn search_messages(
     app: AppHandle,
     session_id: String,

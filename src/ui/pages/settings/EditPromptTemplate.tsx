@@ -91,6 +91,8 @@ import {
   APP_SCENE_PROMPT_WRITER_TEMPLATE_ID,
   APP_DESIGN_REFERENCE_TEMPLATE_ID,
   APP_COMPANION_SOUL_WRITER_TEMPLATE_ID,
+  getPromptTemplateDisplayName,
+  getPromptTypeName,
   isProtectedPromptTemplate,
 } from "../../../core/prompts/constants";
 
@@ -2473,59 +2475,6 @@ function PromptEntryListItem({
   );
 }
 
-const PROMPT_TYPE_NAME_KEYS: Partial<Record<PromptType, TranslationKey>> = {
-  undefined: "editPrompt.promptTypes.undefined",
-  directChat: "editPrompt.promptTypes.directChat",
-  companionChat: "editPrompt.promptTypes.companionChat",
-  groupChatRoleplay: "editPrompt.promptTypes.groupChatRoleplay",
-  groupChatConversational: "editPrompt.promptTypes.groupChatConversational",
-  dynamicMemorySummarizer: "editPrompt.promptTypes.dynamicMemorySummarizer",
-  dynamicMemoryManager: "editPrompt.promptTypes.dynamicMemoryManager",
-  replyHelperRoleplay: "editPrompt.promptTypes.replyHelperRoleplay",
-  replyHelperConversational: "editPrompt.promptTypes.replyHelperConversational",
-  avatarGeneration: "editPrompt.promptTypes.avatarGeneration",
-  avatarEditRequest: "editPrompt.promptTypes.avatarEditRequest",
-  sceneGeneration: "editPrompt.promptTypes.sceneGeneration",
-  scenePromptWriter: "editPrompt.promptTypes.scenePromptWriter",
-  designReferenceWriter: "editPrompt.promptTypes.designReferenceWriter",
-  companionSoulWriter: "editPrompt.promptTypes.companionSoulWriter",
-  lorebookEntryWriter: "editPrompt.promptTypes.lorebookEntryWriter",
-  lorebookKeywordGenerator: "editPrompt.promptTypes.lorebookKeywordGenerator",
-};
-
-export function getPromptTypeNameKey(type: PromptType): TranslationKey {
-  return PROMPT_TYPE_NAME_KEYS[type] ?? "editPrompt.promptTypes.undefined";
-}
-
-const PROMPT_TYPE_NAME_FALLBACKS: Partial<Record<PromptType, string>> = {
-  undefined: "Undefined",
-  directChat: "Direct Chat",
-  companionChat: "Companion Chat",
-  groupChatRoleplay: "Group Chat (Roleplay)",
-  groupChatConversational: "Group Chat (Conversation)",
-  dynamicMemorySummarizer: "Dynamic Memory Summarizer",
-  dynamicMemoryManager: "Dynamic Memory Manager",
-  replyHelperRoleplay: "Reply Helper (Roleplay)",
-  replyHelperConversational: "Reply Helper (Conversational)",
-  avatarGeneration: "Avatar Generation",
-  avatarEditRequest: "Avatar Edit Request",
-  sceneGeneration: "Scene Generation",
-  scenePromptWriter: "Scene Prompt Writer",
-  designReferenceWriter: "Design Reference Writer",
-  companionSoulWriter: "Companion Soul Writer",
-  lorebookEntryWriter: "Lorebook Entry Writer",
-  lorebookKeywordGenerator: "Lorebook Keyword Generator",
-};
-
-export function getPromptTypeName(type: PromptType): string;
-export function getPromptTypeName(t: Translate, type: PromptType): string;
-export function getPromptTypeName(arg1: Translate | PromptType, arg2?: PromptType): string {
-  if (typeof arg1 === "function") {
-    return arg1(getPromptTypeNameKey(arg2 as PromptType));
-  }
-  return PROMPT_TYPE_NAME_FALLBACKS[arg1] ?? PROMPT_TYPE_NAME_FALLBACKS.undefined ?? "Undefined";
-}
-
 function cloneTemplateEntries(entries: SystemPromptEntry[]): SystemPromptEntry[] {
   return entries.map((entry) => ({
     ...entry,
@@ -3014,7 +2963,9 @@ export function EditPromptTemplate() {
       return;
     }
 
-    const promptTypeName = name.trim() || getPromptTypeName(t, promptType);
+    const promptTypeName = id
+      ? getPromptTemplateDisplayName(t, id, name.trim() || getPromptTypeName(t, promptType))
+      : name.trim() || getPromptTypeName(t, promptType);
     const confirmed = await confirmBottomMenu({
       title: t("editPrompt.reset.title", { name: promptTypeName }),
       message: t("editPrompt.reset.message", { name: promptTypeName }),
@@ -3951,7 +3902,9 @@ export function EditPromptTemplate() {
                   )}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-fg">{template.name}</p>
+                    <p className="text-sm font-medium text-fg">
+                      {getPromptTemplateDisplayName(t, template.id, template.name)}
+                    </p>
                     <p className="mt-1 text-xs text-fg/45">
                       {getPromptTypeName(t, template.promptType)}
                     </p>

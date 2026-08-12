@@ -6,6 +6,7 @@ use tauri::AppHandle;
 use super::lorebook_matcher::{format_lorebook_for_prompt, get_active_lorebook_entries_for_ids};
 use super::prompts;
 use super::response_length;
+use crate::chat_manager::calendar_context;
 use crate::chat_manager::companion;
 use crate::chat_manager::execution::RequestSettings;
 use crate::chat_manager::memory::manual::{has_manual_memories, render_manual_memory_lines};
@@ -2792,6 +2793,20 @@ pub fn default_companion_entries() -> Vec<SystemPromptEntry> {
             prompt_entry_payload: None,
         },
         SystemPromptEntry {
+            id: calendar_context::PROMPT_ENTRY_ID.to_string(),
+            name: "日历上下文".to_string(),
+            role: PromptEntryRole::System,
+            content: calendar_context::DEFAULT_PROMPT_TEMPLATE.to_string(),
+            enabled: true,
+            injection_position: PromptEntryPosition::Relative,
+            injection_depth: 0,
+            conditional_min_messages: None,
+            interval_turns: None,
+            system_prompt: false,
+            conditions: None,
+            prompt_entry_payload: None,
+        },
+        SystemPromptEntry {
             id: "companion_memory".to_string(),
             name: "Continuity".to_string(),
             role: PromptEntryRole::System,
@@ -3380,6 +3395,14 @@ pub fn build_system_prompt_entries(
         .as_ref()
         .map(|value| !value.trim().is_empty())
         .unwrap_or(false);
+    let calendar_prompt_data = if companion_mode {
+        calendar_context::prompt_data(session)
+    } else {
+        None
+    };
+    let calendar_context_text = calendar_prompt_data
+        .as_ref()
+        .map(calendar_context::CalendarPromptData::render_default_context);
     let scheduled_notes_text = if companion_mode {
         crate::storage_manager::companion_scheduled_notes::render_scheduled_notes_block(
             app,
@@ -3453,7 +3476,13 @@ pub fn build_system_prompt_entries(
     };
 
     let mut rendered_entries: Vec<SystemPromptEntry> = Vec::new();
+    let template_has_calendar_placeholders = base_entries
+        .iter()
+        .any(|entry| calendar_context::contains_prompt_placeholder(&entry.content));
     for entry in base_entries.iter() {
+        if entry.id == calendar_context::PROMPT_ENTRY_ID && calendar_prompt_data.is_none() {
+            continue;
+        }
         if !entry_is_active(entry, &condition_context) {
             continue;
         }
@@ -3624,6 +3653,25 @@ pub fn build_system_prompt_entries(
         }
     }
 
+    if !template_has_calendar_placeholders {
+        if let Some(calendar_context) = calendar_context_text.as_deref() {
+            rendered_entries.push(SystemPromptEntry {
+                id: "entry_calendar_context".to_string(),
+                name: "Calendar Context".to_string(),
+                role: PromptEntryRole::System,
+                content: calendar_context.to_string(),
+                enabled: true,
+                injection_position: PromptEntryPosition::Relative,
+                injection_depth: 0,
+                conditional_min_messages: None,
+                interval_turns: None,
+                system_prompt: true,
+                conditions: None,
+                prompt_entry_payload: None,
+            });
+        }
+    }
+
     if condense_prompt_entries {
         rendered_entries = condense_entries_into_single_system_message(rendered_entries);
     }
@@ -3633,6 +3681,7 @@ pub fn build_system_prompt_entries(
         "memories_count": session.memories.len(),
         "author_note_chars": author_note_text.as_ref().map(|value| value.len()).unwrap_or(0),
         "companion_state_chars": companion_state_text.as_ref().map(|value| value.len()).unwrap_or(0),
+        "calendar_context_chars": calendar_context_text.as_ref().map(|value| value.len()).unwrap_or(0),
         "scheduled_notes_chars": scheduled_notes_text.as_ref().map(|value| value.len()).unwrap_or(0),
     }));
 
@@ -4105,6 +4154,12 @@ pub fn render_with_context_internal(
     for (placeholder, value) in time_placeholder_values(reference_ms) {
         result = result.replace(placeholder, &value);
     }
+    let calendar_prompt_data = if companion::is_companion_mode(session, character) {
+        calendar_context::prompt_data(session)
+    } else {
+        None
+    };
+    result = calendar_context::render_prompt_variables(&result, calendar_prompt_data.as_ref());
     let author_note_text = render_author_note_text(character, persona, session).unwrap_or_default();
     let companion_state_text =
         companion::render_prompt_state(session, character, persona).unwrap_or_default();

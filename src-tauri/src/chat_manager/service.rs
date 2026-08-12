@@ -488,9 +488,19 @@ pub async fn record_usage_if_available(
     operation_type: UsageOperationType,
     log_scope: &str,
 ) {
-    let Some(usage_info) = usage else {
-        return;
-    };
+    let usage_info = usage.as_ref();
+    let mut metadata = std::collections::HashMap::new();
+    if usage_info.is_none() {
+        metadata.insert("usage_reported".to_string(), "false".to_string());
+        log_warn(
+            context.app(),
+            log_scope,
+            format!(
+                "provider returned no token usage; recording successful request without totals: provider={} model={}",
+                credential.provider_id, model.name
+            ),
+        );
+    }
 
     let mut request_usage = RequestUsage {
         id: Uuid::new_v4().to_string(),
@@ -504,25 +514,24 @@ pub async fn record_usage_if_available(
         provider_label: credential.label.clone(),
         operation_type,
         finish_reason: usage_info
-            .finish_reason
-            .as_ref()
+            .and_then(|info| info.finish_reason.as_ref())
             .and_then(|s| UsageFinishReason::from_str(s)),
-        prompt_tokens: usage_info.prompt_tokens,
-        completion_tokens: usage_info.completion_tokens,
-        total_tokens: usage_info.total_tokens,
-        cached_prompt_tokens: usage_info.cached_prompt_tokens,
-        cache_write_tokens: usage_info.cache_write_tokens,
+        prompt_tokens: usage_info.and_then(|info| info.prompt_tokens),
+        completion_tokens: usage_info.and_then(|info| info.completion_tokens),
+        total_tokens: usage_info.and_then(|info| info.total_tokens),
+        cached_prompt_tokens: usage_info.and_then(|info| info.cached_prompt_tokens),
+        cache_write_tokens: usage_info.and_then(|info| info.cache_write_tokens),
         memory_tokens: None,
         summary_tokens: None,
-        reasoning_tokens: usage_info.reasoning_tokens,
-        image_tokens: usage_info.image_tokens,
-        audio_tokens: usage_info.audio_tokens,
-        web_search_requests: usage_info.web_search_requests,
-        api_cost: usage_info.api_cost,
+        reasoning_tokens: usage_info.and_then(|info| info.reasoning_tokens),
+        image_tokens: usage_info.and_then(|info| info.image_tokens),
+        audio_tokens: usage_info.and_then(|info| info.audio_tokens),
+        web_search_requests: usage_info.and_then(|info| info.web_search_requests),
+        api_cost: usage_info.and_then(|info| info.api_cost),
         cost: None,
         success: true,
         error_message: None,
-        metadata: Default::default(),
+        metadata,
     };
 
     // Calculate memory and summary token counts only when dynamic memory is active.
@@ -552,22 +561,24 @@ pub async fn record_usage_if_available(
         }
     }
 
-    if credential.provider_id.eq_ignore_ascii_case("openrouter") {
-        apply_openrouter_cost_to_usage(
-            context.app(),
-            &mut request_usage,
-            usage_info,
-            &model.name,
-            api_key,
-            log_scope,
-        )
-        .await;
-    } else if usage_info.cached_prompt_tokens.is_some()
-        || usage_info.cache_write_tokens.is_some()
-        || usage_info.web_search_requests.is_some()
-        || usage_info.api_cost.is_some()
-    {
-        insert_extended_usage_metadata(&mut request_usage.metadata, usage_info);
+    if let Some(usage_info) = usage_info {
+        if credential.provider_id.eq_ignore_ascii_case("openrouter") {
+            apply_openrouter_cost_to_usage(
+                context.app(),
+                &mut request_usage,
+                usage_info,
+                &model.name,
+                api_key,
+                log_scope,
+            )
+            .await;
+        } else if usage_info.cached_prompt_tokens.is_some()
+            || usage_info.cache_write_tokens.is_some()
+            || usage_info.web_search_requests.is_some()
+            || usage_info.api_cost.is_some()
+        {
+            insert_extended_usage_metadata(&mut request_usage.metadata, usage_info);
+        }
     }
 
     if let Err(err) = add_usage_record(context.app(), request_usage) {

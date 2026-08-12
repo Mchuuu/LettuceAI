@@ -42,6 +42,7 @@ import {
 } from "../chats/components/widgets/editor/widgetFactories";
 import type { WidgetNode } from "../../../core/storage/chatWidgetSchemas";
 import { splitThinkTags } from "../../../core/utils/thinkTags";
+import { useGroupMessageAudioController } from "./hooks/useGroupMessageAudioController";
 
 import { Routes } from "../../navigation";
 import { useBeetrootRain } from "../chats/components/BeetrootRain";
@@ -203,6 +204,26 @@ export function GroupChatPage() {
     appearanceFieldUpdater,
     registerAppearanceFieldUpdater,
   } = useGroupChatLayoutContext();
+  const {
+    audioStatusByMessage,
+    playMessageAudio,
+    autoplayMessageAudio,
+    autoplayLatestMessageAudio,
+    stopMessageAudio,
+    cancelMessageAudio,
+    getMessageCharacter,
+  } = useGroupMessageAudioController({ scopeKey: groupSessionId, characters });
+  const handlePlayMessageAudio = useCallback(
+    async (message: GroupMessage, text: string) => {
+      try {
+        await playMessageAudio(message, text);
+      } catch (err) {
+        console.error("GroupChatPage: failed to play message audio", err);
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [playMessageAudio],
+  );
   const helpMeReplyEnabled = settings?.advancedSettings?.helpMeReplyEnabled ?? true;
 
   // Get current persona
@@ -703,6 +724,7 @@ export function GroupChatPage() {
       console.log("🔍 Last message modelId:", updatedMessages[updatedMessages.length - 1]?.modelId);
       setMessages(updatedMessages);
       setParticipationStats(response.participationStats);
+      autoplayLatestMessageAudio(updatedMessages);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       if (isAbortMessage(errMsg)) {
@@ -737,7 +759,15 @@ export function GroupChatPage() {
       setSelectedCharacterName(null);
       setSelectedCharacterAvatarUrl(null);
     }
-  }, [groupSessionId, draft, sending, messages.length, scrollToBottom, triggerTypingHaptic]);
+  }, [
+    autoplayLatestMessageAudio,
+    groupSessionId,
+    draft,
+    sending,
+    messages.length,
+    scrollToBottom,
+    triggerTypingHaptic,
+  ]);
 
   const handleRegenerate = useCallback(
     async (messageId: string, forceCharacterId?: string) => {
@@ -803,6 +833,7 @@ export function GroupChatPage() {
         );
         setMessages(updatedMessages);
         setParticipationStats(response.participationStats);
+        autoplayMessageAudio(updatedMessages.find((message) => message.id === messageId));
       } catch (err) {
         console.error("Failed to regenerate:", err);
         const errMsg = err instanceof Error ? err.message : String(err);
@@ -825,7 +856,7 @@ export function GroupChatPage() {
         }
       }
     },
-    [groupSessionId, regeneratingMessageId, triggerTypingHaptic],
+    [autoplayMessageAudio, groupSessionId, regeneratingMessageId, triggerTypingHaptic],
   );
 
   const handleContinue = useCallback(
@@ -915,6 +946,7 @@ export function GroupChatPage() {
         );
         setMessages(updatedMessages);
         setParticipationStats(response.participationStats);
+        autoplayLatestMessageAudio(updatedMessages);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
         if (isAbortMessage(errMsg)) {
@@ -948,7 +980,14 @@ export function GroupChatPage() {
         setSelectedCharacterAvatarUrl(null);
       }
     },
-    [groupSessionId, sending, messages.length, scrollToBottom, triggerTypingHaptic],
+    [
+      autoplayLatestMessageAudio,
+      groupSessionId,
+      sending,
+      messages.length,
+      scrollToBottom,
+      triggerTypingHaptic,
+    ],
   );
 
   const handleAbort = useCallback(async () => {
@@ -1028,14 +1067,6 @@ export function GroupChatPage() {
   useEffect(() => {
     setDirectorSelectedId(null);
   }, [isDirectorMode, directorBehavior]);
-
-  const getCharacterById = useCallback(
-    (characterId?: string | null): Character | undefined => {
-      if (!characterId) return undefined;
-      return characters.find((c) => c.id === characterId);
-    },
-    [characters],
-  );
 
   // Variant state management for drag-to-change-variants
   const getVariantState = useCallback((message: GroupMessage): VariantState => {
@@ -2226,7 +2257,7 @@ export function GroupChatPage() {
                             heldMessageId={heldMessageId}
                             regeneratingMessageId={regeneratingMessageId}
                             sending={sending}
-                            character={getCharacterById(message.speakerCharacterId)}
+                            character={getMessageCharacter(message)}
                             persona={currentPersona}
                             characters={groupCharacters}
                             theme={theme}
@@ -2238,6 +2269,10 @@ export function GroupChatPage() {
                             }}
                             onLongPress={(msg) => openMessageActions(msg)}
                             displayContent={parsed.content}
+                            audioStatus={audioStatusByMessage[message.id]}
+                            onPlayAudio={handlePlayMessageAudio}
+                            onStopAudio={stopMessageAudio}
+                            onCancelAudio={cancelMessageAudio}
                             reasoning={combinedReasoning || undefined}
                           />
                         );

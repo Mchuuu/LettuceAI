@@ -1161,6 +1161,16 @@ pub fn ensure_companion_template(app: &AppHandle) -> Result<String, String> {
             PromptType::CompanionPrompt,
             defaults.clone(),
         );
+        let _ = append_missing_entry(
+            app,
+            APP_COMPANION_TEMPLATE_ID,
+            crate::chat_manager::calendar_context::PROMPT_ENTRY_ID,
+            defaults
+                .iter()
+                .find(|entry| entry.id == crate::chat_manager::calendar_context::PROMPT_ENTRY_ID)
+                .cloned()
+                .expect("companion calendar entry should exist"),
+        );
         let _ = backfill_missing_entry_conditions(app, APP_COMPANION_TEMPLATE_ID, &defaults);
         return Ok(existing.id);
     }

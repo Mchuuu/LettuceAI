@@ -1761,7 +1761,7 @@ pub async fn chat_generate_lorebook_entry_draft(
                 credential,
                 &api_key,
                 now_millis().unwrap_or(0),
-                UsageOperationType::ReplyHelper,
+                UsageOperationType::LorebookGeneration,
                 "lorebook_entry_generator",
             )
             .await;
@@ -1829,7 +1829,7 @@ pub async fn chat_generate_lorebook_entry_draft(
         credential,
         &api_key,
         now_millis().unwrap_or(0),
-        UsageOperationType::ReplyHelper,
+        UsageOperationType::LorebookGeneration,
         "lorebook_entry_generator_fallback",
     )
     .await;

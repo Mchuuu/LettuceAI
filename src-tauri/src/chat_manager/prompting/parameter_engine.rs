@@ -145,6 +145,26 @@ fn direct_chat_variables() -> Vec<PromptVariableDefinition> {
     ]
 }
 
+fn companion_calendar_variables() -> Vec<PromptVariableDefinition> {
+    vec![
+        variable(
+            "{{calendar_date}}",
+            "Calendar Date",
+            "Current companion calendar date with weekday.",
+        ),
+        variable(
+            "{{calendar_lookahead_days}}",
+            "Calendar Lookahead Days",
+            "Configured number of upcoming calendar days.",
+        ),
+        variable(
+            "{{calendar_events}}",
+            "Calendar Events",
+            "Enabled upcoming festivals and solar terms with dates and weekdays.",
+        ),
+    ]
+}
+
 fn group_chat_conversational_variables() -> Vec<PromptVariableDefinition> {
     vec![
         variable(
@@ -725,6 +745,7 @@ pub fn allowed_variables_for_prompt_type(
         PromptTemplateType::Undefined => dedupe_variables([
             time_variables(),
             direct_chat_variables(),
+            companion_calendar_variables(),
             group_chat_conversational_variables(),
             group_chat_roleplay_variables(),
             dynamic_memory_summarizer_variables(),
@@ -740,9 +761,11 @@ pub fn allowed_variables_for_prompt_type(
         PromptTemplateType::DirectChat => {
             dedupe_variables([time_variables(), direct_chat_variables()])
         }
-        PromptTemplateType::CompanionChat => {
-            dedupe_variables([time_variables(), direct_chat_variables()])
-        }
+        PromptTemplateType::CompanionChat => dedupe_variables([
+            time_variables(),
+            direct_chat_variables(),
+            companion_calendar_variables(),
+        ]),
         PromptTemplateType::GroupChatRoleplay => {
             dedupe_variables([time_variables(), group_chat_roleplay_variables()])
         }
@@ -989,4 +1012,33 @@ pub fn build_parameter_engine() -> PromptParameterEngine {
     .collect();
 
     PromptParameterEngine { prompt_types }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn variable_names(prompt_type: PromptTemplateType) -> Vec<String> {
+        allowed_variables_for_prompt_type(prompt_type)
+            .into_iter()
+            .map(|definition| definition.variable)
+            .collect()
+    }
+
+    #[test]
+    fn calendar_variables_are_optional_and_companion_scoped() {
+        let companion = variable_names(PromptTemplateType::CompanionChat);
+        let direct = variable_names(PromptTemplateType::DirectChat);
+        let required = required_variables_for_prompt_type(PromptTemplateType::CompanionChat);
+
+        for variable in [
+            "{{calendar_date}}",
+            "{{calendar_lookahead_days}}",
+            "{{calendar_events}}",
+        ] {
+            assert!(companion.iter().any(|item| item == variable));
+            assert!(!direct.iter().any(|item| item == variable));
+            assert!(!required.iter().any(|item| item == variable));
+        }
+    }
 }

@@ -912,6 +912,9 @@ export function DeveloperPage() {
         soulGrowth: [],
         preferences: {
           timeAwarenessEnabled: true,
+          calendarAwarenessEnabled: true,
+          calendarDisabledEventIds: [],
+          calendarLookaheadDays: 30,
         },
         updatedAt: lastMessageAt,
       };
@@ -1264,6 +1267,9 @@ export function DeveloperPage() {
           activeSignals: ["cozy", "attentive", "shared_history"],
           preferences: {
             timeAwarenessEnabled: true,
+            calendarAwarenessEnabled: true,
+            calendarDisabledEventIds: [],
+            calendarLookaheadDays: 30,
           },
           updatedAt: timestamps.lastSaturday + 60_000,
         },

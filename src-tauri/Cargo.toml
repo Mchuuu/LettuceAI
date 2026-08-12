@@ -1,6 +1,6 @@
 [package]
 name = "lettuceai"
-version = "1.2.8"
+version = "1.2.9"
 description = "LettuceAI mobile AI roleplaying app."
 authors = ["MegalithOfficial"]
 edition = "2021"
@@ -60,6 +60,7 @@ base64 = "0.22"
 tauri-plugin-process = "2"
 tokio = { version = "1", features = ["fs", "io-util", "macros", "net", "process", "rt-multi-thread", "sync", "time"] }
 chrono = "0.4"
+tyme4rs = "1.5.0"
 regex = "1"
 quick-xml = "0.38.4"
 image = { version = "0.25", default-features = false, features = ["webp", "png", "jpeg"] }

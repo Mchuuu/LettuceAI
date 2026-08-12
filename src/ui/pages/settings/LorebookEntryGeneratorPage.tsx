@@ -12,6 +12,7 @@ import { listPromptTemplates } from "../../../core/prompts/service";
 import {
   APP_LOREBOOK_ENTRY_WRITER_TEMPLATE_ID,
   APP_LOREBOOK_KEYWORD_GENERATOR_TEMPLATE_ID,
+  getPromptTemplateDisplayName,
 } from "../../../core/prompts/constants";
 import { getProviderIcon } from "../../../core/utils/providerIcons";
 import { cn } from "../../design-tokens";
@@ -286,7 +287,7 @@ export function LorebookEntryGeneratorPage() {
                     .filter((template) => template.id !== APP_LOREBOOK_ENTRY_WRITER_TEMPLATE_ID)
                     .map((template) => (
                       <option key={template.id} value={template.id}>
-                        {template.name}
+                        {getPromptTemplateDisplayName(t, template.id, template.name)}
                       </option>
                     ))}
                 </select>
@@ -315,7 +316,7 @@ export function LorebookEntryGeneratorPage() {
                     .filter((template) => template.id !== APP_LOREBOOK_KEYWORD_GENERATOR_TEMPLATE_ID)
                     .map((template) => (
                       <option key={template.id} value={template.id}>
-                        {template.name}
+                        {getPromptTemplateDisplayName(t, template.id, template.name)}
                       </option>
                     ))}
                 </select>

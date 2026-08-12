@@ -30,6 +30,7 @@ import { isDevelopmentMode } from "../../../core/utils/env";
 import { openExternalUrl } from "../../../core/utils/openExternal";
 import { useNavigationManager } from "../../navigation";
 import { useI18n } from "../../../core/i18n/context";
+import { UPSTREAM_RELEASE_NOTES_ENABLED } from "../../../core/app-updates/config";
 
 interface Item {
   key: string;
@@ -337,7 +338,15 @@ export function SettingsPage() {
       {
         key: "support",
         label: t("settings.sections.supportInfo"),
-        keys: ["help", "whatsNew", "about", "changelog", "docs", "logs", "guide"],
+        keys: [
+          "help",
+          ...(UPSTREAM_RELEASE_NOTES_ENABLED ? ["whatsNew"] : []),
+          "about",
+          ...(UPSTREAM_RELEASE_NOTES_ENABLED ? ["changelog"] : []),
+          "docs",
+          "logs",
+          "guide",
+        ],
       },
       {
         key: "danger",

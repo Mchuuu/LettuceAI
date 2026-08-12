@@ -3527,6 +3527,9 @@ export const CompanionSessionStateSchema = z.object({
   preferences: z
     .object({
       timeAwarenessEnabled: z.boolean().default(false),
+      calendarAwarenessEnabled: z.boolean().default(true),
+      calendarDisabledEventIds: z.array(z.string()).default([]),
+      calendarLookaheadDays: z.number().int().min(1).max(90).default(30),
       timeOverride: z
         .object({
           mode: z.enum(["off", "frozen", "ticking"]).default("off"),
@@ -3537,6 +3540,9 @@ export const CompanionSessionStateSchema = z.object({
     })
     .default({
       timeAwarenessEnabled: false,
+      calendarAwarenessEnabled: true,
+      calendarDisabledEventIds: [],
+      calendarLookaheadDays: 30,
     }),
   updatedAt: z.number().int().default(0),
 });

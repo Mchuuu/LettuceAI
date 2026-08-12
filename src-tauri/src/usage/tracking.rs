@@ -14,6 +14,10 @@ pub enum UsageOperationType {
     ImageGeneration,
     AICreator,
     ReplyHelper,
+    CompanionState,
+    CompanionSoulWriter,
+    SceneGeneration,
+    LorebookGeneration,
     GroupChatMessage,
     GroupChatRegenerate,
     GroupChatContinue,
@@ -31,6 +35,10 @@ impl UsageOperationType {
             "image_generation" | "image generation" => Some(Self::ImageGeneration),
             "ai_creator" | "ai creator" => Some(Self::AICreator),
             "reply_helper" => Some(Self::ReplyHelper),
+            "companion_state" | "companion state" => Some(Self::CompanionState),
+            "companion_soul_writer" | "companion soul writer" => Some(Self::CompanionSoulWriter),
+            "scene_generation" | "scene generation" => Some(Self::SceneGeneration),
+            "lorebook_generation" | "lorebook generation" => Some(Self::LorebookGeneration),
             "group_chat_message" | "group_chat" => Some(Self::GroupChatMessage),
             "group_chat_regenerate" => Some(Self::GroupChatRegenerate),
             "group_chat_continue" => Some(Self::GroupChatContinue),
@@ -49,6 +57,10 @@ impl UsageOperationType {
             Self::ImageGeneration => "image_generation",
             Self::AICreator => "ai_creator",
             Self::ReplyHelper => "reply_helper",
+            Self::CompanionState => "companion_state",
+            Self::CompanionSoulWriter => "companion_soul_writer",
+            Self::SceneGeneration => "scene_generation",
+            Self::LorebookGeneration => "lorebook_generation",
             Self::GroupChatMessage => "group_chat_message",
             Self::GroupChatRegenerate => "group_chat_regenerate",
             Self::GroupChatContinue => "group_chat_continue",
@@ -60,6 +72,29 @@ impl UsageOperationType {
 impl fmt::Display for UsageOperationType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
+    }
+}
+
+#[cfg(test)]
+mod operation_type_tests {
+    use super::UsageOperationType;
+
+    #[test]
+    fn operation_types_round_trip_through_storage_names() {
+        let cases = [
+            UsageOperationType::ReplyHelper,
+            UsageOperationType::CompanionState,
+            UsageOperationType::CompanionSoulWriter,
+            UsageOperationType::SceneGeneration,
+            UsageOperationType::LorebookGeneration,
+        ];
+
+        for operation in cases {
+            assert_eq!(
+                UsageOperationType::from_str(operation.as_str()),
+                Some(operation)
+            );
+        }
     }
 }
 
