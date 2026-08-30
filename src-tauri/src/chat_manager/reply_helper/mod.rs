@@ -266,7 +266,7 @@ pub async fn chat_generate_user_reply(
         request_settings.presence_penalty,
         request_settings.top_k,
         None,
-        request_settings.reasoning_enabled,
+        request_settings.reasoning_mode,
         request_settings.reasoning_effort.clone(),
         request_settings.reasoning_budget,
         request_settings.prompt_caching_enabled.unwrap_or(false),

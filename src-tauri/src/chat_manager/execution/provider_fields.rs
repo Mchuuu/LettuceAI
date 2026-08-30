@@ -1,7 +1,8 @@
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
 
-use crate::chat_manager::types::{Model, Session, Settings};
+use crate::chat_manager::reasoning::ReasoningMode;
+use crate::chat_manager::types::{AdvancedModelSettings, Model, Session, Settings};
 
 use super::{
     is_llama_cpp_model, llama_pin_overridden_by_multi_gpu, llama_sampler_profile_defaults,
@@ -544,18 +545,19 @@ fn build_ollama_extra_fields(
     Some(extra)
 }
 
-fn resolve_reasoning_enabled(session: &Session, model: &Model, _settings: &Settings) -> bool {
-    session
-        .advanced_model_settings
-        .as_ref()
-        .and_then(|cfg| cfg.reasoning_enabled)
-        .or_else(|| {
-            model
-                .advanced_model_settings
-                .as_ref()
-                .and_then(|cfg| cfg.reasoning_enabled)
-        })
-        .unwrap_or(false)
+fn explicit_reasoning_mode(settings: Option<&AdvancedModelSettings>) -> Option<ReasoningMode> {
+    settings.and_then(|settings| {
+        ReasoningMode::from_settings(
+            settings.reasoning_mode.as_deref(),
+            settings.reasoning_enabled,
+        )
+    })
+}
+
+fn resolve_reasoning_mode(session: &Session, model: &Model, _settings: &Settings) -> ReasoningMode {
+    explicit_reasoning_mode(session.advanced_model_settings.as_ref())
+        .or_else(|| explicit_reasoning_mode(model.advanced_model_settings.as_ref()))
+        .unwrap_or(ReasoningMode::ProviderDefault)
 }
 
 fn resolve_reasoning_effort(
@@ -563,16 +565,19 @@ fn resolve_reasoning_effort(
     model: &Model,
     _settings: &Settings,
 ) -> Option<String> {
-    session
-        .advanced_model_settings
-        .as_ref()
-        .and_then(|cfg| cfg.reasoning_effort.clone())
-        .or_else(|| {
-            model
+    let session_effort = explicit_reasoning_mode(session.advanced_model_settings.as_ref())
+        .and_then(|_| {
+            session
                 .advanced_model_settings
                 .as_ref()
                 .and_then(|cfg| cfg.reasoning_effort.clone())
-        })
+        });
+    session_effort.or_else(|| {
+        model
+            .advanced_model_settings
+            .as_ref()
+            .and_then(|cfg| cfg.reasoning_effort.clone())
+    })
 }
 
 fn resolve_reasoning_budget(
@@ -581,16 +586,19 @@ fn resolve_reasoning_budget(
     _settings: &Settings,
     reasoning_effort: Option<&str>,
 ) -> Option<u32> {
-    let explicit_budget = session
-        .advanced_model_settings
-        .as_ref()
-        .and_then(|cfg| cfg.reasoning_budget_tokens)
-        .or_else(|| {
-            model
+    let session_budget = explicit_reasoning_mode(session.advanced_model_settings.as_ref())
+        .and_then(|_| {
+            session
                 .advanced_model_settings
                 .as_ref()
                 .and_then(|cfg| cfg.reasoning_budget_tokens)
         });
+    let explicit_budget = session_budget.or_else(|| {
+        model
+            .advanced_model_settings
+            .as_ref()
+            .and_then(|cfg| cfg.reasoning_budget_tokens)
+    });
 
     if explicit_budget.is_some() {
         return explicit_budget;
@@ -604,6 +612,20 @@ fn resolve_reasoning_budget(
     })
 }
 
+fn resolve_web_search_enabled(session: &Session, model: &Model) -> bool {
+    session
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|settings| settings.web_search_enabled)
+        .or_else(|| {
+            model
+                .advanced_model_settings
+                .as_ref()
+                .and_then(|settings| settings.web_search_enabled)
+        })
+        .unwrap_or(false)
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct RequestSettings {
     pub(crate) temperature: Option<f64>,
@@ -613,14 +635,17 @@ pub(crate) struct RequestSettings {
     pub(crate) frequency_penalty: Option<f64>,
     pub(crate) presence_penalty: Option<f64>,
     pub(crate) top_k: Option<u32>,
+    pub(crate) reasoning_mode: ReasoningMode,
     pub(crate) reasoning_enabled: bool,
     pub(crate) reasoning_effort: Option<String>,
     pub(crate) reasoning_budget: Option<u32>,
     pub(crate) prompt_caching_enabled: Option<bool>,
+    pub(crate) web_search_enabled: bool,
 }
 
 impl RequestSettings {
     pub(crate) fn resolve(session: &Session, model: &Model, settings: &Settings) -> Self {
+        let reasoning_mode = resolve_reasoning_mode(session, model, settings);
         let reasoning_effort = resolve_reasoning_effort(session, model, settings);
         Self {
             temperature: resolve_temperature(session, model, settings),
@@ -630,7 +655,8 @@ impl RequestSettings {
             frequency_penalty: resolve_frequency_penalty(session, model, settings),
             presence_penalty: resolve_presence_penalty(session, model, settings),
             top_k: resolve_top_k(session, model, settings),
-            reasoning_enabled: resolve_reasoning_enabled(session, model, settings),
+            reasoning_mode,
+            reasoning_enabled: reasoning_mode.enables_legacy_adapter(),
             reasoning_budget: resolve_reasoning_budget(
                 session,
                 model,
@@ -642,6 +668,7 @@ impl RequestSettings {
                 .advanced_model_settings
                 .as_ref()
                 .and_then(|s| s.prompt_caching_enabled),
+            web_search_enabled: resolve_web_search_enabled(session, model),
         }
     }
 
@@ -663,10 +690,12 @@ impl RequestSettings {
             frequency_penalty,
             presence_penalty,
             top_k,
+            reasoning_mode: ReasoningMode::Disabled,
             reasoning_enabled: false,
             reasoning_effort: None,
             reasoning_budget: None,
             prompt_caching_enabled,
+            web_search_enabled: false,
         }
     }
 }

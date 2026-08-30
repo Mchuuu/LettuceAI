@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { widgetNodeSchema } from "./chatWidgetSchemas";
+import { REASONING_EFFORTS, REASONING_MODES } from "../models/reasoning";
 export type {
   WidgetNode,
   BoxVariant,
@@ -268,9 +269,9 @@ export const PromptTypeDefinitionSchema = z.object({
   label: z.string().min(1),
   allowedVariables: z.array(PromptVariableDefinitionSchema).default([]),
   requiredVariables: z.array(z.string()).default([]),
-  allowedImageSlots: z.array(
-    z.enum(["character", "persona", "chatBackground", "avatar", "references"]),
-  ).default([]),
+  allowedImageSlots: z
+    .array(z.enum(["character", "persona", "chatBackground", "avatar", "references"]))
+    .default([]),
 });
 export type PromptTypeDefinition = z.infer<typeof PromptTypeDefinitionSchema>;
 
@@ -411,10 +412,7 @@ export const AdvancedModelSettingsSchema = z.object({
   temperature: z.number().min(0).max(2).nullable().optional(),
   topP: z.number().min(0).max(1).nullable().optional(),
   maxOutputTokens: z.number().int().min(1).nullable().optional(),
-  responseLengthPreset: z
-    .enum(["auto", "short", "medium", "long", "custom"])
-    .nullable()
-    .optional(),
+  responseLengthPreset: z.enum(["auto", "short", "medium", "long", "custom"]).nullable().optional(),
   responseLengthChars: z.number().int().min(20).max(2000).nullable().optional(),
   contextLength: z.number().int().min(0).nullable().optional(),
   frequencyPenalty: z.number().min(-2).max(2).nullable().optional(),
@@ -440,7 +438,9 @@ export const AdvancedModelSettingsSchema = z.object({
     .nullable()
     .optional(),
   llamaGpuManualLayers: z
-    .array(z.object({ deviceId: z.number().int().min(0), layers: z.number().int().min(0).max(512) }))
+    .array(
+      z.object({ deviceId: z.number().int().min(0), layers: z.number().int().min(0).max(512) }),
+    )
     .nullable()
     .optional(),
   llamaCpuLayers: z.number().int().min(0).max(512).nullable().optional(),
@@ -519,13 +519,16 @@ export const AdvancedModelSettingsSchema = z.object({
   ollamaSeed: z.number().int().min(0).max(2_147_483_647).nullable().optional(),
   ollamaStop: z.array(z.string().min(1)).nullable().optional(),
   // Reasoning/thinking settings
+  reasoningMode: z.enum(REASONING_MODES).nullable().optional(),
   reasoningEnabled: z.boolean().nullable().optional(),
-  reasoningEffort: z.enum(["low", "medium", "high"]).nullable().optional(),
+  reasoningEffort: z.enum(REASONING_EFFORTS).nullable().optional(),
   reasoningBudgetTokens: z.number().int().min(1024).nullable().optional(),
   forceSendThinkingState: z.boolean().nullable().optional(),
   // Caching settings
   promptCachingEnabled: z.boolean().nullable().optional(),
   promptCachingTtl: z.string().nullish().optional(),
+  // Provider-native web search. Session values may be null to inherit from the model.
+  webSearchEnabled: z.boolean().nullable().optional(),
   openRouterProvider: z
     .object({
       id: z.string().trim().min(1),
@@ -728,6 +731,14 @@ export const PROVIDER_REASONING_CAPABILITIES: Record<string, ReasoningCapability
       { value: "high", label: "High", description: "Deep reasoning" },
     ],
   },
+  "custom-openai-responses": {
+    type: "effort",
+    options: [
+      { value: "low", label: "Low", description: "Quick responses" },
+      { value: "medium", label: "Medium", description: "Balanced" },
+      { value: "high", label: "High", description: "Deep reasoning" },
+    ],
+  },
   "custom-anthropic": { type: "budget-only" },
   nvidia: {
     type: "effort",
@@ -762,16 +773,10 @@ function canonicalProviderId(providerId: string): string {
 }
 
 // true for anything that speaks the Gemini wire format (incl. express)
-export function isGeminiFamilyProvider(
-  providerId: string | undefined | null,
-): boolean {
+export function isGeminiFamilyProvider(providerId: string | undefined | null): boolean {
   if (!providerId) return false;
   const id = providerId.toLowerCase();
-  return (
-    id === "gemini" ||
-    id.startsWith("google") ||
-    id === "gemini-agent-platform-express"
-  );
+  return id === "gemini" || id.startsWith("google") || id === "gemini-agent-platform-express";
 }
 
 /**
@@ -893,15 +898,15 @@ export const PROVIDER_PARAMETER_SUPPORT = {
       llamaMmprojPath: false,
       llamaChatTemplatePreset: false,
       llamaRawCompletionFallback: false,
-    llamaSamplerProfile: false,
-    llamaSamplerOrder: false,
-    llamaMinP: false,
-    llamaTypicalP: false,
-    llamaDryMultiplier: false,
-    llamaDryBase: false,
-    llamaDryAllowedLength: false,
-    llamaDryPenaltyLastN: false,
-    llamaDrySequenceBreakers: false,
+      llamaSamplerProfile: false,
+      llamaSamplerOrder: false,
+      llamaMinP: false,
+      llamaTypicalP: false,
+      llamaDryMultiplier: false,
+      llamaDryBase: false,
+      llamaDryAllowedLength: false,
+      llamaDryPenaltyLastN: false,
+      llamaDrySequenceBreakers: false,
       ollamaNumCtx: false,
       ollamaNumPredict: false,
       ollamaNumKeep: false,
@@ -2134,6 +2139,62 @@ export const PROVIDER_PARAMETER_SUPPORT = {
       ollamaStop: false,
     },
   },
+  "custom-openai-responses": {
+    providerId: "custom-openai-responses",
+    displayName: "Custom (OpenAI Responses)",
+    reasoningSupport: "effort" as ReasoningSupport,
+    supportedParameters: {
+      temperature: true,
+      topP: true,
+      maxOutputTokens: true,
+      contextLength: false,
+      frequencyPenalty: false,
+      presencePenalty: false,
+      topK: false,
+      reasoningMode: true,
+      reasoningEnabled: true,
+      reasoningEffort: true,
+      reasoningBudgetTokens: false,
+      llamaGpuLayers: false,
+      llamaThreads: false,
+      llamaThreadsBatch: false,
+      llamaSeed: false,
+      llamaRopeFreqBase: false,
+      llamaRopeFreqScale: false,
+      llamaOffloadKqv: false,
+      llamaBatchSize: false,
+      llamaKvType: false,
+      llamaFlashAttention: false,
+      llamaChatTemplateOverride: false,
+      llamaMmprojPath: false,
+      llamaChatTemplatePreset: false,
+      llamaRawCompletionFallback: false,
+      llamaSamplerProfile: false,
+      llamaSamplerOrder: false,
+      llamaMinP: false,
+      llamaTypicalP: false,
+      llamaDryMultiplier: false,
+      llamaDryBase: false,
+      llamaDryAllowedLength: false,
+      llamaDryPenaltyLastN: false,
+      llamaDrySequenceBreakers: false,
+      ollamaNumCtx: false,
+      ollamaNumPredict: false,
+      ollamaNumKeep: false,
+      ollamaNumBatch: false,
+      ollamaNumGpu: false,
+      ollamaNumThread: false,
+      ollamaTfsZ: false,
+      ollamaTypicalP: false,
+      ollamaMinP: false,
+      ollamaMirostat: false,
+      ollamaMirostatTau: false,
+      ollamaMirostatEta: false,
+      ollamaRepeatPenalty: false,
+      ollamaSeed: false,
+      ollamaStop: false,
+    },
+  },
   "lettuce-host": {
     providerId: "lettuce-host",
     displayName: "Lettuce Host",
@@ -2548,7 +2609,9 @@ export const GroupSessionSchema = z.object({
   /** Token count of the memory summary */
   memorySummaryTokenCount: z.number().int().default(0),
   /** Speaker selection method for group chat */
-  speakerSelectionMethod: z.enum(["llm", "heuristic", "round_robin", "director", "director_action"]).default("llm"),
+  speakerSelectionMethod: z
+    .enum(["llm", "heuristic", "round_robin", "director", "director_action"])
+    .default("llm"),
   /** Memory mode: "manual" or "dynamic" */
   memoryType: z.enum(["manual", "dynamic"]).default("manual"),
   /** Private session-level author note injected into the prompt */
@@ -2608,7 +2671,9 @@ export const GroupSchema = z.object({
   backgroundImagePath: z.string().nullish().optional(),
   lorebookIds: z.array(z.uuid()).default([]),
   disableCharacterLorebooks: z.boolean().default(false),
-  speakerSelectionMethod: z.enum(["llm", "heuristic", "round_robin", "director", "director_action"]).default("llm"),
+  speakerSelectionMethod: z
+    .enum(["llm", "heuristic", "round_robin", "director", "director_action"])
+    .default("llm"),
   memoryType: z.enum(["manual", "dynamic"]).default("manual"),
   chatAppearance: z.lazy(() => ChatAppearanceOverrideSchema).nullish(),
 });
@@ -2821,6 +2886,8 @@ export const AppStateSchema = z.object({
   customColors: CustomColorsSchema.optional(),
   customColorPresets: z.array(CustomColorPresetSchema).default([]),
   chatsViewMode: ChatsViewModeSchema.default("hero"),
+  hiddenCharacterIds: z.array(z.uuid()).default([]),
+  chatListVisibilityMigrated: z.boolean().default(false),
   trustedCertificates: z.array(TrustedCertificateSchema).default([]),
   lastSeenAppVersion: z.string().optional(),
 });
@@ -2903,9 +2970,7 @@ export const ChatAppearanceSettingsSchema = z.object({
   avatarShape: z.enum(["circle", "rounded", "hidden"]).default("circle"),
   avatarSize: z.enum(["small", "medium", "large"]).default("medium"),
 
-  chatColumnWidth: z
-    .enum(["narrow", "normal", "wide", "xl", "full", "custom"])
-    .default("full"),
+  chatColumnWidth: z.enum(["narrow", "normal", "wide", "xl", "full", "custom"]).default("full"),
   chatColumnWidthPx: z.number().int().min(400).max(2400).optional(),
   chatColumnAlign: z.enum(["left", "center", "right"]).default("center"),
   chatHeaderMoves: z.boolean().default(false),
@@ -3054,6 +3119,8 @@ export function createDefaultAppState(): AppState {
     settingsCardOpacity: 5,
     customColorPresets: [],
     chatsViewMode: "hero",
+    hiddenCharacterIds: [],
+    chatListVisibilityMigrated: false,
     trustedCertificates: [],
   };
 }
@@ -3070,8 +3137,7 @@ export const SettingsSchema = z.object({
       summarisationModelId: z.string().optional(),
       dynamicMemorySummarizerPromptTemplateId: z.string().optional(),
       dynamicMemoryManagerPromptTemplateId: z.string().optional(),
-      dynamicMemoryStructuredFallbackFormat:
-        DynamicMemoryStructuredFallbackFormatSchema.optional(),
+      dynamicMemoryStructuredFallbackFormat: DynamicMemoryStructuredFallbackFormatSchema.optional(),
       dynamicMemoryLlamaSamplerOverwriteEnabled: z.boolean().optional(),
       customLlmModelsDir: z.string().optional(),
       llamaDefaultContextLength: z.number().int().min(512).max(1048576).optional(),
@@ -3341,7 +3407,9 @@ export const CompanionScheduledNoteRecurrenceSchema = z.enum([
   "monthly",
   "yearly",
 ]);
-export type CompanionScheduledNoteRecurrence = z.infer<typeof CompanionScheduledNoteRecurrenceSchema>;
+export type CompanionScheduledNoteRecurrence = z.infer<
+  typeof CompanionScheduledNoteRecurrenceSchema
+>;
 
 export const CompanionScheduledNoteSchema = z.object({
   id: z.uuid(),
@@ -3758,6 +3826,7 @@ export function createDefaultAdvancedModelSettings(): AdvancedModelSettings {
     llamaStreamingEnabled: null,
     llamaSamplerOrder: null,
     llamaDrySequenceBreakers: null,
+    webSearchEnabled: false,
     sdSteps: null,
     sdCfgScale: null,
     sdSampler: null,

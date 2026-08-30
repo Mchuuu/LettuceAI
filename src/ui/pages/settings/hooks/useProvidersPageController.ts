@@ -19,6 +19,10 @@ import {
   writeProviderImageUploadConfig,
 } from "../../../../core/providers/imageUpload";
 import {
+  isCustomOpenAIProviderId,
+  isCustomProviderId,
+} from "../../../../core/providers/customProvider";
+import {
   initialProvidersPageState,
   providersPageReducer,
   type ProvidersPageState,
@@ -177,14 +181,9 @@ export function useProvidersPageController(): ControllerReturn {
 
     try {
       const isEngineProvider = editorProvider.providerId === "lettuce-engine";
-      const isLocalProvider = [
-        "custom",
-        "custom-anthropic",
-        "ollama",
-        "lmstudio",
-        "intenserp",
-        "automatic1111",
-      ].includes(editorProvider.providerId);
+      const isLocalProvider =
+        isCustomProviderId(editorProvider.providerId) ||
+        ["ollama", "lmstudio", "intenserp", "automatic1111"].includes(editorProvider.providerId);
       const requiresVerification =
         !isLocalProvider &&
         !isEngineProvider &&
@@ -259,13 +258,11 @@ export function useProvidersPageController(): ControllerReturn {
         return;
       }
 
-      const requiresBaseUrl = [
-        "ollama",
-        "lmstudio",
-        "intenserp",
-        "automatic1111",
-        "lettuce-host",
-      ].includes(editorProvider.providerId);
+      const requiresBaseUrl =
+        isCustomProviderId(editorProvider.providerId) ||
+        ["ollama", "lmstudio", "intenserp", "automatic1111", "lettuce-host"].includes(
+          editorProvider.providerId,
+        );
       if (requiresBaseUrl && !editorProvider.baseUrl?.trim()) {
         dispatch({
           type: "set_validation_error",
@@ -274,8 +271,7 @@ export function useProvidersPageController(): ControllerReturn {
         return;
       }
 
-      const isCustomProvider =
-        editorProvider.providerId === "custom" || editorProvider.providerId === "custom-anthropic";
+      const isCustomProvider = isCustomProviderId(editorProvider.providerId);
       let normalizedProviderConfig = editorProvider.config;
       if (isCustomProvider) {
         const cfg = (editorProvider.config ?? {}) as Record<string, unknown>;
@@ -290,7 +286,7 @@ export function useProvidersPageController(): ControllerReturn {
           return;
         }
 
-        if (editorProvider.providerId === "custom") {
+        if (isCustomOpenAIProviderId(editorProvider.providerId)) {
           const imageUpload = readProviderImageUploadConfig(cfg);
           if (imageUpload.mode === "volcengine-ark-files") {
             let endpoint: URL;

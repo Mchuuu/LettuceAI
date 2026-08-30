@@ -54,7 +54,13 @@ pub fn allow_invalid_tls_for_request(
     };
     if !matches!(
         provider_id,
-        "ollama" | "lmstudio" | "intenserp" | "automatic1111" | "custom" | "custom-anthropic"
+        "ollama"
+            | "lmstudio"
+            | "intenserp"
+            | "automatic1111"
+            | "custom"
+            | "custom-openai-responses"
+            | "custom-anthropic"
     ) {
         return false;
     }

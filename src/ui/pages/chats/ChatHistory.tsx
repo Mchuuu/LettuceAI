@@ -11,6 +11,7 @@ import {
   Search,
   X,
   Download,
+  ArchiveRestore,
 } from "lucide-react";
 import { useLocation, useParams } from "react-router-dom";
 
@@ -20,6 +21,7 @@ import {
   listSessionPreviews,
   deleteSession,
   updateSessionTitle,
+  archiveSession,
 } from "../../../core/storage";
 import { storageBridge } from "../../../core/storage/files";
 import { typography, radius, cn, colors, interactive } from "../../design-tokens";
@@ -156,6 +158,37 @@ export function ChatHistoryPage() {
       });
     }
   }, []);
+
+  const handleUnarchive = useCallback(
+    async (sessionId: string) => {
+      setBusyIds((prev) => new Set(prev).add(sessionId));
+      try {
+        const restored = await archiveSession(sessionId, false);
+        setSessions((prev) =>
+          prev
+            .map((session) =>
+              session.id === sessionId
+                ? {
+                    ...session,
+                    archived: false,
+                    updatedAt: restored?.updatedAt ?? Date.now(),
+                  }
+                : session,
+            )
+            .sort((left, right) => right.updatedAt - left.updatedAt),
+        );
+      } catch (err) {
+        setError(t("chats.history.failedUnarchive", { error: String(err) }));
+      } finally {
+        setBusyIds((prev) => {
+          const next = new Set(prev);
+          next.delete(sessionId);
+          return next;
+        });
+      }
+    },
+    [t],
+  );
 
   const handleExportJsonl = useCallback(
     async (session: SessionPreview, selectedVariantsOnly: boolean) => {
@@ -430,7 +463,9 @@ export function ChatHistoryPage() {
                               "rounded-md p-1.5 text-fg/58 transition-colors hover:bg-fg/6 hover:text-fg/82",
                               "disabled:pointer-events-none disabled:opacity-30",
                             )}
-                            aria-label={t("chats.history.previousGroupPage", { label: group.label })}
+                            aria-label={t("chats.history.previousGroupPage", {
+                              label: group.label,
+                            })}
                           >
                             <ChevronLeft size={14} />
                           </button>
@@ -469,6 +504,7 @@ export function ChatHistoryPage() {
                             setExportTarget(session);
                           }}
                           onRename={() => setRenameTarget(session)}
+                          onUnarchive={() => void handleUnarchive(session.id)}
                           isBusy={busyIds.has(session.id)}
                         />
                       ))}
@@ -487,7 +523,9 @@ export function ChatHistoryPage() {
                               "rounded-md p-2 text-fg/65 transition-colors hover:bg-fg/6 hover:text-fg/82",
                               "disabled:pointer-events-none disabled:opacity-30",
                             )}
-                            aria-label={t("chats.history.previousGroupPage", { label: group.label })}
+                            aria-label={t("chats.history.previousGroupPage", {
+                              label: group.label,
+                            })}
                           >
                             <ChevronLeft size={16} />
                           </button>
@@ -679,7 +717,7 @@ export function ChatHistoryPage() {
         </div>
       </BottomMenu>
 
-<BottomMenu
+      <BottomMenu
         isOpen={deleteTarget != null}
         onClose={() => setDeleteTarget(null)}
         title={t("chats.deleteChat")}
@@ -763,6 +801,7 @@ function SessionCard({
   onDelete,
   onExport,
   onRename,
+  onUnarchive,
   isBusy,
 }: {
   session: SessionPreview;
@@ -770,6 +809,7 @@ function SessionCard({
   onDelete: () => void;
   onExport: () => void;
   onRename: () => void;
+  onUnarchive: () => void;
   isBusy: boolean;
 }) {
   const { t } = useI18n();
@@ -824,6 +864,25 @@ function SessionCard({
           {t("chats.history.messagesCount", { count: session.messageCount.toLocaleString() })}
         </span>
         <div className="flex items-center gap-1">
+          {session.archived ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onUnarchive();
+              }}
+              disabled={isBusy}
+              title={t("chats.history.unarchive")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium text-amber-200/80 transition-colors",
+                "hover:bg-amber-400/10 hover:text-amber-100",
+                isBusy && "opacity-50",
+              )}
+            >
+              <ArchiveRestore size={14} />
+              <span>{t("chats.history.unarchive")}</span>
+            </button>
+          ) : null}
           <button
             onClick={(e) => {
               e.stopPropagation();

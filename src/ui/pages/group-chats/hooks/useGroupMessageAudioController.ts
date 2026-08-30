@@ -36,20 +36,24 @@ function findLatestReply(messages: readonly GroupMessage[]): GroupMessage | unde
 }
 
 interface GroupMessageAudioControllerOptions {
-  scopeKey?: string | null;
+  groupSessionId?: string | null;
   characters: Character[];
 }
 
 export function useGroupMessageAudioController({
-  scopeKey,
+  groupSessionId,
   characters,
 }: GroupMessageAudioControllerOptions) {
-  const controller = useMessageAudioController(scopeKey);
+  const controller = useMessageAudioController(
+    groupSessionId
+      ? { conversationKind: "group_session", conversationId: groupSessionId }
+      : null,
+  );
   const autoplaySignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
     autoplaySignatureRef.current = null;
-  }, [scopeKey]);
+  }, [groupSessionId]);
 
   const getMessageCharacter = useCallback(
     (message: GroupMessage): Character | undefined => {
@@ -80,7 +84,7 @@ export function useGroupMessageAudioController({
       if (!text) return;
 
       const signature = [
-        scopeKey ?? "",
+        groupSessionId ?? "",
         message.id,
         message.selectedVariantId ?? "",
         character.id,
@@ -97,7 +101,7 @@ export function useGroupMessageAudioController({
         console.error("GroupChatPage: failed to autoplay finalized message audio", error);
       });
     },
-    [characters, controller.playMessageAudio, getMessageCharacter, scopeKey],
+    [characters, controller.playMessageAudio, getMessageCharacter, groupSessionId],
   );
 
   const autoplayLatestMessageAudio = useCallback(

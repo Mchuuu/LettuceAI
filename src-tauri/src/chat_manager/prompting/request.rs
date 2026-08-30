@@ -119,6 +119,13 @@ pub fn extract_text(data: &Value, provider_id: Option<&str>) -> Option<String> {
 fn extract_explicit_reasoning(data: &Value) -> Option<String> {
     match data {
         Value::Object(map) => {
+            if crate::chat_manager::openai_responses::looks_like_response(data) {
+                if let Some(reasoning) =
+                    crate::chat_manager::openai_responses::extract_reasoning_summary(data)
+                {
+                    return Some(reasoning);
+                }
+            }
             if let Some(choices) = map.get("choices").and_then(|c| c.as_array()) {
                 if let Some(first) = choices.first() {
                     if let Some(reasoning) = first
@@ -161,6 +168,9 @@ fn extract_raw_text(data: &Value, _provider_id: Option<&str>) -> Option<String> 
             (!combined.trim().is_empty()).then_some(combined)
         }
         Value::Object(map) => {
+            if crate::chat_manager::openai_responses::looks_like_response(data) {
+                return crate::chat_manager::openai_responses::extract_output_text(data);
+            }
             if let Some(Value::Array(choices)) = map.get("choices") {
                 for choice in choices {
                     if let Value::Object(choice_map) = choice {
@@ -460,19 +470,7 @@ fn usage_from_map(map: &Map<String, Value>) -> Option<UsageSummary> {
         .get("prompt_tokens_details")
         .and_then(|v| v.as_object())
         .and_then(|details| take_first(details, &["cache_write_tokens", "cacheWriteTokens"]));
-    let web_search_requests = map
-        .get("server_tool_use")
-        .and_then(|v| v.as_object())
-        .and_then(|details| {
-            take_first(
-                details,
-                &[
-                    "web_search_requests",
-                    "webSearchRequests",
-                    "search_requests",
-                ],
-            )
-        });
+    let web_search_requests = web_search_request_count(map);
     let api_cost = take_first_f64(map, &["cost", "total_cost", "totalCost"]);
     let total_tokens = take_first(map, &["total_tokens", "totalTokens"]).or_else(|| {
         match (prompt_tokens, completion_tokens) {
@@ -595,6 +593,38 @@ fn parse_token_value(value: &Value) -> Option<u64> {
     }
 }
 
+pub(crate) fn web_search_request_count(map: &Map<String, Value>) -> Option<u64> {
+    let server_tool_count = map
+        .get("server_tool_use")
+        .and_then(Value::as_object)
+        .and_then(|details| {
+            [
+                "web_search_requests",
+                "webSearchRequests",
+                "search_requests",
+            ]
+            .iter()
+            .find_map(|key| details.get(*key).and_then(parse_token_value))
+        });
+    if server_tool_count.is_some() {
+        return server_tool_count;
+    }
+
+    let ark_tool_usage = map.get("tool_usage").or_else(|| map.get("toolUsage"))?;
+    match ark_tool_usage {
+        Value::Object(details) => [
+            "web_search",
+            "webSearch",
+            "web_search_requests",
+            "webSearchRequests",
+            "total",
+        ]
+        .iter()
+        .find_map(|key| details.get(*key).and_then(parse_token_value)),
+        value => parse_token_value(value),
+    }
+}
+
 fn parse_float_value(value: &Value) -> Option<f64> {
     match value {
         Value::Number(num) => num.as_f64(),
@@ -606,6 +636,17 @@ fn parse_float_value(value: &Value) -> Option<f64> {
 pub fn extract_error_message(data: &Value) -> Option<String> {
     match data {
         Value::Object(map) => {
+            if crate::chat_manager::openai_responses::looks_like_response(data) {
+                if let Some(message) = data
+                    .get("response")
+                    .unwrap_or(data)
+                    .get("error")
+                    .and_then(|error| error.get("message"))
+                    .and_then(Value::as_str)
+                {
+                    return Some(message.to_string());
+                }
+            }
             if let Some(prompt_feedback) = map.get("promptFeedback") {
                 if let Some(block_reason) =
                     prompt_feedback.get("blockReason").and_then(|v| v.as_str())

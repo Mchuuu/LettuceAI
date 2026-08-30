@@ -5,6 +5,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { addOrUpdateProviderCredential } from "../../../../core/storage/repo";
 import { setProviderSetupCompleted } from "../../../../core/storage/appState";
 import type { ProviderCredential } from "../../../../core/storage/schemas";
+import {
+  createDefaultCustomProviderConfig,
+  isCustomProviderId,
+} from "../../../../core/providers/customProvider";
 
 import {
   getDefaultBaseUrl,
@@ -76,7 +80,8 @@ export function useProviderController(): ControllerReturn {
 
   const handleTestConnection = useCallback(async () => {
     const isLocalProvider = ["ollama", "lmstudio", "intenserp"].includes(selectedProviderId || "");
-    const requiresBaseUrl = selectedProviderId === "lettuce-host";
+    const requiresBaseUrl =
+      selectedProviderId === "lettuce-host" || isCustomProviderId(selectedProviderId);
     const skipValidationProvider = ["chutes"].includes(selectedProviderId || "");
     if (!selectedProviderId || isLocalProvider || skipValidationProvider || !apiKey.trim()) {
       return;
@@ -135,10 +140,12 @@ export function useProviderController(): ControllerReturn {
   }, [apiKey, baseUrl, selectedProviderId]);
 
   const handleSaveProvider = useCallback(async () => {
-    const isLocalProvider = ["ollama", "lmstudio", "intenserp"].includes(selectedProviderId || "");
-    const requiresBaseUrl = ["ollama", "lmstudio", "intenserp", "lettuce-host"].includes(
-      selectedProviderId || "",
-    );
+    const isLocalProvider =
+      isCustomProviderId(selectedProviderId) ||
+      ["ollama", "lmstudio", "intenserp"].includes(selectedProviderId || "");
+    const requiresBaseUrl =
+      isCustomProviderId(selectedProviderId) ||
+      ["ollama", "lmstudio", "intenserp", "lettuce-host"].includes(selectedProviderId || "");
     if (!selectedProviderId || !label.trim() || (!isLocalProvider && !apiKey.trim())) {
       return;
     }
@@ -215,6 +222,7 @@ export function useProviderController(): ControllerReturn {
         label: label.trim(),
         apiKey: trimmedKey || undefined,
         baseUrl: baseUrl || undefined,
+        config: createDefaultCustomProviderConfig(selectedProviderId),
       };
 
       const result = await addOrUpdateProviderCredential(credential);
@@ -243,7 +251,8 @@ export function useProviderController(): ControllerReturn {
 
   const canTest = useMemo(() => {
     const isLocalProvider = ["ollama", "lmstudio", "intenserp"].includes(selectedProviderId || "");
-    const requiresBaseUrl = selectedProviderId === "lettuce-host";
+    const requiresBaseUrl =
+      selectedProviderId === "lettuce-host" || isCustomProviderId(selectedProviderId);
     const skipValidationProvider = ["chutes"].includes(selectedProviderId || "");
     return Boolean(
       selectedProviderId &&
@@ -255,8 +264,11 @@ export function useProviderController(): ControllerReturn {
   }, [apiKey, baseUrl, selectedProviderId]);
 
   const canSave = useMemo(() => {
-    const isLocalProvider = ["ollama", "lmstudio", "intenserp"].includes(selectedProviderId || "");
-    const requiresBaseUrl = selectedProviderId === "lettuce-host";
+    const isLocalProvider =
+      isCustomProviderId(selectedProviderId) ||
+      ["ollama", "lmstudio", "intenserp"].includes(selectedProviderId || "");
+    const requiresBaseUrl =
+      selectedProviderId === "lettuce-host" || isCustomProviderId(selectedProviderId);
     return Boolean(
       selectedProviderId &&
       label.trim().length > 0 &&

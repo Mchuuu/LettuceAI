@@ -119,9 +119,11 @@ fn request_settings_json(request_settings: &RequestSettings) -> Value {
         "frequencyPenalty": request_settings.frequency_penalty,
         "presencePenalty": request_settings.presence_penalty,
         "topK": request_settings.top_k,
+        "reasoningMode": request_settings.reasoning_mode.as_str(),
         "reasoningEnabled": request_settings.reasoning_enabled,
         "reasoningEffort": request_settings.reasoning_effort,
         "reasoningBudget": request_settings.reasoning_budget,
+        "webSearchEnabled": request_settings.web_search_enabled,
     })
 }
 
@@ -593,7 +595,7 @@ pub fn chat_message_debug_snapshot(
         &context.settings,
         &request_settings,
     );
-    let built = crate::chat_manager::request_builder::build_chat_request(
+    let mut built = crate::chat_manager::request_builder::build_chat_request(
         &credential,
         "",
         &model.name,
@@ -609,11 +611,16 @@ pub fn chat_message_debug_snapshot(
         request_settings.presence_penalty,
         request_settings.top_k,
         None,
-        request_settings.reasoning_enabled,
+        request_settings.reasoning_mode,
         request_settings.reasoning_effort.clone(),
         request_settings.reasoning_budget,
         request_settings.prompt_caching_enabled.unwrap_or(false),
         extra_body_fields,
+    );
+    crate::chat_manager::provider_native_tools::apply(
+        &mut built.body,
+        &credential,
+        request_settings.web_search_enabled,
     );
 
     let mut notes = vec!["Reconstructed from current session state; live retry timing and exact provider response still come from the in-memory trace.".to_string()];

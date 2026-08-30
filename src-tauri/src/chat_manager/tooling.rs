@@ -307,6 +307,16 @@ pub fn zai_tool_choice(_choice: Option<&ToolChoice>) -> Option<Value> {
 }
 
 pub fn parse_tool_calls(provider_id: &str, payload: &Value) -> Vec<ToolCall> {
+    if crate::chat_manager::openai_responses::is_provider_id(provider_id)
+        || crate::chat_manager::openai_responses::looks_like_response(payload)
+        || matches!(payload, Value::String(raw) if raw.contains("response.output_item"))
+    {
+        let calls = crate::chat_manager::openai_responses::extract_tool_calls(payload);
+        if !calls.is_empty() {
+            return calls;
+        }
+    }
+
     let mut calls: Vec<ToolCall> = Vec::new();
 
     // 1) OpenAI-style responses

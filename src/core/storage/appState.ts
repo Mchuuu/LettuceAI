@@ -34,6 +34,8 @@ function cloneAppState(state?: AppState): AppState {
       settingsCardOpacity: preset.settingsCardOpacity,
     })),
     chatsViewMode: source.chatsViewMode ?? "hero",
+    hiddenCharacterIds: [...(source.hiddenCharacterIds ?? [])],
+    chatListVisibilityMigrated: source.chatListVisibilityMigrated ?? false,
     trustedCertificates: (source.trustedCertificates ?? []).map((certificate) => ({
       ...certificate,
     })),
@@ -267,6 +269,65 @@ export async function setChatsViewMode(mode: ChatsViewMode): Promise<void> {
   await withAppState((state) => {
     state.chatsViewMode = mode;
   });
+}
+
+export const CHARACTER_CHAT_LIST_VISIBILITY_UPDATED_EVENT =
+  "character-chat-list-visibility-updated";
+
+export type CharacterChatListVisibility = {
+  hiddenCharacterIds: string[];
+  migrated: boolean;
+};
+
+function emitCharacterChatListVisibilityUpdated(hiddenCharacterIds: string[]): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent(CHARACTER_CHAT_LIST_VISIBILITY_UPDATED_EVENT, {
+      detail: { hiddenCharacterIds: [...hiddenCharacterIds] },
+    }),
+  );
+}
+
+export async function getCharacterChatListVisibility(): Promise<CharacterChatListVisibility> {
+  const state = await getAppState();
+  return {
+    hiddenCharacterIds: [...(state.hiddenCharacterIds ?? [])],
+    migrated: state.chatListVisibilityMigrated ?? false,
+  };
+}
+
+export async function initializeCharacterChatListVisibility(
+  legacyHiddenCharacterIds: Iterable<string>,
+): Promise<string[]> {
+  const current = await getCharacterChatListVisibility();
+  if (current.migrated) return current.hiddenCharacterIds;
+
+  const legacyIds = Array.from(legacyHiddenCharacterIds);
+  const updated = await withAppState((state) => {
+    state.hiddenCharacterIds = Array.from(
+      new Set([...(state.hiddenCharacterIds ?? []), ...legacyIds]),
+    );
+    state.chatListVisibilityMigrated = true;
+  });
+  const hiddenCharacterIds = [...(updated.hiddenCharacterIds ?? [])];
+  emitCharacterChatListVisibilityUpdated(hiddenCharacterIds);
+  return hiddenCharacterIds;
+}
+
+export async function setCharacterHiddenFromChatList(
+  characterId: string,
+  hidden: boolean,
+): Promise<string[]> {
+  const updated = await withAppState((state) => {
+    const hiddenIds = new Set(state.hiddenCharacterIds ?? []);
+    if (hidden) hiddenIds.add(characterId);
+    else hiddenIds.delete(characterId);
+    state.hiddenCharacterIds = Array.from(hiddenIds);
+    state.chatListVisibilityMigrated = true;
+  });
+  const hiddenCharacterIds = [...(updated.hiddenCharacterIds ?? [])];
+  emitCharacterChatListVisibilityUpdated(hiddenCharacterIds);
+  return hiddenCharacterIds;
 }
 
 export async function getLastSeenAppVersion(): Promise<string | undefined> {

@@ -10,6 +10,8 @@ import {
   type AudioModel,
   type AudioProvider,
   type AudioProviderType,
+  type TtsCacheContext,
+  type TtsCacheConversationKind,
   type TtsPreviewResponse,
   type UserVoice,
 } from "../../../../core/storage/audioProviders";
@@ -34,6 +36,11 @@ export interface PlayableAudioMessage {
   variants?: readonly PlayableMessageVariant[];
   selectedVariantId?: string | null;
   ttsContextText?: string | null;
+}
+
+export interface MessageAudioScope {
+  conversationKind: TtsCacheConversationKind;
+  conversationId: string;
 }
 
 interface AudioResourceCache {
@@ -71,8 +78,12 @@ function buildAudioCacheKey(params: {
   ].join("::");
 }
 
-export function useMessageAudioController(scopeKey?: string | null) {
+export function useMessageAudioController(scope?: MessageAudioScope | null) {
   const { t } = useI18n();
+  const conversationKind = scope?.conversationKind;
+  const conversationId = scope?.conversationId;
+  const scopeKey =
+    conversationKind && conversationId ? `${conversationKind}:${conversationId}` : null;
   const resourceCacheRef = useRef<AudioResourceCache>({
     providers: null,
     userVoices: null,
@@ -273,6 +284,22 @@ export function useMessageAudioController(scopeKey?: string | null) {
           prompt,
         });
         const cached = previewCacheRef.current.get(cacheKey);
+        const fallbackVariant = message.variants?.[message.variants.length - 1];
+        const cacheContext: TtsCacheContext | undefined =
+          conversationKind && conversationId
+            ? {
+                providerId,
+                modelId,
+                voiceId,
+                reference: {
+                  conversationKind,
+                  conversationId,
+                  messageId: message.id,
+                  variantId: message.selectedVariantId ?? fallbackVariant?.id ?? undefined,
+                  characterId: character.id,
+                },
+              }
+            : undefined;
 
         const playback = await startMessageAudioPlayback({
           providerId,
@@ -282,6 +309,7 @@ export function useMessageAudioController(scopeKey?: string | null) {
           text: trimmedText,
           prompt,
           requestId,
+          cacheContext,
           sampleRate: cloneSampleRate,
           streamDoubao: true,
           cached,
@@ -328,6 +356,8 @@ export function useMessageAudioController(scopeKey?: string | null) {
     [
       cacheAudioPreview,
       cancelAudioGeneration,
+      conversationId,
+      conversationKind,
       ensureAudioModels,
       ensureAudioProviders,
       ensureUserVoices,

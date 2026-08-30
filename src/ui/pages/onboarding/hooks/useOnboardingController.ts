@@ -16,6 +16,10 @@ import {
 import { storageBridge } from "../../../../core/storage/files";
 import { checkEmbeddingModel } from "../../../../core/storage/repo";
 import type { ProviderCredential, Model, Settings } from "../../../../core/storage/schemas";
+import {
+  createDefaultCustomProviderConfig,
+  isCustomProviderId,
+} from "../../../../core/providers/customProvider";
 
 import {
   OnboardingStep,
@@ -196,28 +200,7 @@ export function useOnboardingController(): OnboardingController {
 
   const handleSelectProvider = useCallback(
     (provider: { id: string; name: string; defaultBaseUrl?: string }) => {
-      // Set defaults for custom providers
-      let config: Record<string, any> | undefined = undefined;
-      if (provider.id === "custom") {
-        config = {
-          chatEndpoint: "/v1/chat/completions",
-          systemRole: "system",
-          userRole: "user",
-          assistantRole: "assistant",
-          toolChoiceMode: "auto",
-          supportsStream: true,
-          mergeSameRoleMessages: true,
-        };
-      } else if (provider.id === "custom-anthropic") {
-        config = {
-          chatEndpoint: "/v1/messages",
-          systemRole: "system",
-          userRole: "user",
-          assistantRole: "assistant",
-          supportsStream: true,
-          mergeSameRoleMessages: true,
-        };
-      }
+      const config = createDefaultCustomProviderConfig(provider.id);
 
       dispatch({
         type: "SELECT_PROVIDER",
@@ -252,7 +235,8 @@ export function useOnboardingController(): OnboardingController {
     const isLocalProvider = ["ollama", "lmstudio", "intenserp"].includes(
       state.selectedProviderId || "",
     );
-    const requiresBaseUrl = state.selectedProviderId === "lettuce-host";
+    const requiresBaseUrl =
+      state.selectedProviderId === "lettuce-host" || isCustomProviderId(state.selectedProviderId);
     const skipValidationProvider = ["chutes"].includes(state.selectedProviderId || "");
     if (
       !state.selectedProviderId ||
@@ -305,13 +289,9 @@ export function useOnboardingController(): OnboardingController {
 
   const handleSaveProvider = useCallback(async () => {
     const { selectedProviderId, apiKey, providerLabel, baseUrl } = state;
-    const isLocalProvider = [
-      "custom",
-      "custom-anthropic",
-      "ollama",
-      "lmstudio",
-      "intenserp",
-    ].includes(selectedProviderId || "");
+    const isLocalProvider =
+      isCustomProviderId(selectedProviderId) ||
+      ["ollama", "lmstudio", "intenserp"].includes(selectedProviderId || "");
     if (!selectedProviderId || !providerLabel.trim() || (!isLocalProvider && !apiKey.trim())) {
       return;
     }
@@ -330,7 +310,8 @@ export function useOnboardingController(): OnboardingController {
 
       // Local providers require base URL
       if (
-        ["ollama", "lmstudio", "intenserp", "lettuce-host"].includes(selectedProviderId) &&
+        (isCustomProviderId(selectedProviderId) ||
+          ["ollama", "lmstudio", "intenserp", "lettuce-host"].includes(selectedProviderId)) &&
         !baseUrl?.trim()
       ) {
         dispatch({
@@ -490,7 +471,8 @@ export function useOnboardingController(): OnboardingController {
     dispatch({ type: "SET_MEMORY_TYPE", payload: type });
   }, []);
 
-  const saveMemorySettings = useCallback(async (enableDynamic: boolean) => {
+  const saveMemorySettings = useCallback(
+    async (enableDynamic: boolean) => {
     dispatch({ type: "SET_PROCESSING_MEMORY", payload: true });
     try {
       const currentSettings = await storageBridge.readSettings<Settings | null>(null);
@@ -512,9 +494,9 @@ export function useOnboardingController(): OnboardingController {
 
         if (enableDynamic && !advancedSettings.summarisationModelId) {
           const latestModelId =
-            [...(currentSettings.models || [])]
-              .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0]
-              ?.id ?? null;
+              [...(currentSettings.models || [])].sort(
+                (a, b) => (b.createdAt || 0) - (a.createdAt || 0),
+              )[0]?.id ?? null;
 
           advancedSettings.summarisationModelId =
             state.savedModelId || currentSettings.defaultModelId || latestModelId || undefined;
@@ -531,7 +513,9 @@ export function useOnboardingController(): OnboardingController {
     } finally {
       dispatch({ type: "SET_PROCESSING_MEMORY", payload: false });
     }
-  }, [state.savedModelId]);
+    },
+    [state.savedModelId],
+  );
 
   const handleFinish = useCallback(async () => {
     if (!state.memoryType) return;
@@ -559,7 +543,8 @@ export function useOnboardingController(): OnboardingController {
     const isLocalProvider = ["ollama", "lmstudio", "intenserp"].includes(
       state.selectedProviderId || "",
     );
-    const requiresBaseUrl = state.selectedProviderId === "lettuce-host";
+    const requiresBaseUrl =
+      state.selectedProviderId === "lettuce-host" || isCustomProviderId(state.selectedProviderId);
     const skipValidationProvider = ["chutes"].includes(state.selectedProviderId || "");
     return Boolean(
       state.selectedProviderId &&
@@ -571,16 +556,10 @@ export function useOnboardingController(): OnboardingController {
   }, [state.selectedProviderId, state.apiKey, state.baseUrl]);
 
   const canSaveProvider = useMemo(() => {
-    const isLocalProvider = [
-      "custom",
-      "custom-anthropic",
-      "ollama",
-      "lmstudio",
-      "intenserp",
-    ].includes(state.selectedProviderId || "");
-    const requiresBaseUrl =
-      state.selectedProviderId === "lettuce-host" ||
-      isLocalProvider;
+    const isLocalProvider =
+      isCustomProviderId(state.selectedProviderId) ||
+      ["ollama", "lmstudio", "intenserp"].includes(state.selectedProviderId || "");
+    const requiresBaseUrl = state.selectedProviderId === "lettuce-host" || isLocalProvider;
     return Boolean(
       state.selectedProviderId &&
       state.providerLabel.trim().length > 0 &&

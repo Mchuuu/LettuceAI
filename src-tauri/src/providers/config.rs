@@ -171,6 +171,7 @@ fn get_all_provider_configs_internal() -> Vec<ProviderConfig> {
         ("lettuce-host", "Lettuce Host", ""),
         ("lettuce-engine", "Lettuce Engine", ""),
         ("custom", "Custom (OpenAI-format)", ""),
+        ("custom-openai-responses", "Custom (OpenAI Responses)", ""),
         ("custom-anthropic", "Custom (Anthropic-format)", ""),
     ];
 

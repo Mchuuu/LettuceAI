@@ -238,6 +238,7 @@ export function sanitizeAdvancedModelSettings(input: AdvancedModelSettings): Adv
     ),
     ollamaSeed: sanitize(input.ollamaSeed, ADVANCED_OLLAMA_SEED_RANGE, true),
     ollamaStop: normalizeStop(input.ollamaStop),
+    reasoningMode: input.reasoningMode ?? null,
     reasoningEnabled: input.reasoningEnabled ?? null,
     reasoningEffort: input.reasoningEffort ?? null,
     reasoningBudgetTokens: sanitize(
@@ -248,6 +249,7 @@ export function sanitizeAdvancedModelSettings(input: AdvancedModelSettings): Adv
     forceSendThinkingState: input.forceSendThinkingState ?? null,
     promptCachingEnabled: input.promptCachingEnabled ?? null,
     promptCachingTtl: input.promptCachingTtl ?? "5min",
+    webSearchEnabled: input.webSearchEnabled ?? null,
     openRouterProvider: input.openRouterProvider
       ? {
           id: input.openRouterProvider.id.trim(),

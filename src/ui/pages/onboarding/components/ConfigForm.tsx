@@ -8,6 +8,12 @@ import { getProviderIcon } from "../../../../core/utils/providerIcons";
 import { ModelSelectionBottomMenu } from "../../../components/ModelSelectionBottomMenu";
 import { Switch } from "../../../components/Switch";
 import { useI18n } from "../../../../core/i18n/context";
+import {
+  defaultCustomEndpoint,
+  isCustomOpenAIProviderId,
+  isCustomProviderId,
+  supportsCustomRoleMapping,
+} from "../../../../core/providers/customProvider";
 
 interface ProviderConfigFormProps {
   selectedProviderId: string;
@@ -50,8 +56,11 @@ export function ProviderConfigForm({
 }: ProviderConfigFormProps) {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const isCustomProvider = ["custom", "custom-anthropic"].includes(selectedProviderId);
+  const isCustomProvider = isCustomProviderId(selectedProviderId);
+  const isCustomOpenAIProvider = isCustomOpenAIProviderId(selectedProviderId);
+  const hasCustomRoleMapping = supportsCustomRoleMapping(selectedProviderId);
   const isLocalProvider = ["ollama", "lmstudio", "intenserp"].includes(selectedProviderId);
+  const isApiKeyOptional = isLocalProvider || isCustomProvider;
   const isHostProvider = selectedProviderId === "lettuce-host";
   const showBaseUrl = isCustomProvider || isLocalProvider || isHostProvider;
 
@@ -68,13 +77,15 @@ export function ProviderConfigForm({
           })}
           className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-white placeholder-white/40 transition-colors focus:border-white/30 focus:outline-none"
         />
-        <p className="text-[12px] text-white/55">{t("onboarding.provider.fields.displayLabelHint")}</p>
+        <p className="text-[12px] text-white/55">
+          {t("onboarding.provider.fields.displayLabelHint")}
+        </p>
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-[13px] font-medium text-white/70">
-            {isLocalProvider
+            {isApiKeyOptional
               ? t("onboarding.provider.fields.apiKeyOptional")
               : t("onboarding.provider.fields.apiKey")}
           </label>
@@ -96,7 +107,7 @@ export function ProviderConfigForm({
           value={apiKey}
           onChange={(e) => onApiKeyChange(e.target.value)}
           placeholder={
-            isLocalProvider
+            isApiKeyOptional
               ? t("onboarding.provider.fields.apiKeyPlaceholderLocal")
               : t("onboarding.provider.fields.apiKeyPlaceholderRemote")
           }
@@ -107,7 +118,9 @@ export function ProviderConfigForm({
 
       {showBaseUrl && (
         <div className="space-y-2">
-          <label className="text-[13px] font-medium text-white/70">{t("onboarding.provider.fields.baseUrl")}</label>
+          <label className="text-[13px] font-medium text-white/70">
+            {t("onboarding.provider.fields.baseUrl")}
+          </label>
           <input
             type="text"
             value={baseUrl}
@@ -135,57 +148,71 @@ export function ProviderConfigForm({
 
       {isCustomProvider && onConfigChange && (
         <>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <label className="text-[13px] font-medium text-white/70">{t("onboarding.provider.fields.chatEndpoint")}</label>
-              <input
-                type="text"
-                value={config?.chatEndpoint ?? "/v1/chat/completions"}
-                onChange={(e) => onConfigChange({ ...config, chatEndpoint: e.target.value })}
-                className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-[15px] text-white placeholder-white/40 focus:border-white/30 focus:outline-none"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[13px] font-medium text-white/70">{t("onboarding.provider.fields.systemRole")}</label>
-              <input
-                type="text"
-                value={config?.systemRole ?? "system"}
-                onChange={(e) => onConfigChange({ ...config, systemRole: e.target.value })}
-                className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-[15px] text-white placeholder-white/40 focus:border-white/30 focus:outline-none"
-              />
-            </div>
+          <div className="space-y-2">
+            <label className="text-[13px] font-medium text-white/70">
+              {t("onboarding.provider.fields.chatEndpoint")}
+            </label>
+            <input
+              type="text"
+              value={config?.chatEndpoint ?? defaultCustomEndpoint(selectedProviderId)}
+              onChange={(e) => onConfigChange({ ...config, chatEndpoint: e.target.value })}
+              className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-[15px] text-white placeholder-white/40 focus:border-white/30 focus:outline-none"
+            />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <label className="text-[13px] font-medium text-white/70">{t("onboarding.provider.fields.userRole")}</label>
-              <input
-                type="text"
-                value={config?.userRole ?? "user"}
-                onChange={(e) => onConfigChange({ ...config, userRole: e.target.value })}
-                className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-[15px] text-white placeholder-white/40 focus:border-white/30 focus:outline-none"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[13px] font-medium text-white/70">{t("onboarding.provider.fields.assistantRole")}</label>
-              <input
-                type="text"
-                value={config?.assistantRole ?? "assistant"}
-                onChange={(e) => onConfigChange({ ...config, assistantRole: e.target.value })}
-                className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-[15px] text-white placeholder-white/40 focus:border-white/30 focus:outline-none"
-              />
-            </div>
-          </div>
+          {hasCustomRoleMapping && (
+            <>
+              <div className="space-y-2">
+                <label className="text-[13px] font-medium text-white/70">
+                  {t("onboarding.provider.fields.systemRole")}
+                </label>
+                <input
+                  type="text"
+                  value={config?.systemRole ?? "system"}
+                  onChange={(e) => onConfigChange({ ...config, systemRole: e.target.value })}
+                  className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-[15px] text-white placeholder-white/40 focus:border-white/30 focus:outline-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <label className="text-[13px] font-medium text-white/70">
+                    {t("onboarding.provider.fields.userRole")}
+                  </label>
+                  <input
+                    type="text"
+                    value={config?.userRole ?? "user"}
+                    onChange={(e) => onConfigChange({ ...config, userRole: e.target.value })}
+                    className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-[15px] text-white placeholder-white/40 focus:border-white/30 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[13px] font-medium text-white/70">
+                    {t("onboarding.provider.fields.assistantRole")}
+                  </label>
+                  <input
+                    type="text"
+                    value={config?.assistantRole ?? "assistant"}
+                    onChange={(e) => onConfigChange({ ...config, assistantRole: e.target.value })}
+                    className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-[15px] text-white placeholder-white/40 focus:border-white/30 focus:outline-none"
+                  />
+                </div>
+              </div>
+            </>
+          )}
           <div className="flex items-center justify-between pt-1">
-            <span className="text-[13px] font-medium text-white/70">{t("onboarding.provider.fields.supportsStreaming")}</span>
+            <span className="text-[13px] font-medium text-white/70">
+              {t("onboarding.provider.fields.supportsStreaming")}
+            </span>
             <Switch
               id="supportsStream-onboarding"
               checked={config?.supportsStream ?? true}
               onChange={(next) => onConfigChange({ ...config, supportsStream: next })}
             />
           </div>
-          {selectedProviderId === "custom" && (
+          {isCustomOpenAIProvider && (
             <div className="space-y-2">
-              <label className="text-[13px] font-medium text-white/70">{t("onboarding.provider.fields.toolChoiceMode")}</label>
+              <label className="text-[13px] font-medium text-white/70">
+                {t("onboarding.provider.fields.toolChoiceMode")}
+              </label>
               <select
                 value={config?.toolChoiceMode ?? "auto"}
                 onChange={(e) => onConfigChange({ ...config, toolChoiceMode: e.target.value })}
@@ -212,14 +239,18 @@ export function ProviderConfigForm({
               </p>
             </div>
           )}
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-[13px] font-medium text-white/70">{t("onboarding.provider.fields.mergeSameRole")}</span>
-            <Switch
-              id="mergeSameRoleMessages-onboarding"
-              checked={config?.mergeSameRoleMessages ?? true}
-              onChange={(next) => onConfigChange({ ...config, mergeSameRoleMessages: next })}
-            />
-          </div>
+          {hasCustomRoleMapping && (
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[13px] font-medium text-white/70">
+                {t("onboarding.provider.fields.mergeSameRole")}
+              </span>
+              <Switch
+                id="mergeSameRoleMessages-onboarding"
+                checked={config?.mergeSameRoleMessages ?? true}
+                onChange={(next) => onConfigChange({ ...config, mergeSameRoleMessages: next })}
+              />
+            </div>
+          )}
         </>
       )}
 
@@ -360,7 +391,9 @@ export function ModelConfigForm({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <label className="text-[13px] font-medium text-white/70">{t("onboarding.model.fields.displayName")}</label>
+        <label className="text-[13px] font-medium text-white/70">
+          {t("onboarding.model.fields.displayName")}
+        </label>
         <input
           type="text"
           value={displayName}

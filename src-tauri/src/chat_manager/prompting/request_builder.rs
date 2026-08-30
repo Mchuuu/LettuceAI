@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use super::request::provider_base_url;
 use crate::chat_manager::provider_adapter::adapter_for;
+use crate::chat_manager::reasoning::ReasoningMode;
 use crate::chat_manager::tooling::ToolConfig;
 use crate::chat_manager::types::ProviderCredential;
 use crate::providers::config::supported_extra_body_keys_for_provider;
@@ -183,12 +184,14 @@ pub fn build_chat_request(
     presence_penalty: Option<f64>,
     top_k: Option<u32>,
     tool_config: Option<&ToolConfig>,
-    reasoning_enabled: bool,
+    reasoning_mode: impl Into<ReasoningMode>,
     reasoning_effort: Option<String>,
     reasoning_budget: Option<u32>,
     prompt_caching_enabled: bool,
     extra_body_fields: Option<HashMap<String, Value>>,
 ) -> BuiltRequest {
+    let reasoning_mode = reasoning_mode.into();
+    let reasoning_effort_for_compatibility = reasoning_effort.clone();
     let base_url = provider_base_url(credential);
     let adapter = adapter_for(credential);
     let sanitized_messages_for_api = sanitize_outbound_messages(messages_for_api);
@@ -216,7 +219,7 @@ pub fn build_chat_request(
         presence_penalty,
         top_k,
         tool_config,
-        reasoning_enabled,
+        reasoning_mode.enables_legacy_adapter(),
         reasoning_effort,
         reasoning_budget,
     );
@@ -320,6 +323,13 @@ pub fn build_chat_request(
             map.insert(key, value);
         }
     }
+
+    crate::chat_manager::provider_adapter::responses_compatibility::apply_reasoning(
+        &mut body,
+        credential,
+        reasoning_mode,
+        reasoning_effort_for_compatibility.as_deref(),
+    );
 
     BuiltRequest {
         url,

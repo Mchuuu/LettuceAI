@@ -9,6 +9,18 @@ import { LlamaSamplerOrderEditor } from "../../../components/LlamaSamplerOrderEd
 import { Switch } from "../../../components/Switch";
 import { NumberInput } from "../../../components/NumberInput";
 import { ResponseLengthSettings } from "../../../components/ResponseLengthSettings";
+import { CUSTOM_OPENAI_RESPONSES_PROVIDER_ID } from "../../../../core/providers/customProvider";
+import {
+  readExplicitReasoningMode,
+  readModelReasoningMode,
+  reasoningModePatch,
+  type ReasoningEffort,
+  type ReasoningMode,
+} from "../../../../core/models/reasoning";
+import {
+  reasoningEffortsForDialect,
+  type ResponsesDialect,
+} from "../../../../core/providers/responsesCompatibility";
 import {
   ADVANCED_TEMPERATURE_RANGE,
   ADVANCED_TOP_P_RANGE,
@@ -95,6 +107,7 @@ interface SessionAdvancedSettingsProps {
   onShowParameterSupport: () => void;
   hasSession: boolean;
   providerId?: string;
+  responsesDialect?: ResponsesDialect;
   modelPath?: string;
 }
 
@@ -110,10 +123,49 @@ export function SessionAdvancedSettings({
   onShowParameterSupport,
   hasSession,
   providerId = "openai",
+  responsesDialect = "openai",
   modelPath,
 }: SessionAdvancedSettingsProps) {
   const { t } = useI18n();
   const isLlama = providerId === "llamacpp";
+  const isResponsesModel = providerId === CUSTOM_OPENAI_RESPONSES_PROVIDER_ID;
+  const explicitReasoningMode = readExplicitReasoningMode(draft);
+  const inheritedReasoningMode = readModelReasoningMode(baseSettings);
+  const reasoningEfforts = reasoningEffortsForDialect(responsesDialect);
+  const reasoningModeOptions: Array<{ value: ReasoningMode | null; label: string }> = [
+    { value: null, label: t("sessionAdvanced.reasoning.inherit") },
+    ...(responsesDialect === "volcengine-ark"
+      ? [{ value: "auto" as const, label: t("sessionAdvanced.reasoning.auto") }]
+      : []),
+    { value: "enabled", label: t("sessionAdvanced.reasoning.enabled") },
+    { value: "disabled", label: t("sessionAdvanced.reasoning.disabled") },
+  ];
+  const reasoningModeLabel = (mode: ReasoningMode) => {
+    switch (mode) {
+      case "auto":
+        return t("sessionAdvanced.reasoning.auto");
+      case "enabled":
+        return t("sessionAdvanced.reasoning.enabled");
+      case "disabled":
+        return t("sessionAdvanced.reasoning.disabled");
+      default:
+        return t("sessionAdvanced.reasoning.providerDefault");
+    }
+  };
+  const reasoningEffortLabel = (effort: ReasoningEffort) => {
+    switch (effort) {
+      case "low":
+        return t("sessionAdvanced.reasoning.low");
+      case "medium":
+        return t("sessionAdvanced.reasoning.medium");
+      case "high":
+        return t("sessionAdvanced.reasoning.high");
+      case "xhigh":
+        return t("sessionAdvanced.reasoning.xhigh");
+      case "max":
+        return t("sessionAdvanced.reasoning.max");
+    }
+  };
 
   // Context info for llama models
   const [contextInfo, setContextInfo] = useState<{
@@ -186,6 +238,20 @@ export function SessionAdvancedSettings({
 
   const update = (patch: Partial<AdvancedModelSettings>) => {
     onDraftChange({ ...draft, ...patch });
+  };
+
+  const updateReasoningMode = (mode: ReasoningMode | null) => {
+    update({
+      ...reasoningModePatch(mode),
+      reasoningEffort:
+        mode == null || mode === "disabled"
+          ? null
+          : mode === "enabled"
+            ? (draft.reasoningEffort ?? baseSettings.reasoningEffort ?? "medium")
+            : draft.reasoningEffort,
+      reasoningBudgetTokens:
+        mode == null || mode === "disabled" ? null : draft.reasoningBudgetTokens,
+    });
   };
 
   return (
@@ -412,6 +478,130 @@ export function SessionAdvancedSettings({
                               t("sessionAdvanced.outputPenalties.presencePenaltyExplore"),
                             ]}
                           />
+                        </div>
+                      </div>
+
+                      {isResponsesModel && (
+                        <div className="space-y-4 rounded-xl border border-fg/8 bg-fg/[0.02] p-4">
+                          <div className="space-y-1">
+                            <h3 className="text-[13px] font-medium text-fg/80">
+                              {t("sessionAdvanced.reasoning.title")}
+                            </h3>
+                            <p className="text-[11px] leading-relaxed text-fg/40">
+                              {t("sessionAdvanced.reasoning.description")}
+                            </p>
+                          </div>
+
+                          <div
+                            className={cn(
+                              "grid gap-2",
+                              reasoningModeOptions.length === 4
+                                ? "grid-cols-4"
+                                : "grid-cols-3",
+                            )}
+                          >
+                            {reasoningModeOptions.map((option) => (
+                              <button
+                                key={option.value ?? "inherit"}
+                                type="button"
+                                onClick={() => updateReasoningMode(option.value)}
+                                className={cn(
+                                  "min-w-0 rounded-lg border px-1.5 py-2 text-[12px] font-medium transition",
+                                  explicitReasoningMode === option.value
+                                    ? "border-accent/30 bg-accent/15 text-accent"
+                                    : "border-transparent bg-fg/5 text-fg/45 hover:text-fg/70",
+                                )}
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+
+                          {explicitReasoningMode == null && (
+                            <p className="text-[11px] text-fg/35">
+                              {t("sessionAdvanced.reasoning.inheritedState", {
+                                state: reasoningModeLabel(inheritedReasoningMode),
+                              })}
+                            </p>
+                          )}
+
+                          {explicitReasoningMode === "enabled" && (
+                            <div className="space-y-3 border-l border-fg/10 pl-4">
+                              <span className="text-[12px] font-medium text-fg/45">
+                                {t("sessionAdvanced.reasoning.effort")}
+                              </span>
+                              <div
+                                className={cn(
+                                  "grid gap-2",
+                                  reasoningEfforts.length > 3 ? "grid-cols-5" : "grid-cols-3",
+                                )}
+                              >
+                                {reasoningEfforts.map((effort) => (
+                                  <button
+                                    key={effort}
+                                    type="button"
+                                    onClick={() => update({ reasoningEffort: effort })}
+                                    className={cn(
+                                      "min-w-0 rounded-lg border px-1 py-2 text-[12px] font-medium transition",
+                                      draft.reasoningEffort === effort
+                                        ? "border-accent/30 bg-accent/15 text-accent"
+                                        : "border-transparent bg-fg/5 text-fg/45 hover:text-fg/70",
+                                    )}
+                                  >
+                                    {reasoningEffortLabel(effort)}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <p className="text-[11px] leading-relaxed text-fg/35">
+                            {t("sessionAdvanced.reasoning.modelSupportHint")}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="rounded-xl border border-fg/8 bg-fg/[0.02] p-4">
+                        <div className="grid gap-3 md:grid-cols-[1fr_220px] md:items-center">
+                          <div className="space-y-1">
+                            <h3 className="text-[13px] font-medium text-fg/80">
+                              {t("sessionAdvanced.webSearch.title")}
+                            </h3>
+                            <p className="text-[11px] leading-relaxed text-fg/40">
+                              {t("sessionAdvanced.webSearch.description")}
+                            </p>
+                          </div>
+                          <select
+                            value={
+                              draft.webSearchEnabled == null
+                                ? "inherit"
+                                : draft.webSearchEnabled
+                                  ? "enabled"
+                                  : "disabled"
+                            }
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              update({
+                                webSearchEnabled:
+                                  value === "inherit" ? null : value === "enabled",
+                              });
+                            }}
+                            className="w-full rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-sm text-fg transition focus:border-fg/20 focus:outline-none"
+                          >
+                            <option value="inherit">
+                              {t("sessionAdvanced.webSearch.inherit", {
+                                state: baseSettings.webSearchEnabled
+                                  ? t("sessionAdvanced.webSearch.enabled")
+                                  : t("sessionAdvanced.webSearch.disabled"),
+                              })}
+                            </option>
+                            <option value="enabled">
+                              {t("sessionAdvanced.webSearch.enabled")}
+                            </option>
+                            <option value="disabled">
+                              {t("sessionAdvanced.webSearch.disabled")}
+                            </option>
+                          </select>
                         </div>
                       </div>
 

@@ -79,7 +79,10 @@ pub async fn verify_provider_api_key(
         }
     };
 
-    let is_custom = matches!(pid.0.as_str(), "custom" | "custom-anthropic");
+    let is_custom = matches!(
+        pid.0.as_str(),
+        "custom" | "custom-openai-responses" | "custom-anthropic"
+    );
     let custom_adapter = if is_custom {
         let credential = credential_id
             .as_deref()

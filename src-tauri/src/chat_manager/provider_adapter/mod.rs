@@ -333,7 +333,9 @@ mod zai;
 
 mod custom;
 mod custom_anthropic;
+mod custom_openai_responses;
 mod lettuce_engine;
+pub(crate) mod responses_compatibility;
 
 // "speaks the Gemini wire format" — includes express. note: different from gemini_cache's check, which excludes express
 pub fn is_gemini_format_provider(provider_id: &str) -> bool {
@@ -345,6 +347,9 @@ pub fn adapter_for(credential: &ProviderCredential) -> Box<dyn ProviderAdapter +
     match credential.provider_id.as_str() {
         "custom" => Box::new(custom::CustomGenericAdapter::new(credential)),
         "custom-anthropic" => Box::new(custom_anthropic::CustomAnthropicAdapter::new(credential)),
+        "custom-openai-responses" => Box::new(
+            custom_openai_responses::CustomOpenAIResponsesAdapter::new(credential),
+        ),
         "ollama" => Box::new(ollama::OllamaAdapter),
         "intenserp" => Box::new(intenserp::IntenseRpAdapter),
         "llamacpp" => Box::new(llamacpp::LlamaCppAdapter),

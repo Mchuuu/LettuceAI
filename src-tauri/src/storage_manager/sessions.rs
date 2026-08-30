@@ -2557,10 +2557,11 @@ pub fn sessions_list_previews(
     app: tauri::AppHandle,
     character_id: Option<String>,
     limit: Option<i64>,
+    archived: Option<bool>,
 ) -> Result<String, String> {
     let conn = open_db(&app)?;
 
-    let mut sql = String::from(
+    let sql = String::from(
         r#"
         SELECT
           s.id,
@@ -2588,34 +2589,26 @@ pub fn sessions_list_previews(
           s.root_session_id
         FROM sessions s
         WHERE (?1 IS NULL OR s.character_id = ?1)
+          AND (?2 IS NULL OR s.archived = ?2)
         ORDER BY s.updated_at DESC
+        LIMIT COALESCE(?3, -1)
         "#,
     );
-    if limit.is_some() {
-        sql.push_str(" LIMIT ?2");
-    }
 
     let mut stmt = conn
         .prepare(&sql)
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
     let mut previews: Vec<SessionPreview> = Vec::new();
-    if limit.is_some() {
-        let rows = stmt
-            .query_map(params![character_id, limit], session_preview_from_row)
-            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-        for row in rows {
-            previews
-                .push(row.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?);
-        }
-    } else {
-        let rows = stmt
-            .query_map(params![character_id], session_preview_from_row)
-            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-        for row in rows {
-            previews
-                .push(row.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?);
-        }
+    let archived_value = archived.map(|value| if value { 1_i64 } else { 0_i64 });
+    let rows = stmt
+        .query_map(
+            params![character_id, archived_value, limit],
+            session_preview_from_row,
+        )
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    for row in rows {
+        previews.push(row.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?);
     }
 
     serde_json::to_string(&previews)

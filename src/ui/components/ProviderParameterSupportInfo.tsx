@@ -87,12 +87,14 @@ const PARAMETER_LABELS: Record<keyof AdvancedModelSettings, string> = {
   ollamaRepeatPenalty: "Ollama Repeat Penalty",
   ollamaSeed: "Ollama Seed",
   ollamaStop: "Ollama Stop Sequences",
+  reasoningMode: "Reasoning Mode",
   reasoningEnabled: "Reasoning",
   reasoningEffort: "Reasoning Effort",
   reasoningBudgetTokens: "Reasoning Budget",
   forceSendThinkingState: "Force Send Thinking State",
   promptCachingEnabled: "Prompt Caching",
   promptCachingTtl: "Prompt Caching TTL",
+  webSearchEnabled: "Provider-native Web Search",
   openRouterProvider: "Pinned OpenRouter Provider",
 };
 
@@ -175,12 +177,14 @@ const PARAMETER_DESCRIPTIONS: Record<keyof AdvancedModelSettings, string> = {
   ollamaRepeatPenalty: "Repeat penalty (0-2)",
   ollamaSeed: "Random seed",
   ollamaStop: "Stop sequences list",
+  reasoningMode: "Provider-neutral thinking mode used by Responses adapters",
   reasoningEnabled: "Enable/disable thinking mode",
   reasoningEffort: "Thinking depth - OpenAI/DeepSeek style",
   reasoningBudgetTokens: "Max tokens for extended thinking",
   forceSendThinkingState: "Explicitly send enable_thinking instead of omitting it",
   promptCachingEnabled: "Enable prompt caching",
   promptCachingTtl: "How long a cached prompt prefix stays reusable",
+  webSearchEnabled: "Allow this model to use the web search tool configured on its provider",
   openRouterProvider: "Route this model through one OpenRouter endpoint",
 };
 

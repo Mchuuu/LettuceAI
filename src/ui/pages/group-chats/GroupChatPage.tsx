@@ -212,7 +212,7 @@ export function GroupChatPage() {
     stopMessageAudio,
     cancelMessageAudio,
     getMessageCharacter,
-  } = useGroupMessageAudioController({ scopeKey: groupSessionId, characters });
+  } = useGroupMessageAudioController({ groupSessionId, characters });
   const handlePlayMessageAudio = useCallback(
     async (message: GroupMessage, text: string) => {
       try {

@@ -5,7 +5,11 @@ import type {
   MemoryEntityAnchor,
   Session,
 } from "../../../core/storage/schemas";
-import { getSessionMeta, listCharacters, listSessionPreviews } from "../../../core/storage/repo";
+import {
+  getSessionMeta,
+  listCharacters,
+  listActiveSessionPreviews,
+} from "../../../core/storage/repo";
 import { useI18n } from "../../../core/i18n/context";
 
 type T = ReturnType<typeof useI18n>["t"];
@@ -297,7 +301,7 @@ export function useCompanionSessionData(characterId?: string, requestedSessionId
       }
 
       if (!targetSession) {
-        const previews = await listSessionPreviews(characterId, 1).catch(() => []);
+        const previews = await listActiveSessionPreviews(characterId, 1).catch(() => []);
         const latestId = previews[0]?.id;
         targetSession = latestId ? await getSessionMeta(latestId).catch(() => null) : null;
       }

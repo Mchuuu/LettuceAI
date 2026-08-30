@@ -1,14 +1,16 @@
 import { useEffect, useState, memo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, X, ArrowLeft, User, MessageCircle, Rocket } from "lucide-react";
+import { Search, X, ArrowLeft, User, MessageCircle, Rocket, Eye } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import {
   listCharacters,
   listPersonas,
   createSession,
-  listSessionPreviews,
+  listActiveSessionPreviews,
 } from "../../../core/storage/repo";
+import { setCharacterHiddenFromChatList } from "../../../core/storage/appState";
+import { getHiddenCharacterIds } from "../../../core/chat/characterChatListVisibility";
 import type { Character, Persona } from "../../../core/storage/schemas";
 import { cn } from "../../design-tokens";
 import { useI18n } from "../../../core/i18n/context";
@@ -26,6 +28,8 @@ export function SearchPage() {
   const [activeTab, setActiveTab] = useState<SearchTab>("characters");
   const [characters, setCharacters] = useState<Character[]>([]);
   const [personas, setPersonas] = useState<Persona[]>([]);
+  const [hiddenCharacterIds, setHiddenCharacterIds] = useState<Set<string>>(new Set());
+  const [restoringCharacterId, setRestoringCharacterId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -35,9 +39,14 @@ export function SearchPage() {
 
   const loadData = async () => {
     try {
-      const [chars, pers] = await Promise.all([listCharacters(), listPersonas()]);
+      const [chars, pers, hiddenIds] = await Promise.all([
+        listCharacters(),
+        listPersonas(),
+        getHiddenCharacterIds(),
+      ]);
       setCharacters(chars);
       setPersonas(pers);
+      setHiddenCharacterIds(hiddenIds);
     } catch (err) {
       console.error("Failed to load data:", err);
     } finally {
@@ -61,7 +70,7 @@ export function SearchPage() {
 
   const startChat = async (character: Character) => {
     try {
-      const previews = await listSessionPreviews(character.id, 1).catch(() => []);
+      const previews = await listActiveSessionPreviews(character.id, 1).catch(() => []);
       const latestSessionId = previews[0]?.id;
       if (latestSessionId) {
         navigate(`/chat/${character.id}?sessionId=${latestSessionId}`);
@@ -77,6 +86,18 @@ export function SearchPage() {
     } catch (error) {
       console.error("Failed to load or create session:", error);
       navigate(`/chat/${character.id}`);
+    }
+  };
+
+  const restoreCharacter = async (characterId: string) => {
+    try {
+      setRestoringCharacterId(characterId);
+      const hiddenIds = await setCharacterHiddenFromChatList(characterId, false);
+      setHiddenCharacterIds(new Set(hiddenIds));
+    } catch (error) {
+      console.error("Failed to restore character to chat list:", error);
+    } finally {
+      setRestoringCharacterId(null);
     }
   };
 
@@ -165,7 +186,13 @@ export function SearchPage() {
               transition={{ duration: 0.15 }}
             >
               {filteredCharacters.length > 0 ? (
-                <CharacterList characters={filteredCharacters} onSelect={startChat} />
+                <CharacterList
+                  characters={filteredCharacters}
+                  hiddenCharacterIds={hiddenCharacterIds}
+                  restoringCharacterId={restoringCharacterId}
+                  onSelect={startChat}
+                  onRestore={restoreCharacter}
+                />
               ) : (
                 <EmptyState type="characters" hasQuery={hasQuery} />
               )}
@@ -254,7 +281,19 @@ CharacterAvatar.displayName = "CharacterAvatar";
 
 // Character Card matching Chats.tsx style
 const CharacterCard = memo(
-  ({ character, onSelect }: { character: Character; onSelect: (c: Character) => void }) => {
+  ({
+    character,
+    hidden,
+    restoring,
+    onSelect,
+    onRestore,
+  }: {
+    character: Character;
+    hidden: boolean;
+    restoring: boolean;
+    onSelect: (c: Character) => void;
+    onRestore: (characterId: string) => void | Promise<void>;
+  }) => {
     const { t } = useI18n();
     const descriptionPreview =
       (character.description || character.definition || "").trim() || t("search.noDescription");
@@ -275,68 +314,94 @@ const CharacterCard = memo(
     );
 
     return (
-      <motion.button
+      <motion.div
         whileTap={{ scale: 0.98 }}
-        onClick={() => onSelect(character)}
         className={cn(
-          "group relative flex w-full items-center gap-3.5 p-3.5 text-left",
+          "group relative flex w-full items-center overflow-hidden text-left",
           "rounded-2xl transition-all",
           hasGradient ? "" : "bg-surface-el hover:bg-surface-el",
         )}
         style={hasGradient ? { background: gradientCss } : {}}
       >
-        {/* Circular Avatar */}
-        <div
-          className={cn(
-            "relative h-14 w-14 shrink-0 overflow-hidden rounded-full",
-            hasGradient ? "ring-2 ring-white/20" : "ring-1 ring-white/10",
-            "shadow-lg",
-          )}
+        <button
+          type="button"
+          onClick={() => onSelect(character)}
+          className="flex min-w-0 flex-1 items-center gap-3.5 p-3.5 text-left"
         >
-          <CharacterAvatar character={character} />
-        </div>
-
-        {/* Content */}
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5 py-1">
-          <h3
+          {/* Circular Avatar */}
+          <div
             className={cn(
-              "truncate font-semibold text-[15px] leading-tight",
-              hasGradient ? "" : "text-fg",
+              "relative h-14 w-14 shrink-0 overflow-hidden rounded-full",
+              hasGradient ? "ring-2 ring-white/20" : "ring-1 ring-white/10",
+              "shadow-lg",
             )}
-            style={hasGradient ? { color: textColor } : {}}
           >
-            {character.name}
-          </h3>
-          <p
-            className={cn(
-              "line-clamp-1 text-[13px] leading-tight",
-              hasGradient ? "" : "text-fg/50",
-            )}
-            style={hasGradient ? { color: textSecondary } : {}}
-          >
-            {descriptionPreview}
-          </p>
-        </div>
+            <CharacterAvatar character={character} />
+          </div>
 
-        {/* Subtle chevron */}
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className={cn(
-            "shrink-0 transition-all",
-            hasGradient ? "" : "text-fg/30 group-hover:text-fg/60",
-          )}
-          style={hasGradient ? { color: textSecondary } : {}}
-        >
-          <path d="m9 18 6-6-6-6" />
-        </svg>
-      </motion.button>
+          {/* Content */}
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5 py-1">
+            <div className="flex min-w-0 items-center gap-2">
+              <h3
+                className={cn(
+                  "truncate font-semibold text-[15px] leading-tight",
+                  hasGradient ? "" : "text-fg",
+                )}
+                style={hasGradient ? { color: textColor } : {}}
+              >
+                {character.name}
+              </h3>
+              {hidden ? (
+                <span className="shrink-0 rounded-md border border-amber-400/25 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-200/85">
+                  {t("search.hiddenBadge")}
+                </span>
+              ) : null}
+            </div>
+            <p
+              className={cn(
+                "line-clamp-1 text-[13px] leading-tight",
+                hasGradient ? "" : "text-fg/50",
+              )}
+              style={hasGradient ? { color: textSecondary } : {}}
+            >
+              {descriptionPreview}
+            </p>
+          </div>
+
+          {!hidden ? (
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={cn(
+                "shrink-0 transition-all",
+                hasGradient ? "" : "text-fg/30 group-hover:text-fg/60",
+              )}
+              style={hasGradient ? { color: textSecondary } : {}}
+            >
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          ) : null}
+        </button>
+
+        {hidden ? (
+          <button
+            type="button"
+            onClick={() => void onRestore(character.id)}
+            disabled={restoring}
+            className="mr-3 inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-300/25 bg-amber-300/10 px-2.5 py-2 text-xs font-medium text-amber-100 transition hover:bg-amber-300/15 disabled:opacity-50"
+            title={t("search.restoreToChats")}
+          >
+            <Eye size={14} />
+            <span>{t("search.restoreToChats")}</span>
+          </button>
+        ) : null}
+      </motion.div>
     );
   },
 );
@@ -345,15 +410,28 @@ CharacterCard.displayName = "CharacterCard";
 
 function CharacterList({
   characters,
+  hiddenCharacterIds,
+  restoringCharacterId,
   onSelect,
+  onRestore,
 }: {
   characters: Character[];
+  hiddenCharacterIds: Set<string>;
+  restoringCharacterId: string | null;
   onSelect: (character: Character) => void;
+  onRestore: (characterId: string) => void | Promise<void>;
 }) {
   return (
     <div className="space-y-2 pb-4">
       {characters.map((character) => (
-        <CharacterCard key={character.id} character={character} onSelect={onSelect} />
+        <CharacterCard
+          key={character.id}
+          character={character}
+          hidden={hiddenCharacterIds.has(character.id)}
+          restoring={restoringCharacterId === character.id}
+          onSelect={onSelect}
+          onRestore={onRestore}
+        />
       ))}
     </div>
   );

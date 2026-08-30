@@ -9,7 +9,7 @@ import {
   listMessages,
   listMessagesAfter,
   listPersonas,
-  listSessionPreviews,
+  listActiveSessionPreviews,
   SESSION_UPDATED_EVENT,
   SETTINGS_UPDATED_EVENT,
 } from "../../../../core/storage/repo";
@@ -118,7 +118,10 @@ export function useChatSessionController({
         const storedMessages = await listMessages(state.session!.id, {
           limit: messageLimit,
         }).catch((err) => {
-          console.warn("ChatSessionController: failed to reload messages after session update", err);
+          console.warn(
+            "ChatSessionController: failed to reload messages after session update",
+            err,
+          );
           return [] as StoredMessage[];
         });
         let orderedMessages = sortMessages(storedMessages);
@@ -212,7 +215,7 @@ export function useChatSessionController({
         }
 
         if (!targetSession) {
-          const previews = await listSessionPreviews(match.id, 1).catch(() => []);
+          const previews = await listActiveSessionPreviews(match.id, 1).catch(() => []);
           const latestId = previews[0]?.id;
           if (latestId) {
             targetSession = await getSessionMeta(latestId).catch((err) => {

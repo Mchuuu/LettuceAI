@@ -51,6 +51,25 @@ import {
   writeProviderImageUploadConfig,
   type ProviderImageUploadConfig,
 } from "../../../core/providers/imageUpload";
+import {
+  readProviderWebSearchConfig,
+  writeProviderWebSearchConfig,
+  type ProviderWebSearchConfig,
+} from "../../../core/providers/webSearch";
+import {
+  readResponsesDialect,
+  writeResponsesDialect,
+  type ResponsesDialect,
+} from "../../../core/providers/responsesCompatibility";
+import {
+  CUSTOM_OPENAI_RESPONSES_PROVIDER_ID,
+  createDefaultCustomProviderConfig,
+  defaultCustomAuthMode,
+  defaultCustomEndpoint,
+  isCustomOpenAIProviderId,
+  isCustomProviderId,
+  supportsCustomRoleMapping,
+} from "../../../core/providers/customProvider";
 
 const AUDIO_PROVIDER_TYPE_LABEL: Record<AudioProviderType, string> = {
   elevenlabs: "ElevenLabs",
@@ -187,21 +206,25 @@ export function ProvidersPage() {
       editorProvider.providerId,
     );
   const isComfyUiProvider = !!editorProvider && editorProvider.providerId === "comfyui";
-  const isCustomProvider =
-    !!editorProvider &&
-    (editorProvider.providerId === "custom" || editorProvider.providerId === "custom-anthropic");
-  const supportsImageUploadSettings = editorProvider?.providerId === "custom";
+  const isCustomProvider = isCustomProviderId(editorProvider?.providerId);
+  const supportsImageUploadSettings = isCustomOpenAIProviderId(editorProvider?.providerId);
+  const supportsWebSearchSettings =
+    editorProvider?.providerId === CUSTOM_OPENAI_RESPONSES_PROVIDER_ID;
+  const supportsRoleMapping = supportsCustomRoleMapping(editorProvider?.providerId);
   const allowsTlsException = !!editorProvider && (isLocalProvider || isCustomProvider);
   const showBaseUrl =
     !!editorProvider && (isLocalProvider || isCustomProvider || isEngineProvider || isHostProvider);
   const isOllamaProvider = !!editorProvider && editorProvider.providerId === "ollama";
   const customConfig = (editorProvider?.config ?? {}) as Record<string, any>;
   const imageUploadConfig = readProviderImageUploadConfig(customConfig);
+  const webSearchConfig = readProviderWebSearchConfig(customConfig);
+  const responsesDialect = readResponsesDialect(customConfig);
   const customFetchModelsEnabled = customConfig.fetchModelsEnabled === true;
   const providerStreamingEnabled = customConfig.streamingEnabled !== false;
   const providerAllowInvalidTls = customConfig.allowInvalidTls === true;
   const sproutEnabled = customConfig.sproutEnabled === true;
-  const customAuthMode = (customConfig.authMode ?? "header") as
+  const customAuthMode = (customConfig.authMode ??
+    defaultCustomAuthMode(editorProvider?.providerId)) as
     | "bearer"
     | "header"
     | "query"
@@ -228,6 +251,25 @@ export function ProvidersPage() {
         ...imageUploadConfig,
         ...updates,
       }),
+    });
+    if (validationError) setValidationError(null);
+  };
+
+  const updateWebSearchConfig = (updates: Partial<ProviderWebSearchConfig>) => {
+    if (!editorProvider) return;
+    updateEditorProvider({
+      config: writeProviderWebSearchConfig(editorProvider.config, {
+        ...webSearchConfig,
+        ...updates,
+      }),
+    });
+    if (validationError) setValidationError(null);
+  };
+
+  const updateResponsesDialect = (nextDialect: ResponsesDialect) => {
+    if (!editorProvider) return;
+    updateEditorProvider({
+      config: writeResponsesDialect(editorProvider.config, nextDialect),
     });
     if (validationError) setValidationError(null);
   };
@@ -341,13 +383,16 @@ export function ProvidersPage() {
     setEditingAudioProvider(null);
   }, []);
 
-  const openDuplicateMenu = useCallback((target: DuplicateTarget) => {
+  const openDuplicateMenu = useCallback(
+    (target: DuplicateTarget) => {
     setDuplicateTarget(target);
     setDuplicateName(`${target.provider.label} ${t("providers.actions.copySuffix")}`.trim());
     setDuplicateError(null);
     setSelectedProvider(null);
     setSelectedAudioProvider(null);
-  }, [setSelectedProvider, t]);
+    },
+    [setSelectedProvider, t],
+  );
 
   const closeDuplicateMenu = useCallback(() => {
     if (isDuplicating) return;
@@ -451,9 +496,7 @@ export function ProvidersPage() {
   const AudioEmptyState = ({ onCreate }: { onCreate: () => void }) => (
     <div className="flex h-64 flex-col items-center justify-center lg:col-span-2">
       <Mic className="mb-3 h-12 w-12 text-fg/20" />
-      <h3 className="mb-1 text-lg font-medium text-fg">
-        {t("providers.extra.audioEmpty.title")}
-      </h3>
+      <h3 className="mb-1 text-lg font-medium text-fg">{t("providers.extra.audioEmpty.title")}</h3>
       <p className="mb-4 text-center text-sm text-fg/50">
         {t("providers.extra.audioEmpty.description")}
       </p>
@@ -483,6 +526,10 @@ export function ProvidersPage() {
               const cap: ProviderCapabilitiesCamel | undefined = capabilities.find(
                 (p) => p.id === provider.providerId,
               );
+              const providerResponsesDialect =
+                provider.providerId === CUSTOM_OPENAI_RESPONSES_PROVIDER_ID
+                  ? readResponsesDialect(provider.config)
+                  : null;
               return (
                 <button
                   key={provider.id}
@@ -499,6 +546,14 @@ export function ProvidersPage() {
                       </div>
                       <div className="mt-0.5 flex items-center gap-1 text-[11px] text-fg/50">
                         <span className="truncate">{cap?.name}</span>
+                        {providerResponsesDialect === "volcengine-ark" && (
+                          <>
+                            <span className="opacity-40">•</span>
+                            <span className="shrink-0">
+                              {t("providers.list.responsesDialectArk")}
+                            </span>
+                          </>
+                        )}
                         {provider.baseUrl && (
                           <>
                             <span className="opacity-40">•</span>
@@ -541,7 +596,9 @@ export function ProvidersPage() {
             {audioProviders.map((provider) => {
               const isKokoro = provider.providerType === "kokoro";
               const isDownloading =
-                isKokoro && !!provider.assetRoot && kokoroDownloadingRoots.has(provider.assetRoot);
+                  isKokoro &&
+                  !!provider.assetRoot &&
+                  kokoroDownloadingRoots.has(provider.assetRoot);
               const needsSetup =
                 isKokoro && !isDownloading && kokoroInstalled[provider.id] === false;
               return (
@@ -694,7 +751,11 @@ export function ProvidersPage() {
           <BottomMenu
             isOpen={isEditorOpen}
             onClose={closeEditor}
-            title={editorProvider?.label ? t("providers.editor.titleEdit") : t("providers.editor.titleCreate")}
+            title={
+              editorProvider?.label
+                ? t("providers.editor.titleEdit")
+                : t("providers.editor.titleCreate")
+            }
           >
             {editorProvider && (
               <div className="space-y-4 pb-2">
@@ -704,47 +765,7 @@ export function ProvidersPage() {
                   onChange={(providerId) => {
                     updateEditorProvider({
                       providerId,
-                      config:
-                        providerId === "custom"
-                          ? {
-                              chatEndpoint: "/v1/chat/completions",
-                              modelsEndpoint: "",
-                              fetchModelsEnabled: false,
-                              modelsListPath: "data",
-                              modelsIdPath: "id",
-                              modelsDisplayNamePath: "name",
-                              modelsDescriptionPath: "description",
-                              modelsContextLengthPath: "",
-                              authMode: "header",
-                              authHeaderName: "x-api-key",
-                              authQueryParamName: "api_key",
-                              systemRole: "system",
-                              userRole: "user",
-                              assistantRole: "assistant",
-                              toolChoiceMode: "auto",
-                              supportsStream: true,
-                              mergeSameRoleMessages: true,
-                            }
-                          : providerId === "custom-anthropic"
-                            ? {
-                                chatEndpoint: "/v1/messages",
-                                modelsEndpoint: "",
-                                fetchModelsEnabled: false,
-                                modelsListPath: "data",
-                                modelsIdPath: "id",
-                                modelsDisplayNamePath: "name",
-                                modelsDescriptionPath: "description",
-                                modelsContextLengthPath: "",
-                                authMode: "header",
-                                authHeaderName: "x-api-key",
-                                authQueryParamName: "api_key",
-                                systemRole: "system",
-                                userRole: "user",
-                                assistantRole: "assistant",
-                                supportsStream: true,
-                                mergeSameRoleMessages: true,
-                              }
-                            : undefined,
+                      config: createDefaultCustomProviderConfig(providerId),
                     });
                     setValidationError(null);
                   }}
@@ -894,9 +915,7 @@ export function ProvidersPage() {
                     />
                     <button
                       type="button"
-                      onClick={() =>
-                        void openExternalUrl("https://github.com/LettuceAI/Sprout")
-                      }
+                      onClick={() => void openExternalUrl("https://github.com/LettuceAI/Sprout")}
                       className="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline"
                     >
                       <ExternalLink size={12} />
@@ -938,19 +957,21 @@ export function ProvidersPage() {
                     <TextField
                       label={t("providers.editor.chatEndpoint")}
                       value={
-                        (customConfig.chatEndpoint as string | undefined) ?? "/v1/chat/completions"
+                        (customConfig.chatEndpoint as string | undefined) ??
+                        defaultCustomEndpoint(editorProvider.providerId)
                       }
                       onChange={(value) =>
                         updateEditorProvider({
                           config: { ...editorProvider.config, chatEndpoint: value },
                         })
                       }
-                      placeholder="/v1/chat/completions"
+                      placeholder={defaultCustomEndpoint(editorProvider.providerId)}
                     />
                     <ResolvedEndpointPreview
                       baseUrl={editorProvider.baseUrl || ""}
                       endpoint={
-                        (customConfig.chatEndpoint as string | undefined) ?? "/v1/chat/completions"
+                        (customConfig.chatEndpoint as string | undefined) ??
+                        defaultCustomEndpoint(editorProvider.providerId)
                       }
                       duplicateWarning={(segment) =>
                         t("providers.editor.resolvedChatUrlDuplicate", { segment })
@@ -1023,6 +1044,60 @@ export function ProvidersPage() {
                         )}
                       </>
                     )}
+                    {supportsWebSearchSettings && (
+                      <>
+                        <SelectField
+                          label={t("providers.editor.responsesDialect")}
+                          value={responsesDialect}
+                          onChange={(dialect) => updateResponsesDialect(dialect as ResponsesDialect)}
+                        >
+                          <option value="openai" className="bg-surface-el">
+                            {t("providers.editor.responsesDialectOpenAI")}
+                          </option>
+                          <option value="volcengine-ark" className="bg-surface-el">
+                            {t("providers.editor.responsesDialectArk")}
+                          </option>
+                        </SelectField>
+                        <p className="-mt-2 px-1 text-[11px] leading-relaxed text-fg/45">
+                          {responsesDialect === "volcengine-ark"
+                            ? t("providers.editor.responsesDialectArkHint")
+                            : t("providers.editor.responsesDialectOpenAIHint")}
+                        </p>
+
+                        {responsesDialect === "volcengine-ark" && (
+                          <>
+                            <SelectField
+                              label={t("providers.editor.webSearchMode")}
+                              value={webSearchConfig.mode}
+                              onChange={(mode) =>
+                                updateWebSearchConfig({
+                                  mode: mode as ProviderWebSearchConfig["mode"],
+                                })
+                              }
+                            >
+                              <option value="none" className="bg-surface-el">
+                                {t("providers.editor.webSearchNone")}
+                              </option>
+                              <option value="volcengine-ark" className="bg-surface-el">
+                                {t("providers.editor.webSearchVolcengineArk")}
+                              </option>
+                            </SelectField>
+                            <p
+                              className={cn(
+                                "-mt-2 px-1 text-[11px] leading-relaxed",
+                                webSearchConfig.mode === "volcengine-ark"
+                                  ? "text-amber-400/80"
+                                  : "text-fg/45",
+                              )}
+                            >
+                              {webSearchConfig.mode === "volcengine-ark"
+                                ? t("providers.editor.webSearchVolcengineArkHint")
+                                : t("providers.editor.webSearchNoneDesc")}
+                            </p>
+                          </>
+                        )}
+                      </>
+                    )}
                     <ToggleRow
                       id="fetchModelsEnabled"
                       title={t("providers.editor.fetchModels")}
@@ -1056,7 +1131,7 @@ export function ProvidersPage() {
                         {t("providers.editor.authModeNone")}
                       </option>
                     </SelectField>
-                    {editorProvider.providerId === "custom" && (
+                    {isCustomOpenAIProviderId(editorProvider.providerId) && (
                       <SelectField
                         label={t("providers.editor.toolChoiceMode")}
                         value={(customConfig.toolChoiceMode as string | undefined) ?? "auto"}
@@ -1098,9 +1173,7 @@ export function ProvidersPage() {
                     {customAuthMode === "query" && (
                       <TextField
                         label={t("providers.editor.authQueryParamName")}
-                        value={
-                          (customConfig.authQueryParamName as string | undefined) ?? "api_key"
-                        }
+                        value={(customConfig.authQueryParamName as string | undefined) ?? "api_key"}
                         onChange={(value) =>
                           updateEditorProvider({
                             config: { ...editorProvider.config, authQueryParamName: value },
@@ -1185,9 +1258,7 @@ export function ProvidersPage() {
                         </div>
                         <TextField
                           label={t("providers.editor.contextLengthPath")}
-                          value={
-                            (customConfig.modelsContextLengthPath as string | undefined) ?? ""
-                          }
+                          value={(customConfig.modelsContextLengthPath as string | undefined) ?? ""}
                           onChange={(value) =>
                             updateEditorProvider({
                               config: {
@@ -1200,38 +1271,44 @@ export function ProvidersPage() {
                         />
                       </>
                     )}
-                    <TextField
-                      label={t("providers.editor.systemRole")}
-                      value={(customConfig.systemRole as string | undefined) ?? "system"}
-                      onChange={(value) =>
-                        updateEditorProvider({
-                          config: { ...editorProvider.config, systemRole: value },
-                        })
-                      }
-                      placeholder="system"
-                    />
-                    <div className="grid grid-cols-2 gap-3">
-                      <TextField
-                        label={t("providers.editor.userRole")}
-                        value={(customConfig.userRole as string | undefined) ?? "user"}
-                        onChange={(value) =>
-                          updateEditorProvider({
-                            config: { ...editorProvider.config, userRole: value },
-                          })
-                        }
-                        placeholder="user"
-                      />
-                      <TextField
-                        label={t("providers.editor.assistantRole")}
-                        value={(customConfig.assistantRole as string | undefined) ?? "assistant"}
-                        onChange={(value) =>
-                          updateEditorProvider({
-                            config: { ...editorProvider.config, assistantRole: value },
-                          })
-                        }
-                        placeholder="assistant"
-                      />
-                    </div>
+                    {supportsRoleMapping && (
+                      <>
+                        <TextField
+                          label={t("providers.editor.systemRole")}
+                          value={(customConfig.systemRole as string | undefined) ?? "system"}
+                          onChange={(value) =>
+                            updateEditorProvider({
+                              config: { ...editorProvider.config, systemRole: value },
+                            })
+                          }
+                          placeholder="system"
+                        />
+                        <div className="grid grid-cols-2 gap-3">
+                          <TextField
+                            label={t("providers.editor.userRole")}
+                            value={(customConfig.userRole as string | undefined) ?? "user"}
+                            onChange={(value) =>
+                              updateEditorProvider({
+                                config: { ...editorProvider.config, userRole: value },
+                              })
+                            }
+                            placeholder="user"
+                          />
+                          <TextField
+                            label={t("providers.editor.assistantRole")}
+                            value={
+                              (customConfig.assistantRole as string | undefined) ?? "assistant"
+                            }
+                            onChange={(value) =>
+                              updateEditorProvider({
+                                config: { ...editorProvider.config, assistantRole: value },
+                              })
+                            }
+                            placeholder="assistant"
+                          />
+                        </div>
+                      </>
+                    )}
                     <div className="flex items-center justify-between pt-1">
                       <span className="text-sm font-medium text-fg/70">
                         {t("providers.editor.supportsStreaming")}
@@ -1239,11 +1316,11 @@ export function ProvidersPage() {
                       <Switch
                         id="supportsStream"
                         checked={(customConfig.supportsStream as boolean | undefined) ?? true}
-                        onChange={(next) =>
+                        onChange={(value) =>
                           updateEditorProvider({
                             config: {
                               ...editorProvider.config,
-                              supportsStream: next,
+                              supportsStream: value,
                             },
                           })
                         }
@@ -1254,9 +1331,7 @@ export function ProvidersPage() {
                         id="streamUsageEnabled"
                         title={t("providers.editor.streamUsage")}
                         description={t("providers.editor.streamUsageDesc")}
-                        checked={
-                          (customConfig.streamUsageEnabled as boolean | undefined) ?? true
-                        }
+                        checked={(customConfig.streamUsageEnabled as boolean | undefined) ?? true}
                         onChange={(next) =>
                           updateEditorProvider({
                             config: {
@@ -1267,28 +1342,30 @@ export function ProvidersPage() {
                         }
                       />
                     )}
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="text-sm font-medium text-fg/70">
-                        {t("providers.editor.mergeSameRoleMessages")}
-                      </span>
-                      <Switch
-                        id="mergeSameRoleMessages"
-                        checked={
-                          (customConfig.mergeSameRoleMessages as boolean | undefined) ?? true
-                        }
-                        onChange={(next) =>
-                          updateEditorProvider({
-                            config: {
-                              ...editorProvider.config,
-                              mergeSameRoleMessages: next,
-                            },
-                          })
-                        }
-                      />
-                    </div>
+                    {supportsRoleMapping && (
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-sm font-medium text-fg/70">
+                          {t("providers.editor.mergeSameRoleMessages")}
+                        </span>
+                        <Switch
+                          id="mergeSameRoleMessages"
+                          checked={
+                            (customConfig.mergeSameRoleMessages as boolean | undefined) ?? true
+                          }
+                          onChange={(next) =>
+                            updateEditorProvider({
+                              config: {
+                                ...editorProvider.config,
+                                mergeSameRoleMessages: next,
+                              },
+                            })
+                          }
+                        />
+                      </div>
+                    )}
                   </>
                 )}
-                {isCustomProvider && (
+                {editorProvider.providerId === "custom" && (
                   <div className="flex items-center justify-between pt-1">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-fg/70">
@@ -1394,13 +1471,17 @@ export function ProvidersPage() {
                   icon={Copy}
                   title={t("providers.actions.duplicate")}
                   description={t("providers.actions.duplicateDesc")}
-                  onClick={() => openDuplicateMenu({ kind: "audio", provider: selectedAudioProvider })}
+                  onClick={() =>
+                    openDuplicateMenu({ kind: "audio", provider: selectedAudioProvider })
+                  }
                   color="from-accent to-accent/80"
                 />
                 {selectedAudioProvider.id !== "system-kokoro" && (
                   <MenuButton
                     icon={Trash2}
-                    title={isAudioDeleting ? t("common.buttons.deleting") : t("common.buttons.delete")}
+                    title={
+                      isAudioDeleting ? t("common.buttons.deleting") : t("common.buttons.delete")
+                    }
                     description={t("providers.actions.deleteDesc")}
                     onClick={() => void handleDeleteAudioProvider(selectedAudioProvider.id)}
                     disabled={isAudioDeleting}
@@ -1448,7 +1529,9 @@ export function ProvidersPage() {
                 className="w-full rounded-lg border border-fg/10 bg-fg/5 px-3 py-2 text-sm text-fg outline-none focus:border-accent/50"
               />
             </div>
-            {duplicateError && <p className="text-xs font-medium text-danger/80">{duplicateError}</p>}
+            {duplicateError && (
+              <p className="text-xs font-medium text-danger/80">{duplicateError}</p>
+            )}
             <div className="flex gap-3">
               <button
                 type="button"
@@ -1473,7 +1556,11 @@ export function ProvidersPage() {
       </BottomMenu>
 
       {/* Engine Setup Bottom Sheet */}
-      <BottomMenu isOpen={!!engineSetupResult} onClose={dismissEngineSetup} title={t("providers.engineSetup.title")}>
+      <BottomMenu
+        isOpen={!!engineSetupResult}
+        onClose={dismissEngineSetup}
+        title={t("providers.engineSetup.title")}
+      >
         {engineSetupResult && (
           <div className="space-y-4 pb-2">
             {engineSetupResult.needsSetup ? (

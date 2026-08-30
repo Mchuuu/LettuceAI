@@ -7,7 +7,7 @@ use crate::storage_manager::settings::{read_settings_typed, write_settings_typed
 use crate::utils::log_info;
 
 /// Current migration version
-pub const CURRENT_MIGRATION_VERSION: u32 = 77;
+pub const CURRENT_MIGRATION_VERSION: u32 = 78;
 
 pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
     log_info(app, "migrations", "Starting migration check");
@@ -809,6 +809,16 @@ pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
         version = 77;
     }
 
+    if version < 78 {
+        log_info(
+            app,
+            "migrations",
+            "Running migration v77 -> v78: Add TTS cache metadata associations",
+        );
+        migrate_v77_to_v78(app)?;
+        version = 78;
+    }
+
     // Update the stored version
     set_migration_version(app, version)?;
 
@@ -834,6 +844,11 @@ pub fn run_migrations(app: &AppHandle) -> Result<(), String> {
 fn migrate_v76_to_v77(app: &AppHandle) -> Result<(), String> {
     crate::embedding::download::repair_v4_tokenizer(app);
     Ok(())
+}
+
+fn migrate_v77_to_v78(app: &AppHandle) -> Result<(), String> {
+    let conn = crate::storage_manager::db::open_db(app)?;
+    crate::tts_manager::cache_metadata::ensure_schema(&conn)
 }
 
 fn cleanup_legacy_files(app: &AppHandle) {

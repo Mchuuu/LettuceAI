@@ -1,5 +1,14 @@
 import { useEffect, useState, memo, useRef } from "react";
-import { Edit2, Trash2, Download, EyeOff, Paintbrush, Upload, Sparkles, Loader2 } from "lucide-react";
+import {
+  Edit2,
+  Trash2,
+  Download,
+  EyeOff,
+  Paintbrush,
+  Upload,
+  Sparkles,
+  Loader2,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
@@ -7,8 +16,7 @@ import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import {
   listCharacters,
   createSession,
-  listSessionPreviews,
-  archiveSession,
+  listActiveSessionPreviews,
   SESSION_UPDATED_EVENT,
   deleteCharacter,
   readSettings,
@@ -23,7 +31,10 @@ import {
   getChatsViewMode,
   getChatsViewModeCached,
   setChatsViewMode,
+  setCharacterHiddenFromChatList,
+  CHARACTER_CHAT_LIST_VISIBILITY_UPDATED_EVENT,
 } from "../../../core/storage/appState";
+import { getHiddenCharacterIds } from "../../../core/chat/characterChatListVisibility";
 import {
   exportCharacterWithFormat,
   downloadJson,
@@ -73,12 +84,10 @@ export function ChatPage() {
   } | null>(null);
   const [importMemoryError, setImportMemoryError] = useState<string | null>(null);
   const [latestSessionByCharacter, setLatestSessionByCharacter] = useState<
-    Record<string, { id: string; updatedAt: number; archived: boolean }>
+    Record<string, { id: string; updatedAt: number }>
   >(() => chatsPageCache?.latestSessionByCharacter ?? {});
   const [hiding, setHiding] = useState(false);
-  const [viewMode, setViewMode] = useState<ChatsViewMode>(
-    () => getChatsViewModeCached() ?? "hero",
-  );
+  const [viewMode, setViewMode] = useState<ChatsViewMode>(() => getChatsViewModeCached() ?? "hero");
   const [templateSelectorCharacter, setTemplateSelectorCharacter] = useState<Character | null>(
     null,
   );
@@ -121,32 +130,24 @@ export function ChatPage() {
 
   const loadCharacters = async () => {
     try {
-      const [list, previews] = await Promise.all([
+      const [list, previews, hiddenCharacterIds] = await Promise.all([
         listCharacters(),
-        listSessionPreviews().catch(() => []),
+        listActiveSessionPreviews().catch(() => []),
+        getHiddenCharacterIds(),
       ]);
-      const latestByCharacter: Record<
-        string,
-        { id: string; updatedAt: number; archived: boolean }
-      > = {};
-      const charactersWithSessions = new Set<string>();
+      const latestByCharacter: Record<string, { id: string; updatedAt: number }> = {};
 
       previews.forEach((preview) => {
-        charactersWithSessions.add(preview.characterId);
         const current = latestByCharacter[preview.characterId];
         if (!current || preview.updatedAt > current.updatedAt) {
           latestByCharacter[preview.characterId] = {
             id: preview.id,
             updatedAt: preview.updatedAt,
-            archived: preview.archived,
           };
         }
       });
 
-      const visible = list.filter((character) => {
-        if (!charactersWithSessions.has(character.id)) return true;
-        return !latestByCharacter[character.id]?.archived;
-      });
+      const visible = list.filter((character) => !hiddenCharacterIds.has(character.id));
 
       const sorted = [...visible].sort((a, b) => {
         const aTime = latestByCharacter[a.id]?.updatedAt ?? a.updatedAt ?? a.createdAt ?? 0;
@@ -186,11 +187,19 @@ export function ChatPage() {
     const handleSessionUpdated = () => {
       loadCharacters();
     };
+    const handleVisibilityUpdated = () => {
+      loadCharacters();
+    };
     window.addEventListener(SESSION_UPDATED_EVENT, handleSessionUpdated);
+    window.addEventListener(CHARACTER_CHAT_LIST_VISIBILITY_UPDATED_EVENT, handleVisibilityUpdated);
 
     return () => {
       if (unlisten) unlisten();
       window.removeEventListener(SESSION_UPDATED_EVENT, handleSessionUpdated);
+      window.removeEventListener(
+        CHARACTER_CHAT_LIST_VISIBILITY_UPDATED_EVENT,
+        handleVisibilityUpdated,
+      );
     };
   }, []);
 
@@ -211,7 +220,7 @@ export function ChatPage() {
 
   const startChat = async (character: Character) => {
     try {
-      const previews = await listSessionPreviews(character.id, 1).catch(() => []);
+      const previews = await listActiveSessionPreviews(character.id, 1).catch(() => []);
       const latestSessionId = previews[0]?.id ?? latestSessionByCharacter[character.id]?.id;
       if (latestSessionId) {
         navigate(`/chat/${character.id}?sessionId=${latestSessionId}`);
@@ -338,13 +347,15 @@ export function ChatPage() {
           });
           terminalUnlisteners.push(unlisten);
         }
-        void storageBridge.initializeImportedChatMemory(importedSessionId, memoryWindowSize).catch((error) => {
-          console.error("Failed to start imported memory initialization:", error);
-          setImportMemoryError(
-            typeof error === "string" ? error : t("chats.settings.failedImportChat"),
-          );
-          setImportingChatpkg(false);
-        });
+        void storageBridge
+          .initializeImportedChatMemory(importedSessionId, memoryWindowSize)
+          .catch((error) => {
+            console.error("Failed to start imported memory initialization:", error);
+            setImportMemoryError(
+              typeof error === "string" ? error : t("chats.settings.failedImportChat"),
+            );
+            setImportingChatpkg(false);
+          });
       }
     } catch (err) {
       console.error("Failed to import chat:", err);
@@ -373,7 +384,9 @@ export function ChatPage() {
     setImportingChatpkg(true);
     void storageBridge.resumeImportedMemoryJob(sessionId).catch((error) => {
       console.error("Failed to resume imported memory initialization:", error);
-      setImportMemoryError(typeof error === "string" ? error : t("chats.settings.failedImportChat"));
+      setImportMemoryError(
+        typeof error === "string" ? error : t("chats.settings.failedImportChat"),
+      );
       setImportingChatpkg(false);
     });
   };
@@ -427,16 +440,10 @@ export function ChatPage() {
 
   const handleHide = async () => {
     if (!selectedCharacter) return;
-    const latestSessionId = latestSessionByCharacter[selectedCharacter.id]?.id;
-    if (!latestSessionId) {
-      setSelectedCharacter(null);
-      return;
-    }
 
     try {
       setHiding(true);
-      await archiveSession(latestSessionId, true);
-      await loadCharacters();
+      await setCharacterHiddenFromChatList(selectedCharacter.id, true);
       setSelectedCharacter(null);
     } catch (err) {
       console.error("Failed to hide character session:", err);
@@ -544,7 +551,7 @@ export function ChatPage() {
 
             <button
               onClick={handleHide}
-              disabled={hiding || !latestSessionByCharacter[selectedCharacter.id]}
+              disabled={hiding}
               className="flex w-full items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-left transition hover:border-amber-400/50 hover:bg-amber-400/20 disabled:opacity-50"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-full border border-amber-400/30 bg-amber-400/20">
@@ -652,10 +659,7 @@ export function ChatPage() {
         <div className="space-y-3">
           <div className="flex items-center gap-3">
             <Loader2
-              className={cn(
-                "h-5 w-5 text-emerald-300",
-                !importMemoryError && "animate-spin",
-              )}
+              className={cn("h-5 w-5 text-emerald-300", !importMemoryError && "animate-spin")}
             />
             <div className="min-w-0">
               <div className="text-sm font-medium text-white">
@@ -730,7 +734,7 @@ export function ChatPage() {
         exporting={exporting}
       />
 
-{/* Delete Confirmation */}
+      {/* Delete Confirmation */}
       <BottomMenu
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
@@ -843,9 +847,7 @@ function CharacterList({
         >
           {visible.map((character) => (
             <div key={character.id}>
-              <div className="lg:hidden">
-                {renderListCard(character)}
-              </div>
+              <div className="lg:hidden">{renderListCard(character)}</div>
               <div className="hidden lg:block">
                 <GalleryCard character={character} onSelect={onSelect} onLongPress={onLongPress} />
               </div>
@@ -858,9 +860,7 @@ function CharacterList({
         <motion.div key="hero" {...viewModeTransition} className="space-y-2 lg:space-y-3 pb-24">
           {visible[0] && (
             <>
-              <div className="lg:hidden">
-                {renderListCard(visible[0])}
-              </div>
+              <div className="lg:hidden">{renderListCard(visible[0])}</div>
               <div className="hidden lg:block">
                 <HeroCard character={visible[0]} onSelect={onSelect} onLongPress={onLongPress} />
               </div>
@@ -904,7 +904,7 @@ function CharacterSkeleton() {
 
 type ChatsPageCache = {
   characters: Character[];
-  latestSessionByCharacter: Record<string, { id: string; updatedAt: number; archived: boolean }>;
+  latestSessionByCharacter: Record<string, { id: string; updatedAt: number }>;
 };
 
 let chatsPageCache: ChatsPageCache | null = null;
@@ -1242,10 +1242,8 @@ const HeroCard = memo(
             aria-hidden
             className="absolute inset-y-0 left-0 w-3/5 lg:w-1/2 max-w-[560px] overflow-hidden"
             style={{
-              WebkitMaskImage:
-                "linear-gradient(to right, black 0%, black 55%, transparent 100%)",
-              maskImage:
-                "linear-gradient(to right, black 0%, black 55%, transparent 100%)",
+              WebkitMaskImage: "linear-gradient(to right, black 0%, black 55%, transparent 100%)",
+              maskImage: "linear-gradient(to right, black 0%, black 55%, transparent 100%)",
             }}
           >
             <div className="h-full w-full origin-center scale-[1.14] transition-transform duration-500 ease-out group-hover:-translate-x-3 group-hover:scale-[1.14]">

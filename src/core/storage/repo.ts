@@ -854,7 +854,9 @@ export async function addOrUpdateProviderCredential(
 export async function removeProviderCredential(id: string): Promise<void> {
   await storageBridge.providerDelete(id);
   updateCachedSettings((settings) => {
-    settings.providerCredentials = settings.providerCredentials.filter((provider) => provider.id !== id);
+    settings.providerCredentials = settings.providerCredentials.filter(
+      (provider) => provider.id !== id,
+    );
   });
   const current = await readSettings();
   if (current.defaultProviderCredentialId === id) {
@@ -1296,8 +1298,17 @@ export async function listSessionIds(): Promise<string[]> {
 export async function listSessionPreviews(
   characterId?: string,
   limit?: number,
+  archived?: boolean,
 ): Promise<SessionPreview[]> {
-  const data = await storageBridge.sessionsListPreviews(characterId, limit);
+  const data = await storageBridge.sessionsListPreviews(characterId, limit, archived);
+  return z.array(SessionPreviewSchema).parse(data);
+}
+
+export async function listActiveSessionPreviews(
+  characterId?: string,
+  limit?: number,
+): Promise<SessionPreview[]> {
+  const data = await storageBridge.sessionsListPreviews(characterId, limit, false);
   return z.array(SessionPreviewSchema).parse(data);
 }
 
@@ -1438,7 +1449,9 @@ function mergePreservedDynamicMemoryState(latest: Session, next: Session): Sessi
     companionState:
       next.companionState !== undefined
         ? cloneSerializable(next.companionState)
-        : (latest.companionState == null ? latest.companionState : cloneSerializable(latest.companionState)),
+        : latest.companionState == null
+          ? latest.companionState
+          : cloneSerializable(latest.companionState),
     memories: cloneSerializable(latest.memories ?? []),
     memoryEmbeddings: cloneSerializable(latest.memoryEmbeddings ?? []),
     memorySummary: latest.memorySummary ?? "",
@@ -1450,10 +1463,7 @@ function mergePreservedDynamicMemoryState(latest: Session, next: Session): Sessi
   };
 }
 
-export async function saveSession(
-  s: Session,
-  options: SaveSessionOptions = {},
-): Promise<void> {
+export async function saveSession(s: Session, options: SaveSessionOptions = {}): Promise<void> {
   SessionSchema.parse(s);
 
   let sessionToSave = s;
@@ -1490,7 +1500,7 @@ export async function updateSessionBackgroundImage(
 export async function archiveSession(id: string, archived = true): Promise<Session | null> {
   await storageBridge.sessionArchive(id, archived);
   broadcastSessionUpdated();
-  return getSession(id);
+  return getSessionMeta(id);
 }
 
 export async function updateSessionTitle(id: string, title: string): Promise<Session | null> {
@@ -1699,8 +1709,7 @@ export async function createBranchedSessionToCharacter(
     rootSessionId: sourceSession.rootSessionId ?? sourceSession.id,
     backgroundImagePath: undefined,
     mode: targetCharacter?.mode ?? "roleplay",
-    selectedSceneId:
-      targetCharacter?.defaultSceneId ?? undefined,
+    selectedSceneId: targetCharacter?.defaultSceneId ?? undefined,
     promptTemplateId:
       targetCharacter?.mode === "companion"
         ? (targetCharacter?.companion?.prompting?.promptTemplateId ?? APP_COMPANION_TEMPLATE_ID)

@@ -713,6 +713,8 @@ pub struct AdvancedModelSettings {
     pub ollama_seed: Option<u32>,
     pub ollama_stop: Option<Vec<String>>,
     // Reasoning/thinking settings
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_mode: Option<String>,
     #[serde(default)]
     pub reasoning_enabled: Option<bool>,
     #[serde(default)]
@@ -725,6 +727,8 @@ pub struct AdvancedModelSettings {
     #[serde(default)]
     pub prompt_caching_enabled: Option<bool>,
     pub prompt_caching_ttl: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub web_search_enabled: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub open_router_provider: Option<OpenRouterPinnedProvider>,
 }
@@ -816,12 +820,14 @@ impl Default for AdvancedModelSettings {
             ollama_repeat_penalty: None,
             ollama_seed: None,
             ollama_stop: None,
+            reasoning_mode: None,
             reasoning_enabled: None,
             reasoning_effort: None,
             reasoning_budget_tokens: None,
             force_send_thinking_state: None,
             prompt_caching_enabled: Some(false),
             prompt_caching_ttl: Some("5min".to_string()),
+            web_search_enabled: Some(false),
             open_router_provider: None,
         }
     }

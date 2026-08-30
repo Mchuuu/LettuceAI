@@ -34,7 +34,7 @@ import {
   updateMemory,
   getSessionMeta,
   listPinnedMessages,
-  listSessionPreviews,
+  listActiveSessionPreviews,
   listCharacters,
   saveSession,
   setMemoryColdState,
@@ -92,10 +92,7 @@ const MEMORY_CATEGORY_LABEL_KEYS = {
   preference: "chats.memoryCategories.preference",
   other: "chats.memoryCategories.other",
 } as const satisfies Record<(typeof MEMORY_CATEGORY_OPTIONS)[number], TranslationKey>;
-const formatMemoryCategoryLabel = (
-  category: string,
-  t: (key: TranslationKey) => string,
-): string =>
+const formatMemoryCategoryLabel = (category: string, t: (key: TranslationKey) => string): string =>
   isValidMemoryCategory(category)
     ? t(MEMORY_CATEGORY_LABEL_KEYS[category])
     : category.replace(/_/g, " ");
@@ -103,9 +100,7 @@ const formatMemoryCategoryLabel = (
 type MemoriesTab = "memories" | "tools" | "pinned";
 type RetryStatus = "idle" | "retrying" | "success";
 type MemoryStatus = "idle" | "processing" | "failed";
-type DynamicMemoryCycleStatus = Awaited<
-  ReturnType<typeof storageBridge.dynamicMemoryCycleStatus>
->;
+type DynamicMemoryCycleStatus = Awaited<ReturnType<typeof storageBridge.dynamicMemoryCycleStatus>>;
 
 const isAbortError = (value: unknown) => {
   const message =
@@ -266,9 +261,7 @@ function uiReducer(state: UiState, action: UiAction): UiState {
         generationTps:
           action.value === "idle" || action.value === "failed" ? null : state.generationTps,
         generationLastBeatAt:
-          action.value === "idle" || action.value === "failed"
-            ? null
-            : state.generationLastBeatAt,
+          action.value === "idle" || action.value === "failed" ? null : state.generationLastBeatAt,
       };
     case "SET_MEMORY_PROGRESS_STEP":
       return { ...state, memoryProgressStep: action.value };
@@ -391,10 +384,7 @@ function MemoryActionRow({
       )}
     >
       <div
-        className={cn(
-          "flex items-center justify-center w-8 h-8 rounded-lg",
-          iconBg || "bg-fg/10",
-        )}
+        className={cn("flex items-center justify-center w-8 h-8 rounded-lg", iconBg || "bg-fg/10")}
       >
         <Icon size={16} className={cn(variant === "danger" ? "text-red-400" : "text-fg")} />
       </div>
@@ -417,51 +407,54 @@ function useSessionData(characterId?: string, requestedSessionId?: string | null
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (options?: { silent?: boolean }) => {
-    if (!characterId) {
-      setError("Missing characterId");
-      setLoading(false);
-      return;
-    }
-    if (!options?.silent) setLoading(true);
-    setError(null);
-    try {
-      const chars = await listCharacters();
-      const foundChar = chars.find((c) => c.id === characterId) ?? null;
-      setCharacter(foundChar);
-
-      let targetSession: Session | null = null;
-      if (requestedSessionId) {
-        targetSession = await getSessionMeta(requestedSessionId).catch(() => null);
+  const load = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!characterId) {
+        setError("Missing characterId");
+        setLoading(false);
+        return;
       }
+      if (!options?.silent) setLoading(true);
+      setError(null);
+      try {
+        const chars = await listCharacters();
+        const foundChar = chars.find((c) => c.id === characterId) ?? null;
+        setCharacter(foundChar);
 
-      if (!targetSession) {
-        const previews = await listSessionPreviews(characterId, 1).catch(() => []);
-        const latestId = previews[0]?.id;
-        targetSession = latestId ? await getSessionMeta(latestId).catch(() => null) : null;
-      }
+        let targetSession: Session | null = null;
+        if (requestedSessionId) {
+          targetSession = await getSessionMeta(requestedSessionId).catch(() => null);
+        }
 
-      if (targetSession) {
-        setSession(targetSession);
-        if (foundChar?.memoryType === "dynamic") {
-          const pinned = await listPinnedMessages(targetSession.id).catch(
-            () => [] as StoredMessage[],
-          );
-          setPinnedMessages(pinned);
+        if (!targetSession) {
+          const previews = await listActiveSessionPreviews(characterId, 1).catch(() => []);
+          const latestId = previews[0]?.id;
+          targetSession = latestId ? await getSessionMeta(latestId).catch(() => null) : null;
+        }
+
+        if (targetSession) {
+          setSession(targetSession);
+          if (foundChar?.memoryType === "dynamic") {
+            const pinned = await listPinnedMessages(targetSession.id).catch(
+              () => [] as StoredMessage[],
+            );
+            setPinnedMessages(pinned);
+          } else {
+            setPinnedMessages([]);
+          }
         } else {
+          setError("Session not found");
           setPinnedMessages([]);
         }
-      } else {
-        setError("Session not found");
+      } catch (err: any) {
+        setError(err?.message || "Failed to load session");
         setPinnedMessages([]);
+      } finally {
+        setLoading(false);
       }
-    } catch (err: any) {
-      setError(err?.message || "Failed to load session");
-      setPinnedMessages([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [characterId, requestedSessionId]);
+    },
+    [characterId, requestedSessionId],
+  );
 
   useEffect(() => {
     void load();
@@ -660,10 +653,7 @@ function ActionCard({
         isReverted ? "border-fg/8" : style.border,
       )}
     >
-      <Icon
-        size={14}
-        className={cn(isReverted ? "text-fg/30" : style.color, "mt-0.5 shrink-0")}
-      />
+      <Icon size={14} className={cn(isReverted ? "text-fg/30" : style.color, "mt-0.5 shrink-0")} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span
@@ -703,7 +693,9 @@ function ActionCard({
                   : "bg-red-500/20 text-red-300 border-red-500/30",
               )}
             >
-              {confidence < 0.7 ? t("groupChats.toolLog.badgeSoftDelete") : `${Math.round(confidence * 100)}%`}
+              {confidence < 0.7
+                ? t("groupChats.toolLog.badgeSoftDelete")
+                : `${Math.round(confidence * 100)}%`}
             </span>
           )}
         </div>
@@ -848,7 +840,11 @@ function CycleCard({
               onRevert(event);
             }}
             disabled={reverting}
-            title={reverting ? t("groupChats.toolLog.revertingTitle") : t("groupChats.toolLog.revertCycleTitle")}
+            title={
+              reverting
+                ? t("groupChats.toolLog.revertingTitle")
+                : t("groupChats.toolLog.revertCycleTitle")
+            }
             aria-label={t("groupChats.toolLog.revertCycleTitle")}
             className={cn(
               "shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-md",
@@ -883,11 +879,11 @@ function CycleCard({
               )}
             >
               <RefreshCw size={12} className="text-warning/70" />
-              <span>{t("groupChats.toolLog.revertedAt", { time: relativeTime(event.revertedAt) })}</span>
-              <span className="text-warning/40">·</span>
-              <span className="text-warning/50">
-                {new Date(event.revertedAt).toLocaleString()}
+              <span>
+                {t("groupChats.toolLog.revertedAt", { time: relativeTime(event.revertedAt) })}
               </span>
+              <span className="text-warning/40">·</span>
+              <span className="text-warning/50">{new Date(event.revertedAt).toLocaleString()}</span>
             </div>
           )}
 
@@ -903,7 +899,9 @@ function CycleCard({
             <div className={cn(radius.md, "border border-red-400/20 bg-red-400/10 px-3 py-2.5")}>
               <p className={cn("text-[12px] text-red-200/90")}>{event.error}</p>
               {event.stage && (
-                <p className={cn("text-[11px] mt-1 text-red-200/60")}>{t("groupChats.toolLog.failedAtStage", { stage: event.stage })}</p>
+                <p className={cn("text-[11px] mt-1 text-red-200/60")}>
+                  {t("groupChats.toolLog.failedAtStage", { stage: event.stage })}
+                </p>
               )}
             </div>
           )}
@@ -948,7 +946,10 @@ function CycleCard({
             )}
           >
             <span>
-              {t("groupChats.toolLog.windowRange", { start: event.windowStart, end: event.windowEnd })}
+              {t("groupChats.toolLog.windowRange", {
+                start: event.windowStart,
+                end: event.windowEnd,
+              })}
             </span>
             <span>{new Date(event.createdAt || 0).toLocaleString()}</span>
           </div>
@@ -1142,8 +1143,7 @@ export function ChatMemoriesPage() {
               tokens: Number(e.payload?.tokens ?? 0),
               tps: Number(e.payload?.tokensPerSecond ?? 0),
               at: Date.now(),
-              recentText:
-                typeof e.payload?.recentText === "string" ? e.payload.recentText : null,
+              recentText: typeof e.payload?.recentText === "string" ? e.payload.recentText : null,
             });
           }
         });
@@ -1304,7 +1304,10 @@ export function ChatMemoriesPage() {
         dispatch({ type: "SET_ACTION_ERROR", value: null });
       } catch (err: any) {
         console.error("Failed to unpin message:", err);
-        dispatch({ type: "SET_ACTION_ERROR", value: err?.message || t("chats.memories.failedUnpinMessage") });
+        dispatch({
+          type: "SET_ACTION_ERROR",
+          value: err?.message || t("chats.memories.failedUnpinMessage"),
+        });
       }
     },
     [session, isDynamic, refreshPinnedMessages],
@@ -1333,7 +1336,10 @@ export function ChatMemoriesPage() {
         dispatch({ type: "SET_ACTION_ERROR", value: null });
       } catch (err: any) {
         console.error("Failed to add memory:", err);
-        dispatch({ type: "SET_ACTION_ERROR", value: err?.message || t("chats.memories.failedAddMemory") });
+        dispatch({
+          type: "SET_ACTION_ERROR",
+          value: err?.message || t("chats.memories.failedAddMemory"),
+        });
       } finally {
         dispatch({ type: "SET_IS_ADDING", value: false });
       }
@@ -1359,7 +1365,10 @@ export function ChatMemoriesPage() {
         return true;
       } catch (err: any) {
         console.error("Failed to update memory:", err);
-        dispatch({ type: "SET_ACTION_ERROR", value: err?.message || t("chats.memories.failedUpdateMemory") });
+        dispatch({
+          type: "SET_ACTION_ERROR",
+          value: err?.message || t("chats.memories.failedUpdateMemory"),
+        });
         return false;
       }
     },
@@ -1384,7 +1393,10 @@ export function ChatMemoriesPage() {
       dispatch({ type: "MARK_SUMMARY_SAVED" });
     } catch (err: any) {
       console.error("Failed to save summary:", err);
-      dispatch({ type: "SET_ACTION_ERROR", value: err?.message || t("chats.memories.failedSaveSummary") });
+      dispatch({
+        type: "SET_ACTION_ERROR",
+        value: err?.message || t("chats.memories.failedSaveSummary"),
+      });
       dispatch({ type: "SET_IS_SAVING_SUMMARY", value: false });
     }
   }, [handleSaveSummary, session?.memorySummary, ui.summaryDraft]);
@@ -1510,7 +1522,10 @@ export function ChatMemoriesPage() {
         dispatch({ type: "SET_ACTION_ERROR", value: null });
       } catch (err: any) {
         console.error("Failed to revert memory cycle:", err);
-        dispatch({ type: "SET_ACTION_ERROR", value: err?.message || t("chats.memories.failedRevertCycle") });
+        dispatch({
+          type: "SET_ACTION_ERROR",
+          value: err?.message || t("chats.memories.failedRevertCycle"),
+        });
       } finally {
         setRevertingEventId(null);
       }
@@ -1627,278 +1642,519 @@ export function ChatMemoriesPage() {
         </>
       )}
       <div className="relative z-10 flex h-full flex-col">
-      {/* Header */}
-      <header
-        className={cn(
-          "z-20 shrink-0 border-b border-fg/10 pl-3 lg:pl-8",
-          "pr-3 lg:pr-8",
-          colors.glass.strong,
-        )}
-        style={{
-          paddingTop: "calc(var(--lettuce-safe-area-inset-top) + 12px)",
-          paddingBottom: "12px",
-        }}
-      >
-        <div className="flex h-10 items-center justify-between">
-          <div className="flex items-center min-w-0">
-            <button
-              onClick={() =>
-                backOrReplace(
-                  characterId ? Routes.chatSession(characterId, sessionId) : Routes.chat,
-                )
-              }
-              className={cn(
-                "flex shrink-0 items-center justify-center -ml-2 px-[0.6em] py-[0.3em]",
-                colors.text.primary,
-                interactive.transition.fast,
-                "hover:text-fg/80",
-              )}
-              aria-label={t("common.buttons.goBack")}
-            >
-              <ArrowLeft size={18} strokeWidth={2.5} />
-            </button>
-            <div className="min-w-0 text-left">
-              <p className={cn("truncate text-xl font-bold", colors.text.primary)}>
-                {t("groupChats.memories.tabMemories")}
-              </p>
-              <p className={cn("mt-0.5 truncate text-xs", colors.text.tertiary)}>
-                {character.name}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Segmented Tab Control */}
-        {isDynamic && (
-          <div className="mt-3 flex rounded-xl border border-fg/10 bg-fg/5 p-1">
-            {tabs.map(({ id, icon: Icon, label }) => (
-              <button
-                key={id}
-                onClick={() => dispatch({ type: "SET_TAB", tab: id })}
-                className={cn(
-                  "relative flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-colors",
-                  ui.activeTab === id ? "text-fg" : "text-fg/40 hover:text-fg/60",
-                )}
-                aria-label={label}
-              >
-                {ui.activeTab === id && (
-                  <motion.div
-                    layoutId="memoryTabIndicator"
-                    className="absolute inset-0 rounded-lg border border-fg/10 bg-fg/10"
-                    transition={{ type: "spring", stiffness: 320, damping: 28 }}
-                  />
-                )}
-                <Icon size={14} className="relative z-10" />
-                <span className="relative z-10">{label}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </header>
-
-      <main className="flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+16px)]">
-        {isDynamic &&
-          (cycleStatus ||
-            isMemoryCycleActive ||
-            cycleErrorMessage ||
-            ui.retryStatus === "success") && (
-            <MemoryCycleHub
-              status={cycleStatus}
-              running={isMemoryCycleActive}
-              retrying={ui.retryStatus === "retrying"}
-              retrySuccess={ui.retryStatus === "success"}
-              errorMessage={cycleErrorMessage}
-              step={ui.memoryProgressStep ?? session.memoryProgressStep ?? null}
-              generationTokens={ui.generationTokens}
-              generationTps={ui.generationTps}
-              generationStalled={generationStalled}
-              generationStalledSeconds={Math.round((generationStalledMs ?? 0) / 1000)}
-              liveOutputAvailable={developerMode && ui.generationRecentText != null}
-              onRun={handleTriggerManual}
-              onCancel={handleAbortMemoryCycle}
-              onRetry={handleRetry}
-              onPickModel={() => setShowModelSelector(true)}
-              onDismissError={handleDismissError}
-              onDismissSuccess={() => dispatch({ type: "SET_RETRY_STATUS", value: "idle" })}
-              onShowLiveOutput={() => setShowLiveOutput(true)}
-            />
+        {/* Header */}
+        <header
+          className={cn(
+            "z-20 shrink-0 border-b border-fg/10 pl-3 lg:pl-8",
+            "pr-3 lg:pr-8",
+            colors.glass.strong,
           )}
-        {ui.actionError && !isMemoryCycleActive && ui.actionError !== cycleErrorMessage && (
-          <div className="px-3 pt-3">
-            <div
-              className={cn(
-                radius.md,
-                "bg-danger/10 border border-danger/20 p-3 flex items-start gap-3",
-              )}
-            >
-              <AlertTriangle className="h-5 w-5 text-danger shrink-0" />
-              <div className={cn("flex-1", typography.body.size, "text-danger")}>
-                <p className="font-semibold mb-1">{t("chats.memories.errorTitle")}</p>
-                <p className="opacity-90">{ui.actionError}</p>
-              </div>
+          style={{
+            paddingTop: "calc(var(--lettuce-safe-area-inset-top) + 12px)",
+            paddingBottom: "12px",
+          }}
+        >
+          <div className="flex h-10 items-center justify-between">
+            <div className="flex items-center min-w-0">
               <button
-                onClick={() => dispatch({ type: "SET_ACTION_ERROR", value: null })}
-                className="text-danger/70 hover:text-danger"
+                onClick={() =>
+                  backOrReplace(
+                    characterId ? Routes.chatSession(characterId, sessionId) : Routes.chat,
+                  )
+                }
+                className={cn(
+                  "flex shrink-0 items-center justify-center -ml-2 px-[0.6em] py-[0.3em]",
+                  colors.text.primary,
+                  interactive.transition.fast,
+                  "hover:text-fg/80",
+                )}
+                aria-label={t("common.buttons.goBack")}
               >
-                <X size={16} />
+                <ArrowLeft size={18} strokeWidth={2.5} />
               </button>
+              <div className="min-w-0 text-left">
+                <p className={cn("truncate text-xl font-bold", colors.text.primary)}>
+                  {t("groupChats.memories.tabMemories")}
+                </p>
+                <p className={cn("mt-0.5 truncate text-xs", colors.text.tertiary)}>
+                  {character.name}
+                </p>
+              </div>
             </div>
           </div>
-        )}
 
-        <AnimatePresence mode="wait">
-          {ui.activeTab === "memories" ? (
-            <motion.div
-              key="memories"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className={cn("px-3 py-4", "space-y-5")}
-            >
-              {/* Context Summary */}
-              {isDynamic && (
+          {/* Segmented Tab Control */}
+          {isDynamic && (
+            <div className="mt-3 flex rounded-xl border border-fg/10 bg-fg/5 p-1">
+              {tabs.map(({ id, icon: Icon, label }) => (
                 <button
-                  type="button"
-                  onClick={() => setShowSummaryEditor(true)}
+                  key={id}
+                  onClick={() => dispatch({ type: "SET_TAB", tab: id })}
                   className={cn(
-                    "w-full rounded-xl border border-emerald-400/22 bg-emerald-400/8 px-4 py-3 text-left",
-                    "transition-all hover:border-emerald-400/30 hover:bg-emerald-400/10 active:scale-[0.99]",
+                    "relative flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-colors",
+                    ui.activeTab === id ? "text-fg" : "text-fg/40 hover:text-fg/60",
                   )}
+                  aria-label={label}
                 >
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <Sparkles size={13} className="shrink-0 text-emerald-500" />
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600">
-                      {t("chats.contextSummary")}
-                    </span>
-                    {session?.memorySummaryTokenCount && session.memorySummaryTokenCount > 0 ? (
-                      <span className="ml-auto text-[10px] text-fg/45">
-                        {session.memorySummaryTokenCount.toLocaleString()} {t("groupChats.memories.tokens")}
-                      </span>
-                    ) : null}
-                  </div>
-                  <p
-                    className={cn(
-                      typography.bodySmall.size,
-                      "leading-relaxed line-clamp-4 min-h-14",
-                      ui.summaryDraft ? "text-fg/78" : "text-fg/42 italic",
-                    )}
-                  >
-                    {ui.summaryDraft || t("groupChats.memories.addContextSummaryPrompt")}
-                  </p>
+                  {ui.activeTab === id && (
+                    <motion.div
+                      layoutId="memoryTabIndicator"
+                      className="absolute inset-0 rounded-lg border border-fg/10 bg-fg/10"
+                      transition={{ type: "spring", stiffness: 320, damping: 28 }}
+                    />
+                  )}
+                  <Icon size={14} className="relative z-10" />
+                  <span className="relative z-10">{label}</span>
                 </button>
-              )}
+              ))}
+            </div>
+          )}
+        </header>
 
-              {/* Memories Section */}
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span
-                    className={cn(
-                      "text-[12px] font-semibold uppercase tracking-wider text-fg/50",
-                    )}
-                  >
-                    {ui.searchTerm.trim()
-                      ? t("groupChats.memories.resultsCount", { count: filteredMemories.length })
-                      : t("groupChats.memories.savedMemories")}
-                  </span>
-                  <span className={cn("ml-auto text-[10px] text-fg/30")}>
-                    {t("chats.memories.aiUserCount", { ai: stats.ai, user: stats.user })}
-                  </span>
+        <main className="flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+16px)]">
+          {isDynamic &&
+            (cycleStatus ||
+              isMemoryCycleActive ||
+              cycleErrorMessage ||
+              ui.retryStatus === "success") && (
+              <MemoryCycleHub
+                status={cycleStatus}
+                running={isMemoryCycleActive}
+                retrying={ui.retryStatus === "retrying"}
+                retrySuccess={ui.retryStatus === "success"}
+                errorMessage={cycleErrorMessage}
+                step={ui.memoryProgressStep ?? session.memoryProgressStep ?? null}
+                generationTokens={ui.generationTokens}
+                generationTps={ui.generationTps}
+                generationStalled={generationStalled}
+                generationStalledSeconds={Math.round((generationStalledMs ?? 0) / 1000)}
+                liveOutputAvailable={developerMode && ui.generationRecentText != null}
+                onRun={handleTriggerManual}
+                onCancel={handleAbortMemoryCycle}
+                onRetry={handleRetry}
+                onPickModel={() => setShowModelSelector(true)}
+                onDismissError={handleDismissError}
+                onDismissSuccess={() => dispatch({ type: "SET_RETRY_STATUS", value: "idle" })}
+                onShowLiveOutput={() => setShowLiveOutput(true)}
+              />
+            )}
+          {ui.actionError && !isMemoryCycleActive && ui.actionError !== cycleErrorMessage && (
+            <div className="px-3 pt-3">
+              <div
+                className={cn(
+                  radius.md,
+                  "bg-danger/10 border border-danger/20 p-3 flex items-start gap-3",
+                )}
+              >
+                <AlertTriangle className="h-5 w-5 text-danger shrink-0" />
+                <div className={cn("flex-1", typography.body.size, "text-danger")}>
+                  <p className="font-semibold mb-1">{t("chats.memories.errorTitle")}</p>
+                  <p className="opacity-90">{ui.actionError}</p>
                 </div>
+                <button
+                  onClick={() => dispatch({ type: "SET_ACTION_ERROR", value: null })}
+                  className="text-danger/70 hover:text-danger"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+          )}
 
-                {/* Search + Add row */}
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="relative flex-1 min-w-0">
-                    <Search
-                      className={cn(
-                        "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4",
-                        colors.text.tertiary,
-                      )}
-                    />
-                    <input
-                      type="text"
-                      value={ui.searchTerm}
-                      onChange={(e) => dispatch({ type: "SET_SEARCH", value: e.target.value })}
-                      placeholder={t("groupChats.memories.searchPlaceholder")}
-                      className={cn(
-                        "w-full pl-10 pr-10 py-2.5",
-                        components.input.base,
-                        radius.lg,
-                        "text-sm text-fg placeholder:text-fg/40",
-                      )}
-                    />
-                    {ui.searchTerm.trim().length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => dispatch({ type: "CLEAR_SEARCH" })}
-                        className={cn(
-                          "absolute right-3 top-1/2 -translate-y-1/2",
-                          colors.text.tertiary,
-                          "hover:text-fg",
-                          interactive.transition.fast,
-                        )}
-                        aria-label={t("common.buttons.clearSearch")}
-                      >
-                        <X size={16} />
-                      </button>
-                    )}
-                  </div>
+          <AnimatePresence mode="wait">
+            {ui.activeTab === "memories" ? (
+              <motion.div
+                key="memories"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                className={cn("px-3 py-4", "space-y-5")}
+              >
+                {/* Context Summary */}
+                {isDynamic && (
                   <button
-                    onClick={() => setShowAddCategoryMenu(true)}
+                    type="button"
+                    onClick={() => setShowSummaryEditor(true)}
                     className={cn(
-                      "flex items-center justify-center shrink-0",
-                      "h-10.5 w-10.5 rounded-lg",
-                      "border border-fg/10 bg-fg/5",
-                      "text-fg/50",
-                      "hover:bg-fg/8 hover:text-fg/70",
-                      "transition-all active:scale-95",
+                      "w-full rounded-xl border border-emerald-400/22 bg-emerald-400/8 px-4 py-3 text-left",
+                      "transition-all hover:border-emerald-400/30 hover:bg-emerald-400/10 active:scale-[0.99]",
                     )}
-                    aria-label={t("groupChats.memories.addMemory")}
                   >
-                    <Plus size={18} />
-                  </button>
-                </div>
-
-                {/* Category Filter Chips */}
-                {isDynamic && categories.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mb-3">
-                    <button
-                      type="button"
-                      onClick={() => dispatch({ type: "SET_CATEGORY", value: null })}
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Sparkles size={13} className="shrink-0 text-emerald-500" />
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600">
+                        {t("chats.contextSummary")}
+                      </span>
+                      {session?.memorySummaryTokenCount && session.memorySummaryTokenCount > 0 ? (
+                        <span className="ml-auto text-[10px] text-fg/45">
+                          {session.memorySummaryTokenCount.toLocaleString()}{" "}
+                          {t("groupChats.memories.tokens")}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p
                       className={cn(
-                        "px-2 py-0.5 rounded-full text-[11px] font-medium border transition-colors",
-                        !ui.selectedCategory
-                          ? "border-fg/20 bg-fg/12 text-fg/80"
-                          : "border-fg/8 bg-fg/4 text-fg/35 hover:bg-fg/8",
+                        typography.bodySmall.size,
+                        "leading-relaxed line-clamp-4 min-h-14",
+                        ui.summaryDraft ? "text-fg/78" : "text-fg/42 italic",
                       )}
                     >
-                      {t("chats.memories.categoryAll")}
+                      {ui.summaryDraft || t("groupChats.memories.addContextSummaryPrompt")}
+                    </p>
+                  </button>
+                )}
+
+                {/* Memories Section */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span
+                      className={cn(
+                        "text-[12px] font-semibold uppercase tracking-wider text-fg/50",
+                      )}
+                    >
+                      {ui.searchTerm.trim()
+                        ? t("groupChats.memories.resultsCount", { count: filteredMemories.length })
+                        : t("groupChats.memories.savedMemories")}
+                    </span>
+                    <span className={cn("ml-auto text-[10px] text-fg/30")}>
+                      {t("chats.memories.aiUserCount", { ai: stats.ai, user: stats.user })}
+                    </span>
+                  </div>
+
+                  {/* Search + Add row */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="relative flex-1 min-w-0">
+                      <Search
+                        className={cn(
+                          "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4",
+                          colors.text.tertiary,
+                        )}
+                      />
+                      <input
+                        type="text"
+                        value={ui.searchTerm}
+                        onChange={(e) => dispatch({ type: "SET_SEARCH", value: e.target.value })}
+                        placeholder={t("groupChats.memories.searchPlaceholder")}
+                        className={cn(
+                          "w-full pl-10 pr-10 py-2.5",
+                          components.input.base,
+                          radius.lg,
+                          "text-sm text-fg placeholder:text-fg/40",
+                        )}
+                      />
+                      {ui.searchTerm.trim().length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => dispatch({ type: "CLEAR_SEARCH" })}
+                          className={cn(
+                            "absolute right-3 top-1/2 -translate-y-1/2",
+                            colors.text.tertiary,
+                            "hover:text-fg",
+                            interactive.transition.fast,
+                          )}
+                          aria-label={t("common.buttons.clearSearch")}
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setShowAddCategoryMenu(true)}
+                      className={cn(
+                        "flex items-center justify-center shrink-0",
+                        "h-10.5 w-10.5 rounded-lg",
+                        "border border-fg/10 bg-fg/5",
+                        "text-fg/50",
+                        "hover:bg-fg/8 hover:text-fg/70",
+                        "transition-all active:scale-95",
+                      )}
+                      aria-label={t("groupChats.memories.addMemory")}
+                    >
+                      <Plus size={18} />
                     </button>
-                    {categories.map((cat) => (
+                  </div>
+
+                  {/* Category Filter Chips */}
+                  {isDynamic && categories.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-3">
                       <button
-                        key={cat}
                         type="button"
-                        onClick={() =>
-                          dispatch({
-                            type: "SET_CATEGORY",
-                            value: ui.selectedCategory === cat ? null : cat,
-                          })
-                        }
+                        onClick={() => dispatch({ type: "SET_CATEGORY", value: null })}
                         className={cn(
                           "px-2 py-0.5 rounded-full text-[11px] font-medium border transition-colors",
-                          ui.selectedCategory === cat
+                          !ui.selectedCategory
                             ? "border-fg/20 bg-fg/12 text-fg/80"
                             : "border-fg/8 bg-fg/4 text-fg/35 hover:bg-fg/8",
                         )}
                       >
-                        {formatMemoryCategoryLabel(cat, t)}
+                        {t("chats.memories.categoryAll")}
                       </button>
-                    ))}
-                  </div>
-                )}
+                      {categories.map((cat) => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() =>
+                            dispatch({
+                              type: "SET_CATEGORY",
+                              value: ui.selectedCategory === cat ? null : cat,
+                            })
+                          }
+                          className={cn(
+                            "px-2 py-0.5 rounded-full text-[11px] font-medium border transition-colors",
+                            ui.selectedCategory === cat
+                              ? "border-fg/20 bg-fg/12 text-fg/80"
+                              : "border-fg/8 bg-fg/4 text-fg/35 hover:bg-fg/8",
+                          )}
+                        >
+                          {formatMemoryCategoryLabel(cat, t)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
-                {/* Memory List */}
-                {filteredMemories.length === 0 ? (
+                  {/* Memory List */}
+                  {filteredMemories.length === 0 ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, ease: "easeOut" }}
+                      className="flex flex-col items-center justify-center py-16"
+                    >
+                      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-fg/10 bg-fg/5">
+                        {ui.searchTerm ? (
+                          <Search className="h-7 w-7 text-fg/20" />
+                        ) : (
+                          <Bot className="h-7 w-7 text-fg/20" />
+                        )}
+                      </div>
+                      <h3 className="mb-1 text-base font-semibold text-fg">
+                        {ui.searchTerm
+                          ? t("groupChats.memories.noMatchingMemories")
+                          : t("groupChats.memories.noMemoriesYet")}
+                      </h3>
+                      <p className="max-w-60 text-center text-sm text-fg/40">
+                        {ui.searchTerm
+                          ? t("groupChats.memories.noMatchingDesc")
+                          : t("groupChats.memories.noMemoriesDesc")}
+                      </p>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      className="space-y-3"
+                      initial="hidden"
+                      animate="visible"
+                      variants={{ visible: { transition: { staggerChildren: 0.03 } } }}
+                    >
+                      <AnimatePresence>
+                        {filteredMemories.map((item) => {
+                          const expanded = ui.expandedMemories.has(item.index);
+
+                          return (
+                            <motion.div
+                              key={item.id}
+                              layout
+                              variants={{
+                                hidden: { opacity: 0, y: 12 },
+                                visible: { opacity: 1, y: 0 },
+                              }}
+                              exit={{ opacity: 0, scale: 0.95 }}
+                              transition={{ duration: 0.15 }}
+                              className={cn(
+                                "group relative overflow-hidden rounded-xl",
+                                "border",
+                                expanded
+                                  ? "border-fg/10 bg-fg/2"
+                                  : "border-fg/6 bg-fg/2 hover:border-fg/10 hover:bg-fg/3",
+                              )}
+                            >
+                              <div
+                                className={cn("px-4 py-3 cursor-pointer")}
+                                onClick={() =>
+                                  dispatch({ type: "TOGGLE_EXPANDED", index: item.index })
+                                }
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    dispatch({ type: "TOGGLE_EXPANDED", index: item.index });
+                                  }
+                                }}
+                              >
+                                {/* Top row: source icon + text + overflow */}
+                                <div className="flex items-start gap-2">
+                                  <div className="shrink-0 mt-0.5">
+                                    {item.isAi ? (
+                                      <Bot size={14} className="text-blue-400" />
+                                    ) : (
+                                      <User size={14} className="text-emerald-400" />
+                                    )}
+                                  </div>
+                                  <motion.div className="flex-1 min-w-0" layout>
+                                    <p
+                                      className={cn(
+                                        typography.bodySmall.size,
+                                        colors.text.secondary,
+                                        "leading-relaxed",
+                                        expanded ? "whitespace-pre-wrap" : "line-clamp-3",
+                                      )}
+                                    >
+                                      {item.text}
+                                    </p>
+                                  </motion.div>
+                                  {/* Overflow Button */}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      dispatch({ type: "OPEN_MEMORY_ACTIONS", id: item.id });
+                                    }}
+                                    className={cn(
+                                      "flex items-center justify-center shrink-0 p-2.5 -m-2 -mr-1",
+                                      "rounded-lg text-fg/30",
+                                      "transition-all hover:bg-fg/5 hover:text-fg/60",
+                                      "active:scale-95",
+                                    )}
+                                    aria-label={t("chats.memoryActions")}
+                                  >
+                                    <EllipsisVertical size={16} />
+                                  </button>
+                                </div>
+
+                                {/* Bottom row: category + pin */}
+                                {(item.category || item.isPinned) && (
+                                  <div className="flex items-center justify-between mt-2">
+                                    <div className="flex items-center gap-1.5">
+                                      {item.category && (
+                                        <span
+                                          className={cn(
+                                            "inline-flex items-center px-1.5 py-0.5",
+                                            radius.md,
+                                            "text-[10px] font-medium",
+                                            "border border-fg/8 bg-fg/5 text-fg/40",
+                                          )}
+                                        >
+                                          {formatMemoryCategoryLabel(item.category, t)}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {item.isPinned && (
+                                      <Pin size={12} className="text-amber-400/60" />
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Expanded metadata */}
+                                <AnimatePresence>
+                                  {expanded && (
+                                    <motion.div
+                                      initial={{ opacity: 0, height: 0 }}
+                                      animate={{ opacity: 1, height: "auto" }}
+                                      exit={{ opacity: 0, height: 0 }}
+                                      transition={{ duration: 0.15 }}
+                                      className="overflow-hidden"
+                                    >
+                                      <div
+                                        className={cn(
+                                          "mt-2 flex items-center gap-3 border-t border-fg/5 pt-2",
+                                          "text-[10px] text-fg/30",
+                                        )}
+                                      >
+                                        {item.tokenCount > 0 && (
+                                          <span>
+                                            {item.tokenCount.toLocaleString()}{" "}
+                                            {t("groupChats.memories.tokens")}
+                                          </span>
+                                        )}
+                                        {item.cycle && (
+                                          <span>
+                                            {t("groupChats.memories.cycle")} {item.cycle}
+                                          </span>
+                                        )}
+                                        {item.lastAccessedAt > 0 && (
+                                          <span>
+                                            {t("groupChats.memories.accessed")}{" "}
+                                            {new Date(item.lastAccessedAt).toLocaleDateString()}
+                                          </span>
+                                        )}
+                                        {isDynamic && (
+                                          <span
+                                            className={
+                                              item.isCold ? "text-blue-400/50" : "text-amber-400/50"
+                                            }
+                                          >
+                                            {item.isCold
+                                              ? t("groupChats.memories.cold")
+                                              : `${t("groupChats.memories.hot")} ${item.importanceScore.toFixed(1)}`}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </AnimatePresence>
+                    </motion.div>
+                  )}
+                </div>
+              </motion.div>
+            ) : isDynamic && ui.activeTab === "tools" ? (
+              <motion.div
+                key="tools"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                className={cn("px-3 py-4", "space-y-5")}
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-[12px] font-semibold uppercase tracking-wider text-fg/50">
+                    {t("groupChats.memories.activityLog")}
+                  </span>
+                  <span className="ml-auto text-[10px] text-fg/20">
+                    {(session.memoryToolEvents?.length ?? 0).toLocaleString()}{" "}
+                    {t("groupChats.memories.events")}
+                  </span>
+                </div>
+                <ToolLog
+                  events={(session.memoryToolEvents as MemoryToolEvent[]) || []}
+                  onRevert={handleRevertMemoryEvent}
+                  revertingEventId={revertingEventId}
+                />
+              </motion.div>
+            ) : isDynamic && ui.activeTab === "pinned" ? (
+              <motion.div
+                key="pinned"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                className={cn("px-3 py-4", "space-y-5")}
+              >
+                <SectionHeader
+                  icon={Pin}
+                  title={t("chats.pinnedMessages")}
+                  subtitle={t("chats.pinnedMessagesDesc")}
+                  right={
+                    <span
+                      className={cn(
+                        typography.caption.size,
+                        "inline-flex items-center gap-1 px-2 py-0.5",
+                        radius.full,
+                        "border bg-fg/5",
+                        colors.border.subtle,
+                        colors.text.secondary,
+                      )}
+                    >
+                      {pinnedMessages.length.toLocaleString()}
+                    </span>
+                  }
+                />
+                {pinnedMessages.length === 0 ? (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1906,351 +2162,127 @@ export function ChatMemoriesPage() {
                     className="flex flex-col items-center justify-center py-16"
                   >
                     <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-fg/10 bg-fg/5">
-                      {ui.searchTerm ? (
-                        <Search className="h-7 w-7 text-fg/20" />
-                      ) : (
-                        <Bot className="h-7 w-7 text-fg/20" />
-                      )}
+                      <Pin className="h-7 w-7 text-fg/20" />
                     </div>
                     <h3 className="mb-1 text-base font-semibold text-fg">
-                      {ui.searchTerm
-                        ? t("groupChats.memories.noMatchingMemories")
-                        : t("groupChats.memories.noMemoriesYet")}
+                      {t("chats.memories.noPinnedMessages")}
                     </h3>
                     <p className="max-w-60 text-center text-sm text-fg/40">
-                      {ui.searchTerm
-                        ? t("groupChats.memories.noMatchingDesc")
-                        : t("groupChats.memories.noMemoriesDesc")}
+                      {t("chats.memories.noPinnedMessagesDesc")}
                     </p>
                   </motion.div>
                 ) : (
-                  <motion.div
-                    className="space-y-3"
-                    initial="hidden"
-                    animate="visible"
-                    variants={{ visible: { transition: { staggerChildren: 0.03 } } }}
-                  >
-                    <AnimatePresence>
-                      {filteredMemories.map((item) => {
-                        const expanded = ui.expandedMemories.has(item.index);
+                  <div className={cn(spacing.field)}>
+                    {pinnedMessages.map((msg) => {
+                      const isUser = msg.role === "user";
+                      const isAssistant = msg.role === "assistant";
+                      const timestamp = new Date(msg.createdAt).toLocaleString();
 
-                        return (
-                          <motion.div
-                            key={item.id}
-                            layout
-                            variants={{
-                              hidden: { opacity: 0, y: 12 },
-                              visible: { opacity: 1, y: 0 },
-                            }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ duration: 0.15 }}
-                            className={cn(
-                              "group relative overflow-hidden rounded-xl",
-                              "border",
-                              expanded
-                                ? "border-fg/10 bg-fg/2"
-                                : "border-fg/6 bg-fg/2 hover:border-fg/10 hover:bg-fg/3",
-                            )}
-                          >
+                      return (
+                        <div
+                          key={msg.id}
+                          className={cn(
+                            components.card.base,
+                            components.card.interactive,
+                            "w-full p-4",
+                            isUser
+                              ? "border-emerald-400/30"
+                              : isAssistant
+                                ? "border-blue-400/30"
+                                : "border-fg/10",
+                          )}
+                        >
+                          <div className="flex items-start gap-3">
                             <div
-                              className={cn("px-4 py-3 cursor-pointer")}
-                              onClick={() =>
-                                dispatch({ type: "TOGGLE_EXPANDED", index: item.index })
-                              }
-                              role="button"
-                              tabIndex={0}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
-                                  dispatch({ type: "TOGGLE_EXPANDED", index: item.index });
-                                }
-                              }}
-                            >
-                              {/* Top row: source icon + text + overflow */}
-                              <div className="flex items-start gap-2">
-                                <div className="shrink-0 mt-0.5">
-                                  {item.isAi ? (
-                                    <Bot size={14} className="text-blue-400" />
-                                  ) : (
-                                    <User size={14} className="text-emerald-400" />
-                                  )}
-                                </div>
-                                <motion.div className="flex-1 min-w-0" layout>
-                                  <p
-                                    className={cn(
-                                      typography.bodySmall.size,
-                                      colors.text.secondary,
-                                      "leading-relaxed",
-                                      expanded ? "whitespace-pre-wrap" : "line-clamp-3",
-                                    )}
-                                  >
-                                    {item.text}
-                                  </p>
-                                </motion.div>
-                                {/* Overflow Button */}
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    dispatch({ type: "OPEN_MEMORY_ACTIONS", id: item.id });
-                                  }}
-                                  className={cn(
-                                    "flex items-center justify-center shrink-0 p-2.5 -m-2 -mr-1",
-                                    "rounded-lg text-fg/30",
-                                    "transition-all hover:bg-fg/5 hover:text-fg/60",
-                                    "active:scale-95",
-                                  )}
-                                  aria-label={t("chats.memoryActions")}
-                                >
-                                  <EllipsisVertical size={16} />
-                                </button>
-                              </div>
-
-                              {/* Bottom row: category + pin */}
-                              {(item.category || item.isPinned) && (
-                                <div className="flex items-center justify-between mt-2">
-                                  <div className="flex items-center gap-1.5">
-                                    {item.category && (
-                                      <span
-                                        className={cn(
-                                          "inline-flex items-center px-1.5 py-0.5",
-                                          radius.md,
-                                          "text-[10px] font-medium",
-                                          "border border-fg/8 bg-fg/5 text-fg/40",
-                                        )}
-                                      >
-                                        {formatMemoryCategoryLabel(item.category, t)}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {item.isPinned && <Pin size={12} className="text-amber-400/60" />}
-                                </div>
+                              className={cn(
+                                "flex h-8 w-8 shrink-0 items-center justify-center",
+                                radius.full,
+                                "border text-fg/70",
+                                interactive.transition.default,
+                                isUser
+                                  ? "border-emerald-400/30 bg-emerald-400/10"
+                                  : isAssistant
+                                    ? "border-blue-400/30 bg-blue-400/10"
+                                    : "border-fg/10 bg-fg/5",
                               )}
-
-                              {/* Expanded metadata */}
-                              <AnimatePresence>
-                                {expanded && (
-                                  <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: "auto" }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    transition={{ duration: 0.15 }}
-                                    className="overflow-hidden"
-                                  >
-                                    <div
-                                      className={cn(
-                                        "mt-2 flex items-center gap-3 border-t border-fg/5 pt-2",
-                                        "text-[10px] text-fg/30",
-                                      )}
-                                    >
-                                      {item.tokenCount > 0 && (
-                                        <span>{item.tokenCount.toLocaleString()} {t("groupChats.memories.tokens")}</span>
-                                      )}
-                                      {item.cycle && <span>{t("groupChats.memories.cycle")} {item.cycle}</span>}
-                                      {item.lastAccessedAt > 0 && (
-                                        <span>
-                                          {t("groupChats.memories.accessed")}{" "}
-                                          {new Date(item.lastAccessedAt).toLocaleDateString()}
-                                        </span>
-                                      )}
-                                      {isDynamic && (
-                                        <span
-                                          className={
-                                            item.isCold ? "text-blue-400/50" : "text-amber-400/50"
-                                          }
-                                        >
-                                          {item.isCold
-                                            ? t("groupChats.memories.cold")
-                                            : `${t("groupChats.memories.hot")} ${item.importanceScore.toFixed(1)}`}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
+                            >
+                              {isUser ? (
+                                <User className="h-4 w-4 text-emerald-400" />
+                              ) : isAssistant ? (
+                                <Bot className="h-4 w-4 text-blue-400" />
+                              ) : (
+                                <MessageSquare className="h-4 w-4 text-fg/60" />
+                              )}
                             </div>
-                          </motion.div>
-                        );
-                      })}
-                    </AnimatePresence>
-                  </motion.div>
-                )}
-              </div>
-            </motion.div>
-          ) : isDynamic && ui.activeTab === "tools" ? (
-            <motion.div
-              key="tools"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className={cn("px-3 py-4", "space-y-5")}
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-[12px] font-semibold uppercase tracking-wider text-fg/50">
-                  {t("groupChats.memories.activityLog")}
-                </span>
-                <span className="ml-auto text-[10px] text-fg/20">
-                  {(session.memoryToolEvents?.length ?? 0).toLocaleString()} {t("groupChats.memories.events")}
-                </span>
-              </div>
-              <ToolLog
-                events={(session.memoryToolEvents as MemoryToolEvent[]) || []}
-                onRevert={handleRevertMemoryEvent}
-                revertingEventId={revertingEventId}
-              />
-            </motion.div>
-          ) : isDynamic && ui.activeTab === "pinned" ? (
-            <motion.div
-              key="pinned"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className={cn("px-3 py-4", "space-y-5")}
-            >
-              <SectionHeader
-                icon={Pin}
-                title={t("chats.pinnedMessages")}
-                subtitle={t("chats.pinnedMessagesDesc")}
-                right={
-                  <span
-                    className={cn(
-                      typography.caption.size,
-                      "inline-flex items-center gap-1 px-2 py-0.5",
-                      radius.full,
-                      "border bg-fg/5",
-                      colors.border.subtle,
-                      colors.text.secondary,
-                    )}
-                  >
-                    {pinnedMessages.length.toLocaleString()}
-                  </span>
-                }
-              />
-              {pinnedMessages.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, ease: "easeOut" }}
-                  className="flex flex-col items-center justify-center py-16"
-                >
-                  <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-fg/10 bg-fg/5">
-                    <Pin className="h-7 w-7 text-fg/20" />
-                  </div>
-                  <h3 className="mb-1 text-base font-semibold text-fg">{t("chats.memories.noPinnedMessages")}</h3>
-                  <p className="max-w-60 text-center text-sm text-fg/40">
-                    {t("chats.memories.noPinnedMessagesDesc")}
-                  </p>
-                </motion.div>
-              ) : (
-                <div className={cn(spacing.field)}>
-                  {pinnedMessages.map((msg) => {
-                    const isUser = msg.role === "user";
-                    const isAssistant = msg.role === "assistant";
-                    const timestamp = new Date(msg.createdAt).toLocaleString();
-
-                    return (
-                      <div
-                        key={msg.id}
-                        className={cn(
-                          components.card.base,
-                          components.card.interactive,
-                          "w-full p-4",
-                          isUser
-                            ? "border-emerald-400/30"
-                            : isAssistant
-                              ? "border-blue-400/30"
-                              : "border-fg/10",
-                        )}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div
-                            className={cn(
-                              "flex h-8 w-8 shrink-0 items-center justify-center",
-                              radius.full,
-                              "border text-fg/70",
-                              interactive.transition.default,
-                              isUser
-                                ? "border-emerald-400/30 bg-emerald-400/10"
-                                : isAssistant
-                                  ? "border-blue-400/30 bg-blue-400/10"
-                                  : "border-fg/10 bg-fg/5",
-                            )}
-                          >
-                            {isUser ? (
-                              <User className="h-4 w-4 text-emerald-400" />
-                            ) : isAssistant ? (
-                              <Bot className="h-4 w-4 text-blue-400" />
-                            ) : (
-                              <MessageSquare className="h-4 w-4 text-fg/60" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span
-                                className={cn(
-                                  typography.caption.size,
-                                  "font-semibold uppercase tracking-wide",
-                                  isUser
-                                    ? "text-emerald-400"
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span
+                                  className={cn(
+                                    typography.caption.size,
+                                    "font-semibold uppercase tracking-wide",
+                                    isUser
+                                      ? "text-emerald-400"
+                                      : isAssistant
+                                        ? "text-blue-400"
+                                        : colors.text.tertiary,
+                                  )}
+                                >
+                                  {isUser
+                                    ? t("groupChats.message.userAlt")
                                     : isAssistant
-                                      ? "text-blue-400"
-                                      : colors.text.tertiary,
+                                      ? t("groupChats.message.assistantAlt")
+                                      : msg.role}
+                                </span>
+                                <span className={cn(typography.caption.size, colors.text.disabled)}>
+                                  {timestamp}
+                                </span>
+                              </div>
+                              <p
+                                className={cn(
+                                  typography.bodySmall.size,
+                                  colors.text.secondary,
+                                  "leading-relaxed whitespace-pre-wrap wrap-break-word",
                                 )}
                               >
-                                {isUser ? t("groupChats.message.userAlt") : isAssistant ? t("groupChats.message.assistantAlt") : msg.role}
-                              </span>
-                              <span className={cn(typography.caption.size, colors.text.disabled)}>
-                                {timestamp}
-                              </span>
+                                {msg.content}
+                              </p>
                             </div>
-                            <p
+                          </div>
+                          <div className="flex items-center gap-4 mt-3 pl-11">
+                            <button
+                              onClick={() => handleScrollToMessage(msg.id)}
                               className={cn(
-                                typography.bodySmall.size,
-                                colors.text.secondary,
-                                "leading-relaxed whitespace-pre-wrap wrap-break-word",
+                                typography.caption.size,
+                                "font-medium flex items-center gap-1.5",
+                                colors.text.tertiary,
+                                "hover:text-fg transition-colors",
                               )}
                             >
-                              {msg.content}
-                            </p>
+                              <MessageSquare size={12} />
+                              {t("chats.memories.scrollToMessage")}
+                            </button>
+                            <button
+                              onClick={() => handleUnpin(msg.id)}
+                              className={cn(
+                                typography.caption.size,
+                                "font-medium flex items-center gap-1.5",
+                                colors.text.tertiary,
+                                "hover:text-amber-400 transition-colors",
+                              )}
+                            >
+                              <Pin size={12} />
+                              {t("chats.togglePin.unpin")}
+                            </button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4 mt-3 pl-11">
-                          <button
-                            onClick={() => handleScrollToMessage(msg.id)}
-                            className={cn(
-                              typography.caption.size,
-                              "font-medium flex items-center gap-1.5",
-                              colors.text.tertiary,
-                              "hover:text-fg transition-colors",
-                            )}
-                          >
-                            <MessageSquare size={12} />
-                            {t("chats.memories.scrollToMessage")}
-                          </button>
-                          <button
-                            onClick={() => handleUnpin(msg.id)}
-                            className={cn(
-                              typography.caption.size,
-                              "font-medium flex items-center gap-1.5",
-                              colors.text.tertiary,
-                              "hover:text-amber-400 transition-colors",
-                            )}
-                          >
-                            <Pin size={12} />
-                            {t("chats.togglePin.unpin")}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-      </main>
+                      );
+                    })}
+                  </div>
+                )}
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </main>
       </div>
 
       {/* Summary Editor BottomMenu */}
@@ -2545,7 +2577,9 @@ export function ChatMemoriesPage() {
               {isDynamic && (
                 <MemoryActionRow
                   icon={selectedItem.isPinned ? PinOff : Pin}
-                  label={selectedItem.isPinned ? t("chats.togglePin.unpin") : t("chats.togglePin.pin")}
+                  label={
+                    selectedItem.isPinned ? t("chats.togglePin.unpin") : t("chats.togglePin.pin")
+                  }
                   iconBg="bg-amber-500/20"
                   onClick={async () => {
                     try {
@@ -2564,7 +2598,11 @@ export function ChatMemoriesPage() {
               {isDynamic && (
                 <MemoryActionRow
                   icon={selectedItem.isCold ? Flame : Snowflake}
-                  label={selectedItem.isCold ? t("chats.toggleMemoryState.setHot") : t("chats.toggleMemoryState.setCold")}
+                  label={
+                    selectedItem.isCold
+                      ? t("chats.toggleMemoryState.setHot")
+                      : t("chats.toggleMemoryState.setCold")
+                  }
                   iconBg={selectedItem.isCold ? "bg-amber-500/20" : "bg-blue-500/20"}
                   disabled={ui.memoryTempBusy === selectedItem.index}
                   onClick={async () => {

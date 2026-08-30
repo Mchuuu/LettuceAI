@@ -8,6 +8,39 @@ export interface JsonlSingleChatExportOptions {
   selectedVariantsOnly?: boolean;
 }
 
+export type BackupSelectionMode = "full" | "custom";
+
+export interface BackupCharacterSelection {
+  characterId: string;
+  includeAudio: boolean;
+  includeImages: boolean;
+}
+
+export interface BackupSelection {
+  mode: BackupSelectionMode;
+  characters: BackupCharacterSelection[];
+  includeUnassignedAudio: boolean;
+}
+
+export interface BackupCharacterEstimate {
+  characterId: string;
+  name: string;
+  avatarPath?: string | null;
+  coreBytes: number;
+  audioBytes: number;
+  imageBytes: number;
+  totalBytes: number;
+}
+
+export interface BackupEstimate {
+  characters: BackupCharacterEstimate[];
+  dataBytes: number;
+  resourceBytes: number;
+  unassignedAudioBytes: number;
+  totalBytes: number;
+  totalFiles: number;
+}
+
 async function readJsonCommand<T>(
   command: string,
   args?: Record<string, unknown>,
@@ -474,15 +507,14 @@ export const storageBridge = {
 
   // Sessions
   sessionsListIds: () => invoke<string>("sessions_list_ids").then((s) => JSON.parse(s) as string[]),
-  sessionsListPreviews: (characterId?: string, limit?: number) =>
+  sessionsListPreviews: (characterId?: string, limit?: number, archived?: boolean) =>
     invoke<string>("sessions_list_previews", {
       characterId: characterId ?? null,
       limit: limit ?? null,
+      archived: archived ?? null,
     }).then((s) => JSON.parse(s) as any[]),
   sessionsListBranchTree: (sessionId: string) =>
-    invoke<string>("sessions_list_branch_tree", { sessionId }).then(
-      (s) => JSON.parse(s) as any[],
-    ),
+    invoke<string>("sessions_list_branch_tree", { sessionId }).then((s) => JSON.parse(s) as any[]),
   sessionGet: (id: string) =>
     invoke<string | null>("session_get", { id }).then((s) =>
       typeof s === "string" ? JSON.parse(s) : null,
@@ -544,11 +576,7 @@ export const storageBridge = {
     invoke<string | null>("session_set_memory_cold_state", { sessionId, memoryIndex, isCold }).then(
       (s) => (typeof s === "string" ? JSON.parse(s) : null),
     ),
-  sessionSetMemoryObservedAt: (
-    sessionId: string,
-    memoryIndex: number,
-    observedAt: number | null,
-  ) =>
+  sessionSetMemoryObservedAt: (sessionId: string, memoryIndex: number, observedAt: number | null) =>
     invoke<string | null>("session_set_memory_observed_at", {
       sessionId,
       memoryIndex,
@@ -645,10 +673,7 @@ export const storageBridge = {
       role: string;
       speakerCharacterId: string | null;
     }[]
-  > =>
-    invoke<string>("group_search_messages", { sessionId, query }).then(
-      (s) => JSON.parse(s),
-    ),
+  > => invoke<string>("group_search_messages", { sessionId, query }).then((s) => JSON.parse(s)),
 
   chatGenerateUserReply: (
     sessionId: string,
@@ -674,8 +699,14 @@ export const storageBridge = {
   dbOptimize: () => invoke("db_optimize") as Promise<void>,
 
   // Full app backup/restore
-  backupExport: (password?: string) =>
-    invoke<string>("backup_export", { password: password ?? null }),
+  backupEstimate: (selection?: BackupSelection) =>
+    invoke<BackupEstimate>("backup_estimate", { selection: selection ?? null }),
+  backupExport: (password?: string, selection?: BackupSelection, requestId?: string) =>
+    invoke<string>("backup_export", {
+      password: password ?? null,
+      selection: selection ?? null,
+      requestId: requestId ?? null,
+    }),
   backupImport: (backupPath: string, password?: string) =>
     invoke("backup_import", { backupPath, password: password ?? null }) as Promise<void>,
   backupCheckEncrypted: (backupPath: string) =>
@@ -688,6 +719,7 @@ export const storageBridge = {
       createdAt: number;
       appVersion: string;
       encrypted: boolean;
+      custom?: boolean;
       totalFiles: number;
       imageCount: number;
       avatarCount: number;
@@ -700,6 +732,7 @@ export const storageBridge = {
         createdAt: number;
         appVersion: string;
         encrypted: boolean;
+        custom?: boolean;
         totalFiles: number;
         imageCount: number;
         avatarCount: number;
@@ -717,6 +750,7 @@ export const storageBridge = {
       createdAt: number;
       appVersion: string;
       encrypted: boolean;
+      custom?: boolean;
       totalFiles: number;
       imageCount: number;
       avatarCount: number;
@@ -794,7 +828,13 @@ export const storageBridge = {
     chatType?: "conversation" | "roleplay",
     startingScene?: any | null,
     backgroundImagePath?: string | null,
-    speakerSelectionMethod?: "llm" | "heuristic" | "round_robin" | "director" | "director_action" | null,
+    speakerSelectionMethod?:
+      | "llm"
+      | "heuristic"
+      | "round_robin"
+      | "director"
+      | "director_action"
+      | null,
   ) =>
     invoke<string>("group_create", {
       name,
@@ -817,7 +857,13 @@ export const storageBridge = {
     chatType?: "conversation" | "roleplay",
     startingScene?: any | null,
     backgroundImagePath?: string | null,
-    speakerSelectionMethod?: "llm" | "heuristic" | "round_robin" | "director" | "director_action" | null,
+    speakerSelectionMethod?:
+      | "llm"
+      | "heuristic"
+      | "round_robin"
+      | "director"
+      | "director_action"
+      | null,
     mutedCharacterIds?: string[] | null,
   ) =>
     invoke<string>("group_update", {
@@ -883,7 +929,13 @@ export const storageBridge = {
     chatType?: "conversation" | "roleplay",
     startingScene?: any | null,
     backgroundImagePath?: string | null,
-    speakerSelectionMethod?: "llm" | "heuristic" | "round_robin" | "director" | "director_action" | null,
+    speakerSelectionMethod?:
+      | "llm"
+      | "heuristic"
+      | "round_robin"
+      | "director"
+      | "director_action"
+      | null,
   ) =>
     invoke<string>("group_session_create", {
       name,
@@ -1190,7 +1242,11 @@ export const storageBridge = {
     }
   },
 
-  jsonlPickFile: async (): Promise<{ path: string; filename: string; temporary: boolean } | null> => {
+  jsonlPickFile: async (): Promise<{
+    path: string;
+    filename: string;
+    temporary: boolean;
+  } | null> => {
     try {
       console.info("[jsonlPickFile] start");
       const file = await pickJsonlFileWithInput();

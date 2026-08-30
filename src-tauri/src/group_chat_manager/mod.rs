@@ -50,6 +50,7 @@ use crate::chat_manager::prompts::{
     self, APP_DYNAMIC_MEMORY_LOCAL_TEMPLATE_ID, APP_DYNAMIC_MEMORY_TEMPLATE_ID,
     APP_DYNAMIC_SUMMARY_TEMPLATE_ID,
 };
+use crate::chat_manager::reasoning::ReasoningMode;
 use crate::chat_manager::request::{
     extract_error_message, extract_reasoning, extract_text, extract_usage,
 };
@@ -6675,11 +6676,16 @@ async fn generate_character_response(
         .and_then(|a| a.max_output_tokens)
         .unwrap_or(2048);
     let context_length = resolve_context_length(model, settings);
-    let reasoning_enabled = model
+    let reasoning_mode = model
         .advanced_model_settings
         .as_ref()
-        .and_then(|a| a.reasoning_enabled)
-        .unwrap_or(false);
+        .and_then(|settings| {
+            ReasoningMode::from_settings(
+                settings.reasoning_mode.as_deref(),
+                settings.reasoning_enabled,
+            )
+        })
+        .unwrap_or(ReasoningMode::ProviderDefault);
     let reasoning_effort = model
         .advanced_model_settings
         .as_ref()
@@ -6726,7 +6732,7 @@ async fn generate_character_response(
         None
     };
 
-    let built = crate::chat_manager::request_builder::build_chat_request(
+    let mut built = crate::chat_manager::request_builder::build_chat_request(
         credential,
         &api_key,
         &model.name,
@@ -6742,11 +6748,21 @@ async fn generate_character_response(
         presence_penalty,       // presence_penalty
         top_k,                  // top_k
         None,                   // No tools for response generation
-        reasoning_enabled,      // reasoning_enabled
+        reasoning_mode,         // reasoning mode
         reasoning_effort,       // reasoning_effort
         reasoning_budget,       // reasoning_budget
         prompt_caching_enabled, // prompt_caching_enabled
         extra_body_fields,
+    );
+    let web_search_enabled = model
+        .advanced_model_settings
+        .as_ref()
+        .and_then(|settings| settings.web_search_enabled)
+        .unwrap_or(false);
+    crate::chat_manager::provider_native_tools::apply(
+        &mut built.body,
+        credential,
+        web_search_enabled,
     );
 
     log_info(

@@ -73,6 +73,8 @@ pub struct BackupManifest {
     pub salt: Option<String>,
     /// Nonce used for encryption (base64)
     pub nonce: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selection: Option<super::backup_plan::BackupSelection>,
 }
 
 /// Derive encryption key from password using BLAKE3
@@ -1388,9 +1390,748 @@ fn export_user_voices(app: &tauri::AppHandle) -> Result<Vec<JsonValue>, String> 
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
 }
 
-/// Export full app backup to a .lettuce file
+fn restore_tts_cache_metadata(app: &tauri::AppHandle, data: Option<Vec<u8>>) -> Result<(), String> {
+    let json_value = match data {
+        Some(bytes) => {
+            let json_str = String::from_utf8(bytes)
+                .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+            Some(
+                serde_json::from_str::<JsonValue>(&json_str).map_err(|error| {
+                    crate::utils::err_msg(
+                        module_path!(),
+                        line!(),
+                        format!("Failed to parse TTS cache metadata JSON: {error}"),
+                    )
+                })?,
+            )
+        }
+        None => None,
+    };
+
+    crate::tts_manager::cache_metadata::replace_from_backup(app, json_value.as_ref())
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BackupExportProgress {
+    request_id: String,
+    stage: String,
+    progress: f64,
+    completed_items: u64,
+    total_items: u64,
+    completed_bytes: u64,
+    total_bytes: u64,
+    current_item: Option<String>,
+    error: Option<String>,
+}
+
+fn emit_backup_progress(app: &tauri::AppHandle, progress: BackupExportProgress) {
+    if let Err(error) = app.emit("backup-export-progress", progress) {
+        log_info(
+            app,
+            "backup",
+            format!("Failed to emit backup progress: {error}"),
+        );
+    }
+}
+
+fn filter_json_array(
+    values: Vec<JsonValue>,
+    predicate: impl Fn(&JsonValue) -> bool,
+) -> Vec<JsonValue> {
+    values.into_iter().filter(predicate).collect()
+}
+
+fn filter_tts_cache_metadata(
+    mut metadata: JsonValue,
+    included_cache_keys: &std::collections::HashSet<String>,
+) -> JsonValue {
+    let Some(object) = metadata.as_object_mut() else {
+        return metadata;
+    };
+    if let Some(entries) = object.get_mut("entries").and_then(JsonValue::as_array_mut) {
+        entries.retain(|item| {
+            item.get("cacheKey")
+                .and_then(JsonValue::as_str)
+                .is_some_and(|key| included_cache_keys.contains(key))
+        });
+    }
+    if let Some(references) = object
+        .get_mut("references")
+        .and_then(JsonValue::as_array_mut)
+    {
+        references.retain(|item| {
+            item.get("cacheKey")
+                .and_then(JsonValue::as_str)
+                .is_some_and(|key| included_cache_keys.contains(key))
+        });
+    }
+    metadata
+}
+
+fn encode_backup_json(value: &JsonValue) -> Result<Vec<u8>, String> {
+    serde_json::to_vec(value)
+        .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))
+}
+
+fn backup_item_key(item: &JsonValue, fields: &[&str]) -> String {
+    fields
+        .iter()
+        .map(|field| {
+            item.get(*field)
+                .map(|value| match value {
+                    JsonValue::String(value) => value.clone(),
+                    other => other.to_string(),
+                })
+                .unwrap_or_default()
+        })
+        .collect::<Vec<_>>()
+        .join("\u{1f}")
+}
+
+fn merge_backup_array_bytes(
+    imported: Option<Vec<u8>>,
+    existing: Vec<JsonValue>,
+    key_fields: &[&str],
+) -> Result<Option<Vec<u8>>, String> {
+    let imported = match imported {
+        Some(bytes) => serde_json::from_slice::<JsonValue>(&bytes)
+            .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?,
+        None => JsonValue::Array(Vec::new()),
+    };
+    let mut merged = std::collections::BTreeMap::<String, JsonValue>::new();
+    let mut unkeyed = Vec::new();
+    for item in existing
+        .into_iter()
+        .chain(imported.as_array().cloned().unwrap_or_default())
+    {
+        let key = backup_item_key(&item, key_fields);
+        if key.chars().all(|character| character == '\u{1f}') || key.is_empty() {
+            unkeyed.push(item);
+        } else {
+            merged.insert(key, item);
+        }
+    }
+    let mut values: Vec<_> = merged.into_values().collect();
+    values.extend(unkeyed);
+    encode_backup_json(&JsonValue::Array(values)).map(Some)
+}
+
+fn merge_backup_array_bytes_preserving_existing(
+    imported: Option<Vec<u8>>,
+    existing: Vec<JsonValue>,
+    key_fields: &[&str],
+) -> Result<Option<Vec<u8>>, String> {
+    let imported_values = match imported {
+        Some(bytes) => serde_json::from_slice::<JsonValue>(&bytes)
+            .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?
+            .as_array()
+            .cloned()
+            .unwrap_or_default(),
+        None => Vec::new(),
+    };
+    merge_backup_array_bytes(
+        Some(encode_backup_json(&JsonValue::Array(existing))?),
+        imported_values,
+        key_fields,
+    )
+}
+
+fn merge_tts_cache_metadata_bytes(
+    app: &tauri::AppHandle,
+    imported: Option<Vec<u8>>,
+) -> Result<Option<Vec<u8>>, String> {
+    let existing = crate::tts_manager::cache_metadata::export_backup(app)?;
+    let imported = match imported {
+        Some(bytes) => serde_json::from_slice::<JsonValue>(&bytes)
+            .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?,
+        None => serde_json::json!({}),
+    };
+    let existing_entries = existing
+        .get("entries")
+        .and_then(JsonValue::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let imported_entries = imported
+        .get("entries")
+        .and_then(JsonValue::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let existing_references = existing
+        .get("references")
+        .and_then(JsonValue::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let imported_references = imported
+        .get("references")
+        .and_then(JsonValue::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    let entries = merge_backup_array_bytes(
+        Some(encode_backup_json(&JsonValue::Array(imported_entries))?),
+        existing_entries,
+        &["cacheKey"],
+    )?
+    .and_then(|bytes| serde_json::from_slice::<JsonValue>(&bytes).ok())
+    .unwrap_or_else(|| JsonValue::Array(Vec::new()));
+    let references = merge_backup_array_bytes(
+        Some(encode_backup_json(&JsonValue::Array(imported_references))?),
+        existing_references,
+        &[
+            "cacheKey",
+            "conversationKind",
+            "conversationId",
+            "messageId",
+            "variantId",
+        ],
+    )?
+    .and_then(|bytes| serde_json::from_slice::<JsonValue>(&bytes).ok())
+    .unwrap_or_else(|| JsonValue::Array(Vec::new()));
+    encode_backup_json(&serde_json::json!({
+        "schemaVersion": 1,
+        "entries": entries,
+        "references": references,
+    }))
+    .map(Some)
+}
+
+fn collect_backup_data(
+    app: &tauri::AppHandle,
+    plan: &super::backup_plan::BackupPlan,
+) -> Result<Vec<(&'static str, JsonValue)>, String> {
+    let scope = &plan.scope;
+    let custom = !scope.is_full();
+    let selected_cache_keys: std::collections::HashSet<String> = plan
+        .files
+        .iter()
+        .filter_map(|file| {
+            file.archive_name
+                .strip_prefix("tts_audio/")
+                .and_then(|name| Path::new(name).file_stem())
+                .and_then(|value| value.to_str())
+                .map(str::to_string)
+        })
+        .collect();
+
+    let chat_templates = export_chat_templates(app)?;
+    let characters = export_characters(app)?;
+    let companion_scheduled_notes = export_companion_scheduled_notes(app)?;
+    let companion_shared_memory = export_companion_shared_memory(app)?;
+    let memory_embeddings = export_memory_embeddings(app)?;
+    let sessions = export_sessions(app)?;
+    let group_sessions = export_group_sessions(app)?;
+    let group_characters = export_group_characters(app)?;
+    let usage_records = export_usage_records(app)?;
+    let tts_cache_metadata = crate::tts_manager::cache_metadata::export_backup(app)?;
+
+    let chat_templates = if custom {
+        filter_json_array(chat_templates, |item| {
+            item.get("character_id")
+                .and_then(JsonValue::as_str)
+                .is_some_and(|id| scope.includes_character(id))
+        })
+    } else {
+        chat_templates
+    };
+    let characters = if custom {
+        filter_json_array(characters, |item| {
+            item.get("id")
+                .and_then(JsonValue::as_str)
+                .is_some_and(|id| scope.includes_character(id))
+        })
+    } else {
+        characters
+    };
+    let companion_scheduled_notes = if custom {
+        filter_json_array(companion_scheduled_notes, |item| {
+            item.get("character_id")
+                .and_then(JsonValue::as_str)
+                .is_some_and(|id| scope.includes_character(id))
+        })
+    } else {
+        companion_scheduled_notes
+    };
+    let companion_shared_memory = if custom {
+        filter_json_array(companion_shared_memory, |item| {
+            item.get("character_id")
+                .and_then(JsonValue::as_str)
+                .is_some_and(|id| scope.includes_character(id))
+        })
+    } else {
+        companion_shared_memory
+    };
+    let memory_embeddings = if custom {
+        filter_json_array(memory_embeddings, |item| {
+            let id = item
+                .get("session_id")
+                .and_then(JsonValue::as_str)
+                .unwrap_or_default();
+            match item
+                .get("session_kind")
+                .and_then(JsonValue::as_str)
+                .unwrap_or_default()
+            {
+                "session" => scope.includes_session(id),
+                "group_session" => scope.includes_group_session(id),
+                "companion_shared" => scope.includes_character(id),
+                _ => false,
+            }
+        })
+    } else {
+        memory_embeddings
+    };
+    let sessions = if custom {
+        filter_json_array(sessions, |item| {
+            item.get("id")
+                .and_then(JsonValue::as_str)
+                .is_some_and(|id| scope.includes_session(id))
+        })
+    } else {
+        sessions
+    };
+    let group_sessions = if custom {
+        filter_json_array(group_sessions, |item| {
+            item.get("id")
+                .and_then(JsonValue::as_str)
+                .is_some_and(|id| scope.includes_group_session(id))
+        })
+    } else {
+        group_sessions
+    };
+    let group_characters = if custom {
+        filter_json_array(group_characters, |item| {
+            item.get("id")
+                .and_then(JsonValue::as_str)
+                .is_some_and(|id| scope.includes_group_character(id))
+        })
+    } else {
+        group_characters
+    };
+    let usage_records = if custom {
+        filter_json_array(usage_records, |item| {
+            item.get("character_id")
+                .and_then(JsonValue::as_str)
+                .is_some_and(|id| scope.includes_character(id))
+        })
+    } else {
+        usage_records
+    };
+    let tts_cache_metadata = if custom {
+        filter_tts_cache_metadata(tts_cache_metadata, &selected_cache_keys)
+    } else {
+        tts_cache_metadata
+    };
+
+    Ok(vec![
+        ("meta", serde_json::json!(export_meta(app)?)),
+        ("settings", export_settings(app)?),
+        (
+            "provider_credentials",
+            serde_json::json!(export_provider_credentials(app)?),
+        ),
+        ("models", serde_json::json!(export_models(app)?)),
+        (
+            "audio_providers",
+            serde_json::json!(export_audio_providers(app)?),
+        ),
+        ("user_voices", serde_json::json!(export_user_voices(app)?)),
+        ("tts_cache_metadata", tts_cache_metadata),
+        (
+            "model_pricing_cache",
+            serde_json::json!(export_model_pricing_cache(app)?),
+        ),
+        ("secrets", serde_json::json!(export_secrets(app)?)),
+        (
+            "prompt_templates",
+            serde_json::json!(export_prompt_templates(app)?),
+        ),
+        ("chat_templates", serde_json::json!(chat_templates)),
+        ("personas", serde_json::json!(export_personas(app)?)),
+        ("characters", serde_json::json!(characters)),
+        (
+            "companion_scheduled_notes",
+            serde_json::json!(companion_scheduled_notes),
+        ),
+        (
+            "companion_shared_memory",
+            serde_json::json!(companion_shared_memory),
+        ),
+        ("memory_embeddings", serde_json::json!(memory_embeddings)),
+        ("sessions", serde_json::json!(sessions)),
+        ("group_sessions", serde_json::json!(group_sessions)),
+        ("group_characters", serde_json::json!(group_characters)),
+        ("usage_records", serde_json::json!(usage_records)),
+        ("lorebooks", serde_json::json!(export_lorebooks(app)?)),
+        (
+            "creation_helper_sessions",
+            serde_json::json!(export_creation_helper_sessions(app)?),
+        ),
+        ("asr_learning", export_asr_learning(app)?),
+    ])
+}
+
+struct TempArchive {
+    path: PathBuf,
+}
+
+impl Drop for TempArchive {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+    }
+}
+
+fn write_backup_archive(
+    app: &tauri::AppHandle,
+    request_id: &str,
+    password: &str,
+    plan: &super::backup_plan::BackupPlan,
+    filename: &str,
+) -> Result<TempArchive, String> {
+    let mut salt = [0u8; 16];
+    let mut nonce = [0u8; 24];
+    OsRng.fill_bytes(&mut salt);
+    OsRng.fill_bytes(&mut nonce);
+    let key = derive_key_from_password(password, &salt);
+
+    emit_backup_progress(
+        app,
+        BackupExportProgress {
+            request_id: request_id.to_string(),
+            stage: "preparing".to_string(),
+            progress: 0.02,
+            completed_items: 0,
+            total_items: 0,
+            completed_bytes: 0,
+            total_bytes: plan.estimate.total_bytes,
+            current_item: None,
+            error: None,
+        },
+    );
+    let data = collect_backup_data(app, plan)?;
+    let total_items = data.len() as u64 + plan.files.len() as u64 + 2;
+
+    let temp_dir = app
+        .path()
+        .app_cache_dir()
+        .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?
+        .join("backup-staging");
+    fs::create_dir_all(&temp_dir)
+        .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+    let temp_path = temp_dir.join(format!("{}.tmp", uuid::Uuid::new_v4()));
+    let file = File::create(&temp_path)
+        .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+    let mut zip = ZipWriter::new(file);
+    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
+    let mut completed_items = 0u64;
+    let mut completed_bytes = 0u64;
+
+    for (name, value) in data {
+        let json_bytes = serde_json::to_vec(&value)
+            .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+        let encrypted = encrypt_data(&json_bytes, &key, &nonce)?;
+        zip.start_file(format!("data/{name}.json.enc"), options)
+            .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+        zip.write_all(&encrypted)
+            .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+        completed_items += 1;
+        completed_bytes = completed_bytes.saturating_add(json_bytes.len() as u64);
+        emit_backup_progress(
+            app,
+            BackupExportProgress {
+                request_id: request_id.to_string(),
+                stage: "data".to_string(),
+                progress: 0.05 + 0.25 * completed_items as f64 / total_items.max(1) as f64,
+                completed_items,
+                total_items,
+                completed_bytes,
+                total_bytes: plan.estimate.total_bytes,
+                current_item: Some(name.to_string()),
+                error: None,
+            },
+        );
+    }
+
+    let resource_count = plan.files.len().max(1) as f64;
+    for (index, resource) in plan.files.iter().enumerate() {
+        let bytes = fs::read(&resource.source_path)
+            .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+        let encrypted = encrypt_data(&bytes, &key, &nonce)?;
+        zip.start_file(format!("{}.enc", resource.archive_name), options)
+            .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+        zip.write_all(&encrypted)
+            .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+        completed_items += 1;
+        completed_bytes = completed_bytes.saturating_add(resource.size_bytes);
+        emit_backup_progress(
+            app,
+            BackupExportProgress {
+                request_id: request_id.to_string(),
+                stage: "resources".to_string(),
+                progress: 0.30 + 0.60 * (index + 1) as f64 / resource_count,
+                completed_items,
+                total_items,
+                completed_bytes,
+                total_bytes: plan.estimate.total_bytes,
+                current_item: Some(resource.archive_name.clone()),
+                error: None,
+            },
+        );
+    }
+
+    let encrypted_marker = encrypt_data(b"LETTUCE_BACKUP_VERIFIED", &key, &nonce)?;
+    zip.start_file("encrypted_marker.bin", options)
+        .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+    zip.write_all(&encrypted_marker)
+        .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    let manifest = BackupManifest {
+        version: BACKUP_VERSION,
+        created_at: now,
+        app_version: crate::utils::app_version(app),
+        encrypted: true,
+        salt: Some(general_purpose::STANDARD.encode(salt)),
+        nonce: Some(general_purpose::STANDARD.encode(nonce)),
+        selection: (!plan.scope.is_full()).then(|| plan.selection.clone()),
+    };
+    zip.start_file("manifest.json", options)
+        .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+    serde_json::to_writer_pretty(&mut zip, &manifest)
+        .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+
+    emit_backup_progress(
+        app,
+        BackupExportProgress {
+            request_id: request_id.to_string(),
+            stage: "finalizing".to_string(),
+            progress: 0.94,
+            completed_items: total_items - 1,
+            total_items,
+            completed_bytes,
+            total_bytes: plan.estimate.total_bytes,
+            current_item: Some(filename.to_string()),
+            error: None,
+        },
+    );
+    let file = zip
+        .finish()
+        .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+    file.sync_all()
+        .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+    Ok(TempArchive { path: temp_path })
+}
+
+fn save_backup_archive(
+    _app: &tauri::AppHandle,
+    archive: &TempArchive,
+    filename: &str,
+    request_id: &str,
+) -> Result<String, String> {
+    let archive_size = archive
+        .path
+        .metadata()
+        .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?
+        .len();
+    #[cfg(target_os = "android")]
+    {
+        let relative_path = format!("LettuceAI/{filename}");
+        let source_path = archive.path.clone();
+        let progress_app = _app.clone();
+        let progress_request_id = request_id.to_string();
+        let saved = _app
+            .android_fs()
+            .public_storage()
+            .write_with_contents_writer(
+                PublicGeneralPurposeDir::Download,
+                &relative_path,
+                Some("application/octet-stream"),
+                move |destination| {
+                    let mut source = File::open(source_path)?;
+                    copy_archive_with_progress(
+                        &mut source,
+                        destination,
+                        &progress_app,
+                        &progress_request_id,
+                        archive_size,
+                    )?;
+                    Ok(())
+                },
+            )
+            .map_err(|error| {
+                crate::utils::err_msg(
+                    module_path!(),
+                    line!(),
+                    format!("Failed to save backup to Downloads: {error}"),
+                )
+            })?;
+        let saved_path = saved.to_string();
+        let mut info = backup_get_info(_app.clone(), saved_path.clone())?;
+        if let Some(object) = info.as_object_mut() {
+            object.insert("path".to_string(), JsonValue::String(saved_path.clone()));
+            object.insert(
+                "filename".to_string(),
+                JsonValue::String(filename.to_string()),
+            );
+        }
+        let mut index = android_read_backup_index(_app).unwrap_or_default();
+        index.retain(|entry| {
+            entry.get("path").and_then(JsonValue::as_str) != Some(saved_path.as_str())
+        });
+        index.push(info);
+        android_write_backup_index(_app, &index)?;
+        Ok(saved_path)
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        let output_path = get_downloads_dir()?.join(filename);
+        let mut source = File::open(&archive.path)
+            .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+        let mut destination = File::create(&output_path)
+            .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+        copy_archive_with_progress(
+            &mut source,
+            &mut destination,
+            _app,
+            request_id,
+            archive_size,
+        )
+        .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+        Ok(output_path.to_string_lossy().to_string())
+    }
+}
+
+fn copy_archive_with_progress(
+    source: &mut File,
+    destination: &mut File,
+    app: &tauri::AppHandle,
+    request_id: &str,
+    total_bytes: u64,
+) -> std::io::Result<()> {
+    let mut buffer = vec![0u8; 1024 * 1024];
+    let mut copied = 0u64;
+    loop {
+        let read = source.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        destination.write_all(&buffer[..read])?;
+        copied = copied.saturating_add(read as u64);
+        emit_backup_progress(
+            app,
+            BackupExportProgress {
+                request_id: request_id.to_string(),
+                stage: "finalizing".to_string(),
+                progress: 0.94 + 0.05 * copied as f64 / total_bytes.max(1) as f64,
+                completed_items: 0,
+                total_items: 0,
+                completed_bytes: copied,
+                total_bytes,
+                current_item: None,
+                error: None,
+            },
+        );
+    }
+    destination.flush()
+}
+
+fn run_backup_export(
+    app: tauri::AppHandle,
+    password: String,
+    selection: Option<super::backup_plan::BackupSelection>,
+    request_id: String,
+) -> Result<String, String> {
+    let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
+    let filename = format!("lettuce_backup_{timestamp}.lettuce");
+    log_info(
+        &app,
+        "backup",
+        format!("Starting planned backup export: {filename}"),
+    );
+    let plan = super::backup_plan::build_backup_plan(&app, selection)?;
+    log_info(
+        &app,
+        "backup",
+        format!(
+            "Backup plan ready: mode={:?} characters={} resources={} estimated_bytes={}",
+            plan.scope.mode,
+            plan.scope.selected_character_ids.len(),
+            plan.files.len(),
+            plan.estimate.total_bytes
+        ),
+    );
+    let archive = write_backup_archive(&app, &request_id, &password, &plan, &filename)?;
+    let saved_path = save_backup_archive(&app, &archive, &filename, &request_id)?;
+    emit_backup_progress(
+        &app,
+        BackupExportProgress {
+            request_id,
+            stage: "completed".to_string(),
+            progress: 1.0,
+            completed_items: plan.files.len() as u64 + 25,
+            total_items: plan.files.len() as u64 + 25,
+            completed_bytes: plan.estimate.total_bytes,
+            total_bytes: plan.estimate.total_bytes,
+            current_item: Some(filename.clone()),
+            error: None,
+        },
+    );
+    log_info(
+        &app,
+        "backup",
+        format!("Backup export complete: {saved_path}"),
+    );
+    Ok(saved_path)
+}
+
+/// Export an encrypted app backup without holding the complete ZIP in memory.
 #[tauri::command]
 pub async fn backup_export(
+    app: tauri::AppHandle,
+    password: Option<String>,
+    selection: Option<super::backup_plan::BackupSelection>,
+    request_id: Option<String>,
+) -> Result<String, String> {
+    let password = require_non_empty_password(
+        password.as_deref(),
+        "backup export. Unencrypted backups are no longer allowed",
+    )?
+    .to_string();
+    let request_id = request_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let task_request_id = request_id.clone();
+    let task_app = app.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        run_backup_export(task_app, password, selection, task_request_id)
+    })
+    .await
+    .map_err(|error| format!("Backup export task failed: {error}"))?;
+    if let Err(error) = &result {
+        log_info(&app, "backup", format!("Backup export failed: {error}"));
+        emit_backup_progress(
+            &app,
+            BackupExportProgress {
+                request_id,
+                stage: "failed".to_string(),
+                progress: 0.0,
+                completed_items: 0,
+                total_items: 0,
+                completed_bytes: 0,
+                total_bytes: 0,
+                current_item: None,
+                error: Some(error.clone()),
+            },
+        );
+    }
+    result
+}
+
+/// Export full app backup to a .lettuce file
+#[allow(dead_code)]
+async fn backup_export_legacy(
     app: tauri::AppHandle,
     password: Option<String>,
 ) -> Result<String, String> {
@@ -1493,6 +2234,15 @@ pub async fn backup_export(
         &mut zip,
         "user_voices",
         &serde_json::json!(user_voices),
+        &encryption,
+    )?;
+
+    log_info(&app, "backup", "Exporting TTS cache metadata...");
+    let tts_cache_metadata = crate::tts_manager::cache_metadata::export_backup(&app)?;
+    add_json_to_zip(
+        &mut zip,
+        "tts_cache_metadata",
+        &tts_cache_metadata,
         &encryption,
     )?;
 
@@ -1730,6 +2480,7 @@ pub async fn backup_export(
         encrypted: true,
         salt: Some(general_purpose::STANDARD.encode(salt)),
         nonce: Some(general_purpose::STANDARD.encode(nonce)),
+        selection: None,
     };
 
     // Add manifest
@@ -3496,6 +4247,7 @@ pub fn backup_get_info(
         "createdAt": manifest.created_at,
         "appVersion": manifest.app_version,
         "encrypted": manifest.encrypted,
+        "custom": manifest.selection.as_ref().is_some_and(|selection| selection.mode == super::backup_plan::BackupSelectionMode::Custom),
         "totalFiles": total_files,
         "imageCount": image_count,
         "avatarCount": avatar_count,
@@ -3551,6 +4303,10 @@ pub async fn backup_import(
     );
 
     require_encrypted_backup(&manifest)?;
+    let is_custom_import = manifest
+        .selection
+        .as_ref()
+        .is_some_and(|selection| selection.mode == super::backup_plan::BackupSelectionMode::Custom);
 
     // Check backup version - only support v2
     if manifest.version < BACKUP_VERSION {
@@ -3665,75 +4421,175 @@ pub async fn backup_import(
     log_info(&app, "backup", "Reading JSON data files...");
 
     // Read all JSON data files
-    let meta_data = read_backup_file(&mut archive, "data/meta.json", &encryption_params)?;
-    let settings_data = read_backup_file(&mut archive, "data/settings.json", &encryption_params)?;
-    let provider_credentials_data = read_backup_file(
+    let mut meta_data = read_backup_file(&mut archive, "data/meta.json", &encryption_params)?;
+    let mut settings_data =
+        read_backup_file(&mut archive, "data/settings.json", &encryption_params)?;
+    let mut provider_credentials_data = read_backup_file(
         &mut archive,
         "data/provider_credentials.json",
         &encryption_params,
     )?;
-    let models_data = read_backup_file(&mut archive, "data/models.json", &encryption_params)?;
-    let audio_providers_data = read_backup_file(
+    let mut models_data = read_backup_file(&mut archive, "data/models.json", &encryption_params)?;
+    let mut audio_providers_data = read_backup_file(
         &mut archive,
         "data/audio_providers.json",
         &encryption_params,
     )?;
-    let user_voices_data =
+    let mut user_voices_data =
         read_backup_file(&mut archive, "data/user_voices.json", &encryption_params)?;
-    let model_pricing_cache_data = read_backup_file(
+    let mut tts_cache_metadata_data = read_backup_file(
+        &mut archive,
+        "data/tts_cache_metadata.json",
+        &encryption_params,
+    )?;
+    let mut model_pricing_cache_data = read_backup_file(
         &mut archive,
         "data/model_pricing_cache.json",
         &encryption_params,
     )?;
-    let secrets_data = read_backup_file(&mut archive, "data/secrets.json", &encryption_params)?;
-    let prompt_templates_data = read_backup_file(
+    let mut secrets_data = read_backup_file(&mut archive, "data/secrets.json", &encryption_params)?;
+    let mut prompt_templates_data = read_backup_file(
         &mut archive,
         "data/prompt_templates.json",
         &encryption_params,
     )?;
-    let chat_templates_data =
+    let mut chat_templates_data =
         read_backup_file(&mut archive, "data/chat_templates.json", &encryption_params)?;
-    let personas_data = read_backup_file(&mut archive, "data/personas.json", &encryption_params)?;
-    let characters_data =
+    let mut personas_data =
+        read_backup_file(&mut archive, "data/personas.json", &encryption_params)?;
+    let mut characters_data =
         read_backup_file(&mut archive, "data/characters.json", &encryption_params)?;
-    let companion_scheduled_notes_data = read_backup_file(
+    let mut companion_scheduled_notes_data = read_backup_file(
         &mut archive,
         "data/companion_scheduled_notes.json",
         &encryption_params,
     )?;
-    let companion_shared_memory_data = read_backup_file(
+    let mut companion_shared_memory_data = read_backup_file(
         &mut archive,
         "data/companion_shared_memory.json",
         &encryption_params,
     )?;
-    let memory_embeddings_data = read_backup_file(
+    let mut memory_embeddings_data = read_backup_file(
         &mut archive,
         "data/memory_embeddings.json",
         &encryption_params,
     )?;
-    let sessions_data = read_backup_file(&mut archive, "data/sessions.json", &encryption_params)?;
-    let creation_helper_sessions_data = read_backup_file(
+    let mut sessions_data =
+        read_backup_file(&mut archive, "data/sessions.json", &encryption_params)?;
+    let mut creation_helper_sessions_data = read_backup_file(
         &mut archive,
         "data/creation_helper_sessions.json",
         &encryption_params,
     )?;
-    let asr_learning_data =
+    let mut asr_learning_data =
         read_backup_file(&mut archive, "data/asr_learning.json", &encryption_params)?;
-    let group_characters_data = read_backup_file(
+    let mut group_characters_data = read_backup_file(
         &mut archive,
         "data/group_characters.json",
         &encryption_params,
     )?;
-    let group_sessions_data =
+    let mut group_sessions_data =
         read_backup_file(&mut archive, "data/group_sessions.json", &encryption_params)?;
-    let usage_records_data =
+    let mut usage_records_data =
         read_backup_file(&mut archive, "data/usage_records.json", &encryption_params)?;
-    let lorebooks_data = read_backup_file(&mut archive, "data/lorebooks.json", &encryption_params)?;
+    let mut lorebooks_data =
+        read_backup_file(&mut archive, "data/lorebooks.json", &encryption_params)?;
     let character_lorebooks_data = read_backup_file(
         &mut archive,
         "data/character_lorebooks.json",
         &encryption_params,
     )?;
+
+    if is_custom_import {
+        log_info(
+            &app,
+            "backup",
+            "Custom backup detected; merging archive data with existing local data",
+        );
+        meta_data = Some(encode_backup_json(&serde_json::json!(export_meta(&app)?))?);
+        settings_data = Some(encode_backup_json(&export_settings(&app)?)?);
+        provider_credentials_data = merge_backup_array_bytes_preserving_existing(
+            provider_credentials_data,
+            export_provider_credentials(&app)?,
+            &["id"],
+        )?;
+        models_data = merge_backup_array_bytes_preserving_existing(
+            models_data,
+            export_models(&app)?,
+            &["id"],
+        )?;
+        audio_providers_data = merge_backup_array_bytes_preserving_existing(
+            audio_providers_data,
+            export_audio_providers(&app)?,
+            &["id"],
+        )?;
+        user_voices_data = merge_backup_array_bytes_preserving_existing(
+            user_voices_data,
+            export_user_voices(&app)?,
+            &["id"],
+        )?;
+        tts_cache_metadata_data = merge_tts_cache_metadata_bytes(&app, tts_cache_metadata_data)?;
+        model_pricing_cache_data = merge_backup_array_bytes_preserving_existing(
+            model_pricing_cache_data,
+            export_model_pricing_cache(&app)?,
+            &["model_id"],
+        )?;
+        secrets_data = merge_backup_array_bytes_preserving_existing(
+            secrets_data,
+            export_secrets(&app)?,
+            &["service", "account"],
+        )?;
+        prompt_templates_data = merge_backup_array_bytes_preserving_existing(
+            prompt_templates_data,
+            export_prompt_templates(&app)?,
+            &["id"],
+        )?;
+        chat_templates_data =
+            merge_backup_array_bytes(chat_templates_data, export_chat_templates(&app)?, &["id"])?;
+        personas_data = merge_backup_array_bytes_preserving_existing(
+            personas_data,
+            export_personas(&app)?,
+            &["id"],
+        )?;
+        characters_data =
+            merge_backup_array_bytes(characters_data, export_characters(&app)?, &["id"])?;
+        companion_scheduled_notes_data = merge_backup_array_bytes(
+            companion_scheduled_notes_data,
+            export_companion_scheduled_notes(&app)?,
+            &["id"],
+        )?;
+        companion_shared_memory_data = merge_backup_array_bytes(
+            companion_shared_memory_data,
+            export_companion_shared_memory(&app)?,
+            &["character_id"],
+        )?;
+        memory_embeddings_data = merge_backup_array_bytes(
+            memory_embeddings_data,
+            export_memory_embeddings(&app)?,
+            &["session_kind", "session_id"],
+        )?;
+        sessions_data = merge_backup_array_bytes(sessions_data, export_sessions(&app)?, &["id"])?;
+        creation_helper_sessions_data = merge_backup_array_bytes_preserving_existing(
+            creation_helper_sessions_data,
+            export_creation_helper_sessions(&app)?,
+            &["id"],
+        )?;
+        asr_learning_data = Some(encode_backup_json(&export_asr_learning(&app)?)?);
+        group_characters_data = merge_backup_array_bytes(
+            group_characters_data,
+            export_group_characters(&app)?,
+            &["id"],
+        )?;
+        group_sessions_data =
+            merge_backup_array_bytes(group_sessions_data, export_group_sessions(&app)?, &["id"])?;
+        usage_records_data =
+            merge_backup_array_bytes(usage_records_data, export_usage_records(&app)?, &["id"])?;
+        lorebooks_data = merge_backup_array_bytes_preserving_existing(
+            lorebooks_data,
+            export_lorebooks(&app)?,
+            &["id"],
+        )?;
+    }
 
     log_info(&app, "backup", "Importing data to database...");
 
@@ -3842,6 +4698,9 @@ pub async fn backup_import(
     } else {
         log_info(&app, "backup", "No user_voices data found");
     }
+
+    restore_tts_cache_metadata(&app, tts_cache_metadata_data)?;
+    log_info(&app, "backup", "TTS cache metadata restored");
 
     if let Some(data) = model_pricing_cache_data {
         log_info(&app, "backup", "Found model_pricing_cache data");
@@ -4222,23 +5081,15 @@ pub async fn backup_import(
         .join("generated_images");
     let tts_audio_dir = storage.join("tts_audio");
 
-    // Clear existing media directories
-    if images_dir.exists() {
-        fs::remove_dir_all(&images_dir)
-            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-    }
-    if avatars_dir.exists() {
-        fs::remove_dir_all(&avatars_dir)
-            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-    }
-    if attachments_dir.exists() {
-        fs::remove_dir_all(&attachments_dir)
-            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-    }
-
-    if tts_audio_dir.exists() {
-        fs::remove_dir_all(&tts_audio_dir)
-            .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    // A full restore replaces media. Custom backups merge files so resources
+    // belonging to characters outside the backup remain untouched.
+    if !is_custom_import {
+        for directory in [&images_dir, &avatars_dir, &attachments_dir, &tts_audio_dir] {
+            if directory.exists() {
+                fs::remove_dir_all(directory)
+                    .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+            }
+        }
     }
 
     let staged_images = staging_dir.join("images");
@@ -4261,7 +5112,7 @@ pub async fn backup_import(
 
     let staged_sessions = staging_dir.join("sessions");
     if staged_sessions.exists() {
-        if sessions_dir.exists() {
+        if !is_custom_import && sessions_dir.exists() {
             fs::remove_dir_all(&sessions_dir)
                 .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
         }
@@ -4271,7 +5122,7 @@ pub async fn backup_import(
 
     let staged_generated_images = staging_dir.join("generated_images");
     if staged_generated_images.exists() {
-        if generated_images_dir.exists() {
+        if !is_custom_import && generated_images_dir.exists() {
             fs::remove_dir_all(&generated_images_dir)
                 .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
         }
@@ -4541,6 +5392,7 @@ pub fn backup_get_info_from_bytes(data: Vec<u8>) -> Result<serde_json::Value, St
         "createdAt": manifest.created_at,
         "appVersion": manifest.app_version,
         "encrypted": manifest.encrypted,
+        "custom": manifest.selection.as_ref().is_some_and(|selection| selection.mode == super::backup_plan::BackupSelectionMode::Custom),
         "totalFiles": total_files,
         "imageCount": image_count,
         "avatarCount": avatar_count,
@@ -4660,6 +5512,20 @@ pub fn backup_verify_password_from_bytes(data: Vec<u8>, password: String) -> Res
 /// Import backup from bytes (for Android content URI support) - v2 format
 #[tauri::command]
 pub async fn backup_import_from_bytes(
+    app: tauri::AppHandle,
+    data: Vec<u8>,
+    password: Option<String>,
+) -> Result<(), String> {
+    let temp_path = storage_root(&app)?.join("backup_import_temp.lettuce");
+    fs::write(&temp_path, data)
+        .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))?;
+    let result = backup_import(app, temp_path.to_string_lossy().to_string(), password).await;
+    let _ = fs::remove_file(&temp_path);
+    result
+}
+
+#[allow(dead_code)]
+async fn backup_import_from_bytes_legacy(
     app: tauri::AppHandle,
     data: Vec<u8>,
     password: Option<String>,
@@ -4820,6 +5686,8 @@ pub async fn backup_import_from_bytes(
         read_backup_file_bytes(&data, "data/audio_providers.json", &encryption_params)?;
     let user_voices_data =
         read_backup_file_bytes(&data, "data/user_voices.json", &encryption_params)?;
+    let tts_cache_metadata_data =
+        read_backup_file_bytes(&data, "data/tts_cache_metadata.json", &encryption_params)?;
     let model_pricing_cache_data =
         read_backup_file_bytes(&data, "data/model_pricing_cache.json", &encryption_params)?;
     let secrets_data = read_backup_file_bytes(&data, "data/secrets.json", &encryption_params)?;
@@ -4946,6 +5814,9 @@ pub async fn backup_import_from_bytes(
         import_user_voices(&app, &json_value)?;
         log_info(&app, "backup", "User voices imported");
     }
+
+    restore_tts_cache_metadata(&app, tts_cache_metadata_data)?;
+    log_info(&app, "backup", "TTS cache metadata restored");
 
     if let Some(file_data) = model_pricing_cache_data {
         let json_str = String::from_utf8(file_data)

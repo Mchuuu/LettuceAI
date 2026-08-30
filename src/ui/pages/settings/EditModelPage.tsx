@@ -74,6 +74,7 @@ import {
   Pin,
   ArrowUpDown,
   Cpu,
+  Globe2,
   type LucideIcon,
 } from "lucide-react";
 import { ProviderParameterSupportInfo } from "../../components/ProviderParameterSupportInfo";
@@ -93,6 +94,20 @@ import { getProviderIcon } from "../../../core/utils/providerIcons";
 import { cn } from "../../design-tokens";
 import { openDocs } from "../../../core/utils/docs";
 import { useI18n, type TranslationKey } from "../../../core/i18n/context";
+import {
+  CUSTOM_OPENAI_RESPONSES_PROVIDER_ID,
+  isCustomProviderId,
+} from "../../../core/providers/customProvider";
+import {
+  readModelReasoningMode,
+  reasoningModePatch,
+  type ReasoningEffort,
+  type ReasoningMode,
+} from "../../../core/models/reasoning";
+import {
+  readResponsesDialect,
+  reasoningEffortsForDialect,
+} from "../../../core/providers/responsesCompatibility";
 import { Switch } from "../../components/Switch";
 
 type DownloadedGgufModel = {
@@ -430,7 +445,6 @@ function FieldBlock({
   );
 }
 
-
 export function EditModelPage() {
   const { t } = useI18n();
   const [showParameterSupport, setShowParameterSupport] = useState(false);
@@ -620,8 +634,7 @@ export function EditModelPage() {
     }
     if (providerSortMode === "uptime") {
       return endpoints.sort(
-        (a, b) =>
-          (b.uptimeLast30m ?? -1) - (a.uptimeLast30m ?? -1) || a.name.localeCompare(b.name),
+        (a, b) => (b.uptimeLast30m ?? -1) - (a.uptimeLast30m ?? -1) || a.name.localeCompare(b.name),
       );
     }
     const totalPrice = (endpoint: OpenRouterEndpoint) =>
@@ -634,9 +647,7 @@ export function EditModelPage() {
           a.name.localeCompare(b.name),
       );
     }
-    return endpoints.sort(
-      (a, b) => totalPrice(a) - totalPrice(b) || a.name.localeCompare(b.name),
-    );
+    return endpoints.sort((a, b) => totalPrice(a) - totalPrice(b) || a.name.localeCompare(b.name));
   }, [openRouterEndpoints, providerSortMode]);
 
   const cycleProviderSortMode = () => {
@@ -683,15 +694,42 @@ export function EditModelPage() {
       [t("editModel.runtimeFacts.modelPath"), llamaRuntimeReport.modelPath],
       [t("editModel.runtimeFacts.backendUsed"), llamaRuntimeReport.backendPathUsed ?? null],
       [t("editModel.runtimeFacts.failureStage"), llamaRuntimeReport.failureStage ?? null],
-      [t("editModel.runtimeFacts.requestedContext"), formatRuntimeNumber(llamaRuntimeReport.requestedContext)],
-      [t("editModel.runtimeFacts.recommendedContext"), formatRuntimeNumber(llamaRuntimeReport.recommendedContext)],
-      [t("editModel.runtimeFacts.initialContext"), formatRuntimeNumber(llamaRuntimeReport.initialContextCandidate)],
-      [t("editModel.runtimeFacts.actualContext"), formatRuntimeNumber(llamaRuntimeReport.actualContextUsed)],
-      [t("editModel.runtimeFacts.requestedGpuLayers"), formatRuntimeNumber(llamaRuntimeReport.requestedGpuLayers)],
-      [t("editModel.runtimeFacts.actualGpuLayers"), formatRuntimeNumber(llamaRuntimeReport.actualGpuLayersUsed)],
-      [t("editModel.runtimeFacts.requestedBatch"), formatRuntimeNumber(llamaRuntimeReport.requestedBatchLimit)],
-      [t("editModel.runtimeFacts.initialBatch"), formatRuntimeNumber(llamaRuntimeReport.initialBatchCandidate)],
-      [t("editModel.runtimeFacts.actualBatch"), formatRuntimeNumber(llamaRuntimeReport.actualBatchUsed)],
+      [
+        t("editModel.runtimeFacts.requestedContext"),
+        formatRuntimeNumber(llamaRuntimeReport.requestedContext),
+      ],
+      [
+        t("editModel.runtimeFacts.recommendedContext"),
+        formatRuntimeNumber(llamaRuntimeReport.recommendedContext),
+      ],
+      [
+        t("editModel.runtimeFacts.initialContext"),
+        formatRuntimeNumber(llamaRuntimeReport.initialContextCandidate),
+      ],
+      [
+        t("editModel.runtimeFacts.actualContext"),
+        formatRuntimeNumber(llamaRuntimeReport.actualContextUsed),
+      ],
+      [
+        t("editModel.runtimeFacts.requestedGpuLayers"),
+        formatRuntimeNumber(llamaRuntimeReport.requestedGpuLayers),
+      ],
+      [
+        t("editModel.runtimeFacts.actualGpuLayers"),
+        formatRuntimeNumber(llamaRuntimeReport.actualGpuLayersUsed),
+      ],
+      [
+        t("editModel.runtimeFacts.requestedBatch"),
+        formatRuntimeNumber(llamaRuntimeReport.requestedBatchLimit),
+      ],
+      [
+        t("editModel.runtimeFacts.initialBatch"),
+        formatRuntimeNumber(llamaRuntimeReport.initialBatchCandidate),
+      ],
+      [
+        t("editModel.runtimeFacts.actualBatch"),
+        formatRuntimeNumber(llamaRuntimeReport.actualBatchUsed),
+      ],
       [
         t("editModel.runtimeFacts.smartOffloadFallback"),
         llamaRuntimeReport.smartGpuLayerFallbackActivated == null
@@ -743,10 +781,22 @@ export function EditModelPage() {
         t("editModel.runtimeFacts.modelSize"),
         llamaRuntimeReport.modelSizeBytes ? formatBytes(llamaRuntimeReport.modelSizeBytes) : null,
       ],
-      [t("editModel.runtimeFacts.promptTokens"), formatRuntimeNumber(llamaRuntimeReport.promptTokens)],
-      [t("editModel.runtimeFacts.promptPositions"), formatRuntimeNumber(llamaRuntimeReport.promptPositions)],
-      [t("editModel.runtimeFacts.targetNewTokens"), formatRuntimeNumber(llamaRuntimeReport.targetNewTokens)],
-      [t("editModel.runtimeFacts.completionTokens"), formatRuntimeNumber(llamaRuntimeReport.completionTokens)],
+      [
+        t("editModel.runtimeFacts.promptTokens"),
+        formatRuntimeNumber(llamaRuntimeReport.promptTokens),
+      ],
+      [
+        t("editModel.runtimeFacts.promptPositions"),
+        formatRuntimeNumber(llamaRuntimeReport.promptPositions),
+      ],
+      [
+        t("editModel.runtimeFacts.targetNewTokens"),
+        formatRuntimeNumber(llamaRuntimeReport.targetNewTokens),
+      ],
+      [
+        t("editModel.runtimeFacts.completionTokens"),
+        formatRuntimeNumber(llamaRuntimeReport.completionTokens),
+      ],
       [t("editModel.runtimeFacts.finishReason"), llamaRuntimeReport.finishReason ?? null],
       [
         t("editModel.runtimeFacts.firstToken"),
@@ -754,7 +804,10 @@ export function EditModelPage() {
           ? `${formatRuntimeNumber(llamaRuntimeReport.firstTokenMs)} ms`
           : null,
       ],
-      [t("editModel.runtimeFacts.throughput"), formatRuntimeRate(llamaRuntimeReport.tokensPerSecond)],
+      [
+        t("editModel.runtimeFacts.throughput"),
+        formatRuntimeRate(llamaRuntimeReport.tokensPerSecond),
+      ],
       [t("editModel.runtimeFacts.promptTemplate"), llamaRuntimeReport.promptTemplateSource ?? null],
     ] as const;
     return fields.filter(([, value]) => value).map(([label, value]) => ({ label, value: value! }));
@@ -1132,6 +1185,10 @@ export function EditModelPage() {
   const selectedProviderCredential =
     editorModel &&
     (providers.find(
+      (p) =>
+        p.id === editorModel.providerCredentialId && p.providerId === editorModel.providerId,
+    ) ||
+      providers.find(
       (p) => p.providerId === editorModel.providerId && p.label === editorModel.providerLabel,
     ) ||
       providers.find((p) => p.providerId === editorModel.providerId));
@@ -1144,10 +1201,7 @@ export function EditModelPage() {
     ) {
       return false;
     }
-    if (
-      selectedProviderCredential.providerId === "custom" ||
-      selectedProviderCredential.providerId === "custom-anthropic"
-    ) {
+    if (isCustomProviderId(selectedProviderCredential.providerId)) {
       return selectedProviderCredential.config?.fetchModelsEnabled === true;
     }
     return true;
@@ -1357,8 +1411,9 @@ export function EditModelPage() {
     isOpenRouterProvider,
     showOnlyFreeModels,
   ]);
-  const modelIdLabel =
-    isLocalModel ? t("editModel.fields.modelPath") : t("editModel.fields.modelId");
+  const modelIdLabel = isLocalModel
+    ? t("editModel.fields.modelPath")
+    : t("editModel.fields.modelId");
   const modelIdPlaceholder = isLocalModel
     ? t("editModel.placeholders.modelPath")
     : t("editModel.placeholders.modelId");
@@ -1441,14 +1496,18 @@ export function EditModelPage() {
     const path = rawPath.trim() || null;
     try {
       if (selectedSdEntry) {
-        const current = (selectedSdEntry.files as Record<string, string | null | undefined>)[role] ?? "";
+        const current =
+          (selectedSdEntry.files as Record<string, string | null | undefined>)[role] ?? "";
         if ((path ?? "") === current) return;
         await sdSetModelFile(selectedSdEntry.id, role, path);
         setSdEntries(null);
       } else if (path) {
         const fallbackName =
           editorModel?.displayName?.trim() ||
-          path.split(/[\\/]/).pop()?.replace(/\.(safetensors|gguf|ckpt|sft)$/i, "") ||
+          path
+            .split(/[\\/]/)
+            .pop()
+            ?.replace(/\.(safetensors|gguf|ckpt|sft)$/i, "") ||
           "Local model";
         const entry = await sdImportModel(fallbackName, { [role]: path });
         handleModelNameChange(entry.id);
@@ -1469,7 +1528,10 @@ export function EditModelPage() {
     const selection = await open({
       multiple: false,
       filters: [
-        { name: t("editModel.localDiffusion.modelFilesFilter"), extensions: ["safetensors", "gguf", "ckpt", "sft"] },
+        {
+          name: t("editModel.localDiffusion.modelFilesFilter"),
+          extensions: ["safetensors", "gguf", "ckpt", "sft"],
+        },
       ],
     });
     if (typeof selection !== "string") return;
@@ -1501,7 +1563,10 @@ export function EditModelPage() {
       }
       const fallbackName =
         editorModel?.displayName?.trim() ||
-        path.split(/[\\/]/).pop()?.replace(/\.(safetensors|gguf|ckpt|sft)$/i, "") ||
+        path
+          .split(/[\\/]/)
+          .pop()
+          ?.replace(/\.(safetensors|gguf|ckpt|sft)$/i, "") ||
         "Local model";
       const entry = await sdImportModel(fallbackName, { [role]: path });
       handleModelNameChange(entry.id);
@@ -1521,7 +1586,10 @@ export function EditModelPage() {
     const selection = await open({
       multiple: false,
       filters: [
-        { name: t("editModel.localDiffusion.modelFilesFilter"), extensions: ["safetensors", "gguf", "ckpt", "sft"] },
+        {
+          name: t("editModel.localDiffusion.modelFilesFilter"),
+          extensions: ["safetensors", "gguf", "ckpt", "sft"],
+        },
       ],
     });
     if (typeof selection !== "string") return;
@@ -1533,6 +1601,55 @@ export function EditModelPage() {
   const reasoningSupport: ReasoningSupport = editorModel?.providerId
     ? getProviderReasoningSupport(editorModel.providerId)
     : "none";
+  const isResponsesModel = editorModel?.providerId === CUSTOM_OPENAI_RESPONSES_PROVIDER_ID;
+  const responsesDialect = readResponsesDialect(selectedProviderCredential?.config);
+  const responsesReasoningMode = readModelReasoningMode(modelAdvancedDraft);
+  const responsesReasoningEfforts = reasoningEffortsForDialect(responsesDialect);
+  const responsesReasoningModes: Array<{ value: ReasoningMode; label: string }> = [
+    {
+      value: "provider-default",
+      label: t("editModel.reasoning.providerDefault"),
+    },
+    ...(responsesDialect === "volcengine-ark"
+      ? [{ value: "auto" as const, label: t("editModel.reasoning.modeAuto") }]
+      : []),
+    { value: "enabled", label: t("editModel.reasoning.enabled") },
+    { value: "disabled", label: t("editModel.reasoning.disabled") },
+  ];
+  const reasoningEffortLabel = (effort: ReasoningEffort) => {
+    switch (effort) {
+      case "low":
+        return t("editModel.reasoning.effortLow");
+      case "medium":
+        return t("editModel.reasoning.effortMedium");
+      case "high":
+        return t("editModel.reasoning.effortHigh");
+      case "xhigh":
+        return t("editModel.reasoning.effortXHigh");
+      case "max":
+        return t("editModel.reasoning.effortMax");
+    }
+  };
+  const updateResponsesReasoningMode = (mode: ReasoningMode) => {
+    setModelAdvancedDraft({
+      ...modelAdvancedDraft,
+      ...reasoningModePatch(mode),
+      reasoningEffort:
+        mode === "disabled"
+          ? null
+          : mode === "enabled" && !modelAdvancedDraft.reasoningEffort
+            ? "medium"
+            : modelAdvancedDraft.reasoningEffort,
+      reasoningBudgetTokens:
+        mode === "disabled" ? null : modelAdvancedDraft.reasoningBudgetTokens,
+    });
+  };
+  const updateResponsesReasoningEffort = (effort: ReasoningEffort) => {
+    setModelAdvancedDraft({
+      ...modelAdvancedDraft,
+      reasoningEffort: effort,
+    });
+  };
   const showReasoningSection = reasoningSupport !== "none";
   const isAutoReasoning = reasoningSupport === "auto";
   const showEffortOptions = reasoningSupport === "effort" || reasoningSupport === "dynamic";
@@ -1606,8 +1723,7 @@ export function EditModelPage() {
   const supportsLlamaGpuOffload =
     llamaContextInfo?.supportsGpuOffload ?? llamaRuntimeReport?.supportsGpuOffload ?? null;
   const isCpuOnlyLlamaBackend = isLocalModel && supportsLlamaGpuOffload === false;
-  const contextCacheLocationLabel =
-    isCpuOnlyLlamaBackend
+  const contextCacheLocationLabel = isCpuOnlyLlamaBackend
       ? t("editModel.runtimeSummary.ram")
       : modelAdvancedDraft.llamaOffloadKqv === true
         ? t("editModel.runtimeSummary.vram")
@@ -1759,11 +1875,8 @@ export function EditModelPage() {
     distributionOptions.find((opt) => opt.value === llamaDistributionMode)?.label ?? "Balanced";
   const kvPlacementMenuLabel =
     kvPlacementOptions.find((opt) => opt.value === currentKvPlacement)?.label ?? "Auto";
-  const pinnedGpuIndex =
-    modelAdvancedDraft.llamaMainGpu ?? selectedEligibleDevices[0]?.index ?? 0;
-  const pinnedGpuDevice = selectedEligibleDevices.find(
-    (device) => device.index === pinnedGpuIndex,
-  );
+  const pinnedGpuIndex = modelAdvancedDraft.llamaMainGpu ?? selectedEligibleDevices[0]?.index ?? 0;
+  const pinnedGpuDevice = selectedEligibleDevices.find((device) => device.index === pinnedGpuIndex);
   const pinnedGpuMenuLabel = pinnedGpuDevice
     ? pinnedGpuDevice.description || pinnedGpuDevice.name || `GPU ${pinnedGpuDevice.index}`
     : "";
@@ -1835,23 +1948,44 @@ export function EditModelPage() {
         .filter(Boolean)
         .join(" • ") || t("editModel.summaries.runtimeOllama")
       : "";
-  const reasoningSummary = isAutoReasoning
-    ? t("editModel.summaries.reasoningAlwaysEnabled")
-    : modelAdvancedDraft.reasoningEnabled === false
-      ? t("editModel.summaries.reasoningDisabled")
-      : [
-        modelAdvancedDraft.reasoningEnabled
-          ? t("editModel.reasoning.enabled")
-          : t("editModel.reasoning.providerDefault"),
-        modelAdvancedDraft.reasoningEffort
-          ? `Effort ${modelAdvancedDraft.reasoningEffort}`
-          : null,
-        modelAdvancedDraft.reasoningBudgetTokens != null
-          ? `Budget ${modelAdvancedDraft.reasoningBudgetTokens.toLocaleString()}`
+  const responsesReasoningModeLabel = (() => {
+    switch (responsesReasoningMode) {
+      case "auto":
+        return t("editModel.reasoning.modeAuto");
+      case "enabled":
+        return t("editModel.reasoning.enabled");
+      case "disabled":
+        return t("editModel.reasoning.disabled");
+      default:
+        return t("editModel.reasoning.providerDefault");
+    }
+  })();
+  const reasoningSummary = isResponsesModel
+    ? [
+        responsesReasoningModeLabel,
+        responsesReasoningMode === "enabled" && modelAdvancedDraft.reasoningEffort
+          ? reasoningEffortLabel(modelAdvancedDraft.reasoningEffort)
           : null,
       ]
         .filter(Boolean)
-        .join(" • ") || t("editModel.summaries.reasoningDefault");
+        .join(" • ")
+    : isAutoReasoning
+      ? t("editModel.summaries.reasoningAlwaysEnabled")
+      : modelAdvancedDraft.reasoningEnabled === false
+        ? t("editModel.summaries.reasoningDisabled")
+        : [
+            modelAdvancedDraft.reasoningEnabled
+              ? t("editModel.reasoning.enabled")
+              : t("editModel.reasoning.providerDefault"),
+            modelAdvancedDraft.reasoningEffort
+              ? `Effort ${modelAdvancedDraft.reasoningEffort}`
+              : null,
+            modelAdvancedDraft.reasoningBudgetTokens != null
+              ? `Budget ${modelAdvancedDraft.reasoningBudgetTokens.toLocaleString()}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" • ") || t("editModel.summaries.reasoningDefault");
   const inputCapabilitySummary = (editorModel?.inputScopes ?? [])
     .filter((scope) => scope !== "text")
     .map((scope) => scope[0].toUpperCase() + scope.slice(1))
@@ -1922,7 +2056,13 @@ export function EditModelPage() {
     } else if (activePanel === "caching" && !showCachingSection) {
       setActivePanel("generation");
     }
-  }, [activePanel, hasRuntimePanel, isLocalDiffusionModel, showReasoningSection, showCachingSection]);
+  }, [
+    activePanel,
+    hasRuntimePanel,
+    isLocalDiffusionModel,
+    showReasoningSection,
+    showCachingSection,
+  ]);
 
   useEffect(() => {
     if (!showLlamaRuntimeReport) return;
@@ -2025,10 +2165,7 @@ export function EditModelPage() {
     if (!isCpuOnlyLlamaBackend) {
       return;
     }
-    if (
-      modelAdvancedDraft.llamaGpuLayers === 0 &&
-      modelAdvancedDraft.llamaOffloadKqv === false
-    ) {
+    if (modelAdvancedDraft.llamaGpuLayers === 0 && modelAdvancedDraft.llamaOffloadKqv === false) {
       return;
     }
     setModelAdvancedDraft({
@@ -2635,7 +2772,9 @@ export function EditModelPage() {
                                         )}
                                         {outputPrice && (
                                           <span>
-                                            {t("editModel.pricing.output", { price: outputPrice })}
+                                              {t("editModel.pricing.output", {
+                                                price: outputPrice,
+                                              })}
                                           </span>
                                         )}
                                       </div>
@@ -2690,8 +2829,7 @@ export function EditModelPage() {
                               className="w-full rounded-lg border border-fg/10 bg-surface-el/20 px-4 py-3 font-mono text-[13px] text-fg placeholder-fg/40 transition focus:border-fg/30 focus:outline-none"
                             />
                             {!modelFetchEnabledForSelectedProvider &&
-                              (selectedProviderCredential?.providerId === "custom" ||
-                                selectedProviderCredential?.providerId === "custom-anthropic") && (
+                              isCustomProviderId(selectedProviderCredential?.providerId) && (
                                 <p className="text-[13px] leading-relaxed text-fg/45">
                                   {t("editModel.modelSource.customEndpointFetchDisabled")}
                                 </p>
@@ -2764,7 +2902,9 @@ export function EditModelPage() {
                             {providerEndpointsLoading ? (
                               <div className="flex items-center justify-center gap-2 py-12 text-fg/50">
                                 <Loader className="h-4 w-4 animate-spin" />
-                                <span className="text-[13px]">{t("editModel.providerPin.loading")}</span>
+                                <span className="text-[13px]">
+                                  {t("editModel.providerPin.loading")}
+                                </span>
                               </div>
                             ) : providerEndpointsError ? (
                               <div className="px-4 py-10 text-center">
@@ -2975,6 +3115,31 @@ export function EditModelPage() {
                               </button>
                             </div>
 
+                            {!isFixedImageProvider && (
+                              <div className="flex items-start justify-between gap-4 border-b border-fg/8 pb-5">
+                                <div className="flex min-w-0 items-start gap-3 border-l-2 border-accent/35 pl-3">
+                                  <Globe2 size={16} className="mt-0.5 shrink-0 text-accent/80" />
+                                  <div className="space-y-1">
+                                    <span className="block text-[13px] font-medium text-fg/75">
+                                      {t("editModel.webSearch.title")}
+                                    </span>
+                                    <span className="block text-[12px] leading-relaxed text-fg/40">
+                                      {t("editModel.webSearch.description")}
+                                    </span>
+                                  </div>
+                                </div>
+                                <Switch
+                                  checked={modelAdvancedDraft.webSearchEnabled === true}
+                                  onChange={(webSearchEnabled) =>
+                                    setModelAdvancedDraft({
+                                      ...modelAdvancedDraft,
+                                      webSearchEnabled,
+                                    })
+                                  }
+                                />
+                              </div>
+                            )}
+
                             {isFixedImageProvider ? (
                               <div className="space-y-5">
                                 <div className="text-[13px] leading-relaxed text-fg/55">
@@ -3103,7 +3268,8 @@ export function EditModelPage() {
                                         </span>
                                       </div>
                                       <span className="font-mono text-[13px] text-fg/55">
-                                        {modelAdvancedDraft.sdSeed ?? t("editModel.placeholders.random")}
+                                      {modelAdvancedDraft.sdSeed ??
+                                        t("editModel.placeholders.random")}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -3137,8 +3303,7 @@ export function EditModelPage() {
                                         </span>
                                       </div>
                                       <span className="font-mono text-[13px] text-fg/55">
-                                        {modelAdvancedDraft.sdDenoisingStrength?.toFixed(2) ??
-                                          "0.75"}
+                                      {modelAdvancedDraft.sdDenoisingStrength?.toFixed(2) ?? "0.75"}
                                       </span>
                                     </div>
                                     <NumberInput
@@ -3191,9 +3356,7 @@ export function EditModelPage() {
                                   </div>
                                   <textarea
                                     value={modelAdvancedDraft.sdExtraPrompt ?? ""}
-                                    onChange={(e) =>
-                                      updateSdSetting("sdExtraPrompt", e.target.value)
-                                    }
+                                  onChange={(e) => updateSdSetting("sdExtraPrompt", e.target.value)}
                                     placeholder={t("editModel.placeholders.sdExtraPrompt")}
                                     rows={4}
                                     className={textAreaInputClassName}
@@ -3235,9 +3398,21 @@ export function EditModelPage() {
                                     <div className="grid grid-cols-3 gap-2">
                                       {(
                                         [
-                                          ["auto", t("editModel.sdOffload.auto"), t("editModel.sdOffload.autoHint")],
-                                          ["gpu", t("editModel.sdOffload.gpu"), t("editModel.sdOffload.gpuHint")],
-                                          ["mixed", t("editModel.sdOffload.mixed"), t("editModel.sdOffload.mixedHint")],
+                                        [
+                                          "auto",
+                                          t("editModel.sdOffload.auto"),
+                                          t("editModel.sdOffload.autoHint"),
+                                        ],
+                                        [
+                                          "gpu",
+                                          t("editModel.sdOffload.gpu"),
+                                          t("editModel.sdOffload.gpuHint"),
+                                        ],
+                                        [
+                                          "mixed",
+                                          t("editModel.sdOffload.mixed"),
+                                          t("editModel.sdOffload.mixedHint"),
+                                        ],
                                         ] as const
                                       ).map(([value, label, hint]) => {
                                         const active =
@@ -4274,7 +4449,8 @@ export function EditModelPage() {
                                           className={cn(
                                             selectInputClassName,
                                             "flex w-48 items-center justify-between gap-2 py-2.5 text-left",
-                                            isCpuOnlyLlamaBackend && "cursor-not-allowed opacity-60",
+                                            isCpuOnlyLlamaBackend &&
+                                              "cursor-not-allowed opacity-60",
                                           )}
                                         >
                                           <span className="truncate">{singleGpuMenuLabel}</span>
@@ -4355,9 +4531,7 @@ export function EditModelPage() {
                                           globalMultiGpuDefault &&
                                           multiGpuAvailable && (
                                             <span className="block text-[12px] text-accent/75">
-                                              {t(
-                                                "editModel.layerPlacement.multiGpuGlobalDefaultOn",
-                                              )}
+                                            {t("editModel.layerPlacement.multiGpuGlobalDefaultOn")}
                                             </span>
                                           )}
                                       </div>
@@ -4472,17 +4646,14 @@ export function EditModelPage() {
                                                 }
                                                 className="rounded-md border border-amber-400/30 bg-amber-500/10 px-2.5 py-1 text-[11.5px] font-medium text-amber-200 transition hover:bg-amber-500/20"
                                               >
-                                                {t(
-                                                  "editModel.layerPlacement.multiGpuPinnedRemove",
-                                                )}
+                                              {t("editModel.layerPlacement.multiGpuPinnedRemove")}
                                               </button>
                                             </div>
                                           </div>
                                         </div>
                                       )}
 
-                                    {effectiveMultiGpuEnabled &&
-                                      multiGpuAvailable && (
+                                  {effectiveMultiGpuEnabled && multiGpuAvailable && (
                                         <div className="space-y-4">
                                           <div className="flex items-center justify-between gap-3">
                                             <div className="space-y-0.5">
@@ -4563,10 +4734,9 @@ export function EditModelPage() {
                                                       <span className="block font-mono text-[11px] text-fg/38">
                                                         #{device.index} · {device.backend} ·{" "}
                                                         {t("runtimeDefaults.llamaGpuMemory", {
-                                                          free: (
-                                                            device.memoryFree /
-                                                            1024 ** 3
-                                                          ).toFixed(1),
+                                                      free: (device.memoryFree / 1024 ** 3).toFixed(
+                                                        1,
+                                                      ),
                                                           total: (
                                                             device.memoryTotal /
                                                             1024 ** 3
@@ -4609,8 +4779,7 @@ export function EditModelPage() {
                                                 max={1024}
                                                 step={0.5}
                                                 value={
-                                                  modelAdvancedDraft.llamaPriorityVramLimitBytes !=
-                                                  null
+                                              modelAdvancedDraft.llamaPriorityVramLimitBytes != null
                                                     ? Number(
                                                         (
                                                           modelAdvancedDraft.llamaPriorityVramLimitBytes /
@@ -5312,15 +5481,15 @@ export function EditModelPage() {
                                   </div>
                                   <input
                                     type="text"
-                                    value={joinStringList(modelAdvancedDraft.llamaDrySequenceBreakers)}
+                                  value={joinStringList(
+                                    modelAdvancedDraft.llamaDrySequenceBreakers,
+                                  )}
                                     onChange={(e) => {
                                       const next = e.target.value
                                         .split(",")
                                         .map((item) => item.trim())
                                         .filter((item) => item.length > 0);
-                                      handleLlamaDrySequenceBreakersChange(
-                                        next.length ? next : null,
-                                      );
+                                    handleLlamaDrySequenceBreakersChange(next.length ? next : null);
                                     }}
                                     placeholder={'\\n, :, ", *'}
                                     className={textAreaInputClassName}
@@ -5480,8 +5649,7 @@ export function EditModelPage() {
                                         value={
                                           modelAdvancedDraft.llamaRawCompletionFallback === true
                                             ? "enabled"
-                                            : modelAdvancedDraft.llamaRawCompletionFallback ===
-                                              false
+                                          : modelAdvancedDraft.llamaRawCompletionFallback === false
                                               ? "disabled"
                                               : "default"
                                         }
@@ -5840,9 +6008,7 @@ export function EditModelPage() {
                                     }
                                     onChange={(e) => {
                                       const val = e.target.value;
-                                      handleOllamaMirostatChange(
-                                        val === "auto" ? null : Number(val),
-                                      );
+                                    handleOllamaMirostatChange(val === "auto" ? null : Number(val));
                                     }}
                                     className={selectInputClassName}
                                   >
@@ -5970,90 +6136,176 @@ export function EditModelPage() {
                             </div>
 
                             <div className="space-y-6">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3 border-l-2 border-warning/40 pl-3">
-                                  <Brain size={16} className="text-warning/80" />
-                                  <div className="space-y-0.5">
-                                    <span className="block text-[13px] font-medium text-fg/70">
-                                      {t("editModel.reasoning.enabled")}
-                                    </span>
-                                    <span className="block text-[13px] text-fg/40">
-                                      {t("editModel.reasoning.enabledDescription")}
-                                    </span>
+                              {isResponsesModel ? (
+                                <div className="space-y-5">
+                                  <div className="space-y-3">
+                                    <div className="flex items-center gap-3 border-l-2 border-warning/40 pl-3">
+                                      <Brain size={16} className="text-warning/80" />
+                                      <div className="space-y-0.5">
+                                        <span className="block text-[13px] font-medium text-fg/70">
+                                          {t("editModel.reasoning.mode")}
+                                        </span>
+                                        <span className="block text-[12px] text-fg/40">
+                                          {t("editModel.reasoning.modeDescription")}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div
+                                      className={cn(
+                                        "grid gap-2",
+                                        responsesReasoningModes.length === 4
+                                          ? "grid-cols-4"
+                                          : "grid-cols-3",
+                                      )}
+                                    >
+                                      {responsesReasoningModes.map((option) => (
+                                        <button
+                                          key={option.value}
+                                          type="button"
+                                          onClick={() => updateResponsesReasoningMode(option.value)}
+                                          className={cn(
+                                            "min-w-0 rounded-lg border px-1.5 py-2 text-[12px] font-medium transition",
+                                            responsesReasoningMode === option.value
+                                              ? "border-warning/30 bg-warning/20 text-warning"
+                                              : "border-transparent bg-fg/5 text-fg/45 hover:text-fg/70",
+                                          )}
+                                        >
+                                          {option.label}
+                                        </button>
+                                      ))}
+                                    </div>
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => openDocs("models", "reasoning-mode")}
-                                    className="text-fg/30 hover:text-fg/60 transition"
-                                    aria-label={t("editModel.reasoning.helpLabel")}
-                                  >
-                                    <HelpCircle size={12} />
-                                  </button>
-                                </div>
-                                {!isAutoReasoning && (
-                                  <Switch
-                                    checked={modelAdvancedDraft.reasoningEnabled || false}
-                                    onChange={handleReasoningEnabledChange}
-                                  />
-                                )}
-                              </div>
 
-                              {(modelAdvancedDraft.reasoningEnabled || isAutoReasoning) && (
-                                <div className="space-y-8 pl-4 border-l border-fg/10 mt-4">
-                                  {showEffortOptions && (
-                                    <div className="space-y-3">
-                                      <span className="text-[13px] font-bold text-fg/30 uppercase tracking-wider">
+                                  {responsesReasoningMode === "enabled" && (
+                                    <div className="space-y-3 border-l border-fg/10 pl-4">
+                                      <span className="text-[12px] font-medium text-fg/45">
                                         {t("editModel.reasoning.effort")}
                                       </span>
-                                      <div className="grid grid-cols-4 gap-2">
-                                        {([null, "low", "medium", "high"] as const).map((level) => (
+                                      <div
+                                        className={cn(
+                                          "grid gap-2",
+                                          responsesReasoningEfforts.length > 3
+                                            ? "grid-cols-5"
+                                            : "grid-cols-3",
+                                        )}
+                                      >
+                                        {responsesReasoningEfforts.map((effort) => (
                                           <button
-                                            key={level || "auto"}
+                                            key={effort}
                                             type="button"
-                                            onClick={() => handleReasoningEffortChange(level)}
+                                            onClick={() => updateResponsesReasoningEffort(effort)}
                                             className={cn(
-                                              "rounded-lg py-1.5 text-[13px] font-bold uppercase transition",
-                                              modelAdvancedDraft.reasoningEffort === level
-                                                ? "bg-warning/20 text-warning border border-warning/30"
-                                                : "bg-fg/5 text-fg/30 border border-transparent hover:text-fg/50",
+                                              "min-w-0 rounded-lg border px-1 py-2 text-[12px] font-medium transition",
+                                              modelAdvancedDraft.reasoningEffort === effort
+                                                ? "border-warning/30 bg-warning/20 text-warning"
+                                                : "border-transparent bg-fg/5 text-fg/45 hover:text-fg/70",
                                             )}
                                           >
-                                            {level || t("common.labels.auto")}
+                                            {reasoningEffortLabel(effort)}
                                           </button>
                                         ))}
                                       </div>
                                     </div>
                                   )}
 
-                                  {(reasoningSupport === "budget-only" ||
-                                    reasoningSupport === "dynamic") && (
-                                      <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                          <span className="text-[13px] font-bold text-fg/30 uppercase tracking-wider">
-                                            {t("editModel.reasoning.budgetTokens")}
-                                          </span>
-                                          <span className="font-mono text-[13px] text-warning">
-                                            {modelAdvancedDraft.reasoningBudgetTokens
-                                              ? modelAdvancedDraft.reasoningBudgetTokens.toLocaleString()
-                                              : t("common.labels.auto")}
-                                          </span>
-                                        </div>
-                                        <NumberInput
-                                          min={ADVANCED_REASONING_BUDGET_RANGE.min}
-                                          max={ADVANCED_REASONING_BUDGET_RANGE.max}
-                                          step={1024}
-                                          value={modelAdvancedDraft.reasoningBudgetTokens || null}
-                                          onChange={(next) =>
-                                            handleReasoningBudgetChange(
-                                              next === null || next === 0 ? null : Math.trunc(next),
-                                            )
-                                          }
-                                          placeholder={t("common.labels.auto")}
-                                          className={numberInputClassName}
-                                        />
-                                      </div>
-                                    )}
+                                  <p className="text-[11px] leading-relaxed text-fg/35">
+                                    {t("editModel.reasoning.modelSupportHint")}
+                                  </p>
                                 </div>
+                              ) : (
+                                <>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3 border-l-2 border-warning/40 pl-3">
+                                      <Brain size={16} className="text-warning/80" />
+                                      <div className="space-y-0.5">
+                                        <span className="block text-[13px] font-medium text-fg/70">
+                                          {t("editModel.reasoning.enabled")}
+                                        </span>
+                                        <span className="block text-[13px] text-fg/40">
+                                          {t("editModel.reasoning.enabledDescription")}
+                                        </span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => openDocs("models", "reasoning-mode")}
+                                        className="text-fg/30 hover:text-fg/60 transition"
+                                        aria-label={t("editModel.reasoning.helpLabel")}
+                                      >
+                                        <HelpCircle size={12} />
+                                      </button>
+                                    </div>
+                                    {!isAutoReasoning && (
+                                      <Switch
+                                        checked={modelAdvancedDraft.reasoningEnabled || false}
+                                        onChange={handleReasoningEnabledChange}
+                                      />
+                                    )}
+                                  </div>
+
+                                  {(modelAdvancedDraft.reasoningEnabled || isAutoReasoning) && (
+                                    <div className="mt-4 space-y-8 border-l border-fg/10 pl-4">
+                                      {showEffortOptions && (
+                                        <div className="space-y-3">
+                                          <span className="text-[13px] font-bold text-fg/30 uppercase tracking-wider">
+                                            {t("editModel.reasoning.effort")}
+                                          </span>
+                                          <div className="grid grid-cols-4 gap-2">
+                                            {([null, "low", "medium", "high"] as const).map(
+                                              (level) => (
+                                                <button
+                                                  key={level || "auto"}
+                                                  type="button"
+                                                  onClick={() =>
+                                                    handleReasoningEffortChange(level)
+                                                  }
+                                                  className={cn(
+                                                    "rounded-lg py-1.5 text-[13px] font-bold uppercase transition",
+                                                    modelAdvancedDraft.reasoningEffort === level
+                                                      ? "border border-warning/30 bg-warning/20 text-warning"
+                                                      : "border border-transparent bg-fg/5 text-fg/30 hover:text-fg/50",
+                                                  )}
+                                                >
+                                                  {level || t("common.labels.auto")}
+                                                </button>
+                                              ),
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {(reasoningSupport === "budget-only" ||
+                                        reasoningSupport === "dynamic") && (
+                                        <div className="space-y-4">
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-[13px] font-bold text-fg/30 uppercase tracking-wider">
+                                              {t("editModel.reasoning.budgetTokens")}
+                                            </span>
+                                            <span className="font-mono text-[13px] text-warning">
+                                              {modelAdvancedDraft.reasoningBudgetTokens
+                                                ? modelAdvancedDraft.reasoningBudgetTokens.toLocaleString()
+                                                : t("common.labels.auto")}
+                                            </span>
+                                          </div>
+                                          <NumberInput
+                                            min={ADVANCED_REASONING_BUDGET_RANGE.min}
+                                            max={ADVANCED_REASONING_BUDGET_RANGE.max}
+                                            step={1024}
+                                            value={modelAdvancedDraft.reasoningBudgetTokens || null}
+                                            onChange={(next) =>
+                                              handleReasoningBudgetChange(
+                                                next === null || next === 0
+                                                  ? null
+                                                  : Math.trunc(next),
+                                              )
+                                            }
+                                            placeholder={t("common.labels.auto")}
+                                            className={numberInputClassName}
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </>
                               )}
 
                               <div className="flex items-center justify-between">
@@ -6120,9 +6372,7 @@ export function EditModelPage() {
                                         {t("editModel.promptCaching.groqDescription")}
                                       </>
                                     )}
-                                    {isGeminiFamilyProvider(
-                                      editorModel?.providerId,
-                                    ) && (
+                                  {isGeminiFamilyProvider(editorModel?.providerId) && (
                                         <>
                                           <strong className="text-fg/80">
                                             {t("editModel.promptCaching.geminiLabel")}
@@ -6654,7 +6904,8 @@ export function EditModelPage() {
       </AnimatePresence>
 
       {/* Continue Setup button when coming from onboarding */}
-      {returnTo && (() => {
+      {returnTo &&
+        (() => {
         const canContinueWithCurrentModel = !isNew && !hasUnsavedChanges;
         const canContinueSetup =
           !(saving || verifying) && (canSave || canContinueWithCurrentModel);

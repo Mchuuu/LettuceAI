@@ -211,6 +211,7 @@ pub(crate) async fn handle_streaming_response(
 
     let mut usage_emitted = false;
     let mut text_emitted = false;
+    let mut tool_calls_emitted = false;
     let mut decoder = sse::SseDecoder::new();
     let mut aborted = false;
     let idle_timeout_ms = req
@@ -271,6 +272,7 @@ pub(crate) async fn handle_streaming_response(
                             match &event {
                                 NormalizedEvent::Usage { .. } => { usage_emitted = true; }
                                 NormalizedEvent::Delta { .. } => { text_emitted = true; }
+                                NormalizedEvent::ToolCall { .. } => { tool_calls_emitted = true; }
                                 _ => {}
                             }
                             emit_normalized(app, &request_id, event);
@@ -371,9 +373,11 @@ pub(crate) async fn handle_streaming_response(
     }
 
     let provider_id = req.provider_id.as_deref().unwrap_or_default();
-    let calls = parse_tool_calls(provider_id, &value);
-    if !calls.is_empty() {
-        emit_normalized(app, &request_id, NormalizedEvent::ToolCall { calls });
+    if !tool_calls_emitted {
+        let calls = parse_tool_calls(provider_id, &value);
+        if !calls.is_empty() {
+            emit_normalized(app, &request_id, NormalizedEvent::ToolCall { calls });
+        }
     }
     // Emit a final usage event if not already emitted and we can extract it
     if !usage_emitted {

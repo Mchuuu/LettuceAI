@@ -2291,6 +2291,8 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
+    crate::tts_manager::cache_metadata::ensure_schema(conn)?;
+
     Ok(())
 }
 

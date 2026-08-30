@@ -26,6 +26,7 @@ import type {
   CompanionTimeOverride,
   Model,
   Persona,
+  ProviderCredential,
   Session,
 } from "../../../core/storage/schemas";
 import {
@@ -71,6 +72,7 @@ import { CompanionTimeOverrideCard } from "./components/CompanionTimeOverrideCar
 import { CompanionCalendarSettings } from "./components/CompanionCalendarSettings";
 import { useI18n } from "../../../core/i18n/context";
 import { isRenderableImageUrl } from "../../../core/utils/image";
+import { readResponsesDialect } from "../../../core/providers/responsesCompatibility";
 
 function isImageLike(value?: string) {
   return isRenderableImageUrl(value);
@@ -311,6 +313,7 @@ export function ChatSettingsContent({
   const { t } = useI18n();
   const { characterId } = useParams();
   const [models, setModels] = useState<Model[]>([]);
+  const [providerCredentials, setProviderCredentials] = useState<ProviderCredential[]>([]);
   const [globalDefaultModelId, setGlobalDefaultModelId] = useState<string | null>(null);
   const [currentCharacter, setCurrentCharacter] = useState<Character>(character);
   const avatarUrl = useAvatar(
@@ -367,6 +370,7 @@ export function ChatSettingsContent({
     try {
       const settings = await readSettings();
       setModels(settings.models);
+      setProviderCredentials(settings.providerCredentials);
       setGlobalDefaultModelId(settings.defaultModelId);
     } catch (error) {
       console.error("Failed to load models/settings:", error);
@@ -443,6 +447,20 @@ export function ChatSettingsContent({
     () => models.find((m) => m.id === effectiveModelId),
     [models, effectiveModelId],
   );
+  const currentProviderCredential = useMemo(() => {
+    if (!currentModel) return null;
+    return (
+      providerCredentials.find((provider) => provider.id === currentModel.providerCredentialId) ??
+      providerCredentials.find(
+        (provider) =>
+          provider.providerId === currentModel.providerId &&
+          provider.label === currentModel.providerLabel,
+      ) ??
+      providerCredentials.find((provider) => provider.providerId === currentModel.providerId) ??
+      null
+    );
+  }, [currentModel, providerCredentials]);
+  const currentResponsesDialect = readResponsesDialect(currentProviderCredential?.config);
 
   const baseAdvancedSettings = useMemo(() => {
     return currentModel?.advancedModelSettings ?? createDefaultAdvancedModelSettings();
@@ -457,7 +475,14 @@ export function ChatSettingsContent({
       setSessionAdvancedDraft(sessionAdvancedSettings);
       setSessionOverrideEnabled(true);
     } else {
-      setSessionAdvancedDraft(baseAdvancedSettings);
+      setSessionAdvancedDraft({
+        ...baseAdvancedSettings,
+        reasoningMode: null,
+        reasoningEnabled: null,
+        reasoningEffort: null,
+        reasoningBudgetTokens: null,
+        webSearchEnabled: null,
+      });
       setSessionOverrideEnabled(false);
     }
   }, [sessionAdvancedSettings, baseAdvancedSettings]);
@@ -1724,6 +1749,7 @@ export function ChatSettingsContent({
         onShowParameterSupport={() => setShowParameterSupport(true)}
         hasSession={!!currentSession}
         providerId={currentModel?.providerId ?? "openai"}
+        responsesDialect={currentResponsesDialect}
         modelPath={currentModel?.name}
       />
 

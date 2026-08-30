@@ -3,6 +3,9 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::storage_manager::legacy::storage_root;
+use crate::utils::log_warn;
+
+use super::cache_metadata::{self, TtsCacheContext};
 
 const TTS_AUDIO_DIR: &str = "tts_audio";
 
@@ -106,6 +109,7 @@ pub fn save_audio_to_cache(
     cache_key: &str,
     audio_data: &[u8],
     format: &str,
+    cache_context: Option<&TtsCacheContext>,
 ) -> Result<(), String> {
     let dir = tts_audio_dir(app)?;
     let ext = format_to_extension(format);
@@ -117,6 +121,13 @@ pub fn save_audio_to_cache(
             format!("Failed to save TTS audio to cache: {}", e),
         )
     })?;
+    record_cache_metadata(
+        app,
+        cache_key,
+        format,
+        audio_data.len() as u64,
+        cache_context,
+    );
     Ok(())
 }
 
@@ -173,6 +184,14 @@ pub fn delete_audio_from_cache(app: &tauri::AppHandle, cache_key: &str) -> Resul
         }
     }
 
+    if let Err(error) = cache_metadata::remove_entry(app, cache_key) {
+        log_warn(
+            app,
+            "tts_cache",
+            format!("Failed to remove cache metadata for {cache_key}: {error}"),
+        );
+    }
+
     Ok(())
 }
 
@@ -198,7 +217,49 @@ pub fn clear_audio_cache(app: &tauri::AppHandle) -> Result<u64, String> {
         }
     }
 
+    if let Err(error) = cache_metadata::clear_all(app) {
+        log_warn(
+            app,
+            "tts_cache",
+            format!("Failed to clear TTS cache metadata: {error}"),
+        );
+    }
+
     Ok(count)
+}
+
+fn cache_file_size(app: &tauri::AppHandle, cache_key: &str) -> Result<u64, String> {
+    let dir = tts_audio_dir(app)?;
+    for ext in &["mp3", "wav", "ogg", "webm", "pcm", "audio"] {
+        let file_path = dir.join(format!("{}.{}", cache_key, ext));
+        if file_path.exists() {
+            return fs::metadata(&file_path)
+                .map(|metadata| metadata.len())
+                .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error));
+        }
+    }
+    Ok(0)
+}
+
+fn record_cache_metadata(
+    app: &tauri::AppHandle,
+    cache_key: &str,
+    format: &str,
+    size_bytes: u64,
+    cache_context: Option<&TtsCacheContext>,
+) {
+    let Some(context) = cache_context else {
+        return;
+    };
+    if let Err(error) =
+        cache_metadata::record_cache_use(app, cache_key, format, size_bytes, context)
+    {
+        log_warn(
+            app,
+            "tts_cache",
+            format!("Failed to record cache metadata for {cache_key}: {error}"),
+        );
+    }
 }
 
 pub fn get_cache_size(app: &tauri::AppHandle) -> Result<u64, String> {
@@ -273,16 +334,33 @@ pub fn tts_cache_exists(app: tauri::AppHandle, cache_key: String) -> Result<bool
 pub fn tts_cache_get(
     app: tauri::AppHandle,
     cache_key: String,
+    cache_context: Option<TtsCacheContext>,
 ) -> Result<Option<super::types::TtsPreviewResponse>, String> {
     match load_audio_from_cache(&app, &cache_key)? {
         Some((audio_data, format)) => {
+            record_cache_metadata(
+                &app,
+                &cache_key,
+                &format,
+                audio_data.len() as u64,
+                cache_context.as_ref(),
+            );
             let audio_base64 = STANDARD.encode(&audio_data);
             Ok(Some(super::types::TtsPreviewResponse {
                 audio_base64,
                 format,
             }))
         }
-        None => Ok(None),
+        None => {
+            if let Err(error) = cache_metadata::remove_entry(&app, &cache_key) {
+                log_warn(
+                    &app,
+                    "tts_cache",
+                    format!("Failed to remove stale cache metadata for {cache_key}: {error}"),
+                );
+            }
+            Ok(None)
+        }
     }
 }
 
@@ -292,6 +370,7 @@ pub fn tts_cache_save(
     cache_key: String,
     audio_base64: String,
     format: String,
+    cache_context: Option<TtsCacheContext>,
 ) -> Result<(), String> {
     let audio_data = STANDARD.decode(&audio_base64).map_err(|e| {
         crate::utils::err_msg(
@@ -300,7 +379,24 @@ pub fn tts_cache_save(
             format!("Failed to decode audio base64: {}", e),
         )
     })?;
-    save_audio_to_cache(&app, &cache_key, &audio_data, &format)
+    save_audio_to_cache(
+        &app,
+        &cache_key,
+        &audio_data,
+        &format,
+        cache_context.as_ref(),
+    )
+}
+
+#[tauri::command]
+pub fn tts_cache_associate(
+    app: tauri::AppHandle,
+    cache_key: String,
+    format: String,
+    cache_context: TtsCacheContext,
+) -> Result<(), String> {
+    let size_bytes = cache_file_size(&app, &cache_key)?;
+    cache_metadata::record_cache_use(&app, &cache_key, &format, size_bytes, &cache_context)
 }
 
 #[tauri::command]

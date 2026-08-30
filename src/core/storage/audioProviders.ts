@@ -221,6 +221,7 @@ export async function streamDoubaoTts(
   text: string,
   requestId: string,
   prompt?: string,
+  cacheReference?: TtsCacheReference,
 ): Promise<void> {
   return invoke("tts_stream_doubao", {
     providerId,
@@ -229,6 +230,7 @@ export async function streamDoubaoTts(
     prompt,
     text,
     requestId,
+    cacheReference: cacheReference ?? null,
   });
 }
 
@@ -424,6 +426,23 @@ export interface TtsCacheStats {
   count: number;
 }
 
+export type TtsCacheConversationKind = "session" | "group_session";
+
+export interface TtsCacheReference {
+  conversationKind: TtsCacheConversationKind;
+  conversationId: string;
+  messageId: string;
+  variantId?: string;
+  characterId?: string;
+}
+
+export interface TtsCacheContext {
+  providerId: string;
+  modelId: string;
+  voiceId: string;
+  reference?: TtsCacheReference;
+}
+
 /**
  * Generate a cache key for TTS audio based on generation parameters.
  * This key is used to store and retrieve cached audio from disk.
@@ -455,8 +474,14 @@ export async function ttsCacheExists(cacheKey: string): Promise<boolean> {
  * Get cached TTS audio from disk.
  * Returns null if not found.
  */
-export async function getTtsCached(cacheKey: string): Promise<TtsPreviewResponse | null> {
-  return invoke<TtsPreviewResponse | null>("tts_cache_get", { cacheKey });
+export async function getTtsCached(
+  cacheKey: string,
+  cacheContext?: TtsCacheContext,
+): Promise<TtsPreviewResponse | null> {
+  return invoke<TtsPreviewResponse | null>("tts_cache_get", {
+    cacheKey,
+    cacheContext: cacheContext ?? null,
+  });
 }
 
 /**
@@ -466,8 +491,23 @@ export async function saveTtsToCache(
   cacheKey: string,
   audioBase64: string,
   format: string,
+  cacheContext?: TtsCacheContext,
 ): Promise<void> {
-  return invoke("tts_cache_save", { cacheKey, audioBase64, format });
+  return invoke("tts_cache_save", {
+    cacheKey,
+    audioBase64,
+    format,
+    cacheContext: cacheContext ?? null,
+  });
+}
+
+/** Associate an in-memory cache hit with its source message without rewriting the audio file. */
+export async function associateTtsCache(
+  cacheKey: string,
+  format: string,
+  cacheContext: TtsCacheContext,
+): Promise<void> {
+  return invoke("tts_cache_associate", { cacheKey, format, cacheContext });
 }
 
 /**
@@ -503,12 +543,13 @@ export async function generateTtsForMessage(
   text: string,
   prompt?: string,
   requestId?: string,
+  cacheContext?: TtsCacheContext,
 ): Promise<TtsPreviewResponse> {
   // Generate cache key
   const cacheKey = await getTtsCacheKey(providerId, modelId, voiceId, text, prompt);
 
   // Check disk cache first
-  const cached = await getTtsCached(cacheKey);
+  const cached = await getTtsCached(cacheKey, cacheContext);
   if (cached) {
     return cached;
   }
@@ -517,7 +558,7 @@ export async function generateTtsForMessage(
   const response = await generateTtsPreview(providerId, modelId, voiceId, text, prompt, requestId);
 
   // Save to disk cache (fire and forget, don't block playback)
-  saveTtsToCache(cacheKey, response.audioBase64, response.format).catch((err) => {
+  saveTtsToCache(cacheKey, response.audioBase64, response.format, cacheContext).catch((err) => {
     console.warn("Failed to save TTS audio to cache:", err);
   });
 

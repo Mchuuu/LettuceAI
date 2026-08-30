@@ -1,5 +1,6 @@
 pub mod android_pcm;
 pub mod audio_cache;
+pub(crate) mod cache_metadata;
 pub mod commands;
 mod doubao;
 mod elevenlabs;

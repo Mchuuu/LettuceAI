@@ -1,5 +1,6 @@
 use serde_json::Value;
 
+use crate::chat_manager::openai_responses;
 use crate::chat_manager::thinking::{
     normalize_thinking_content, ThinkingSplit, ThinkingTagStreamParser,
 };
@@ -36,6 +37,18 @@ fn accumulate_thinking_split_from_sse(raw: &str, provider_id: Option<&str>) -> T
         let Ok(v) = serde_json::from_str::<Value>(payload) else {
             continue;
         };
+
+        if openai_responses::event_type(&v).is_some_and(|kind| kind.starts_with("response.")) {
+            if let Some(piece) = openai_responses::stream_text_delta(&v) {
+                let parsed = parser.feed(&piece);
+                split.content.push_str(&parsed.content);
+                split.reasoning.push_str(&parsed.reasoning);
+            }
+            if let Some(piece) = openai_responses::stream_reasoning_delta(&v) {
+                split.reasoning.push_str(&piece);
+            }
+            continue;
+        }
 
         // HARD FILTER: skip tool frames
         if let Some(pid) = provider_id {
@@ -103,6 +116,22 @@ pub fn accumulate_tool_calls_from_sse(raw: &str, provider_id: &str) -> Vec<ToolC
         let Ok(v) = serde_json::from_str::<Value>(payload) else {
             continue;
         };
+
+        if openai_responses::event_type(&v).is_some_and(|kind| kind.starts_with("response.")) {
+            if matches!(
+                openai_responses::event_type(&v),
+                Some("response.output_item.done") | Some("response.completed")
+            ) {
+                for call in openai_responses::extract_tool_calls(&v) {
+                    if let Some(existing) = other.iter_mut().find(|item| item.id == call.id) {
+                        *existing = call;
+                    } else {
+                        other.push(call);
+                    }
+                }
+            }
+            continue;
+        }
 
         let mut handled_openai_stream = false;
         if let Some(choices) = v.get("choices").and_then(Value::as_array) {
@@ -304,6 +333,66 @@ impl SseDecoder {
             let Ok(v) = serde_json::from_str::<Value>(payload) else {
                 continue;
             };
+
+            if let Some(event_type) = openai_responses::event_type(&v) {
+                if event_type.starts_with("response.") || event_type == "error" {
+                    if let Some(piece) = openai_responses::stream_text_delta(&v) {
+                        let parsed = self.thinking_parser.feed(&piece);
+                        if !parsed.content.is_empty() {
+                            events.push(NormalizedEvent::Delta {
+                                text: parsed.content,
+                            });
+                        }
+                        if !parsed.reasoning.is_empty() {
+                            events.push(NormalizedEvent::Reasoning {
+                                text: parsed.reasoning,
+                            });
+                        }
+                    }
+                    if let Some(reasoning) = openai_responses::stream_reasoning_delta(&v) {
+                        if !reasoning.is_empty() {
+                            events.push(NormalizedEvent::Reasoning { text: reasoning });
+                        }
+                    }
+                    if let Some(call) = openai_responses::stream_tool_call(&v) {
+                        events.push(NormalizedEvent::ToolCall { calls: vec![call] });
+                    }
+                    if let Some(message) = openai_responses::stream_error_message(&v) {
+                        events.push(NormalizedEvent::Error {
+                            envelope: super::types::ErrorEnvelope {
+                                code: None,
+                                message,
+                                provider_id: provider_id.map(str::to_string),
+                                request_id: None,
+                                retryable: None,
+                                status: None,
+                            },
+                        });
+                    }
+                    if event_type == "response.completed" {
+                        if let Some(usage) = v
+                            .get("response")
+                            .and_then(usage_from_value)
+                            .or_else(|| usage_from_value(&v))
+                        {
+                            events.push(NormalizedEvent::Usage { usage });
+                        }
+                    }
+                    if openai_responses::is_terminal_stream_event(&v) {
+                        let tail = self.thinking_parser.finish();
+                        if !tail.content.is_empty() {
+                            events.push(NormalizedEvent::Delta { text: tail.content });
+                        }
+                        if !tail.reasoning.is_empty() {
+                            events.push(NormalizedEvent::Reasoning {
+                                text: tail.reasoning,
+                            });
+                        }
+                        events.push(NormalizedEvent::Done);
+                    }
+                    continue;
+                }
+            }
 
             // 1. Errors always win
             if let Some(err) = extract_gemini_error(&v) {
@@ -631,7 +720,10 @@ pub fn image_data_urls_from_response(v: &Value) -> Vec<String> {
 
 pub fn usage_from_value(v: &Value) -> Option<UsageSummary> {
     // Support both snake_case "usage" (OpenAI) and camelCase "usageMetadata" (Gemini)
-    let u = v.get("usage").or_else(|| v.get("usageMetadata"));
+    let u = v
+        .get("usage")
+        .or_else(|| v.get("usageMetadata"))
+        .or_else(|| v.get("response").and_then(|response| response.get("usage")));
 
     let (
         prompt_tokens,
@@ -681,6 +773,10 @@ pub fn usage_from_value(v: &Value) -> Option<UsageSummary> {
         .or_else(|| {
             u.get("completion_tokens_details")
                 .and_then(|d| take_first(d, &["reasoning_tokens", "reasoningTokens"]))
+        })
+        .or_else(|| {
+            u.get("output_tokens_details")
+                .and_then(|d| take_first(d, &["reasoning_tokens", "reasoningTokens"]))
         });
         let image_tokens = take_first(u, &["image_tokens", "imageTokens"]).or_else(|| {
             u.get("prompt_tokens_details")
@@ -719,20 +815,17 @@ pub fn usage_from_value(v: &Value) -> Option<UsageSummary> {
         .or_else(|| {
             u.get("prompt_tokens_details")
                 .and_then(|d| take_first(d, &["cached_tokens", "cachedTokens"]))
+        })
+        .or_else(|| {
+            u.get("input_tokens_details")
+                .and_then(|d| take_first(d, &["cached_tokens", "cachedTokens"]))
         });
         let cache_write_tokens = u
             .get("prompt_tokens_details")
             .and_then(|d| take_first(d, &["cache_write_tokens", "cacheWriteTokens"]));
-        let web_search_requests = u.get("server_tool_use").and_then(|d| {
-            take_first(
-                d,
-                &[
-                    "web_search_requests",
-                    "webSearchRequests",
-                    "search_requests",
-                ],
-            )
-        });
+        let web_search_requests = u
+            .as_object()
+            .and_then(crate::chat_manager::prompting::request::web_search_request_count);
         let api_cost = take_first_f64(u, &["cost", "total_cost", "totalCost"]);
         let total_tokens = take_first(u, &["total_tokens", "totalTokens", "totalTokenCount"])
             .or_else(|| match (prompt_tokens, completion_tokens) {

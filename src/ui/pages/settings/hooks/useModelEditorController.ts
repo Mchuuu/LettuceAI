@@ -33,6 +33,8 @@ import {
 import { Routes, useNavigationManager } from "../../../navigation";
 import { getPlatform } from "../../../../core/utils/platform";
 import { useI18n } from "../../../../core/i18n/context";
+import { isCustomProviderId } from "../../../../core/providers/customProvider";
+import { reasoningModePatch } from "../../../../core/models/reasoning";
 
 type ControllerReturn = {
   state: ModelEditorState;
@@ -100,7 +102,7 @@ type ControllerReturn = {
   handleOllamaSeedChange: (value: number | null) => void;
   handleOllamaStopChange: (value: string[] | null) => void;
   handleReasoningEnabledChange: (value: boolean) => void;
-  handleReasoningEffortChange: (value: "low" | "medium" | "high" | null) => void;
+  handleReasoningEffortChange: (value: AdvancedModelSettings["reasoningEffort"]) => void;
   handleReasoningBudgetChange: (value: number | null) => void;
   handleForceSendThinkingStateChange: (value: boolean) => void;
   handlePromptCachingEnabledChange: (value: boolean) => void;
@@ -167,9 +169,7 @@ export function useModelEditorController(): ControllerReturn {
   );
   const visibleCapabilities = useMemo(
     () =>
-      isMobile
-        ? capabilities.filter((capability) => capability.id !== "llamacpp")
-        : capabilities,
+      isMobile ? capabilities.filter((capability) => capability.id !== "llamacpp") : capabilities,
     [capabilities, isMobile],
   );
 
@@ -187,8 +187,7 @@ export function useModelEditorController(): ControllerReturn {
 
       if (isMobile) {
         return filteredProviders.filter(
-          (provider) =>
-            provider.providerId !== localProvider.providerId,
+          (provider) => provider.providerId !== localProvider.providerId,
         );
       }
       const result = [...filteredProviders];
@@ -519,12 +518,16 @@ export function useModelEditorController(): ControllerReturn {
         },
       });
       const defaultReasoningEnabled = getProviderDefaultReasoningEnabled(providerId);
-      if (state.modelAdvancedDraft.reasoningEnabled == null && defaultReasoningEnabled != null) {
+      if (
+        state.modelAdvancedDraft.reasoningMode == null &&
+        state.modelAdvancedDraft.reasoningEnabled == null &&
+        defaultReasoningEnabled != null
+      ) {
         dispatch({
           type: "set_model_advanced_draft",
           payload: sanitizeAdvancedModelSettings({
             ...state.modelAdvancedDraft,
-            reasoningEnabled: defaultReasoningEnabled,
+            ...reasoningModePatch(defaultReasoningEnabled ? "enabled" : "disabled"),
           }),
         });
       }
@@ -1245,6 +1248,8 @@ export function useModelEditorController(): ControllerReturn {
         low: 2048,
         medium: 8192,
         high: 16384,
+        xhigh: 32768,
+        max: 65536,
       };
 
       let newEffort = state.modelAdvancedDraft.reasoningEffort;
@@ -1263,7 +1268,7 @@ export function useModelEditorController(): ControllerReturn {
         type: "set_model_advanced_draft",
         payload: {
           ...state.modelAdvancedDraft,
-          reasoningEnabled: value,
+          ...reasoningModePatch(value ? "enabled" : "disabled"),
           reasoningEffort: newEffort,
           reasoningBudgetTokens: newBudget,
         },
@@ -1273,11 +1278,13 @@ export function useModelEditorController(): ControllerReturn {
   );
 
   const handleReasoningEffortChange = useCallback(
-    (value: "low" | "medium" | "high" | null) => {
+    (value: AdvancedModelSettings["reasoningEffort"]) => {
       const effortBudgets: Record<string, number> = {
         low: 2048,
         medium: 8192,
         high: 16384,
+        xhigh: 32768,
+        max: 65536,
       };
 
       let newBudget = state.modelAdvancedDraft.reasoningBudgetTokens;
@@ -1360,8 +1367,7 @@ export function useModelEditorController(): ControllerReturn {
     return providerCred.id;
   }, []);
 
-  const doSave = useCallback(
-    async (): Promise<boolean> => {
+  const doSave = useCallback(async (): Promise<boolean> => {
       const { editorModel, providers, modelAdvancedDraft } = state;
       if (!editorModel) return false;
 
@@ -1380,9 +1386,7 @@ export function useModelEditorController(): ControllerReturn {
         return false;
       }
 
-      const shouldVerify = ["openai", "cerebras", "anthropic"].includes(
-        providerCred.providerId,
-      );
+    const shouldVerify = ["openai", "cerebras", "anthropic"].includes(providerCred.providerId);
       if (shouldVerify) {
         try {
           dispatch({ type: "set_verifying", payload: true });
@@ -1458,9 +1462,7 @@ export function useModelEditorController(): ControllerReturn {
       } finally {
         dispatch({ type: "set_saving", payload: false });
       }
-    },
-    [dispatch, getProviderCredentialIdForSave, state],
-  );
+  }, [dispatch, getProviderCredentialIdForSave, state]);
 
   const handleSave = useCallback(async () => {
     await doSave();
@@ -1526,7 +1528,7 @@ export function useModelEditorController(): ControllerReturn {
     }
 
     if (
-      (providerCred.providerId === "custom" || providerCred.providerId === "custom-anthropic") &&
+      isCustomProviderId(providerCred.providerId) &&
       providerCred.config?.fetchModelsEnabled !== true
     ) {
       dispatch({

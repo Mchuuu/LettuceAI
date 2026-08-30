@@ -1065,6 +1065,7 @@ pub async fn tts_stream_doubao(
     prompt: Option<String>,
     text: String,
     request_id: String,
+    cache_reference: Option<super::cache_metadata::TtsCacheReference>,
 ) -> Result<(), String> {
     let conn = open_db(&app)?;
     let (
@@ -1167,6 +1168,12 @@ pub async fn tts_stream_doubao(
     let event_name = format!("tts-stream://{}", request_id);
     let mut streamed_bytes = 0usize;
     let mut streamed_pcm = if native_pcm { Some(Vec::new()) } else { None };
+    let cache_context = super::cache_metadata::TtsCacheContext::new(
+        provider_id.clone(),
+        model_id.clone(),
+        voice_id.clone(),
+        cache_reference,
+    );
     let native_cache_key = native_pcm.then(|| {
         super::audio_cache::generate_cache_key(
             &provider_id,
@@ -1288,9 +1295,13 @@ pub async fn tts_stream_doubao(
         {
             match super::audio_cache::pcm16_mono_to_wav(pcm, requested_sample_rate) {
                 Ok(wav) => {
-                    if let Err(error) =
-                        super::audio_cache::save_audio_to_cache(&app, cache_key, &wav, "audio/wav")
-                    {
+                    if let Err(error) = super::audio_cache::save_audio_to_cache(
+                        &app,
+                        cache_key,
+                        &wav,
+                        "audio/wav",
+                        Some(&cache_context),
+                    ) {
                         log_warn(
                             &app,
                             "tts",

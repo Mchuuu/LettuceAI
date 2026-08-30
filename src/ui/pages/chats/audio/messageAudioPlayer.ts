@@ -1,6 +1,7 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import {
   abortAudioPreview,
+  associateTtsCache,
   generateTtsForMessage,
   getTtsCached,
   getTtsCacheKey,
@@ -8,6 +9,7 @@ import {
   saveTtsToCache,
   streamDoubaoTts,
   type AudioProviderType,
+  type TtsCacheContext,
   type TtsPreviewResponse,
 } from "../../../../core/storage/audioProviders";
 
@@ -28,11 +30,23 @@ export interface MessageAudioRequest {
   text: string;
   prompt?: string;
   requestId: string;
+  cacheContext?: TtsCacheContext;
   sampleRate?: number;
   cached?: TtsPreviewResponse;
   streamDoubao?: boolean;
   onCache?: (response: TtsPreviewResponse) => void;
   onPlaybackStart?: () => void;
+}
+
+async function associateInMemoryCache(
+  cacheKey: string,
+  response: TtsPreviewResponse,
+  cacheContext?: TtsCacheContext,
+) {
+  if (!cacheContext) return;
+  await associateTtsCache(cacheKey, response.format, cacheContext).catch((error) => {
+    console.warn("Failed to associate in-memory TTS cache:", error);
+  });
 }
 
 export interface MessageAudioPlayback {
@@ -243,6 +257,16 @@ class PcmStreamQueue {
 }
 
 async function startBufferedPlayback(request: MessageAudioRequest): Promise<MessageAudioPlayback> {
+  if (request.cached && request.cacheContext) {
+    const cacheKey = await getTtsCacheKey(
+      request.providerId,
+      request.modelId,
+      request.voiceId,
+      request.text,
+      request.prompt,
+    );
+    await associateInMemoryCache(cacheKey, request.cached, request.cacheContext);
+  }
   const response =
     request.cached ??
     (await generateTtsForMessage(
@@ -252,6 +276,7 @@ async function startBufferedPlayback(request: MessageAudioRequest): Promise<Mess
       request.text,
       request.prompt,
       request.requestId,
+      request.cacheContext,
     ));
   if (!request.cached) {
     request.onCache?.(response);
@@ -338,7 +363,7 @@ async function startDoubaoStreamPlayback(
     request.text,
     request.prompt,
   );
-  const cached = request.cached ?? (await getTtsCached(cacheKey));
+  const cached = request.cached ?? (await getTtsCached(cacheKey, request.cacheContext));
   if (cached) {
     const legacyPcmSampleRate =
       cached.format === PCM_MIME_TYPE ? resolvePcmSampleRate(request) : undefined;
@@ -349,6 +374,9 @@ async function startDoubaoStreamPlayback(
     });
     request.onCache?.(cached);
     if (cached.format === PCM_MIME_TYPE) {
+      if (request.cached) {
+        await associateInMemoryCache(cacheKey, cached, request.cacheContext);
+      }
       return startCachedPcmWavPlayback(
         request,
         cached.audioBase64,
@@ -446,6 +474,7 @@ async function startDoubaoStreamPlayback(
     request.text,
     request.requestId,
     request.prompt,
+    request.cacheContext?.reference,
   ).finally(() => {
     unlisten?.();
     unlisten = null;
@@ -466,7 +495,12 @@ async function startDoubaoStreamPlayback(
       sampleRate: streamSampleRate,
     });
     request.onCache?.({ audioBase64, format: WAV_MIME_TYPE });
-    await saveTtsToCache(cacheKey, audioBase64, WAV_MIME_TYPE).catch((error) => {
+    await saveTtsToCache(
+      cacheKey,
+      audioBase64,
+      WAV_MIME_TYPE,
+      request.cacheContext,
+    ).catch((error) => {
       console.warn("Failed to save streamed Doubao TTS audio to cache:", error);
     });
   });

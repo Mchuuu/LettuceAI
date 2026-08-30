@@ -598,7 +598,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       title: "嵌入模型 v4 可用",
       v1Message: "您正在使用 v1（512 tokens）。升級到 v4 以獲得更好的記憶品質和長文本支援。",
       v2Message: "您正在使用舊版 v2。升級到 v4 以獲得最新嵌入模型的更好記憶品質。",
-      v3Message: "v4 已推出，大幅改善 v3 的角色扮演記憶回想效果（recall@1 0.02 -> 0.92）。建議升級。",
+      v3Message:
+        "v4 已推出，大幅改善 v3 的角色扮演記憶回想效果（recall@1 0.02 -> 0.92）。建議升級。",
       button: "升級到 v4",
     },
     v2UpgradeToast: {
@@ -714,7 +715,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     extra: {
       promptCachingTitle: "提示快取",
-      promptCachingDescription: "加快長時間重複上下文（例如大型系統提示或深度聊天歷史）的生成速度並降低成本。",
+      promptCachingDescription:
+        "加快長時間重複上下文（例如大型系統提示或深度聊天歷史）的生成速度並降低成本。",
       avatarAlt: "頭像",
       chooseFromLibrary: "從資源庫選擇",
       chooseFromLibraryDesc: "使用應用程式中已儲存的圖片",
@@ -752,22 +754,27 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       emptyReferences: "新增幾張清晰的參考照片以鎖定臉型、比例、服裝和風格。",
       designReferencesTitle: "設計參考",
       designReferencesDescription: "上傳幾張清晰的參考圖片和一份簡潔的標準視覺描述。",
-      designReferencesPlaceholder: "描述穩定的外觀：臉型、髮型、體型、年齡呈現、服裝重點、配件和藝術/風格方向。",
+      designReferencesPlaceholder:
+        "描述穩定的外觀：臉型、髮型、體型、年齡呈現、服裝重點、配件和藝術/風格方向。",
       dismissAria: "關閉",
       v3MessageFallback: "lettuce-emb-v4 已推出，大幅改善角色扮演記憶回想效果。建議升級。",
       uploadButton: "上傳",
       libraryButton: "資源庫",
       companionSetupTitle: "夥伴需要設定",
-      companionSetupSubtitleSingle: "夥伴模式在執行前還需要一個模型。跳過將會把此角色切換回角色扮演模式。",
-      companionSetupSubtitleMany: "夥伴模式在執行前還需要 {{count}} 個模型。跳過將會把此角色切換回角色扮演模式。",
-      companionSetupBody: "夥伴模式需要一些本地模型來分析情緒、提取實體、路由記憶和回想過去的上下文。",
+      companionSetupSubtitleSingle:
+        "夥伴模式在執行前還需要一個模型。跳過將會把此角色切換回角色扮演模式。",
+      companionSetupSubtitleMany:
+        "夥伴模式在執行前還需要 {{count}} 個模型。跳過將會把此角色切換回角色扮演模式。",
+      companionSetupBody:
+        "夥伴模式需要一些本地模型來分析情緒、提取實體、路由記憶和回想過去的上下文。",
       companionUseRoleplay: "改用角色扮演",
       companionDownloadNow: "立即下載",
       searchModelsPlaceholder: "搜尋模型...",
       loadingModelsDefault: "載入模型中...",
       noModelsAvailable: "沒有可用的模型。",
       noModelsMatching: "找不到符合「{{query}}」的模型。",
-      contentPlaceholderText: "你是一位有用的 AI 助理...\n\n在提示中使用 {{char.name}} 和 {{scene}}。",
+      contentPlaceholderText:
+        "你是一位有用的 AI 助理...\n\n在提示中使用 {{char.name}} 和 {{scene}}。",
       previewRenderFailed: "<預覽渲染失敗>",
       charactersCount: "{{count}} 個字元",
     },
@@ -778,7 +785,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       reasoningNotSupported: "不支援 — 此供應商不支援推理",
       unsupportedParametersIgnored: "不支援的參數將被 {{providerName}} 忽略。",
       reasoningEffortSupported: "推理努力程度支援思考模型（o1、DeepSeek-R1 等）",
-      reasoningBudgetSupported: "此供應商使用基於預算的思考（無努力等級）。請改為設定推理預算 token 數。",
+      reasoningBudgetSupported:
+        "此供應商使用基於預算的思考（無努力等級）。請改為設定推理預算 token 數。",
       reasoningNotSupportedProvider: "此供應商不支援推理參數。",
       matrixTitle: "供應商參數支援矩陣",
       providerColumn: "供應商",
@@ -869,7 +877,7 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       empty: "此對話還沒有分支",
       branchedFrom: "從 {{title}} 分支",
       goToParentTitle: "前往父分支？",
-      goToParentDesc: "此對話從 \"{{title}}\" 分支而來。",
+      goToParentDesc: '此對話從 "{{title}}" 分支而來。',
       goToParentConfirm: "開啟 {{title}}",
       goToParentCancel: "留在此處",
       branchesFromHere: "從此處分出 {{count}} 個分支",
@@ -1066,7 +1074,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       overridesCount: "覆蓋設定 ({{count}})",
       overridesSummary: "覆蓋設定：{{summary}}",
       scheduledNotes: "排程筆記",
-      scheduledNotesDesc: "帶有日期的背景上下文，同伴會在日期到達時獲取。例如：生日、週年紀念、季節性事件。",
+      scheduledNotesDesc:
+        "帶有日期的背景上下文，同伴會在日期到達時獲取。例如：生日、週年紀念、季節性事件。",
       calendarAwareness: "節日日曆",
       calendarAwarenessDesc: "將啟用的節日與節氣加入同伴的時間背景。",
       calendarLookahead: "日曆範圍",
@@ -1172,7 +1181,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       regenerateResponse: "重新生成回應",
       guidedRegenerationTitle: "引導重新生成",
       guidedRegenerationLabel: "應該如何改變？",
-      guidedRegenerationDescription: "描述語氣、長度、要保留或移除的細節，以及下一個回覆應有什麼不同。",
+      guidedRegenerationDescription:
+        "描述語氣、長度、要保留或移除的細節，以及下一個回覆應有什麼不同。",
       guidedRegenerationPlaceholder: "讓它更簡短、更溫暖、更直接...",
       guidedRegenerationSubmit: "重新生成",
       cancelAudioGeneration: "取消音訊生成",
@@ -1251,6 +1261,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     history: {
       archivedBadge: "已封存",
+      unarchive: "取消封存",
+      failedUnarchive: "取消封存失敗：{{error}}",
       messagesCount: "{{count}} 則訊息",
       previousGroupPage: "上一個{{label}}頁",
       nextGroupPage: "下一個{{label}}頁",
@@ -1344,7 +1356,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       soulGrowthRemoveConfirmTitle: "移除此項成長？",
       soulGrowthRemoveConfirmMessage: "這會將該條目從夥伴的演化特質中移除，不會影響所撰寫的靈魂。",
       soulGrowthClearConfirmTitle: "清除所有成長？",
-      soulGrowthClearConfirmMessage: "這會移除所有累積的成長條目，包括已被取代的歷史記錄。所撰寫的靈魂不會受到影響。",
+      soulGrowthClearConfirmMessage:
+        "這會移除所有累積的成長條目，包括已被取代的歷史記錄。所撰寫的靈魂不會受到影響。",
       soulGrowthSuperseded: "已淘汰 {{count}} 個較早版本",
       soulGrowthSources: "源自 {{count}} 條記憶",
       growthKindAdd: "新增",
@@ -1467,7 +1480,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       sessionLoadFailed: "無法載入對話階段。",
       backToChat: "返回對話",
       notCompanionTitle: "此對話未處於同伴模式",
-      notCompanionDesc: "角色扮演對話仍使用一般的記憶畫面。同伴頁面僅對角色模式設定為「同伴」的對話顯示。",
+      notCompanionDesc:
+        "角色扮演對話仍使用一般的記憶畫面。同伴頁面僅對角色模式設定為「同伴」的對話顯示。",
       openRegularMemories: "開啟一般記憶",
       pageTitle: "同伴記憶",
       cancelCycleTitle: "取消正在運行的記憶週期",
@@ -1520,7 +1534,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       generationFinished: "生成完成",
       waitingForOutput: "等待輸出...",
       memoryDateTitle: "記憶日期",
-      memoryDateDesc: "設定此記憶發生的時間。同伴會根據此日期判斷近期程度，因此隨著對話推進，記憶將保持正確。",
+      memoryDateDesc:
+        "設定此記憶發生的時間。同伴會根據此日期判斷近期程度，因此隨著對話推進，記憶將保持正確。",
     },
     widgets: {
       types: {
@@ -1898,7 +1913,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       badgeFrozen: "凍結",
       badgeCustom: "自定義",
       badgeLive: "即時",
-      description: "設定同伴看到的日期和時間。即時使用真實時鐘，凍結保持在固定時刻，流逝則從您設定的時間開始持續推進。",
+      description:
+        "設定同伴看到的日期和時間。即時使用真實時鐘，凍結保持在固定時刻，流逝則從您設定的時間開始持續推進。",
       realClock: "(真實 {{time}})",
       changeTime: "更改時間",
       now: "現在",
@@ -1934,7 +1950,7 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       scrollToMessage: "捲動至消息",
       searchModels: "搜尋模型...",
       loadingModels: "正在載入可用模型...",
-      noModelsMatching: "找不到符合 \\\"{{query}}\\\" 的模型",
+      noModelsMatching: '找不到符合 \\"{{query}}\\" 的模型',
       liveModelOutput: "模型即時輸出",
       generating: "生成中",
       tokensCount: "{{tokens}} 個 token",
@@ -2052,7 +2068,7 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
         fromCharacterDesc: "使用您角色的場景",
         sceneContent: "場景內容",
         sceneContentPlaceholder: "描述此角色扮演的開場場景...",
-        sceneReferenceTip: "提示：輸入 {{@\" 以引用角色",
+        sceneReferenceTip: '提示：輸入 {{@" 以引用角色',
         selectScene: "選擇場景",
         sceneLabel: " 的場景",
         copyToCustom: "複製到自訂並編輯",
@@ -2732,23 +2748,27 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       triggerNeedsMany: "需要 {{count}} 個模型 - 輕觸以設定",
       triggerReady: "已就緒 - 輕觸查看運作方式",
       stepOptional: "選用",
-      modelsBody: "夥伴完全在你的裝置上執行。它需要幾個小模型來讀取情緒、追蹤提到了誰和什麼，並回想過去的時刻。這是一次性下載。",
+      modelsBody:
+        "夥伴完全在你的裝置上執行。它需要幾個小模型來讀取情緒、追蹤提到了誰和什麼，並回想過去的時刻。這是一次性下載。",
       modelsChecking: "正在檢查已安裝的模型...",
       modelsDoneTitle: "裝置端模型已安裝",
       explainIntro: "你的夥伴已就緒。以下是它與角色扮演角色的不同之處。",
       downloadOne: "下載 1 個模型",
       downloadMany: "下載 {{count}} 個模型",
       soulTitle: "塑造 Soul（選用）",
-      soulBody: "Soul 描述角色更長期的內在設定：性格、語氣，以及處理情緒的方式。它有合理預設值，你可以先略過，也可以從角色生成草稿，之後隨時在同伴 Soul 分頁中微調。",
+      soulBody:
+        "Soul 描述角色更長期的內在設定：性格、語氣，以及處理情緒的方式。它有合理預設值，你可以先略過，也可以從角色生成草稿，之後隨時在同伴 Soul 分頁中微調。",
       conceptsTitle: "夥伴如何思考",
       conceptEmotionTitle: "情緒狀態",
       conceptEmotionBody: "角色的情緒會隨你所說逐回合變化，然後慢慢回到 Soul 的基線。",
       conceptRelationshipTitle: "關係",
-      conceptRelationshipBody: "親近、信任與好感會隨著交談增長或淡化。每次聊天都從 Soul 的預設關係值開始。",
+      conceptRelationshipBody:
+        "親近、信任與好感會隨著交談增長或淡化。每次聊天都從 Soul 的預設關係值開始。",
       conceptMemoryTitle: "記憶",
       conceptMemoryBody: "有意義的時刻會被儲存並在之後回想，讓他們記得名字、事件以及當時的感受。",
       whereTitle: "各項內容的位置",
-      whereBody: "在這裡的同伴 Soul 分頁中編輯身分與情緒設定。在聊天中，開啟選單可檢視它的記憶、目前情緒狀態，以及不斷變化的關係。",
+      whereBody:
+        "在這裡的同伴 Soul 分頁中編輯身分與情緒設定。在聊天中，開啟選單可檢視它的記憶、目前情緒狀態，以及不斷變化的關係。",
     },
     empty: {
       title: "尚無角色",
@@ -3070,7 +3090,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
         composeHeader: "草稿板",
         composeMatches: "{{count}} 個匹配",
         activeLabel: "{{count}} 個啟用中",
-        composePlaceholder: "輸入或貼上文字以測試關鍵字匹配...\n\n例如：\n圖書館很安靜，只有舊暖氣的嗡嗡聲。\n她問我有沒有讀上週借給我的那本書。",
+        composePlaceholder:
+          "輸入或貼上文字以測試關鍵字匹配...\n\n例如：\n圖書館很安靜，只有舊暖氣的嗡嗡聲。\n她問我有沒有讀上週借給我的那本書。",
         sectionActive: "啟用中 · {{count}}",
         sectionInactive: "停用中 · {{count}}",
         statusMatched: "已匹配",
@@ -3242,7 +3263,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       providerVoicesLabel: "{{provider}} 語音",
       providerFallback: "供應商",
       designReferencesLabel: "設計參考",
-      designReferencesEditorHint: "附加幾個穩定的圖片參考和一段簡潔的視覺說明，以便場景生成能保持相同的人臉、比例、服裝線索和風格。",
+      designReferencesEditorHint:
+        "附加幾個穩定的圖片參考和一段簡潔的視覺說明，以便場景生成能保持相同的人臉、比例、服裝線索和風格。",
     },
     interactionMode: {
       sectionLabel: "互動模式",
@@ -3336,10 +3358,12 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       generateSoul: "生成 Soul",
       companionContextLabel: "同伴上下文",
       timeAwarenessTitle: "時間意識",
-      timeAwarenessDesc: "與此同伴開啟新聊天時的預設設定。啟用後，每輪對話會帶上本地時間，並為同伴記憶標註發生時間。單個聊天仍可單獨覆蓋。",
+      timeAwarenessDesc:
+        "與此同伴開啟新聊天時的預設設定。啟用後，每輪對話會帶上本地時間，並為同伴記憶標註發生時間。單個聊天仍可單獨覆蓋。",
       timeAwarenessAria: "時間意識預設值",
       sharedMemoryTitle: "跨會話共享記憶",
-      sharedMemoryDesc: "此同伴的新舊聊天會共用一個記憶池。在任一聊天中編輯記憶都會影響其他聊天；情緒狀態和關係狀態仍按聊天分別保存。",
+      sharedMemoryDesc:
+        "此同伴的新舊聊天會共用一個記憶池。在任一聊天中編輯記憶都會影響其他聊天；情緒狀態和關係狀態仍按聊天分別保存。",
       sharedMemoryAria: "跨會話共享記憶",
       emotionContinuityTitle: "情緒連續性",
       emotionContinuityDesc: "可選擇分析同伴自己的回覆，讓角色說出口的情緒對狀態留下輕微影響。",
@@ -3366,13 +3390,15 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     soulFields: {
       essence: "本質",
       essencePlaceholder: "角色卡定義之下，真正支撐他們的內核。",
-      essenceExample: "習慣性保持平靜，但在信任的人面前很容易露出柔軟。讀書是為了不那麼孤獨，而不是為了顯得博學。",
+      essenceExample:
+        "習慣性保持平靜，但在信任的人面前很容易露出柔軟。讀書是為了不那麼孤獨，而不是為了顯得博學。",
       voice: "說話方式",
       voicePlaceholder: "他們在親近對話中的語氣和節奏。",
       voiceExample: "聲音低而慢，常有停頓。放下戒備時會少一些客套，幾乎不使用諷刺。",
       relationalStyle: "關係風格",
       relationalStylePlaceholder: "他們如何靠近、信任、退縮，以及重新建立連結。",
-      relationalStyleExample: "慢熱，但一旦敞開就很忠誠。承受不住時會沉默，回來時更常用一個小舉動，而不是直接道歉。",
+      relationalStyleExample:
+        "慢熱，但一旦敞開就很忠誠。承受不住時會沉默，回來時更常用一個小舉動，而不是直接道歉。",
       vulnerabilities: "脆弱點",
       vulnerabilitiesPlaceholder: "軟肋、不安，以及很少說出口的事。",
       vulnerabilitiesExample: "害怕成為負擔。討厭在掙扎時被注視。",
@@ -3390,10 +3416,12 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       traitsExample: "勇敢得近乎魯莽、沉默而固執、壓力下反應迅速、不易原諒。",
       backstory: "背景故事",
       backstoryPlaceholder: "他們是如何成為現在這樣的。起源、重要事件、目前在做什麼。",
-      backstoryExample: "幼年喪親，由一名巡迴藥劑師撫養長大。現在經營一家小店，但從未停止尋找離開的人。",
+      backstoryExample:
+        "幼年喪親，由一名巡迴藥劑師撫養長大。現在經營一家小店，但從未停止尋找離開的人。",
       appearance: "外觀",
       appearancePlaceholder: "外貌、穿著，以及有辨識度的服裝或風格。",
-      appearanceExample: "舊皮衣下是幾層不太搭配的衣物。總穿同一雙磨損的靴子，工作時會把頭髮紮起來。",
+      appearanceExample:
+        "舊皮衣下是幾層不太搭配的衣物。總穿同一雙磨損的靴子，工作時會把頭髮紮起來。",
       goals: "目標",
       goalsPlaceholder: "他們正在努力實現的事情。野心、任務、未竟之志。",
       goalsExample: "想要重建家族名聲，找到失蹤的兄弟，並證明自己絕非弱者。",
@@ -3657,7 +3685,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       placeholderUser: "- 角色扮演名稱 (優先，若無則為空)",
       placeholderPersona: "- 角色扮演名稱 (別名)",
       designReferencesTitle: "設計參考",
-      designReferencesEditorHint: "附加幾個穩定的圖片參考和一則簡潔的視覺筆記，以便場景生成能保持相同的面孔、比例、服裝線索和風格。",
+      designReferencesEditorHint:
+        "附加幾個穩定的圖片參考和一則簡潔的視覺筆記，以便場景生成能保持相同的面孔、比例、服裝線索和風格。",
       openingContextTitle: "開場情境",
       startingScenesTitle: "起始場景",
       sceneDefaultBadge: "預設",
@@ -3715,8 +3744,10 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       roleplaySuffix: "(角色扮演)",
       useDefaultGroupConversationPrompt: "使用預設群組對話提示詞",
       useDefaultGroupRoleplayPrompt: "使用預設群組角色扮演提示詞",
-      noGroupConversationTemplatesHint: "尚無自定義對話群組聊天模板。請在「設定」>「提示詞」中建立。",
-      noGroupRoleplayTemplatesHint: "尚無自定義角色扮演群組聊天模板。請在「設定」>「提示詞」中建立。",
+      noGroupConversationTemplatesHint:
+        "尚無自定義對話群組聊天模板。請在「設定」>「提示詞」中建立。",
+      noGroupRoleplayTemplatesHint:
+        "尚無自定義角色扮演群組聊天模板。請在「設定」>「提示詞」中建立。",
       groupConversationOverrideHint: "在群組聊天中覆蓋此角色的對話提示詞",
       groupRoleplayOverrideHint: "在群組聊天中覆蓋此角色的角色扮演提示詞",
       editSceneTitle: "編輯場景",
@@ -3862,9 +3893,9 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       chatEndpoint: "聊天端點 (Chat Endpoint)",
       resolvedChatUrl: "請求將傳送至",
       resolvedChatUrlDuplicate:
-        "\"{{segment}}\" 同時出現在 Base URL 結尾和 Chat Endpoint 開頭，會被傳送兩次。請從其中一處刪除。",
+        '"{{segment}}" 同時出現在 Base URL 結尾和 Chat Endpoint 開頭，會被傳送兩次。請從其中一處刪除。',
       resolvedModelsUrlDuplicate:
-        "\"{{segment}}\" 同時出現在 Base URL 結尾和 Models Endpoint 開頭，會被傳送兩次。請從其中一處刪除。",
+        '"{{segment}}" 同時出現在 Base URL 結尾和 Models Endpoint 開頭，會被傳送兩次。請從其中一處刪除。',
       imageUploadMode: "圖片上傳方式",
       imageUploadBase64: "Base64（通用）",
       imageUploadBase64Desc: "將壓縮後的圖片直接包含在聊天請求中",
@@ -3876,6 +3907,17 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       imageUploadUseCustomApiKey: "單獨設定 API 金鑰",
       imageUploadCustomApiKey: "Files API 金鑰",
       imageUploadProjectHint: "Files API 與聊天介面必須能夠存取同一個火山方舟專案。",
+      responsesDialect: "Responses 相容模式",
+      responsesDialectOpenAI: "標準 OpenAI",
+      responsesDialectArk: "火山方舟",
+      responsesDialectOpenAIHint: "使用 OpenAI 標準 Responses 請求格式。",
+      responsesDialectArkHint: "使用火山方舟的思考欄位與推理力度級別。",
+      webSearchMode: "聯網搜尋工具",
+      webSearchNone: "無",
+      webSearchNoneDesc: "不向模型提供服務商原生聯網搜尋工具。",
+      webSearchVolcengineArk: "火山方舟 Web Search",
+      webSearchVolcengineArkHint:
+        "此插件僅適用於支援 Web Search 的火山方舟模型，使用前需在方舟控制台開通對應元件。",
       fetchModels: "獲取模型 (Fetch Models)",
       fetchModelsDesc: "為此自定義端點啟用模型探索功能",
       authMode: "驗證模式 (Auth Mode)",
@@ -3927,6 +3969,7 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       notSetUp: "尚未設定。點擊以下載。",
       manageVoicesPrefix: "從以下路徑管理聲音、聲音圖庫和音訊快取：",
       voicesLink: "聲音",
+      responsesDialectArk: "火山方舟",
     },
     fallbackTitle: "提供者",
   },
@@ -4042,7 +4085,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
       confirm: {
         deleteTitle: "刪除模型",
-        deleteMessage: "從 {{provider}} 刪除 {{name}} 嗎？這將釋放 Ollama 主機上的磁碟空間，且無法復原。",
+        deleteMessage:
+          "從 {{provider}} 刪除 {{name}} 嗎？這將釋放 Ollama 主機上的磁碟空間，且無法復原。",
       },
       toasts: {
         modelDeleted: "模型已刪除",
@@ -4134,13 +4178,29 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     reasoning: {
       enabled: "已啟用",
+      disabled: "已關閉",
       enabledDescription: "顯示思考過程",
+      mode: "思考模式",
+      modeDescription: "設定 Responses 請求如何控制模型思考。",
+      modeAuto: "自動",
       effort: "推理力度",
+      effortLow: "低",
+      effortMedium: "中",
+      effortHigh: "高",
+      effortXHigh: "極高",
+      effortMax: "最高",
+      modelSupportHint: "可用模式和推理力度仍取決於所選模型是否支援。",
       helpLabel: "推理模式說明",
       budgetTokens: "預算 Token",
       providerDefault: "供應商預設值",
       forceSend: "強制發送思考狀態",
-      forceSendDescription: "明確地向模型發送 enable_thinking，而不是省略它。這有助於在未發送數值時預設為思考的本地模型。",
+      forceSendDescription:
+        "明確地向模型發送 enable_thinking，而不是省略它。這有助於在未發送數值時預設為思考的本地模型。",
+    },
+    webSearch: {
+      title: "啟用聯網搜尋",
+      description:
+        "允許此模型使用服務商設定的原生聯網搜尋工具。目前僅適用於支援 Web Search 的火山方舟模型。",
     },
     runtimeFacts: {
       updated: "已更新",
@@ -4223,7 +4283,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       enterManually: "手動輸入",
       refreshModelList: "重新整理模型列表",
       onlyFreeModels: "僅限免費模型",
-      customEndpointFetchDisabled: "此自訂端點已停用模型獲取。若要啟用模型列表探索，請在供應商設定中啟用並設定模型端點。",
+      customEndpointFetchDisabled:
+        "此自訂端點已停用模型獲取。若要啟用模型列表探索，請在供應商設定中啟用並設定模型端點。",
     },
     promptCaching: {
       automatic: {
@@ -4235,8 +4296,10 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       ttlTitle: "快取 TTL",
       ttlDescription: "快取前綴在請求之間的有效期。",
       pricingTitle: "關於定價：",
-      pricingDescription: "雖然快取可降低重複輸入 token 的費用，但初始寫入快取可能因選擇的供應商而產生輕微溢價。",
-      oneHourNote: "延長的 1 小時 TTL 可能並非所有供應商都支援。不支援時會回退至供應商的預設快取期限。",
+      pricingDescription:
+        "雖然快取可降低重複輸入 token 的費用，但初始寫入快取可能因選擇的供應商而產生輕微溢價。",
+      oneHourNote:
+        "延長的 1 小時 TTL 可能並非所有供應商都支援。不支援時會回退至供應商的預設快取期限。",
       openai24hNote: "OpenAI 使用 `in_memory` 和 `24h` 保留策略，而非 1 小時 TTL。",
       groqLabel: "Groq：",
       groqDescription: "快取僅在支援的模型上自動啟用。此應用程式不會強制或調整每個請求的設定。",
@@ -4304,9 +4367,11 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       saveToContinue: "儲存模型以繼續",
     },
     generation: {
-      automatic1111Help: "AUTOMATIC1111 在此使用 Stable Diffusion 控制項。這些值將成為頭像、場景圖片和其他本機擴散請求的預設取樣設定。",
+      automatic1111Help:
+        "AUTOMATIC1111 在此使用 Stable Diffusion 控制項。這些值將成為頭像、場景圖片和其他本機擴散請求的預設取樣設定。",
       formatWidthHeight: "格式：寬度 x 高度",
-      localDiffusionHelp: "當生成頭像和場景圖像時，這些值將成為此模型的預設值。將欄位留空以使用此模型類型的引擎預設值。",
+      localDiffusionHelp:
+        "當生成頭像和場景圖像時，這些值將成為此模型的預設值。將欄位留空以使用此模型類型的引擎預設值。",
     },
     generationDescriptions: {
       sdSteps: "擴散取樣步驟",
@@ -4362,10 +4427,15 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       cacheWrite: "快取寫入 {{price}}",
     },
     providerPin: {
-      action: "固定供應商", change: "更換供應商", title: "固定供應商",
-      pinned: "已固定的供應商", clear: "使用自動路由",
-      loading: "正在載入供應商...", error: "無法載入供應商。",
-      empty: "此模型目前沒有可用的供應商。", cacheSupported: "快取",
+      action: "固定供應商",
+      change: "更換供應商",
+      title: "固定供應商",
+      pinned: "已固定的供應商",
+      clear: "使用自動路由",
+      loading: "正在載入供應商...",
+      error: "無法載入供應商。",
+      empty: "此模型目前沒有可用的供應商。",
+      cacheSupported: "快取",
       sortButtonHint: "變更供應商排序",
       sort: { price: "價格最低", uptime: "可用率", caching: "快取", alphabetical: "字母順序" },
     },
@@ -4381,8 +4451,10 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       modelFilesFilter: "模型檔案",
       selectModel: "選擇本地模型",
       pathPlaceholder: "/path/to/model.safetensors",
-      idHelp: "從庫中選擇一個已安裝的本地模型，或使用檢查點 (checkpoint) 或擴散模型檔案的完整路徑。",
-      configurationHelp: "此模型傳遞給引擎的檔案。需要一個檢查點或擴散模型；編碼器和 VAE 取決於架構。更改將立即生效。",
+      idHelp:
+        "從庫中選擇一個已安裝的本地模型，或使用檢查點 (checkpoint) 或擴散模型檔案的完整路徑。",
+      configurationHelp:
+        "此模型傳遞給引擎的檔案。需要一個檢查點或擴散模型；編碼器和 VAE 取決於架構。更改將立即生效。",
     },
     llamaKvType: {
       auto: "自動 (模型預設)",
@@ -4487,15 +4559,18 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       contextLength: "上下文長度 (Context Length)",
       contextOverride: "覆蓋 llama.cpp 上下文視窗",
       calculatingMemory: "正在計算此模型的記憶體限制...",
-      contextWarning: "您確定嗎？這可能無法在您的裝置上運行。我們建議使用 {{recommended}} 個 Token。",
-      contextCritical: "此模型可能無法容納在您裝置的記憶體中。請嘗試使用較小的模型或大幅縮短上下文。",
+      contextWarning:
+        "您確定嗎？這可能無法在您的裝置上運行。我們建議使用 {{recommended}} 個 Token。",
+      contextCritical:
+        "此模型可能無法容納在您裝置的記憶體中。請嘗試使用較小的模型或大幅縮短上下文。",
       kvCacheType: "KV 快取類型 (KV Cache Type)",
       kvCacheTypeDescription: "量化 KV 快取以節省 VRAM",
       offloadKqv: "卸載 KQV (Offload KQV)",
       offloadKqvCpuOnly: "在僅限 CPU 的後端禁用",
       offloadKqvDescription: "KV 快取與 KQV 操作在 GPU 上執行",
       fullSwaCache: "完整 SWA 快取",
-      fullSwaCacheDescription: "為滑動視窗模型保留完整注意力視窗。能提高長文本回憶能力，但 VRAM 成本較高。除非 VRAM 充足，否則請保持關閉。",
+      fullSwaCacheDescription:
+        "為滑動視窗模型保留完整注意力視窗。能提高長文本回憶能力，但 VRAM 成本較高。除非 VRAM 充足，否則請保持關閉。",
       toggleFullSwaCache: "切換完整 SWA 快取",
       ropeBase: "RoPE Base",
       ropeBaseDescription: "頻率基數覆蓋",
@@ -4512,10 +4587,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       multiGpuFixedLayers:
         "此模型已儲存固定的 GPU 層數 ({{layers}})，會覆蓋智慧規劃，導致新增的 VRAM 無法被使用。請重設以便根據目前硬體重新計算分配方案。",
       multiGpuFixedLayersReset: "重設為自動",
-      multiGpuGlobalDefaultOn:
-        "多 GPU 已透過全域預設啟用。此模型會拆分到所選 GPU 上執行。",
-      multiGpuPinnedNotice:
-        "此模型已固定到 {{device}}，僅在該 GPU 上執行，因此會略過多 GPU 拆分。",
+      multiGpuGlobalDefaultOn: "多 GPU 已透過全域預設啟用。此模型會拆分到所選 GPU 上執行。",
+      multiGpuPinnedNotice: "此模型已固定到 {{device}}，僅在該 GPU 上執行，因此會略過多 GPU 拆分。",
       multiGpuPinnedRemove: "取消固定",
       threads: "執行緒 (Threads)",
       threadsDescription: "推理執行緒",
@@ -4543,7 +4616,7 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       dryPenaltyLastN: "DRY 最後 N 個懲罰項",
       dryPenaltyLastNDescription: "使用 `-1` 掃描完整上下文",
       drySequenceBreakers: "DRY 序列分隔符",
-      drySequenceBreakersDescription: "以逗號分隔的邊界，例如 `\\\\n`, `:`, `\\\"`, `*`",
+      drySequenceBreakersDescription: '以逗號分隔的邊界，例如 `\\\\n`, `:`, `\\"`, `*`',
       seed: "種子 (Seed)",
       seedDescription: "留空則為隨機",
     },
@@ -4569,7 +4642,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       rawCompletionFallbackDescription: "僅適用於原始微調模型",
       rawCompletionDefault: "預設 (禁用)",
       strictMode: "嚴格模式 (Strict Mode)",
-      strictModeDescription: "如果您不確定自己在做什麼，請不要使用此模式。這將繞過 llama.cpp 的安全後備機制（例如降低 GPU 層數、限制上下文或批次，或在 GPU 加載失敗時切換到 CPU）。",
+      strictModeDescription:
+        "如果您不確定自己在做什麼，請不要使用此模式。這將繞過 llama.cpp 的安全後備機制（例如降低 GPU 層數、限制上下文或批次，或在 GPU 加載失敗時切換到 CPU）。",
       strictModeWarning: "僅在您希望強制執行手動層卸載、上下文和批次設定時使用。",
     },
     ollamaParams: {
@@ -4649,7 +4723,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     libraryEmpty: "尚無已下載的模型",
     libraryEmptyHint: "從模型瀏覽器下載 GGUF 模型，或手動輸入路徑。",
     libraryTitle: "已下載模型",
-    moveToLibrary: "嘿，我可以把這個模型的檔案移到 GGUF 模型資料夾，這樣你所有的模型都整理在同一個地方。",
+    moveToLibrary:
+      "嘿，我可以把這個模型的檔案移到 GGUF 模型資料夾，這樣你所有的模型都整理在同一個地方。",
     moveToLibraryYes: "好，移動它",
     moveToLibraryNo: "不，保持原位",
     moveToLibraryMoving: "正在移動模型...",
@@ -4715,7 +4790,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     detailKvDistribution: "KV 快取分佈",
     detailKvOnGpu: "GPU（VRAM）",
     detailKvOnRam: "系統 RAM",
-    kvDistributionTip: "{{pct}}% 的 KV 快取在 RAM 中。提示處理（prefill）會較慢 — 100% GPU 可保持即時。",
+    kvDistributionTip:
+      "{{pct}}% 的 KV 快取在 RAM 中。提示處理（prefill）會較慢 — 100% GPU 可保持即時。",
     "detailLayers-ngl": "要卸載的層數（-ngl）",
     detailOptimalGpuCtx: "最佳 GPU 上下文",
     detailOptimalRamCtx: "最大 RAM 上下文",
@@ -4735,13 +4811,16 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     destinationOllamaSection: "遠端 Ollama",
     destinationPickerTitle: "模型應該存放在哪裡？",
     destinationPickerSubtitle: "選擇下次下載的發送位置。您可以隨時更改此設定。",
-    destinationNoOllama: "尚未配置 Ollama 提供者。請在「設定」→「提供者」中添加一個，以便將模型拉取到遠端實例。",
+    destinationNoOllama:
+      "尚未配置 Ollama 提供者。請在「設定」→「提供者」中添加一個，以便將模型拉取到遠端實例。",
     mobileOllamaTitle: "連接 Ollama 提供者",
     mobileOllamaCta: "新增 Ollama 提供者",
     ollamaModeNoticeTitle: "無法提供建議",
-    ollamaModeNoticeBody: "此模型在遠端主機上運行，因此應用程式無法自行估算可運行性。為此 Ollama 提供者啟用 Sprout 以探測主機的 GPU 和記憶體，推薦結果將反映該機器。",
+    ollamaModeNoticeBody:
+      "此模型在遠端主機上運行，因此應用程式無法自行估算可運行性。為此 Ollama 提供者啟用 Sprout 以探測主機的 GPU 和記憶體，推薦結果將反映該機器。",
     getSprout: "取得 Sprout",
-    ollamaVisionUnsupported: "匯入到 Ollama 的模型無法使用視覺功能，即使有 mmproj 檔案也不行。請在本機執行此模型以獲得圖片支援。",
+    ollamaVisionUnsupported:
+      "匯入到 Ollama 的模型無法使用視覺功能，即使有 mmproj 檔案也不行。請在本機執行此模型以獲得圖片支援。",
     modeLlm: "LLM",
     modeImage: "圖像",
     clearSearch: "清除搜尋",
@@ -4817,8 +4896,10 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     downloadPartiallyQueued: "下載部分進入隊列",
     downloadPartiallyQueuedBody: "mmproj 文件已進入隊列，但主模型文件無法進入隊列。",
     modelInstalled: "模型已安裝",
-    modelInstalledWithFeatures: "{{name}} 已添加，包含 {{features}}, {{ctx}} ctx, {{kv}} KV 快取, {{offload}} 模型卸載, 以及 {{placement}} KV 放置。",
-    modelInstalledNoFeatures: "{{name}} 已添加，包含 {{ctx}} ctx, {{kv}} KV 快取, {{offload}} 模型卸載, 以及 {{placement}} KV 放置。",
+    modelInstalledWithFeatures:
+      "{{name}} 已添加，包含 {{features}}, {{ctx}} ctx, {{kv}} KV 快取, {{offload}} 模型卸載, 以及 {{placement}} KV 放置。",
+    modelInstalledNoFeatures:
+      "{{name}} 已添加，包含 {{ctx}} ctx, {{kv}} KV 快取, {{offload}} 模型卸載, 以及 {{placement}} KV 放置。",
     featureImageSupport: "圖像支持",
     featureMtp: "多 Token 預測",
     featureJoin: " 以及 ",
@@ -4925,7 +5006,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       updating: "正在更新...",
       title: "更新受保護的提示詞？",
       warningTitle: "這將捨棄你的編輯",
-      warningBody: "每個內建（受保護）提示詞都會重設為其最新的內建版本，並重新連接到自動重新整理。你對受保護提示詞所做的變更將遺失。你自己的自訂提示詞不受影響。",
+      warningBody:
+        "每個內建（受保護）提示詞都會重設為其最新的內建版本，並重新連接到自動重新整理。你對受保護提示詞所做的變更將遺失。你自己的自訂提示詞不受影響。",
       confirm: "更新到最新",
       successTitle: "已更新受保護的提示詞",
       successMessage: "所有受保護的提示詞都已重設為最新版本。",
@@ -5007,7 +5089,7 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     toasts: {
       exportFailedTitle: "匯出失敗",
       importedTitle: "匯入成功",
-      importedMessage: "提示詞集 \\\"{{name}}\\\" 已匯入。",
+      importedMessage: '提示詞集 \\"{{name}}\\" 已匯入。',
       importFailedTitle: "匯入失敗",
       noImportablePrompts: "此檔案中找不到可匯入的提示詞。",
     },
@@ -5056,7 +5138,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     create: {
       namePlaceholderExample: "專業作家",
-      descriptionPlaceholderExample: "以專業、清晰、簡潔的風格寫作。使用正式語言，專注於有效傳達資訊...",
+      descriptionPlaceholderExample:
+        "以專業、清晰、簡潔的風格寫作。使用正式語言，專注於有效傳達資訊...",
     },
     errors: {
       exportFailed: "匯出人設失敗",
@@ -5099,7 +5182,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       analyticsFooterUnavailable: "請設定 APTABASE_KEY 以啟用分析功能",
       aptabaseTitle: "Aptabase 分析數據",
       aptabaseBadge: "匿名",
-      aptabaseDesc: "事件是匿名的，僅包含事件名稱和我們定義的非識別性屬性。我們不會發送訊息內容或個人識別碼。",
+      aptabaseDesc:
+        "事件是匿名的，僅包含事件名稱和我們定義的非識別性屬性。我們不會發送訊息內容或個人識別碼。",
     },
     certificates: {
       sectionTitle: "信任憑證",
@@ -5165,11 +5249,13 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       creationHelperDetail: "獲取關於個性特徵、背景故事和對話風格的智慧建議",
       helpMeReplyDetail: "根據對話歷史生成符合上下文的回覆選項",
       lorebookEntryGenerator: "設定集條目生成器",
-      lorebookEntryDesc: "將選定的聊天訊息轉換為持久的設定集條目，並設定條目寫作和關鍵字生成的草稿提示。",
+      lorebookEntryDesc:
+        "將選定的聊天訊息轉換為持久的設定集條目，並設定條目寫作和關鍵字生成的草稿提示。",
       companions: "夥伴",
       companionModeDesc: "管理夥伴角色使用的本機情感分析、實體提取和記憶路由模型。",
       companionSoulWriter: "同伴 Soul 編寫器",
-      companionSoulDesc: "選擇用於起草同伴 Soul 的模型、備用模型和提示模板。優先使用工具呼叫；不支援時回退到結構化輸出。",
+      companionSoulDesc:
+        "選擇用於起草同伴 Soul 的模型、備用模型和提示模板。優先使用工具呼叫；不支援時回退到結構化輸出。",
       network: "網路",
       apiServer: "API 伺服器",
       apiServerDesc: "透過 OpenAI 相容 API 伺服器公開模型",
@@ -5210,9 +5296,34 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       passwordPlaceholder: "至少 6 個字元",
       confirmPasswordLabel: "確認密碼",
       confirmPasswordPlaceholder: "確認密碼",
+      mode: {
+        full: "完整備份",
+        custom: "自訂",
+      },
+      fullSummary: "備份全部資料與資源",
+      customSettings: "自訂設定",
+      estimating: "正在估算資源大小...",
+      estimateSummary: "預計 {{size}} · {{files}} 個資源檔案",
+      selectedCharacters: "已選擇 {{selected}} / {{total}} 個角色",
+      selectAll: "全選",
+      clearAll: "清空",
+      coreData: "角色與聊天資料",
+      audioResources: "音訊",
+      imageResources: "圖片",
+      unassignedAudio: "未歸屬的舊版 TTS 快取",
+    },
+    progress: {
+      preparing: "正在準備備份資料",
+      data: "正在寫入角色與聊天資料",
+      resources: "正在寫入音訊和圖片資源",
+      finalizing: "正在儲存至下載目錄",
+      completed: "備份已完成",
+      failed: "備份失敗",
+      backgroundHint: "關閉此視窗不會中斷備份，可在本頁查看進度。",
     },
     import: {
       replaceWarning: "這將取代所有目前的資料。此操作無法復原。",
+      mergeWarning: "這是自訂備份，將更新其中的角色並保留其他本機資料。",
       passwordLabel: "備份密碼",
       passwordPlaceholder: "輸入密碼",
     },
@@ -5223,7 +5334,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       modalTitle: "需要嵌入模型 (Embedding Model)",
       detectedTitle: "偵測到動態記憶體 (Dynamic Memory)",
       detectedDescription: "此備份包含啟用了動態記憶體的角色，這需要嵌入模型（約 260MB）。",
-      choiceDescription: "您可以現在下載模型以啟用動態記憶體，或者在沒有模型的情況下繼續（受影響的角色將禁用動態記憶體）。",
+      choiceDescription:
+        "您可以現在下載模型以啟用動態記憶體，或者在沒有模型的情況下繼續（受影響的角色將禁用動態記憶體）。",
       downloadButton: "下載模型",
       continueButton: "在沒有動態記憶體的情況下繼續",
       reenableNote: "下載模型後，您可以在角色設定中重新啟用動態記憶體。",
@@ -5361,9 +5473,11 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
           right: "右對齊",
         },
         moveHeader: "移動標題",
-        moveHeaderDesc: "將標題與訊息欄對齊。開啟「小工具區域」後，標題將位於欄位內而非小工具面板上方。",
+        moveHeaderDesc:
+          "將標題與訊息欄對齊。開啟「小工具區域」後，標題將位於欄位內而非小工具面板上方。",
         moveFooter: "移動輸入區域",
-        moveFooterDesc: "將輸入區域與訊息欄對齊。開啟「小工具區域」後，輸入框將位於欄位內而非小工具面板下方。",
+        moveFooterDesc:
+          "將輸入區域與訊息欄對齊。開啟「小工具區域」後，輸入框將位於欄位內而非小工具面板下方。",
         widgetArea: "小工具區域",
         widgetAreaDesc: "在訊息欄周圍的空白處顯示小工具側邊面板。桌面端需要額外空間。",
         widgetCenterModeLabel: "小工具居中佈局",
@@ -5632,11 +5746,13 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     page: {
       info: "動態記憶會自動摘要對話，以更有效率地維持上下文。您可以選擇預設方案，或依需求細部調整。",
       disabledDirectTitle: "私聊的動態記憶目前已停用",
-      disabledDirectDescription: "請在「私聊」分頁開啟開關來啟用。群聊使用每個工作階段各自的記憶模式。",
+      disabledDirectDescription:
+        "請在「私聊」分頁開啟開關來啟用。群聊使用每個工作階段各自的記憶模式。",
       directChats: "私聊",
       groupChats: "群聊",
       enableDirectChats: "為私聊啟用",
-      groupChatsInfo: "群聊使用每個工作階段各自的記憶模式。請在各群組的設定中啟用動態記憶。這些設定會控制動態記憶的運作方式。",
+      groupChatsInfo:
+        "群聊使用每個工作階段各自的記憶模式。請在各群組的設定中啟用動態記憶。這些設定會控制動態記憶的運作方式。",
       memoryProfile: "記憶配置",
       customSettings: "自訂設定 - 請在下方的進階選項中調整數值。",
       contextEnrichment: "上下文增強",
@@ -5695,13 +5811,17 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       perCycleUnit: "/ 週期",
       turnsUnit: "輪次",
       recursiveMemoryLoops: "遞迴記憶迴圈",
-      recursiveMemoryLoopsDescription: "啟用後，動態記憶會將工具結果傳回模型，並持續迴圈直到模型呼叫 done。這能幫助較弱的模型提取多項記憶，但會增加延遲和 Token 使用量。",
+      recursiveMemoryLoopsDescription:
+        "啟用後，動態記憶會將工具結果傳回模型，並持續迴圈直到模型呼叫 done。這能幫助較弱的模型提取多項記憶，但會增加延遲和 Token 使用量。",
       deleteConfidenceDefault: "刪除信心預設值",
-      deleteConfidenceDefaultDescription: "當模型省略刪除信心時使用。較低的值會傾向於將記憶移至冷儲存而非直接刪除。",
+      deleteConfidenceDefaultDescription:
+        "當模型省略刪除信心時使用。較低的值會傾向於將記憶移至冷儲存而非直接刪除。",
       maxHardDeleteRatio: "最大硬刪除比例",
-      maxHardDeleteRatioDescription: "限制單次週期中可硬刪除的初始記憶集比例。超出部分的刪除將降級為冷儲存。",
+      maxHardDeleteRatioDescription:
+        "限制單次週期中可硬刪除的初始記憶集比例。超出部分的刪除將降級為冷儲存。",
       recursiveLoopHardCap: "遞迴迴圈硬上限",
-      recursiveLoopHardCapDescription: "在系統停止之前，記憶管理員最多可進行的遞迴輪次數，即使模型從未呼叫 done。",
+      recursiveLoopHardCapDescription:
+        "在系統停止之前，記憶管理員最多可進行的遞迴輪次數，即使模型從未呼叫 done。",
       summarisationSection: "摘要生成",
       summaryPrompt: "摘要提示詞",
       summaryPromptDescription: "用於將最近的對話輪次總結為持久上下文。",
@@ -5715,7 +5835,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       structuredFallbackXmlDescription: "當模型格式化 XML 比 JSON 更可靠時使用。",
       structuredFallbackHint: "僅在模型無法直接呼叫工具時使用。",
       overwriteSampler: "覆寫採樣器配置",
-      overwriteSamplerDescription: "為動態記憶使用固定的、抗迴圈的 llama.cpp 採樣器設定，而非摘要模型的儲存配置。啟用 DRY 重複抑制，以防止模型（如 Gemma）在生成記憶時陷入重複迴圈。",
+      overwriteSamplerDescription:
+        "為動態記憶使用固定的、抗迴圈的 llama.cpp 採樣器設定，而非摘要模型的儲存配置。啟用 DRY 重複抑制，以防止模型（如 Gemma）在生成記憶時陷入重複迴圈。",
       samplerValues: "採樣器數值",
       samplerOrder: "順序",
       samplerTemperature: "溫度 (Temperature)",
@@ -5734,7 +5855,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       embeddingV3Deprecated: "v3 仍可使用但已棄用。",
       embeddingV4Latest: "v4 是最新的記憶模型，並支援 Matryoshka 維度。",
       embeddingDimensions: "嵌入維度",
-      embeddingDimensionsHelper: "v4 支援 Matryoshka 切片。較低維度佔用較少儲存空間且運行較快；較高維度可保留更多召回率。",
+      embeddingDimensionsHelper:
+        "v4 支援 Matryoshka 切片。較低維度佔用較少儲存空間且運行較快；較高維度可保留更多召回率。",
       installedMemoryModel: "已安裝記憶模型 {{version}} · {{tokens}} tokens · {{dimensions}}d",
       downloadV4Description: "具備 Matryoshka 維度的最新角色扮演記憶品質",
     },
@@ -5773,7 +5895,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       maxTokensDescription: "建議內容的最大長度",
       conversationalHint: "建議會以自然對話的方式撰寫，適合日常聊天。",
       roleplayHint: "建議會包含角色扮演元素，例如 *動作* 與敘述描述。",
-      footerInfo: "此設定會套用到所有對話。較低的 token 數會產生較短、較快的建議；較高的數值則可提供更詳細的回覆。",
+      footerInfo:
+        "此設定會套用到所有對話。較低的 token 數會產生較短、較快的建議；較高的數值則可提供更詳細的回覆。",
       selectReplyModel: "選擇回覆模型",
       searchModels: "搜尋模型...",
       historyCount: "已發送訊息數",
@@ -5839,7 +5962,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
       writer: {
         title: "場景撰寫器",
-        description: "保留給多模態文字模型使用，根據聊天內容、頭像與參考圖片撰寫場景提示與設計參考描述。",
+        description:
+          "保留給多模態文字模型使用，根據聊天內容、頭像與參考圖片撰寫場景提示與設計參考描述。",
       },
       generationTitle: "生成設定",
       promptingTitle: "提示詞設定",
@@ -6572,7 +6696,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       searchPlaceholder: "依檔名、路徑、工作階段 ID 或實體 ID 搜尋",
       empty: {
         title: "此檢視沒有符合的圖片",
-        description: "請嘗試其他篩選條件或搜尋詞。圖片庫只會顯示已儲存在應用程式本機儲存空間中的圖片。",
+        description:
+          "請嘗試其他篩選條件或搜尋詞。圖片庫只會顯示已儲存在應用程式本機儲存空間中的圖片。",
       },
       actions: {
         sort: "排序",
@@ -6595,7 +6720,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
       deleteConfirm: {
         title: "要刪除圖片嗎？",
-        message: "確定要刪除 \"{{filename}}\" 嗎？這可能會讓仍在使用它的頭像、聊天背景或訊息附件失效。",
+        message:
+          '確定要刪除 "{{filename}}" 嗎？這可能會讓仍在使用它的頭像、聊天背景或訊息附件失效。',
       },
       sort: {
         newest: "最新",
@@ -6834,7 +6960,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       downloadAndEnable: "下載並啟用",
       chooseStyle: "選擇您的記憶風格",
       howRemember: "您的 AI 夥伴應如何記住您和您的對話細節？",
-      dynamicDescription: "使用<0>本機嵌入模型</0>智慧管理上下文。即使在長時間聊天中，也能降低 token 費用同時保持高品質。",
+      dynamicDescription:
+        "使用<0>本機嵌入模型</0>智慧管理上下文。即使在長時間聊天中，也能降低 token 費用同時保持高品質。",
       dynamicFeatures: {
         quality: "在長時間聊天中保持品質",
         cost: "顯著降低 API 費用",
@@ -6843,7 +6970,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
       manualTitle: "手動記憶",
       manualBadge: "經典體驗",
-      manualDescription: "您明確地釘選訊息，並自行編輯「世界資訊」或角色定義。適合需要完全控制的使用者。",
+      manualDescription:
+        "您明確地釘選訊息，並自行編輯「世界資訊」或角色定義。適合需要完全控制的使用者。",
       manualFeatures: {
         control: "完全掌控事實",
         scenarios: "最適合特定場景",
@@ -6911,7 +7039,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
         embeddingTitle: "需要嵌入模型",
         dynamicMemoryDetected: "偵測到動態記憶",
         dynamicMemoryMessage: "此備份包含啟用動態記憶的角色，需要嵌入模型（約 120MB）。",
-        embeddingOptions: "您可以現在下載模型以啟用動態記憶，或不下載繼續（受影響角色的動態記憶將被停用）。",
+        embeddingOptions:
+          "您可以現在下載模型以啟用動態記憶，或不下載繼續（受影響角色的動態記憶將被停用）。",
         downloadModel: "下載模型",
         continueWithoutDynamic: "不使用動態記憶繼續",
         embeddingNote: "您可以在下載模型後，稍後在角色設定中重新啟用動態記憶。",
@@ -6948,12 +7077,14 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     modelGuide: {
       badge: "模型指南",
       title: "我如何選擇模型？",
-      intro: "LettuceAI 不強制使用單一「最佳」模型。您可以根據<0>使用案例、預算和感覺</0>選擇。使用此指南決定要嘗試什麼以及在哪裡尋找。",
+      intro:
+        "LettuceAI 不強制使用單一「最佳」模型。您可以根據<0>使用案例、預算和感覺</0>選擇。使用此指南決定要嘗試什麼以及在哪裡尋找。",
       askYourself: "問問自己：",
       factors: {
         quality: {
           title: "品質和能力",
-          description: "模型需要多聰明？更大、更新的模型通常推理更好、寫出更好的文字，並更優雅地處理複雜提示。",
+          description:
+            "模型需要多聰明？更大、更新的模型通常推理更好、寫出更好的文字，並更優雅地處理複雜提示。",
           q1: "您需要深度角色一致性和情感智能嗎？",
           q2: "您在乎沉浸式故事敘述和令人信服的角色個性嗎？",
           q3: "您希望模型記住角色細節並在長時間對話中保持角色扮演嗎？",
@@ -6967,7 +7098,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
         },
         budget: {
           title: "預算和使用量",
-          description: "每個供應商按 token 計費。即使是便宜的模型，如果您聊得多也會累積費用，請選擇符合使用頻率和強度的方案。",
+          description:
+            "每個供應商按 token 計費。即使是便宜的模型，如果您聊得多也會累積費用，請選擇符合使用頻率和強度的方案。",
           q1: "您願意為更豐富的角色互動支付更多，還是想要日常角色扮演的廉價方案？",
           q2: "您有供應商/路由器的免費模型可以先嘗試嗎？",
           q3: "您是否會進行包含詳細場景描述的長時間角色扮演？",
@@ -6983,13 +7115,17 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
       where: {
         title: "在哪裡可以找到模型？",
-        intro: "大多數供應商和路由器都有<0>模型清單或目錄</0>。瀏覽這些頁面了解他們提供的內容、定價、限制和特殊功能。",
+        intro:
+          "大多數供應商和路由器都有<0>模型清單或目錄</0>。瀏覽這些頁面了解他們提供的內容、定價、限制和特殊功能。",
         directTitle: "直接供應商",
-        directDesc: "OpenAI、Anthropic、Google Gemini、xAI、Mistral 等。每個都有控制台/儀表板，您可以看到官方模型名稱、功能和定價。",
+        directDesc:
+          "OpenAI、Anthropic、Google Gemini、xAI、Mistral 等。每個都有控制台/儀表板，您可以看到官方模型名稱、功能和定價。",
         routersTitle: "路由器和樞紐",
-        routersDesc: "OpenRouter 或其他聚合器等服務在一個地方列出許多不同供應商的模型，通常包含基準測試和定價比較。",
+        routersDesc:
+          "OpenRouter 或其他聚合器等服務在一個地方列出許多不同供應商的模型，通常包含基準測試和定價比較。",
         communityTitle: "社群推薦",
-        communityDesc: "查看您的供應商/路由器的文件、部落格或社群貼文。他們通常會強調哪些模型最適合聊天、程式碼或速度。",
+        communityDesc:
+          "查看您的供應商/路由器的文件、部落格或社群貼文。他們通常會強調哪些模型最適合聊天、程式碼或速度。",
       },
       rules: {
         title: "簡單的經驗法則",
@@ -6997,7 +7133,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
         experiments: "用於實驗或大量使用：從感覺足夠好的最便宜模型開始，需要時再升級。",
         switch: "如果感覺不對（太慢/太笨/太貴）：您可以隨時在 LettuceAI 中切換模型。",
       },
-      disclaimer: "請務必查看供應商自己的文件以了解最新模型清單、限制和定價。此頁面關於如何思考，而非購買什麼。",
+      disclaimer:
+        "請務必查看供應商自己的文件以了解最新模型清單、限制和定價。此頁面關於如何思考，而非購買什麼。",
     },
     whereToFind: {
       badge: "API 金鑰說明",
@@ -7159,13 +7296,15 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
         tag: "第 1 步（共 3 步）",
         title: "選擇引擎的來源",
         body: "提供者（Provider）是供應並運行引擎的公司，例如 Google 或 OpenRouter。您在其中一家公司開設免費或付費帳戶，應用程式便會借用他們的引擎來驅動您的對話。",
-        plain: "提供者是運行 AI 模型的公司。您在其中一家公司開設帳戶，應用程式會將您的訊息發送給他們以獲取回覆。",
+        plain:
+          "提供者是運行 AI 模型的公司。您在其中一家公司開設帳戶，應用程式會將您的訊息發送給他們以獲取回覆。",
       },
       apiKey: {
         tag: "第 2 步（共 3 步）",
         title: "您的金鑰啟動引擎",
         body: "API 金鑰就像車鑰匙一樣。提供者會給您一把，您將其插入應用程式，即可啟動引擎。請妥善保管。它會保存在您的裝置上，就像口袋裡的鑰匙一樣。",
-        plain: "API 金鑰是來自提供者的秘密代碼，允許應用程式使用您的帳戶。您只需貼上一次，它僅會保存在您的裝置上。",
+        plain:
+          "API 金鑰是來自提供者的秘密代碼，允許應用程式使用您的帳戶。您只需貼上一次，它僅會保存在您的裝置上。",
       },
       model: {
         tag: "第 3 步（共 3 步）",
@@ -7177,7 +7316,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
         tag: "成本",
         title: "免費或付費，由您選擇",
         body: "某些模型完全免費，但對每日對話量有上限。付費模型則對每條訊息收取少量費用，通常低於一美分。",
-        plain: "您僅向提供者付款，絕不會向此應用程式付款。您可以先從免費開始，之後如果需要，可以隨時切換到付費。",
+        plain:
+          "您僅向提供者付款，絕不會向此應用程式付款。您可以先從免費開始，之後如果需要，可以隨時切換到付費。",
       },
     },
     path: {
@@ -7370,7 +7510,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       rejectedMessage: "主機裝置拒絕了連接。請檢查地址和 PIN 碼，然後再試一次。",
       missingModels: {
         title: "還需要一個設定步驟",
-        description: "您同步的設定包含需要本地模型的本地功能。請立即在一個隊列中下載它們，或繼續並稍後安裝。",
+        description:
+          "您同步的設定包含需要本地模型的本地功能。請立即在一個隊列中下載它們，或繼續並稍後安裝。",
         continueForNow: "暫時繼續",
         downloadRequired: "下載所需模型",
       },
@@ -7397,6 +7538,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     noDescription: "沒有描述",
     defaultBadge: "預設",
+    hiddenBadge: "已隱藏",
+    restoreToChats: "恢復顯示",
   },
   sync: {
     modes: {
@@ -7494,7 +7637,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     },
     requirements: {
       title: "需要更多設定",
-      description: "此同步數據使用需要本地模型的本地功能。您可以立即在一個隊列中下載所有內容，或繼續並稍後安裝。",
+      description:
+        "此同步數據使用需要本地模型的本地功能。您可以立即在一個隊列中下載所有內容，或繼續並稍後安裝。",
       continueForNow: "暫時繼續",
       download: "下載所需模型",
     },
@@ -7519,10 +7663,12 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       smartToolSelection: "智慧工具選擇",
       smartToolDescription: "由 AI 自動判斷要使用哪些工具",
       smartToolEnabledHint: "啟用後，AI 創作助手會先詢問您想建立什麼，再只載入相關工具組。",
-      smartToolDisabledHint: "停用後，AI 創作助手會直接開啟並使用所有已啟用工具，由助手自行判斷要建立什麼。",
+      smartToolDisabledHint:
+        "停用後，AI 創作助手會直接開啟並使用所有已啟用工具，由助手自行判斷要建立什麼。",
       quickPresets: "快速預設",
       customSelection: "自訂選擇 - 已啟用 {{count}} 個工具",
-      footerInfo: "啟用智慧工具選擇時，AI 會依照上下文決定要使用哪些工具。停用後，您可以手動控制可用工具。",
+      footerInfo:
+        "啟用智慧工具選擇時，AI 會依照上下文決定要使用哪些工具。停用後，您可以手動控制可用工具。",
       selectChatModel: "選擇聊天模型",
       selectImageModel: "選擇圖片模型",
       searchModels: "搜尋模型...",
@@ -7729,13 +7875,11 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     hfBrowser: {
       panel: {
         title: "你的專屬適配報告",
-        body:
-          "這裡的一切都依這台機器計算：頂部的判定會告訴你模型能否執行、執行得多流暢。變更任何設定，判定都會即時更新。",
+        body: "這裡的一切都依這台機器計算：頂部的判定會告訴你模型能否執行、執行得多流暢。變更任何設定，判定都會即時更新。",
       },
       tabs: {
         title: "兩種瀏覽方式",
-        body:
-          "建議設定會為你挑選並調校檔案。想自己挑選時，可用檔案會列出儲存庫中的所有下載項。",
+        body: "建議設定會為你挑選並調校檔案。想自己挑選時，可用檔案會列出儲存庫中的所有下載項。",
       },
       quant: {
         title: "選一個量化版本",
@@ -7947,6 +8091,30 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       presencePenaltyRepeat: "重複",
       presencePenaltyExplore: "探索",
     },
+    reasoning: {
+      title: "思考模式",
+      description: "僅為此工作階段覆蓋模型的 Responses 思考行為。",
+      inherit: "跟隨模型",
+      inheritedState: "目前模型設定：{{state}}",
+      providerDefault: "供應商預設值",
+      auto: "自動",
+      enabled: "開啟",
+      disabled: "關閉",
+      effort: "推理力度",
+      low: "低",
+      medium: "中",
+      high: "高",
+      xhigh: "極高",
+      max: "最高",
+      modelSupportHint: "實際可用模式和級別取決於所選模型。",
+    },
+    webSearch: {
+      title: "聯網搜尋",
+      description: "覆蓋此工作階段是否允許使用服務商設定的原生聯網搜尋工具。",
+      inherit: "跟隨模型（{{state}}）",
+      enabled: "開啟",
+      disabled: "關閉",
+    },
     performance: {
       title: "效能",
       gpuLayers: "GPU 層數",
@@ -8016,7 +8184,7 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       penaltyLastN: "DRY 懲罰最後 N 個",
       penaltyLastNDesc: "使用 `-1` 掃描完整上下文。",
       sequenceBreakers: "DRY 序列分隔符",
-      sequenceBreakersDesc: "以逗號分隔的邊界，例如 `\\\\n`, `:`, `\\\"`, `*`。",
+      sequenceBreakersDesc: '以逗號分隔的邊界，例如 `\\\\n`, `:`, `\\"`, `*`。',
     },
     streaming: {
       title: "串流傳輸",
@@ -8070,7 +8238,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
   designReference: {
     title: "設計參考",
     description: "上傳幾張清晰的參考圖片和一份標準視覺描述。",
-    descriptionPlaceholder: "描述穩定的外觀：臉型、髮型、體型、年齡呈現、服裝重點、配件和藝術/風格方向。",
+    descriptionPlaceholder:
+      "描述穩定的外觀：臉型、髮型、體型、年齡呈現、服裝重點、配件和藝術/風格方向。",
     addReferences: "新增參考",
     visualDescription: "視覺描述",
     draftWithAi: "AI 草擬",
@@ -8318,7 +8487,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       coherenceToggleHint: "在套用前，切換每個變更以接受或拒絕。",
       coherenceAll: "(全部)",
       coherenceMergeKeys: "從項目 {{entry}} 中移除鍵值 [{{keys}}]。{{reason}}",
-      coherenceRenameTerm: "將所有項目中的「{{oldTerm}}」重新命名為「{{newTerm}}」。涉及項目：{{entries}}。{{reason}}",
+      coherenceRenameTerm:
+        "將所有項目中的「{{oldTerm}}」重新命名為「{{newTerm}}」。涉及項目：{{entries}}。{{reason}}",
       coherenceContradiction: "項目 {{entries}} 中存在矛盾：{{description}}",
       coherenceToggleAlwaysActive: "將項目 {{entry}} 的始終啟用設定為 {{value}}。{{reason}}",
       skip: "跳過",
@@ -8344,7 +8514,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       entryDescription: "將選定的聊天訊息轉換為單個世界觀設定項目。",
     },
     full: {
-      infoText: "世界觀設定生成器可根據簡介和來源資料規劃、起草並完善一套完整的世界觀設定集。系統會優先嘗試工具調用；若不支援，所有階段將回退至 {{format}} 結構化輸出。",
+      infoText:
+        "世界觀設定生成器可根據簡介和來源資料規劃、起草並完善一套完整的世界觀設定集。系統會優先嘗試工具調用；若不支援，所有階段將回退至 {{format}} 結構化輸出。",
       generationHeading: "生成設定",
       generationModel: "生成模型",
       generationModelFallback: "生成模型",
@@ -8371,11 +8542,13 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       refineDescription: "用於根據使用者回饋訊息修改項目。",
       coherenceTitle: "一致性提示詞",
       coherenceDescription: "用於對所有已起草項目提出精確的修改建議。",
-      footerHint: "開啟「圖書館」，點擊「新世界觀設定集」並選擇「使用 AI 生成」以開始使用這些預設值的生成流程。在「設定 > 提示詞」中管理提示詞模板。",
+      footerHint:
+        "開啟「圖書館」，點擊「新世界觀設定集」並選擇「使用 AI 生成」以開始使用這些預設值的生成流程。在「設定 > 提示詞」中管理提示詞模板。",
       noAppDefaultModel: "未配置應用程式預設模型",
     },
     entry: {
-      infoText: "配置用於從選定聊天訊息起草世界觀設定項目，並從項目內容生成關鍵字的模型和提示詞。系統會優先嘗試工具調用；若不支援，兩種流程將回退至 {{format}} 結構化輸出。",
+      infoText:
+        "配置用於從選定聊天訊息起草世界觀設定項目，並從項目內容生成關鍵字的模型和提示詞。系統會優先嘗試工具調用；若不支援，兩種流程將回退至 {{format}} 結構化輸出。",
       generationHeading: "生成設定",
       generationModel: "生成模型",
       generationModelFallback: "生成模型",
@@ -8394,8 +8567,10 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       useBuiltInDefault: "使用內建預設值",
       entryWriterHint: "覆蓋預設的世界觀設定項目撰寫器提示詞。在「設定 > 提示詞」中管理模板。",
       keywordGeneratorPrompt: "關鍵字生成器提示詞",
-      keywordGeneratorHint: "使用與項目生成器相同的模型和結構化回退。在「設定 > 提示詞」中管理模板。",
-      footerHint: "開啟角色的世界觀設定集或圖書館的世界觀設定編輯器，然後選擇「生成項目」或「生成關鍵字」以使用這些預設值。",
+      keywordGeneratorHint:
+        "使用與項目生成器相同的模型和結構化回退。在「設定 > 提示詞」中管理模板。",
+      footerHint:
+        "開啟角色的世界觀設定集或圖書館的世界觀設定編輯器，然後選擇「生成項目」或「生成關鍵字」以使用這些預設值。",
       noAppDefaultModel: "未配置應用程式預設模型",
     },
   },
@@ -8481,11 +8656,14 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       localAnalysisModels: "本地分析模型",
       aboutCompanionMode: "關於 Companion 模式",
       dynamicMemoryTitle: "Companion 聊天使用動態記憶 (Dynamic Memory)",
-      dynamicMemoryDescription: "長期記憶的建立和檢索與一般聊天共用動態記憶後端。Companion 模式會保留自己的情緒狀態、關係狀態、靈魂數據以及每輪對話的效果追蹤。",
+      dynamicMemoryDescription:
+        "長期記憶的建立和檢索與一般聊天共用動態記憶後端。Companion 模式會保留自己的情緒狀態、關係狀態、靈魂數據以及每輪對話的效果追蹤。",
     },
     about: {
-      paragraph1: "Companion 模式將角色轉變為長期運行的社交代理。它會追蹤情緒狀態、與您的關係狀態，以及比單一聊天摘要更豐富的片段記憶儲存。",
-      paragraph2: "您可以從角色設定中將任何角色切換到 Companion 模式。Companion 聊天可以使用從聊天標題處存取的專用記憶和關係 UI。",
+      paragraph1:
+        "Companion 模式將角色轉變為長期運行的社交代理。它會追蹤情緒狀態、與您的關係狀態，以及比單一聊天摘要更豐富的片段記憶儲存。",
+      paragraph2:
+        "您可以從角色設定中將任何角色切換到 Companion 模式。Companion 聊天可以使用從聊天標題處存取的專用記憶和關係 UI。",
     },
   },
   voices: {
@@ -8546,7 +8724,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
         exampleTextPlaceholder: "哈囉！這就是我說話的聲音...",
         exampleTextHint: "用於測試語音的範例文字",
         voiceDesignChars: "語音設計預覽需要 {{current}}/{{minimum}} 個字元",
-        defaultSample: "哈囉！這就是我說話的聲音。我能以溫暖、清晰和情感朗讀較長段落，讓您判斷我的語調和節奏。",
+        defaultSample:
+          "哈囉！這就是我說話的聲音。我能以溫暖、清晰和情感朗讀較長段落，讓您判斷我的語調和節奏。",
         playing: "播放中...",
         previewVoice: "預覽語音",
         fishVoice: "Fish Audio 雲端聲音模型",
@@ -8659,7 +8838,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
         intro: "此聲音完全在裝置上運行。請選擇適合您硬體的品質，然後下載。您稍後可以切換。",
         variantInt8Description: "省電且啟動快速。對於大多數角色聲音來說足夠自然。",
         variantInt8Tag: "行動裝置",
-        variantFp16Description: "桌上型電腦的最佳選擇。比 int8 聲音更溫暖，且回覆之間沒有明顯等待。",
+        variantFp16Description:
+          "桌上型電腦的最佳選擇。比 int8 聲音更溫暖，且回覆之間沒有明顯等待。",
         variantFp16Tag: "推薦",
         variantFp32Description: "最栩栩如生的角色，細節最豐富。速度較慢且佔用更多記憶體。",
         variantFp32Tag: "高階",
@@ -8751,10 +8931,14 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
       picker: {
         title: "選擇 Whisper 模型",
-        needDownloadMobile: "您需要在開始使用語音辨識前下載 Whisper 模型。請從下方列表中選擇一個。我們推薦行動裝置選項。",
-        needDownloadDesktop: "您需要在開始使用語音辨識前下載 Whisper 模型。請從下方列表中選擇一個。我們推薦桌上型選項。",
-        showingMobile: "顯示推薦給行動裝置的模型。點擊其中一個以使用；如果尚未下載，它將進入佇列並在就緒後自動啟動。",
-        showingDesktop: "顯示推薦給桌上型電腦的模型。點擊其中一個以使用；如果尚未下載，它將進入佇列並在就緒後自動啟動。",
+        needDownloadMobile:
+          "您需要在開始使用語音辨識前下載 Whisper 模型。請從下方列表中選擇一個。我們推薦行動裝置選項。",
+        needDownloadDesktop:
+          "您需要在開始使用語音辨識前下載 Whisper 模型。請從下方列表中選擇一個。我們推薦桌上型選項。",
+        showingMobile:
+          "顯示推薦給行動裝置的模型。點擊其中一個以使用；如果尚未下載，它將進入佇列並在就緒後自動啟動。",
+        showingDesktop:
+          "顯示推薦給桌上型電腦的模型。點擊其中一個以使用；如果尚未下載，它將進入佇列並在就緒後自動啟動。",
         searchPlaceholder: "搜尋模型",
         modelCount: "{{count}} 個模型",
         modelCountPlural: "{{count}} 個模型",
@@ -8816,7 +9000,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
         title: "執行環境 (Runtime)",
         description: "控制 Whisper 如何載入啟動模型以及庫數據在磁碟上的儲存位置。",
         useGpu: "使用 GPU",
-        useGpuDescription: "當此構建版本支援時，使用 CUDA, Vulkan, ROCm 或 Metal 加速。關閉則強制使用 CPU。",
+        useGpuDescription:
+          "當此構建版本支援時，使用 CUDA, Vulkan, ROCm 或 Metal 加速。關閉則強制使用 CPU。",
         keepModelLoaded: "保持模型載入狀態",
         keepModelLoadedDescription: "在轉錄之間重複使用已載入的 Whisper 上下文，以降低延遲。",
         contextCache: "Whisper 上下文快取",
@@ -8849,7 +9034,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
         approvedOnly: "僅限已核准",
         approvedOnlyDescription: "隱藏尚未審核的自動建議條目。",
         emptyTitle: "尚無修正案",
-        emptyDescription: "修正案可重寫 Whisper 的輸出。請添加一組「錯誤」與「正確」的配對，以清理一致性的錯誤。",
+        emptyDescription:
+          "修正案可重寫 Whisper 的輸出。請添加一組「錯誤」與「正確」的配對，以清理一致性的錯誤。",
         addFirstCorrection: "添加第一個修正案",
       },
       voiceExamplesSection: {
@@ -8916,7 +9102,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
         addTitle: "添加語音範例",
         subtitle: "將音訊剪輯與其應產生的文字配對。",
         audioPath: "音訊路徑",
-        audioPathHint: "選擇現有的音訊檔案，或錄製新剪輯，我們將在應用程式的數據目錄下儲存為 WAV 檔。",
+        audioPathHint:
+          "選擇現有的音訊檔案，或錄製新剪輯，我們將在應用程式的數據目錄下儲存為 WAV 檔。",
         audioPathPlaceholder: "/path/to/clip.wav",
         recording: "錄製中 {{duration}}",
         discard: "捨棄",
@@ -9143,7 +9330,7 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       sentenceWhenAndNot: "當 {{include}} 且非 ({{exclude}}) 時，此項目啟用。",
     },
     warnings: {
-      requiresAndExcludes: "此項目同時要求且排除 \\\"{{label}}\\\"。",
+      requiresAndExcludes: '此項目同時要求且排除 \\"{{label}}\\"。',
       mutuallyExclusive: "此項目要求互斥的條件: {{values}}。",
       fixContradictory: "儲存前請修正矛盾的規則。",
     },
@@ -9376,7 +9563,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       fallbackFormat: "後備格式",
     },
     page: {
-      intro: "配置用於起草同伴 Soul 檔案的模型和提示詞。系統會優先嘗試工具呼叫；如果不支援，則回退到 {{format}} 結構化輸出。",
+      intro:
+        "配置用於起草同伴 Soul 檔案的模型和提示詞。系統會優先嘗試工具呼叫；如果不支援，則回退到 {{format}} 結構化輸出。",
       generation: "生成",
       generationModel: "生成模型",
       generationModelAria: "生成模型",
@@ -9388,7 +9576,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       soulWriterPrompt: "Soul Writer 提示詞",
       useBuiltInDefault: "使用內建預設值",
       promptHint: "覆蓋預設的 Soul 編寫器提示詞。可在「設定」>「提示詞」中管理模板。",
-      footnote: "開啟同伴模式角色的編輯器，在 Soul 標籤頁中點擊 {{action}}，即可使用這些預設設定啟動生成。",
+      footnote:
+        "開啟同伴模式角色的編輯器，在 Soul 標籤頁中點擊 {{action}}，即可使用這些預設設定啟動生成。",
       footnoteAction: "從角色生成",
       useAppDefault: "使用應用程式預設值",
       useAppDefaultWith: "使用應用程式預設值 ({{name}})",
@@ -9609,7 +9798,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     llamaManualPlacementBrief: "GPU 上 {{gpu}} 層 · CPU 上 {{cpu}} 層",
     llamaManualPlacementFull: "GPU 上 {{gpu}} · CPU 上 {{cpu}} · 共 {{total}}",
     llamaEstimatedPlacement: "預計：{{breakdown}} · GPU 上 {{total}} 層",
-    llamaDistBalancedDesc: "在所選 GPU 之間平均分配。適用於相同型號的顯示卡；VRAM 容量不同時請選擇「依 VRAM 比例」。",
+    llamaDistBalancedDesc:
+      "在所選 GPU 之間平均分配。適用於相同型號的顯示卡；VRAM 容量不同時請選擇「依 VRAM 比例」。",
     llamaDistProportionalDesc: "依各 GPU 的可用 VRAM 加權分配。適合型號不一致的顯示卡。",
     llamaDistPriorityDesc: "先將第一張 GPU 填到 VRAM 上限，再把多餘部分溢出到下一張。",
     llamaDistManual: "按 GPU 手動設定",
@@ -9617,7 +9807,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     llamaKvAutoDesc: "交由執行階段決定。KV 放得下時保留在 GPU，否則放入系統 RAM。",
     llamaKvSplitDesc: "KV 快取放在 GPU 上，依與層相同的方式分割。最快，但會占用 VRAM。",
     llamaKvSystemRamDesc: "將 KV 快取保留在系統 RAM 中以騰出 VRAM 載入更多層。注意力計算較慢。",
-    llamaKvPinDesc: "將共用的暫存緩衝區分配到選定的主 GPU。每層的 KV 快取仍保留在該層所在的 GPU 上。",
+    llamaKvPinDesc:
+      "將共用的暫存緩衝區分配到選定的主 GPU。每層的 KV 快取仍保留在該層所在的 GPU 上。",
   },
   loraSelector: {
     title: "設計 LoRA",
@@ -9732,7 +9923,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     faq: {
       whatIsLettuceai: {
         question: "什麼是 LettuceAI？",
-        answer: "LettuceAI 是一款 AI 角色聊天應用程式。與將您的訊息透過單一託管服務路由的應用程式不同，LettuceAI 允許您從 Mistral、Cerebras、Google AI Studio、OpenAI、Anthropic 等提供者攜帶您自己的 API 金鑰 (BYOK)，或在您的裝置上本地運行模型。您的對話將保留在您的裝置上。",
+        answer:
+          "LettuceAI 是一款 AI 角色聊天應用程式。與將您的訊息透過單一託管服務路由的應用程式不同，LettuceAI 允許您從 Mistral、Cerebras、Google AI Studio、OpenAI、Anthropic 等提供者攜帶您自己的 API 金鑰 (BYOK)，或在您的裝置上本地運行模型。您的對話將保留在您的裝置上。",
       },
       whatIsApiKey: {
         question: "什麼是 API 金鑰，為什麼我需要它？ (BYOK 解釋)",
@@ -9744,46 +9936,57 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       cheapestStart: {
         question: "最便宜或最簡單的開始方式是什麼？",
         mistralName: "Mistral",
-        mistralBefore: " 擁有慷慨的免費額度且具有優秀的開源權重模型。請在 console.mistral.ai 註冊，創建金鑰並將其貼到「設定」中的 ",
+        mistralBefore:
+          " 擁有慷慨的免費額度且具有優秀的開源權重模型。請在 console.mistral.ai 註冊，創建金鑰並將其貼到「設定」中的 ",
         mistralAfter: " 提供者。",
         cerebrasName: "Cerebras",
-        cerebrasText: " 是目前最快的選項，且在 Llama 和 Qwen 模型上提供免費額度。請在 cloud.cerebras.ai 註冊。",
+        cerebrasText:
+          " 是目前最快的選項，且在 Llama 和 Qwen 模型上提供免費額度。請在 cloud.cerebras.ai 註冊。",
         googleName: "Google AI Studio",
         googleText: " 也為 Gemini 模型提供慷慨的免費額度。",
-        localText: "如果您不想使用任何雲端服務，您可以在桌面端（Windows, macOS 或 Linux）透過內建的 llama.cpp 選項本地運行模型。行動裝置不支援本地模型。",
+        localText:
+          "如果您不想使用任何雲端服務，您可以在桌面端（Windows, macOS 或 Linux）透過內建的 llama.cpp 選項本地運行模型。行動裝置不支援本地模型。",
       },
       alternative: {
         question: "這是其他 AI 聊天應用程式的替代方案嗎？",
-        answer: "是的。如果您曾使用過那種一切都運作良好但您無法選擇模型、無法控制數據或感到被訂閱制限制的 AI 聊天應用程式，LettuceAI 正是為此而建。您攜帶自己的 API 金鑰，選擇您想要的模型，且對話保留在您的裝置上。代價是短暫的一次性設定；好處是對成本、品質和隱私擁有完全控制權。",
+        answer:
+          "是的。如果您曾使用過那種一切都運作良好但您無法選擇模型、無法控制數據或感到被訂閱制限制的 AI 聊天應用程式，LettuceAI 正是為此而建。您攜帶自己的 API 金鑰，選擇您想要的模型，且對話保留在您的裝置上。代價是短暫的一次性設定；好處是對成本、品質和隱私擁有完全控制權。",
       },
       cost: {
         question: "費用是多少？",
-        answer: "LettuceAI 本身是免費的。您直接向模型提供者付費，通常每條訊息僅需零點幾美分。Mistral、Cerebras 和 Google AI Studio 提供免費額度。大量使用頂尖模型（如 Claude Opus 4.7, GPT-5.1, Gemini 3 Pro）可能會累積較高費用，因此在選擇模型前請查看提供者的價格頁面。",
+        answer:
+          "LettuceAI 本身是免費的。您直接向模型提供者付費，通常每條訊息僅需零點幾美分。Mistral、Cerebras 和 Google AI Studio 提供免費額度。大量使用頂尖模型（如 Claude Opus 4.7, GPT-5.1, Gemini 3 Pro）可能會累積較高費用，因此在選擇模型前請查看提供者的價格頁面。",
       },
       apiKeySafe: {
         question: "我的 API 金鑰安全嗎？",
-        answer: "您的 API 金鑰儲存在您的裝置本地，且僅發送到您配置的提供者。LettuceAI 沒有伺服器能看到您的金鑰或訊息。",
+        answer:
+          "您的 API 金鑰儲存在您的裝置本地，且僅發送到您配置的提供者。LettuceAI 沒有伺服器能看到您的金鑰或訊息。",
       },
       chatsStored: {
         question: "我的對話儲存在哪裡？有人能讀到嗎？",
-        answer: "對話儲存在您裝置上應用程式的本地資料庫中，不會上傳到任何地方。當您發送訊息時，僅該對話的文本會被發送到您選擇的提供者以獲取回覆，然後回覆會被儲存在本地。",
+        answer:
+          "對話儲存在您裝置上應用程式的本地資料庫中，不會上傳到任何地方。當您發送訊息時，僅該對話的文本會被發送到您選擇的提供者以獲取回覆，然後回覆會被儲存在本地。",
       },
       chatsDeleted: {
         question: "我的對話會自動被刪除嗎？",
-        answer: "不會。對話儲存在您裝置的本地資料庫中，只有您可以刪除它們。它們不會同步到任何 LettuceAI 伺服器，因此我們無法清除它們，背景也沒有自動清理程序。對話消失的唯一方式是：您自行刪除、卸載應用程式、重設應用程式或裝置儲存空間被清除。",
+        answer:
+          "不會。對話儲存在您裝置的本地資料庫中，只有您可以刪除它們。它們不會同步到任何 LettuceAI 伺服器，因此我們無法清除它們，背景也沒有自動清理程序。對話消失的唯一方式是：您自行刪除、卸載應用程式、重設應用程式或裝置儲存空間被清除。",
       },
       editRemotely: {
         question: "有人能遠端編輯我的數據嗎？",
-        answer: "不會。沒有遠端管理面板，沒有 LettuceAI 帳戶，也沒有儲存您的角色、對話或設定副本的伺服器。LettuceAI 的任何人都無法對您的數據進行更改、將您鎖定在系統外，或進入應用程式修改任何內容。您的數據僅在您於自己的裝置上更改時才會改變。",
+        answer:
+          "不會。沒有遠端管理面板，沒有 LettuceAI 帳戶，也沒有儲存您的角色、對話或設定副本的伺服器。LettuceAI 的任何人都無法對您的數據進行更改、將您鎖定在系統外，或進入應用程式修改任何內容。您的數據僅在您於自己的裝置上更改時才會改變。",
       },
       shutdown: {
         question: "如果 LettuceAI 停止運作，我的數據會怎樣？",
-        before: "只要應用程式還在您的裝置上，您的角色和對話就仍可運作。如果您沒有金鑰或提供者停止服務，雲端模型將停止回覆，但您創建的所有內容在本地仍可讀取，並可透過「設定」中的 ",
+        before:
+          "只要應用程式還在您的裝置上，您的角色和對話就仍可運作。如果您沒有金鑰或提供者停止服務，雲端模型將停止回覆，但您創建的所有內容在本地仍可讀取，並可透過「設定」中的 ",
         after: " 備份與還原進行匯出。",
       },
       training: {
         question: "提供者會使用我的對話進行訓練嗎？",
-        answer: "這取決於提供者的政策，而非 LettuceAI。大多數付費 API 方案（OpenAI, Anthropic, Mistral）預設不會使用 API 流量進行訓練。免費方案有時會。如果您在意這一點，請閱讀您所使用的提供者的隱私頁面。",
+        answer:
+          "這取決於提供者的政策，而非 LettuceAI。大多數付費 API 方案（OpenAI, Anthropic, Mistral）預設不會使用 API 流量進行訓練。免費方案有時會。如果您在意這一點，請閱讀您所使用的提供者的隱私頁面。",
       },
       whatIsModel: {
         question: "什麼是「模型」？我該選擇哪一個？",
@@ -9794,7 +9997,8 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
         deepseekName: "DeepSeek V4",
         deepseekText: " （便宜且能力強），或 ",
         glmName: "GLM 4.7 / GLM 5",
-        glmText: " （強大的角色扮演品質）。Cerebras 在其免費方案中以極速運行其中許多模型。您可以隨時在對話設定中切換。",
+        glmText:
+          " （強大的角色扮演品質）。Cerebras 在其免費方案中以極速運行其中許多模型。您可以隨時在對話設定中切換。",
       },
       freeProviders: {
         question: "有免費的提供者嗎？",
@@ -9804,14 +10008,17 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
         cerebrasName: "Cerebras",
         afterCerebras: ", 以及 ",
         googleName: "Google AI Studio",
-        afterGoogle: " 都提供足以應對日常隨意聊天的免費額度。您仍需註冊並創建 API 金鑰，但開始使用時無需添加付款方式。每個提供者都有自己的速率限制（每分鐘或每天多少條訊息），因此如果您達到上限，只需切換到另一個免費提供者或升級即可。",
+        afterGoogle:
+          " 都提供足以應對日常隨意聊天的免費額度。您仍需註冊並創建 API 金鑰，但開始使用時無需添加付款方式。每個提供者都有自己的速率限制（每分鐘或每天多少條訊息），因此如果您達到上限，只需切換到另一個免費提供者或升級即可。",
       },
       freeVsPaid: {
         question: "免費提供者和付費提供者有什麼區別？",
         freeName: "免費方案",
-        freeText: " 通常讓您使用較小或較舊的模型、速度較慢、速率限制較低，且有時提供者可能會使用您的訊息來訓練他們的下一個模型。非常適合嘗試或輕量日常使用。",
+        freeText:
+          " 通常讓您使用較小或較舊的模型、速度較慢、速率限制較低，且有時提供者可能會使用您的訊息來訓練他們的下一個模型。非常適合嘗試或輕量日常使用。",
         paidName: "付費方案",
-        paidText: " 解鎖最新且最大的模型、更高的速率限制、更快的響應速度以及更強的隱私保證（大多數不使用付費 API 流量進行訓練）。您按訊息付費，通常是零點幾美分，沒有每月最低消費。",
+        paidText:
+          " 解鎖最新且最大的模型、更高的速率限制、更快的響應速度以及更強的隱私保證（大多數不使用付費 API 流量進行訓練）。您按訊息付費，通常是零點幾美分，沒有每月最低消費。",
         mixText: "您可以混用：為日常聊天保留一個免費金鑰，在需要最高品質時使用付費金鑰。",
       },
       whatIsToken: {
@@ -9824,16 +10031,19 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
         question: "我看到「未配置預設模型」",
         p1: "這意味著您還沒有在 LettuceAI 中添加任何模型，或者您添加了模型但您正在聊天的角色沒有選擇模型。",
         p2Before: "打開「設定」 ",
-        p2After: " 模型並從您配置的提供者中添加一個模型。然後在同一頁面將其設置為您的全域預設值，或打開角色的設定並為該角色選擇一個模型。",
+        p2After:
+          " 模型並從您配置的提供者中添加一個模型。然後在同一頁面將其設置為您的全域預設值，或打開角色的設定並為該角色選擇一個模型。",
         p3: "每個角色可以使用自己的模型，或者在未設置時回退到您的全域預設值。",
       },
       cloudVsLocal: {
         question: "雲端模型和本地模型有什麼區別？",
-        answer: "雲端模型（Mistral, Cerebras, OpenAI, Google）運行在別人的硬體上，需要網路連接，且每條訊息需付費。本地模型直接在您的桌面電腦上透過內建的 llama.cpp 選項運行，具有私密性和離線能力，但需要性能強大的 PC 並占用更多儲存空間。行動裝置不支援本地模型。",
+        answer:
+          "雲端模型（Mistral, Cerebras, OpenAI, Google）運行在別人的硬體上，需要網路連接，且每條訊息需付費。本地模型直接在您的桌面電腦上透過內建的 llama.cpp 選項運行，具有私密性和離線能力，但需要性能強大的 PC 並占用更多儲存空間。行動裝置不支援本地模型。",
       },
       whatIsCharacter: {
         question: "什麼是角色？我可以創建自己的角色嗎？",
-        answer: "角色是一個具有名稱、圖像和描述的 AI 人格，這些設定決定了它如何說話。點擊對話螢幕上的 + 按鈕來創建一個，或從探索分頁或其他社群匯入角色卡。",
+        answer:
+          "角色是一個具有名稱、圖像和描述的 AI 人格，這些設定決定了它如何說話。點擊對話螢幕上的 + 按鈕來創建一個，或從探索分頁或其他社群匯入角色卡。",
       },
       whatIsPersona: {
         question: "什麼是人格 (Persona)？",
@@ -9844,12 +10054,14 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
       },
       charactersPrivate: {
         question: "我創建的角色是私密的嗎？",
-        answer: "是的。您創建的角色保留在您的裝置上。LettuceAI 沒有上傳按鈕，也沒有伺服器可以上傳。它們僅在您明確匯出角色卡檔案並自行發送到某處時才會被分享。",
+        answer:
+          "是的。您創建的角色保留在您的裝置上。LettuceAI 沒有上傳按鈕，也沒有伺服器可以上傳。它們僅在您明確匯出角色卡檔案並自行發送到某處時才會被分享。",
       },
       backupMove: {
         question: "如何備份或遷移到另一個裝置？",
         before: "「設定」 ",
-        after: " 備份與還原讓您將所有內容匯出到檔案。要遷移到新手機或電腦，請在那裡安裝 LettuceAI 並使用歡迎螢幕上的「從另一個裝置同步」選項，或從備份檔案還原。",
+        after:
+          " 備份與還原讓您將所有內容匯出到檔案。要遷移到新手機或電腦，請在那裡安裝 LettuceAI 並使用歡迎螢幕上的「從另一個裝置同步」選項，或從備份檔案還原。",
       },
     },
   },
@@ -9908,7 +10120,7 @@ export const zhHantMessages: DeepPartialMessageTree<LocaleMessages> = {
     selector: {
       title: "選擇要公開的模型",
       searchPlaceholder: "搜尋模型...",
-      noResults: "找不到匹配 \\\"{{query}}\\\" 的模型",
+      noResults: '找不到匹配 \\"{{query}}\\" 的模型',
       noModels: "未配置任何支援文本的模型",
       addModelsHint: "請先在「設定」中添加模型",
     },

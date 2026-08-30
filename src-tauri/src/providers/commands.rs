@@ -29,8 +29,10 @@ pub async fn get_remote_models(
         return Ok(Vec::new());
     }
 
-    let is_custom_provider =
-        credential.provider_id == "custom" || credential.provider_id == "custom-anthropic";
+    let is_custom_provider = matches!(
+        credential.provider_id.as_str(),
+        "custom" | "custom-openai-responses" | "custom-anthropic"
+    );
     if is_custom_provider {
         let fetch_enabled = credential
             .config

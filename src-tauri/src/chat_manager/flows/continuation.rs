@@ -419,7 +419,7 @@ impl ContinueFlow {
                 .as_ref()
                 .unwrap_or(&messages_for_api);
 
-            let built = crate::chat_manager::request_builder::build_chat_request(
+            let mut built = crate::chat_manager::request_builder::build_chat_request(
                 attempt_credential,
                 &attempt_api_key,
                 &attempt_model.name,
@@ -435,11 +435,16 @@ impl ContinueFlow {
                 request_settings.presence_penalty,
                 request_settings.top_k,
                 None,
-                request_settings.reasoning_enabled,
+                request_settings.reasoning_mode,
                 request_settings.reasoning_effort.clone(),
                 request_settings.reasoning_budget,
                 request_settings.prompt_caching_enabled.unwrap_or(false),
                 extra_body_fields,
+            );
+            crate::chat_manager::provider_native_tools::apply(
+                &mut built.body,
+                attempt_credential,
+                request_settings.web_search_enabled,
             );
 
             let request_started_at = now_millis().unwrap_or_default();
@@ -465,6 +470,7 @@ impl ContinueFlow {
                         "frequencyPenalty": request_settings.frequency_penalty,
                         "presencePenalty": request_settings.presence_penalty,
                         "topK": request_settings.top_k,
+                        "reasoningMode": request_settings.reasoning_mode.as_str(),
                         "reasoningEnabled": request_settings.reasoning_enabled,
                         "reasoningEffort": request_settings.reasoning_effort,
                         "reasoningBudget": request_settings.reasoning_budget,

@@ -12,6 +12,7 @@ import { getProviderIcon } from "../../../core/utils/providerIcons";
 import { getPlatform } from "../../../core/utils/platform";
 import { useI18n } from "../../../core/i18n/context";
 import type { TranslationKey, TranslateParams } from "../../../core/i18n/context";
+import { isCustomProviderId } from "../../../core/providers/customProvider";
 
 type TFunction = (key: TranslationKey, params?: TranslateParams) => string;
 
@@ -148,13 +149,16 @@ export function ProviderSetupPage() {
 
   const visibleCapabilities = React.useMemo(
     () =>
-      (isDesktop ? capabilities : capabilities.filter((provider) => provider.id !== "llamacpp"))
-        .filter((provider) => provider.id !== "lettuce-engine"),
+      (isDesktop
+        ? capabilities
+        : capabilities.filter((provider) => provider.id !== "llamacpp")
+      ).filter((provider) => provider.id !== "lettuce-engine"),
     [capabilities, isDesktop],
   );
   const selectedProvider = visibleCapabilities.find((p) => p.id === selectedProviderId);
-  const isCustomProvider = ["custom", "custom-anthropic"].includes(selectedProviderId);
+  const isCustomProvider = isCustomProviderId(selectedProviderId);
   const isLocalProvider = ["ollama", "lmstudio", "intenserp"].includes(selectedProviderId);
+  const isApiKeyOptional = isLocalProvider || isCustomProvider;
   const isHostProvider = selectedProviderId === "lettuce-host";
   const showBaseUrl =
     Boolean(selectedProvider) && (isCustomProvider || isLocalProvider || isHostProvider);
@@ -162,7 +166,9 @@ export function ProviderSetupPage() {
   const configFormContent = (
     <div className="space-y-4">
       <div className="space-y-2">
-        <label className="text-[13px] font-medium text-white/70">{t("onboarding.provider.fields.displayLabel")}</label>
+        <label className="text-[13px] font-medium text-white/70">
+          {t("onboarding.provider.fields.displayLabel")}
+        </label>
         <input
           type="text"
           value={label}
@@ -177,31 +183,37 @@ export function ProviderSetupPage() {
           })}
           className="w-full min-h-11 rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-white placeholder-white/40 transition-colors focus:border-white/30 focus:outline-none"
         />
-        <p className="text-[12px] text-white/55">{t("onboarding.provider.fields.displayLabelHint")}</p>
+        <p className="text-[12px] text-white/55">
+          {t("onboarding.provider.fields.displayLabelHint")}
+        </p>
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-[13px] font-medium text-white/70">
-            {isLocalProvider
+            {isApiKeyOptional
               ? t("onboarding.provider.fields.apiKeyOptional")
               : t("onboarding.provider.fields.apiKey")}
           </label>
+          {!isCustomProvider && (
           <button
             onClick={() =>
-              navigate(`/wheretofind${selectedProviderId ? `?provider=${selectedProviderId}` : ""}`)
+                navigate(
+                  `/wheretofind${selectedProviderId ? `?provider=${selectedProviderId}` : ""}`,
+                )
             }
             className="text-[12px] text-white/70 hover:text-white transition-colors"
           >
             {t("onboarding.provider.fields.whereToFind")}
           </button>
+          )}
         </div>
         <input
           type="text"
           value={apiKey}
           onChange={(e) => handleApiKeyChange(e.target.value)}
           placeholder={
-            isLocalProvider
+            isApiKeyOptional
               ? t("onboarding.provider.fields.apiKeyPlaceholderLocal")
               : t("onboarding.provider.fields.apiKeyPlaceholderRemote")
           }
@@ -212,7 +224,9 @@ export function ProviderSetupPage() {
 
       {showBaseUrl && (
         <div className="space-y-2">
-          <label className="text-[13px] font-medium text-white/70">{t("onboarding.provider.fields.baseUrl")}</label>
+          <label className="text-[13px] font-medium text-white/70">
+            {t("onboarding.provider.fields.baseUrl")}
+          </label>
           <input
             type="text"
             value={baseUrl}
@@ -317,8 +331,12 @@ export function ProviderSetupPage() {
           {/* Left Panel */}
           <div className="flex-1 flex flex-col border-r border-white/10">
             <div className="p-6 pb-3">
-              <h2 className="text-[15px] font-medium text-white/70">{t("onboarding.provider.availableProviders")}</h2>
-              <p className="text-[13px] text-white/55 mt-0.5">{t("onboarding.common.clickToSelectProvider")}</p>
+              <h2 className="text-[15px] font-medium text-white/70">
+                {t("onboarding.provider.availableProviders")}
+              </h2>
+              <p className="text-[13px] text-white/55 mt-0.5">
+                {t("onboarding.common.clickToSelectProvider")}
+              </p>
             </div>
             <div className="flex-1 overflow-y-auto px-6 pb-10">
               <div className="grid grid-cols-2 xl:grid-cols-3 gap-2">
@@ -360,7 +378,9 @@ export function ProviderSetupPage() {
               configFormContent
             ) : (
               <div className="rounded-xl border border-dashed border-white/20 bg-white/5 p-6 text-center">
-                <p className="text-[15px] text-white/55">{t("onboarding.common.selectAProvider")}</p>
+                <p className="text-[15px] text-white/55">
+                  {t("onboarding.common.selectAProvider")}
+                </p>
               </div>
             )}
           </div>
@@ -424,7 +444,9 @@ export function ProviderSetupPage() {
           className={`config-form-section w-full max-w-sm transition-all duration-300 ${showForm && selectedProvider ? "opacity-100 max-h-500" : "opacity-0 max-h-0 overflow-hidden pointer-events-none"}`}
         >
           <div className="text-center space-y-2 mb-6">
-            <h2 className="text-[19px] font-semibold text-white">{t("onboarding.provider.connectProvider", { name: selectedProvider?.name ?? "" })}</h2>
+            <h2 className="text-[19px] font-semibold text-white">
+              {t("onboarding.provider.connectProvider", { name: selectedProvider?.name ?? "" })}
+            </h2>
             <p className="text-[13px] text-white/70 leading-relaxed">
               {t("onboarding.provider.connectProviderDesc")}
             </p>

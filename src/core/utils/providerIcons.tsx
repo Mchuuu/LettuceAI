@@ -67,6 +67,7 @@ const ICON_MAP: Record<string, ReactElement> = {
   "lettuce-engine": <Leaf className="h-6 w-6 text-emerald-400" />,
   custom: <Settings className="h-6 w-6 text-gray-400" />,
   "custom-anthropic": <Settings className="h-6 w-6 text-gray-400" />,
+  "custom-openai-responses": <Settings className="h-6 w-6 text-gray-400" />,
   elevenlabs: <Mic className="h-6 w-6 text-violet-300" />,
   fish_tts: <Volume2 className="h-6 w-6 text-cyan-300" />,
   fish_speech: <Cpu className="h-6 w-6 text-cyan-300" />,

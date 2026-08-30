@@ -1199,7 +1199,9 @@ export function ChatConversationPage() {
     playMessageAudio,
     stopMessageAudio: handleStopAudio,
     cancelMessageAudio: handleCancelAudio,
-  } = useMessageAudioController((characterId ?? "") + ":" + (sessionId ?? ""));
+  } = useMessageAudioController(
+    sessionId ? { conversationKind: "session", conversationId: sessionId } : null,
+  );
 
   const handlePlayMessageAudio = useCallback(
     async (message: StoredMessage, text: string) => {
