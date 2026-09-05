@@ -921,6 +921,7 @@ pub fn usage_from_value(v: &Value) -> Option<UsageSummary> {
             reasoning_tokens,
             image_tokens,
             audio_tokens,
+            tts_characters: None,
             web_search_requests,
             api_cost,
             response_id: v

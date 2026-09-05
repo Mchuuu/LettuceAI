@@ -90,7 +90,9 @@ class MainActivity : TauriActivity() {
       0
     }
     val statusBarInsetPx = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-    if (imeInsetPx == lastImeInsetPx && statusBarInsetPx == lastStatusBarInsetPx) return
+    val insetsUnchanged = imeInsetPx == lastImeInsetPx && statusBarInsetPx == lastStatusBarInsetPx
+    // Always publish animation_end so direct compositor motion and root CSS agree on the final frame.
+    if (insetsUnchanged && source != "animation_end") return
     lastImeInsetPx = imeInsetPx
     lastStatusBarInsetPx = statusBarInsetPx
     if (source != "animation_progress") {
@@ -103,10 +105,32 @@ class MainActivity : TauriActivity() {
     val isIntermediateImeLayout = source == "apply" && imeAnimationInProgress
     if (isIntermediateImeLayout) return
 
-    webView.evaluateJavascript(
-      "(() => { const lettuceDensity = window.devicePixelRatio || 1; window.__lettuceWindowInsets = { imeBottomPx: $imeInsetPx, statusBarTopPx: $statusBarInsetPx, source: '$source' }; document.documentElement?.style.setProperty('--lettuce-safe-area-inset-top', String($statusBarInsetPx / lettuceDensity) + 'px'); document.documentElement?.style.setProperty('--lettuce-keyboard-inset', String($imeInsetPx / lettuceDensity) + 'px'); window.dispatchEvent(new CustomEvent('lettuce:window-insets', { detail: window.__lettuceWindowInsets })); })();",
-      null,
-    )
+    val alwaysSyncRootCss = source != "animation_progress"
+    val script = """
+      (() => {
+        const lettuceDensity = window.devicePixelRatio || 1;
+        window.__lettuceWindowInsets = {
+          imeBottomPx: $imeInsetPx,
+          statusBarTopPx: $statusBarInsetPx,
+          source: '$source'
+        };
+        if ($alwaysSyncRootCss || window.__lettuceDirectImeMotion !== true) {
+          document.documentElement?.style.setProperty(
+            '--lettuce-safe-area-inset-top',
+            String($statusBarInsetPx / lettuceDensity) + 'px'
+          );
+          document.documentElement?.style.setProperty(
+            '--lettuce-keyboard-inset',
+            String($imeInsetPx / lettuceDensity) + 'px'
+          );
+        }
+        window.dispatchEvent(new CustomEvent(
+          'lettuce:window-insets',
+          { detail: window.__lettuceWindowInsets }
+        ));
+      })();
+    """.trimIndent()
+    webView.evaluateJavascript(script, null)
   }
 
   private class WindowInsetsBridge {

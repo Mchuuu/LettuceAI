@@ -297,6 +297,7 @@ export const UsageSummarySchema = z.object({
   reasoningTokens: OptionalTokenCount,
   imageTokens: OptionalTokenCount,
   audioTokens: OptionalTokenCount,
+  ttsCharacters: OptionalTokenCount,
   firstTokenMs: OptionalMsCount,
   tokensPerSecond: OptionalPositiveNumber,
   mtpStats: MtpStatsSchema.nullable().optional(),
@@ -2557,10 +2558,12 @@ export const ChatTemplateSchema = z.object({
 });
 export type ChatTemplate = z.infer<typeof ChatTemplateSchema>;
 
+export const MAX_DYNAMIC_MEMORY_ENTRIES = 3000;
+
 export const DynamicMemorySettingsSchema = z.object({
   enabled: z.boolean().default(false),
   summaryMessageInterval: z.number().min(1).default(20),
-  maxEntries: z.number().min(10).max(500).default(50),
+  maxEntries: z.number().min(10).max(MAX_DYNAMIC_MEMORY_ENTRIES).default(50),
   minSimilarityThreshold: z.number().min(0).max(1).default(0.32),
   retrievalLimit: z.number().min(1).max(20).default(5),
   retrievalStrategy: z.enum(["smart", "cosine"]).default("smart"),

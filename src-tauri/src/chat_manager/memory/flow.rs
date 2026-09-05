@@ -12,6 +12,9 @@ use crate::api::{api_request, ApiRequest, ApiResponse};
 use crate::dynamic_memory_run_manager::{DynamicMemoryCancellationToken, DynamicMemoryRunManager};
 use crate::embedding;
 use crate::post_turn_memory_scheduler::{PostTurnMemoryJob, PostTurnMemoryScheduler};
+use crate::storage_manager::companion_shared_memory::{
+    is_memory_owner_changed_error, EffectiveMemoryOwner,
+};
 use crate::storage_manager::companion_turn_effects::{
     create_processing_effect, mark_effect_failed, mark_effect_ready, CompanionTurnEffectSeed,
 };
@@ -48,7 +51,9 @@ use crate::chat_manager::prompts::{
 use crate::chat_manager::request::{extract_error_message, extract_text, extract_usage};
 use crate::chat_manager::request_builder;
 use crate::chat_manager::service::{record_usage_if_available, require_api_key, ChatContext};
-use crate::chat_manager::storage::save_session_memory_state as save_session;
+use crate::chat_manager::storage::{
+    save_session_memory_state as save_session, save_session_memory_state_for_owner,
+};
 use crate::chat_manager::temporal::{
     companion_effective_now, companion_time_awareness_enabled, detect_temporal_query_range,
     format_message_timestamp, memory_matches_temporal_range, TemporalRange,
@@ -1293,11 +1298,12 @@ fn cancel_dynamic_memory_cycle(
     app: &AppHandle,
     session: &mut Session,
     message: &str,
+    memory_owner: &EffectiveMemoryOwner,
 ) -> Result<(), String> {
     session.memory_status = Some("idle".to_string());
     session.memory_error = None;
     session.updated_at = now_millis()?;
-    save_session(app, session)?;
+    save_session_memory_state_for_owner(app, session, memory_owner)?;
     let _ = app.emit(
         "dynamic-memory:cancelled",
         json!({ "sessionId": session.id }),
@@ -1309,9 +1315,15 @@ fn ensure_dynamic_memory_not_cancelled(
     app: &AppHandle,
     session: &mut Session,
     token: &DynamicMemoryCancellationToken,
+    memory_owner: &EffectiveMemoryOwner,
 ) -> Result<(), String> {
     if token.is_cancelled() {
-        return cancel_dynamic_memory_cycle(app, session, "Request was cancelled by user");
+        return cancel_dynamic_memory_cycle(
+            app,
+            session,
+            "Request was cancelled by user",
+            memory_owner,
+        );
     }
     Ok(())
 }
@@ -2025,6 +2037,11 @@ pub async fn retry_dynamic_memory(
     let mut session = context
         .load_session(&session_id)?
         .ok_or_else(|| "Session not found".to_string())?;
+    let memory_owner =
+        crate::storage_manager::companion_shared_memory::resolve_effective_memory_owner_for_session_app(
+            &app,
+            &session.id,
+        )?;
 
     let character = context.find_character(&session.character_id)?;
 
@@ -2038,6 +2055,7 @@ pub async fn retry_dynamic_memory(
         update_default.unwrap_or(false),
         true, // force = true for retry
         None,
+        &memory_owner,
     )
     .await
 }
@@ -2052,6 +2070,11 @@ pub async fn trigger_dynamic_memory(app: AppHandle, session_id: String) -> Resul
     let mut session = context
         .load_session(&session_id)?
         .ok_or_else(|| "Session not found".to_string())?;
+    let memory_owner =
+        crate::storage_manager::companion_shared_memory::resolve_effective_memory_owner_for_session_app(
+            &app,
+            &session.id,
+        )?;
 
     let character = context.find_character(&session.character_id)?;
 
@@ -2065,6 +2088,7 @@ pub async fn trigger_dynamic_memory(app: AppHandle, session_id: String) -> Resul
         false,
         true,
         None,
+        &memory_owner,
     )
     .await
 }
@@ -2083,6 +2107,11 @@ pub async fn initialize_imported_chat_memory(
     let mut session = context
         .load_session(&session_id)?
         .ok_or_else(|| "Session not found".to_string())?;
+    let memory_owner =
+        crate::storage_manager::companion_shared_memory::resolve_effective_memory_owner_for_session_app(
+            &app,
+            &session.id,
+        )?;
     let character = context.find_character(&session.character_id)?;
     let dynamic = context
         .settings
@@ -2173,6 +2202,7 @@ pub async fn initialize_imported_chat_memory(
                 index,
                 total: total_windows,
             }),
+            &memory_owner,
         )
         .await;
         if let Err(error) = result {
@@ -2379,6 +2409,27 @@ pub fn enqueue_post_turn_dynamic_memory(
                     continue;
                 }
             };
+            let memory_owner = match crate::storage_manager::companion_shared_memory::resolve_effective_memory_owner_for_session_app(
+                &app,
+                &session.id,
+            ) {
+                Ok(owner) => owner,
+                Err(err) => {
+                    log_error(
+                        &app,
+                        "dynamic_memory",
+                        format!(
+                            "failed to capture memory owner for session {}: {}",
+                            session_id, err
+                        ),
+                    );
+                    mark_jobs_failed(&app, &jobs, &err);
+                    if !scheduler.finish_iteration(&session_id) {
+                        break;
+                    }
+                    continue;
+                }
+            };
             let before_memories = session.memory_embeddings.clone();
 
             let character = match context.find_character(&session.character_id) {
@@ -2409,9 +2460,14 @@ pub fn enqueue_post_turn_dynamic_memory(
                 ),
             );
 
-            let memory_result =
-                process_dynamic_memory_cycle(&app, &mut session, &context.settings, &character)
-                    .await;
+            let memory_result = process_dynamic_memory_cycle(
+                &app,
+                &mut session,
+                &context.settings,
+                &character,
+                &memory_owner,
+            )
+            .await;
 
             if let Err(err) = memory_result {
                 log_error(
@@ -2430,6 +2486,7 @@ pub fn enqueue_post_turn_dynamic_memory(
                     &mut session,
                     &character,
                     &before_memories,
+                    &memory_owner,
                 )
                 .await;
                 finalize_companion_turn_effects(&app, &jobs, &before_memories, &session);
@@ -2448,6 +2505,7 @@ async fn run_growthcycle_for_turn(
     session: &mut Session,
     character: &Character,
     before_memories: &[MemoryEmbedding],
+    memory_owner: &EffectiveMemoryOwner,
 ) {
     if !companion::is_companion_mode(session, character) {
         return;
@@ -2478,7 +2536,7 @@ async fn run_growthcycle_for_turn(
     .await
     {
         Ok(applied) if applied > 0 => {
-            if let Err(err) = save_session(app, session) {
+            if let Err(err) = save_session_memory_state_for_owner(app, session, memory_owner) {
                 log_warn(
                     app,
                     "companion_growth",
@@ -2487,8 +2545,11 @@ async fn run_growthcycle_for_turn(
                         session.id, err
                     ),
                 );
+                if is_memory_owner_changed_error(&err) {
+                    return;
+                }
             }
-            run_consolidation_for_turn(app, context, session, character).await;
+            run_consolidation_for_turn(app, context, session, character, memory_owner).await;
         }
         Ok(_) => {}
         Err(err) => {
@@ -2506,6 +2567,7 @@ async fn run_consolidation_for_turn(
     context: &ChatContext,
     session: &mut Session,
     character: &Character,
+    memory_owner: &EffectiveMemoryOwner,
 ) {
     match crate::chat_manager::companion_consolidation::maybe_run_consolidation(
         app,
@@ -2517,7 +2579,7 @@ async fn run_consolidation_for_turn(
     .await
     {
         Ok(changed) if changed > 0 => {
-            if let Err(err) = save_session(app, session) {
+            if let Err(err) = save_session_memory_state_for_owner(app, session, memory_owner) {
                 log_warn(
                     app,
                     "companion_consolidation",
@@ -2793,10 +2855,19 @@ pub(crate) async fn process_dynamic_memory_cycle(
     session: &mut Session,
     settings: &Settings,
     character: &Character,
+    memory_owner: &EffectiveMemoryOwner,
 ) -> Result<(), String> {
     // Delegate to the version with model override, using None for defaults, and force=false
     process_dynamic_memory_cycle_with_model(
-        app, session, settings, character, None, false, false, None,
+        app,
+        session,
+        settings,
+        character,
+        None,
+        false,
+        false,
+        None,
+        memory_owner,
     )
     .await
 }
@@ -2847,12 +2918,13 @@ async fn process_dynamic_memory_cycle_with_model(
     update_default_on_success: bool,
     force: bool,
     window_override: Option<DynamicMemoryWindowOverride>,
+    memory_owner: &EffectiveMemoryOwner,
 ) -> Result<(), String> {
     log_info(
         app,
         "dynamic_memory",
         format!(
-            "starting cycle: session_id={} force={} model_override={} update_default={} window_override={} embeddings={} events={}",
+            "starting cycle: session_id={} force={} model_override={} update_default={} window_override={} owner_id={} owner_kind={} shared={} embeddings={} events={}",
             session.id,
             force,
             model_id_override.unwrap_or("none"),
@@ -2860,27 +2932,35 @@ async fn process_dynamic_memory_cycle_with_model(
             window_override
                 .map(|w| format!("{}..{} ({}/{})", w.start, w.end, w.index, w.total))
                 .unwrap_or_else(|| "none".to_string()),
+            memory_owner.owner_id,
+            memory_owner.kind.as_str(),
+            memory_owner.shared,
             session.memory_embeddings.len(),
             session.memory_tool_events.len()
         ),
     );
     let Some(advanced) = settings.advanced_settings.as_ref() else {
+        let reason = "Dynamic memory advanced settings are missing";
         log_info(
             app,
             "dynamic_memory",
-            "advanced settings missing; skipping dynamic memory",
+            format!("{}; skipping dynamic memory", reason),
         );
+        if force {
+            return Err(reason.to_string());
+        }
         return Ok(());
     };
     let Some(dynamic) = advanced.dynamic_memory.as_ref() else {
-        log_info(
-            app,
-            "dynamic_memory",
-            "dynamic memory config missing; skipping",
-        );
+        let reason = "Dynamic memory is not configured";
+        log_info(app, "dynamic_memory", format!("{}; skipping", reason));
+        if force {
+            return Err(reason.to_string());
+        }
         return Ok(());
     };
     if !dynamic.enabled || !character.memory_type.eq_ignore_ascii_case("dynamic") {
+        let reason = "Dynamic memory is not enabled for this character";
         log_info(
             app,
             "dynamic_memory",
@@ -2889,6 +2969,9 @@ async fn process_dynamic_memory_cycle_with_model(
                 dynamic.enabled, character.memory_type
             ),
         );
+        if force {
+            return Err(reason.to_string());
+        }
         return Ok(());
     }
 
@@ -2922,12 +3005,13 @@ async fn process_dynamic_memory_cycle_with_model(
                 &session.id,
                 window_size,
                 now_millis()?,
+                memory_owner,
             )
         };
         let repair = match repair {
             Ok(outcome) => outcome,
             Err(error) => {
-                record_dynamic_memory_error(app, session, &error, "history_repair");
+                record_dynamic_memory_error(app, session, &error, "history_repair", memory_owner);
                 return Err(error);
             }
         };
@@ -2965,7 +3049,7 @@ async fn process_dynamic_memory_cycle_with_model(
         (last_window_end, cursor_rewound) = resolve_last_valid_window_end(app, session)?;
         if cursor_rewound {
             let error = "Memory history repair did not produce a valid cursor".to_string();
-            record_dynamic_memory_error(app, session, &error, "history_repair");
+            record_dynamic_memory_error(app, session, &error, "history_repair", memory_owner);
             return Err(error);
         }
     }
@@ -3087,6 +3171,7 @@ async fn process_dynamic_memory_cycle_with_model(
     };
 
     if convo_window.is_empty() {
+        let reason = "There are no chat messages to process";
         log_warn(
             app,
             "dynamic_memory",
@@ -3095,6 +3180,9 @@ async fn process_dynamic_memory_cycle_with_model(
                 window_start, window_end, total_convo_at_start
             ),
         );
+        if force {
+            return Err(reason.to_string());
+        }
         return Ok(());
     }
 
@@ -3155,7 +3243,7 @@ async fn process_dynamic_memory_cycle_with_model(
             Ok(id) => id,
             Err(err) => {
                 log_warn(app, "dynamic_memory", &err);
-                record_dynamic_memory_error(app, session, &err, "summary_model");
+                record_dynamic_memory_error(app, session, &err, "summary_model", memory_owner);
                 return Err(err);
             }
         };
@@ -3166,7 +3254,7 @@ async fn process_dynamic_memory_cycle_with_model(
             None => {
                 let err = "Summarisation model unavailable";
                 log_error(app, "dynamic_memory", err);
-                record_dynamic_memory_error(app, session, err, "summary_model");
+                record_dynamic_memory_error(app, session, err, "summary_model", memory_owner);
                 return Err(err.to_string());
             }
         };
@@ -3174,7 +3262,7 @@ async fn process_dynamic_memory_cycle_with_model(
     let api_key = match require_api_key(app, summary_provider, "dynamic_memory") {
         Ok(key) => key,
         Err(err) => {
-            record_dynamic_memory_error(app, session, &err, "summary_api_key");
+            record_dynamic_memory_error(app, session, &err, "summary_api_key", memory_owner);
             return Err(err);
         }
     };
@@ -3185,7 +3273,7 @@ async fn process_dynamic_memory_cycle_with_model(
     if using_local_dynamic_memory_model {
         if let Err(err) = prepare_local_dynamic_memory_cycle(app, summary_model, &session.id).await
         {
-            record_dynamic_memory_error(app, session, &err, "prepare_local_model");
+            record_dynamic_memory_error(app, session, &err, "prepare_local_model", memory_owner);
             return Err(err);
         }
     }
@@ -3196,7 +3284,10 @@ async fn process_dynamic_memory_cycle_with_model(
         session.memory_error = None;
         session.memory_progress_step = Some(1);
     }
-    if let Err(e) = save_session(app, session) {
+    if let Err(e) = save_session_memory_state_for_owner(app, session, memory_owner) {
+        if is_memory_owner_changed_error(&e) {
+            return Err(e);
+        }
         log_warn(
             app,
             "dynamic_memory",
@@ -3238,7 +3329,7 @@ async fn process_dynamic_memory_cycle_with_model(
         ),
     );
 
-    ensure_dynamic_memory_not_cancelled(app, session, &cancel_token)?;
+    ensure_dynamic_memory_not_cancelled(app, session, &cancel_token, memory_owner)?;
 
     let summary_request_id = if window_override.is_some() {
         format!(
@@ -3297,19 +3388,25 @@ async fn process_dynamic_memory_cycle_with_model(
                     let excess = session.memory_tool_events.len() - 50;
                     session.memory_tool_events.drain(0..excess);
                 }
-                let _ = save_session(app, session);
+                if let Err(save_err) =
+                    save_session_memory_state_for_owner(app, session, memory_owner)
+                {
+                    if is_memory_owner_changed_error(&save_err) {
+                        return Err(save_err);
+                    }
+                }
             }
             if is_cancelled_request_error(&err) {
                 if using_local_dynamic_memory_model {
                     let _ =
                         finish_local_dynamic_memory_cycle(app, summary_model, &session.id).await;
                 }
-                return cancel_dynamic_memory_cycle(app, session, &err);
+                return cancel_dynamic_memory_cycle(app, session, &err, memory_owner);
             }
             if using_local_dynamic_memory_model {
                 let _ = finish_local_dynamic_memory_cycle(app, summary_model, &session.id).await;
             }
-            record_dynamic_memory_error(app, session, &err, "summarization");
+            record_dynamic_memory_error(app, session, &err, "summarization", memory_owner);
             return Err(err);
         }
     };
@@ -3335,7 +3432,11 @@ async fn process_dynamic_memory_cycle_with_model(
     if window_override.is_none() {
         session.memory_progress_step = Some(2);
     }
-    let _ = save_session(app, session);
+    if let Err(err) = save_session_memory_state_for_owner(app, session, memory_owner) {
+        if is_memory_owner_changed_error(&err) {
+            return Err(err);
+        }
+    }
     let _ = app.emit(
         "dynamic-memory:progress",
         dynamic_memory_progress_payload(
@@ -3347,7 +3448,7 @@ async fn process_dynamic_memory_cycle_with_model(
             total_convo_at_start,
         ),
     );
-    ensure_dynamic_memory_not_cancelled(app, session, &cancel_token)?;
+    ensure_dynamic_memory_not_cancelled(app, session, &cancel_token, memory_owner)?;
 
     let tools_request_id = if window_override.is_some() {
         format!(
@@ -3374,6 +3475,7 @@ async fn process_dynamic_memory_cycle_with_model(
         Some(&tools_request_id),
         Some(&cancel_token),
         window_override.is_some(),
+        memory_owner,
     )
     .await
     {
@@ -3385,7 +3487,7 @@ async fn process_dynamic_memory_cycle_with_model(
                     let _ =
                         finish_local_dynamic_memory_cycle(app, summary_model, &session.id).await;
                 }
-                return cancel_dynamic_memory_cycle(app, session, &err);
+                return cancel_dynamic_memory_cycle(app, session, &err, memory_owner);
             }
             log_error(
                 app,
@@ -3424,8 +3526,11 @@ async fn process_dynamic_memory_cycle_with_model(
                 session.memory_progress_step = None;
             }
             session.updated_at = now_millis()?;
-            if let Err(save_err) = save_session(app, session) {
-                record_dynamic_memory_error(app, session, &save_err, "save_session");
+            if let Err(save_err) = save_session_memory_state_for_owner(app, session, memory_owner) {
+                if is_memory_owner_changed_error(&save_err) {
+                    return Err(save_err);
+                }
+                record_dynamic_memory_error(app, session, &save_err, "save_session", memory_owner);
                 return Ok(());
             }
             let _ = app.emit(
@@ -3445,7 +3550,11 @@ async fn process_dynamic_memory_cycle_with_model(
     if window_override.is_none() {
         session.memory_progress_step = Some(3);
     }
-    let _ = save_session(app, session);
+    if let Err(err) = save_session_memory_state_for_owner(app, session, memory_owner) {
+        if is_memory_owner_changed_error(&err) {
+            return Err(err);
+        }
+    }
     let _ = app.emit(
         "dynamic-memory:progress",
         dynamic_memory_progress_payload(
@@ -3457,7 +3566,7 @@ async fn process_dynamic_memory_cycle_with_model(
             total_convo_at_start,
         ),
     );
-    ensure_dynamic_memory_not_cancelled(app, session, &cancel_token)?;
+    ensure_dynamic_memory_not_cancelled(app, session, &cancel_token, memory_owner)?;
 
     session.memory_summary = Some(summary.clone());
     session.memory_summary_token_count =
@@ -3500,11 +3609,11 @@ async fn process_dynamic_memory_cycle_with_model(
         session.memory_progress_step = None;
     }
     session.updated_at = now_millis()?;
-    if let Err(err) = save_session(app, session) {
+    if let Err(err) = save_session_memory_state_for_owner(app, session, memory_owner) {
         if using_local_dynamic_memory_model {
             let _ = finish_local_dynamic_memory_cycle(app, summary_model, &session.id).await;
         }
-        record_dynamic_memory_error(app, session, &err, "save_session");
+        record_dynamic_memory_error(app, session, &err, "save_session", memory_owner);
         return Err(err);
     }
 
@@ -3612,7 +3721,13 @@ fn sanitize_memory_id(id: &str) -> String {
         .to_string()
 }
 
-fn record_dynamic_memory_error(app: &AppHandle, session: &mut Session, error: &str, stage: &str) {
+fn record_dynamic_memory_error(
+    app: &AppHandle,
+    session: &mut Session,
+    error: &str,
+    stage: &str,
+    memory_owner: &EffectiveMemoryOwner,
+) {
     let formatted_error = format!("{}: {}", stage, error);
     log_error(
         app,
@@ -3625,7 +3740,7 @@ fn record_dynamic_memory_error(app: &AppHandle, session: &mut Session, error: &s
     session.memory_progress_step = None;
     session.updated_at = now_millis().unwrap_or(session.updated_at);
 
-    if let Err(save_err) = save_session(app, session) {
+    if let Err(save_err) = save_session_memory_state_for_owner(app, session, memory_owner) {
         log_error(
             app,
             "dynamic_memory",
@@ -4266,6 +4381,7 @@ async fn run_memory_tool_update(
     request_id: Option<&str>,
     cancel_token: Option<&DynamicMemoryCancellationToken>,
     disable_thinking: bool,
+    memory_owner: &EffectiveMemoryOwner,
 ) -> Result<Vec<Value>, String> {
     let overwrite_llama_sampler_config = dynamic_memory_llama_sampler_overwrite_enabled(settings);
     let memory_supersede_enabled = companion::is_companion_mode(session, character);
@@ -5204,18 +5320,6 @@ async fn run_memory_tool_update(
 
     let trimmed = trim_memories_to_max(&mut session.memory_embeddings, max_entries);
     if !trimmed.is_empty() {
-        // Cascade the eviction directly to the normalised table; the
-        // session-level `save_session` later in this cycle will re-sync the
-        // remaining rows but the narrow DELETE here keeps them gone if the
-        // save fails partway.
-        if let Ok(owner) = crate::storage_manager::companion_shared_memory::resolve_effective_memory_owner_for_session_app(app, &session.id) {
-            let _ = crate::storage_manager::memory_embeddings::delete_many_app(
-                app,
-                &owner.owner_id,
-                owner.kind,
-                &trimmed,
-            );
-        }
         log_info(
             app,
             "dynamic_memory",
@@ -5260,7 +5364,7 @@ async fn run_memory_tool_update(
         .collect();
 
     session.updated_at = now_millis()?;
-    save_session(app, session)?;
+    save_session_memory_state_for_owner(app, session, memory_owner)?;
     Ok(actions_log)
 }
 

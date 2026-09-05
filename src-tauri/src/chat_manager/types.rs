@@ -1202,6 +1202,8 @@ pub struct UsageSummary {
     #[serde(default)]
     pub audio_tokens: Option<u64>,
     #[serde(default)]
+    pub tts_characters: Option<u64>,
+    #[serde(default)]
     pub web_search_requests: Option<u64>,
     #[serde(default)]
     pub api_cost: Option<f64>,

@@ -325,6 +325,10 @@ export function ChatFooter({
 
   const handleSendButtonPointerDown = useCallback(
     (event: React.PointerEvent<HTMLButtonElement>) => {
+      // Keep the composer focused without reopening a dismissed keyboard.
+      if (event.button === 0 && document.activeElement === textareaRef.current) {
+        event.preventDefault();
+      }
       if (!canOpenSystemSendMenu || event.button !== 0) return;
       clearSendLongPressTimer();
       sendLongPressTriggeredRef.current = false;
@@ -644,7 +648,7 @@ export function ChatFooter({
                     : "text-fg placeholder:text-fg/40",
                   "focus:outline-none",
                 )}
-                disabled={sending || composerDisabled}
+                disabled={composerDisabled}
               />
             )}
 

@@ -42,6 +42,7 @@ import {
 } from "../../../core/storage/repo";
 import { BottomMenu } from "../../components/BottomMenu";
 import { DateTimePicker } from "../../components/DateTimePicker";
+import { toast } from "../../components/toast";
 import {
   companionCategoryLabel,
   companionSignalLabel,
@@ -734,10 +735,14 @@ export function CompanionMemoryPage() {
       await reload();
     } catch (err) {
       console.error("Failed to trigger companion memory processing:", err);
+      toast.error(
+        t("chats.companionMemoryPage.processMemory"),
+        err instanceof Error ? err.message : String(err),
+      );
     } finally {
       setTriggering(false);
     }
-  }, [session?.id, triggering, memoryProcessing, importedMemoryActive, reload]);
+  }, [session?.id, triggering, memoryProcessing, importedMemoryActive, reload, t]);
 
   const handleCancelMemory = useCallback(async () => {
     if (!session || cancelling) return;

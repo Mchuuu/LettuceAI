@@ -47,7 +47,7 @@ pub struct DoubaoStreamInfo {
 pub enum DoubaoAudioStreamEvent {
     Start(DoubaoStreamInfo),
     Chunk(Vec<u8>),
-    End,
+    End { text_words: Option<u64> },
 }
 
 pub fn default_models() -> Vec<AudioModel> {
@@ -117,6 +117,14 @@ struct TtsStreamMessage {
     message: String,
     #[serde(default)]
     data: Option<String>,
+    #[serde(default)]
+    usage: Option<TtsStreamUsage>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TtsStreamUsage {
+    #[serde(default)]
+    text_words: Option<u64>,
 }
 
 #[derive(Debug, Default)]
@@ -391,7 +399,8 @@ pub async fn generate_speech(
     Ok((audio, mime_for_format(&options.format).to_string()))
 }
 
-pub async fn stream_speech<F>(
+pub async fn stream_speech_with_client<F>(
+    client: &reqwest::Client,
     config: DoubaoConfig<'_>,
     text: &str,
     voice_id: &str,
@@ -456,12 +465,12 @@ where
         normalize_base_url(config.base_url),
         normalize_request_path(config.request_path)
     );
-    let client = reqwest::Client::new();
     let response = client
         .post(&url)
         .header("X-Api-Key", config.api_key)
         .header("X-Api-Resource-Id", resource_id)
         .header("X-Api-Request-Id", uuid::Uuid::new_v4().to_string())
+        .header("X-Control-Require-Usage-Tokens-Return", "*")
         .header(CONTENT_TYPE, "application/json")
         .json(&request)
         .send()
@@ -501,6 +510,7 @@ where
     }))?;
 
     let mut emitted_audio = false;
+    let mut text_words = None;
     let mut buffer = String::new();
     let mut stream = response.bytes_stream();
     while let Some(chunk) = stream.next().await {
@@ -513,17 +523,21 @@ where
         })?;
         buffer.push_str(&String::from_utf8_lossy(&chunk));
         while let Some(json) = pop_next_json_object(&mut buffer) {
-            if let Some(audio) = decode_tts_stream_message(&json)? {
+            let (audio, usage) = decode_tts_stream_message(&json)?;
+            if let Some(audio) = audio {
                 emitted_audio = true;
                 on_event(DoubaoAudioStreamEvent::Chunk(audio))?;
             }
+            text_words = usage.or(text_words);
         }
     }
     while let Some(json) = pop_next_json_object(&mut buffer) {
-        if let Some(audio) = decode_tts_stream_message(&json)? {
+        let (audio, usage) = decode_tts_stream_message(&json)?;
+        if let Some(audio) = audio {
             emitted_audio = true;
             on_event(DoubaoAudioStreamEvent::Chunk(audio))?;
         }
+        text_words = usage.or(text_words);
     }
 
     if !emitted_audio {
@@ -534,7 +548,7 @@ where
         ));
     }
 
-    on_event(DoubaoAudioStreamEvent::End)?;
+    on_event(DoubaoAudioStreamEvent::End { text_words })?;
     Ok(())
 }
 
@@ -935,13 +949,13 @@ async fn signed_openapi_post<T: DeserializeOwned>(
 }
 
 fn handle_tts_stream_message(json: &str, audio: &mut Vec<u8>) -> Result<(), String> {
-    if let Some(mut decoded) = decode_tts_stream_message(json)? {
+    if let (Some(mut decoded), _) = decode_tts_stream_message(json)? {
         audio.append(&mut decoded);
     }
     Ok(())
 }
 
-fn decode_tts_stream_message(json: &str) -> Result<Option<Vec<u8>>, String> {
+fn decode_tts_stream_message(json: &str) -> Result<(Option<Vec<u8>>, Option<u64>), String> {
     let message: TtsStreamMessage = serde_json::from_str(json).map_err(|e| {
         crate::utils::err_msg(
             module_path!(),
@@ -958,12 +972,12 @@ fn decode_tts_stream_message(json: &str) -> Result<Option<Vec<u8>>, String> {
                     format!("Failed to decode Doubao TTS audio chunk: {}", e),
                 )
             })?;
-            return Ok(Some(decoded));
+            return Ok((Some(decoded), None));
         }
-        return Ok(None);
+        return Ok((None, None));
     }
     if message.code == 20000000 {
-        return Ok(None);
+        return Ok((None, message.usage.and_then(|usage| usage.text_words)));
     }
 
     Err(crate::utils::err_msg(
@@ -1025,6 +1039,46 @@ fn pop_next_json_object(buffer: &mut String) -> Option<String> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{decode_tts_stream_message, pop_next_json_object};
+
+    #[test]
+    fn decodes_audio_and_usage_messages_separately() {
+        let (audio, usage) =
+            decode_tts_stream_message(r#"{"code":0,"message":"ok","data":"AQI=","usage":null}"#)
+                .expect("audio message should decode");
+        assert_eq!(audio, Some(vec![1, 2]));
+        assert_eq!(usage, None);
+
+        let (audio, usage) = decode_tts_stream_message(
+            r#"{"code":20000000,"message":"ok","data":null,"usage":{"text_words":10}}"#,
+        )
+        .expect("usage message should decode");
+        assert_eq!(audio, None);
+        assert_eq!(usage, Some(10));
+    }
+
+    #[test]
+    fn extracts_concatenated_stream_messages() {
+        let mut buffer = concat!(
+            r#"{"code":0,"data":"AQI="}"#,
+            r#"{"code":20000000,"data":null,"usage":{"text_words":2}}"#
+        )
+        .to_string();
+
+        assert!(pop_next_json_object(&mut buffer).is_some());
+        let usage_json = pop_next_json_object(&mut buffer).expect("usage message should remain");
+        assert_eq!(
+            decode_tts_stream_message(&usage_json)
+                .expect("usage message should decode")
+                .1,
+            Some(2)
+        );
+        assert!(buffer.is_empty());
+    }
 }
 
 fn provider_voice_from_speaker(speaker: DoubaoSpeaker) -> ProviderVoice {

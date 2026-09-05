@@ -62,6 +62,64 @@ struct LoadedMemoryFields {
     memory_progress_step: Option<i64>,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+struct StoredSessionMemoryFields {
+    memories_json: String,
+    memory_embeddings_json: String,
+    memory_summary: Option<String>,
+    memory_summary_token_count: i64,
+    memory_tool_events_json: String,
+    memory_status: Option<String>,
+    memory_error: Option<String>,
+    memory_progress_step: Option<i64>,
+}
+
+impl Default for StoredSessionMemoryFields {
+    fn default() -> Self {
+        Self {
+            memories_json: "[]".to_string(),
+            memory_embeddings_json: "[]".to_string(),
+            memory_summary: None,
+            memory_summary_token_count: 0,
+            memory_tool_events_json: "[]".to_string(),
+            memory_status: None,
+            memory_error: None,
+            memory_progress_step: None,
+        }
+    }
+}
+
+fn memory_fields_for_session_save(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+    shared_memory_enabled: bool,
+    incoming: StoredSessionMemoryFields,
+) -> Result<StoredSessionMemoryFields, String> {
+    if !shared_memory_enabled {
+        return Ok(incoming);
+    }
+
+    conn.query_row(
+        "SELECT memories, memory_embeddings, memory_summary, memory_summary_token_count, memory_tool_events, memory_status, memory_error, memory_progress_step FROM sessions WHERE id = ?1",
+        params![session_id],
+        |row| {
+            Ok(StoredSessionMemoryFields {
+                memories_json: row.get(0)?,
+                memory_embeddings_json: row.get(1)?,
+                memory_summary: row.get(2)?,
+                memory_summary_token_count: row.get::<_, i64>(3)?.max(0),
+                memory_tool_events_json: row.get(4)?,
+                memory_status: row.get(5)?,
+                memory_error: row.get(6)?,
+                memory_progress_step: row.get(7)?,
+            })
+        },
+    )
+    .optional()
+    .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
+    .map(|fields| fields.unwrap_or_default())
+}
+
 fn resolve_companion_state_json(
     conn: &rusqlite::Connection,
     character_id: &str,
@@ -315,14 +373,7 @@ fn persist_shared_memory_from_session_json(
     session_id: &str,
     character_id: &str,
     mode: &str,
-    memories_json: &str,
-    memory_embeddings_json: &str,
-    memory_summary: Option<String>,
-    memory_summary_token_count: i64,
-    memory_tool_events_json: &str,
-    memory_status: Option<String>,
-    memory_error: Option<String>,
-    memory_progress_step: Option<i64>,
+    memory_fields: &StoredSessionMemoryFields,
     persist_memory_state: bool,
 ) -> Result<bool, String> {
     let owner = crate::storage_manager::companion_shared_memory::resolve_effective_memory_owner(
@@ -340,13 +391,13 @@ fn persist_shared_memory_from_session_json(
     }
 
     let shared_state = crate::storage_manager::companion_shared_memory::SharedMemoryState {
-        memories_json: memories_json.to_string(),
-        memory_summary,
-        memory_summary_token_count: memory_summary_token_count.max(0),
-        memory_tool_events_json: memory_tool_events_json.to_string(),
-        memory_status,
-        memory_error,
-        memory_progress_step,
+        memories_json: memory_fields.memories_json.clone(),
+        memory_summary: memory_fields.memory_summary.clone(),
+        memory_summary_token_count: memory_fields.memory_summary_token_count.max(0),
+        memory_tool_events_json: memory_fields.memory_tool_events_json.clone(),
+        memory_status: memory_fields.memory_status.clone(),
+        memory_error: memory_fields.memory_error.clone(),
+        memory_progress_step: memory_fields.memory_progress_step,
     };
     crate::storage_manager::companion_shared_memory::upsert_state(
         conn,
@@ -357,7 +408,7 @@ fn persist_shared_memory_from_session_json(
         conn,
         character_id,
         crate::storage_manager::memory_embeddings::SessionKind::CompanionShared,
-        Some(memory_embeddings_json),
+        Some(&memory_fields.memory_embeddings_json),
     )?;
     Ok(true)
 }
@@ -484,6 +535,7 @@ fn json_usage_summary(
     first_token_ms: Option<i64>,
     tokens_per_second: Option<f64>,
     mtp_stats: Option<String>,
+    tts_characters: Option<i64>,
 ) -> Option<JsonValue> {
     let mut usage = JsonMap::new();
     if let Some(v) = prompt_tokens {
@@ -506,6 +558,9 @@ fn json_usage_summary(
             usage.insert("mtpStats".into(), value);
         }
     }
+    if let Some(value) = tts_characters {
+        usage.insert("ttsCharacters".into(), JsonValue::from(value.max(0)));
+    }
     if usage.is_empty() {
         None
     } else {
@@ -517,8 +572,13 @@ fn typed_usage_summary(
     prompt_tokens: Option<i64>,
     completion_tokens: Option<i64>,
     total_tokens: Option<i64>,
+    tts_characters: Option<i64>,
 ) -> Option<UsageSummary> {
-    if prompt_tokens.is_none() && completion_tokens.is_none() && total_tokens.is_none() {
+    if prompt_tokens.is_none()
+        && completion_tokens.is_none()
+        && total_tokens.is_none()
+        && tts_characters.is_none()
+    {
         return None;
     }
 
@@ -531,6 +591,7 @@ fn typed_usage_summary(
         reasoning_tokens: None,
         image_tokens: None,
         audio_tokens: None,
+        tts_characters: tts_characters.map(|value| value.max(0) as u64),
         web_search_requests: None,
         api_cost: None,
         response_id: None,
@@ -767,7 +828,7 @@ fn fetch_messages_page_typed(
     include_cursor: bool,
 ) -> Result<Vec<StoredMessage>, String> {
     let mut sql = String::from(
-        "SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second, model_id, mtp_stats, tts_context_text FROM messages WHERE session_id = ?1",
+        "SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second, model_id, mtp_stats, tts_context_text, tts_characters FROM messages WHERE session_id = ?1",
     );
 
     let use_cursor = cursor_created_at.is_some() && cursor_id.is_some();
@@ -812,6 +873,7 @@ fn fetch_messages_page_typed(
         Option<String>,
         Option<String>,
         Option<String>,
+        Option<i64>,
     );
 
     let mut raw_messages: Vec<RawMessageRow> = Vec::new();
@@ -842,6 +904,7 @@ fn fetch_messages_page_typed(
                             r.get::<_, Option<String>>(13)?,
                             r.get::<_, Option<String>>(14)?,
                             r.get::<_, Option<String>>(19)?,
+                            r.get::<_, Option<i64>>(20)?,
                         ))
                     },
                 )
@@ -872,6 +935,7 @@ fn fetch_messages_page_typed(
                         r.get::<_, Option<String>>(13)?,
                         r.get::<_, Option<String>>(14)?,
                         r.get::<_, Option<String>>(19)?,
+                        r.get::<_, Option<i64>>(20)?,
                     ))
                 })
                 .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -892,7 +956,7 @@ fn fetch_messages_page_typed(
             .collect::<Vec<_>>()
             .join(",");
         let vsql = format!(
-            "SELECT message_id, id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second, tts_context_text FROM message_variants WHERE message_id IN ({}) ORDER BY created_at ASC",
+            "SELECT message_id, id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second, tts_context_text, tts_characters FROM message_variants WHERE message_id IN ({}) ORDER BY created_at ASC",
             placeholders
         );
         let mut vstmt = conn
@@ -910,6 +974,7 @@ fn fetch_messages_page_typed(
                     r.get::<_, Option<i64>>(6)?,
                     r.get::<_, Option<String>>(7)?,
                     r.get::<_, Option<String>>(10)?,
+                    r.get::<_, Option<i64>>(11)?,
                 ))
             })
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -925,6 +990,7 @@ fn fetch_messages_page_typed(
                 total_tokens,
                 reasoning,
                 tts_context_text,
+                tts_characters,
             ) = vr.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
             variants_by_message
                 .entry(message_id)
@@ -933,7 +999,12 @@ fn fetch_messages_page_typed(
                     id,
                     content,
                     created_at: created_at as u64,
-                    usage: typed_usage_summary(prompt_tokens, completion_tokens, total_tokens),
+                    usage: typed_usage_summary(
+                        prompt_tokens,
+                        completion_tokens,
+                        total_tokens,
+                        tts_characters,
+                    ),
                     attachments: Vec::new(),
                     reasoning,
                     tts_context_text,
@@ -959,6 +1030,7 @@ fn fetch_messages_page_typed(
         attachments_json,
         reasoning,
         tts_context_text,
+        tts_characters,
     ) in raw_messages
     {
         out.push(StoredMessage {
@@ -968,7 +1040,12 @@ fn fetch_messages_page_typed(
             created_at: created_at as u64,
             visible_in_chat: visible_in_chat != 0,
             scene_edited: scene_edited != 0,
-            usage: typed_usage_summary(prompt_tokens, completion_tokens, total_tokens),
+            usage: typed_usage_summary(
+                prompt_tokens,
+                completion_tokens,
+                total_tokens,
+                tts_characters,
+            ),
             variants: variants_by_message.remove(&id).unwrap_or_default(),
             selected_variant_id,
             memory_refs: parse_optional_json_or_default(memory_refs_json.as_deref()),
@@ -1012,7 +1089,7 @@ fn fetch_pinned_messages_typed(
 
     let placeholders = pinned_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
     let sql = format!(
-        "SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second, model_id, tts_context_text FROM messages WHERE session_id = ?1 AND id IN ({}) ORDER BY created_at ASC, id ASC",
+        "SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second, model_id, tts_context_text, tts_characters FROM messages WHERE session_id = ?1 AND id IN ({}) ORDER BY created_at ASC, id ASC",
         placeholders
     );
     let mut stmt = conn
@@ -1043,6 +1120,7 @@ fn fetch_pinned_messages_typed(
                 r.get::<_, Option<String>>(13)?,
                 r.get::<_, Option<String>>(14)?,
                 r.get::<_, Option<String>>(18)?,
+                r.get::<_, Option<i64>>(19)?,
             ))
         })
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -1063,7 +1141,7 @@ fn fetch_pinned_messages_typed(
             .collect::<Vec<_>>()
             .join(",");
         let vsql = format!(
-            "SELECT message_id, id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second, tts_context_text FROM message_variants WHERE message_id IN ({}) ORDER BY created_at ASC",
+            "SELECT message_id, id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second, tts_context_text, tts_characters FROM message_variants WHERE message_id IN ({}) ORDER BY created_at ASC",
             placeholders
         );
         let mut vstmt = conn
@@ -1081,6 +1159,7 @@ fn fetch_pinned_messages_typed(
                     r.get::<_, Option<i64>>(6)?,
                     r.get::<_, Option<String>>(7)?,
                     r.get::<_, Option<String>>(10)?,
+                    r.get::<_, Option<i64>>(11)?,
                 ))
             })
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -1096,6 +1175,7 @@ fn fetch_pinned_messages_typed(
                 total_tokens,
                 reasoning,
                 tts_context_text,
+                tts_characters,
             ) = row.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
             variants_by_message
                 .entry(message_id)
@@ -1104,7 +1184,12 @@ fn fetch_pinned_messages_typed(
                     id,
                     content,
                     created_at: created_at as u64,
-                    usage: typed_usage_summary(prompt_tokens, completion_tokens, total_tokens),
+                    usage: typed_usage_summary(
+                        prompt_tokens,
+                        completion_tokens,
+                        total_tokens,
+                        tts_characters,
+                    ),
                     attachments: Vec::new(),
                     reasoning,
                     tts_context_text,
@@ -1130,6 +1215,7 @@ fn fetch_pinned_messages_typed(
         attachments_json,
         reasoning,
         tts_context_text,
+        tts_characters,
     ) in raw_messages
     {
         messages.push(StoredMessage {
@@ -1139,7 +1225,12 @@ fn fetch_pinned_messages_typed(
             created_at: created_at as u64,
             visible_in_chat: visible_in_chat != 0,
             scene_edited: scene_edited != 0,
-            usage: typed_usage_summary(prompt_tokens, completion_tokens, total_tokens),
+            usage: typed_usage_summary(
+                prompt_tokens,
+                completion_tokens,
+                total_tokens,
+                tts_characters,
+            ),
             variants: variants_by_message.remove(&id).unwrap_or_default(),
             selected_variant_id,
             memory_refs: parse_optional_json_or_default(memory_refs_json.as_deref()),
@@ -1261,61 +1352,34 @@ fn upsert_session_meta_value(
         .and_then(|v| v.as_str())
         .map(|value| value.to_string());
     let memory_progress_step = s.get("memoryProgressStep").and_then(|v| v.as_i64());
+    let incoming_memory_fields = StoredSessionMemoryFields {
+        memories_json,
+        memory_embeddings_json,
+        memory_summary,
+        memory_summary_token_count,
+        memory_tool_events_json,
+        memory_status,
+        memory_error,
+        memory_progress_step,
+    };
     let shared_memory_enabled = persist_shared_memory_from_session_json(
         &mut conn,
         &id,
         &character_id,
         &mode,
-        &memories_json,
-        &memory_embeddings_json,
-        memory_summary.clone(),
-        memory_summary_token_count,
-        &memory_tool_events_json,
-        memory_status.clone(),
-        memory_error.clone(),
-        memory_progress_step,
+        &incoming_memory_fields,
         persist_memory_state,
     )?;
-    let session_memories_json = if shared_memory_enabled {
-        "[]".to_string()
-    } else {
-        memories_json.clone()
-    };
-    let session_memory_embeddings_json = if shared_memory_enabled {
-        "[]".to_string()
-    } else {
-        memory_embeddings_json.clone()
-    };
-    let session_memory_summary = if shared_memory_enabled {
-        None
-    } else {
-        memory_summary.clone()
-    };
-    let session_memory_summary_token_count = if shared_memory_enabled {
-        0
-    } else {
-        memory_summary_token_count
-    };
-    let session_memory_tool_events_json = if shared_memory_enabled {
-        "[]".to_string()
-    } else {
-        memory_tool_events_json.clone()
-    };
-    let session_memory_status = if shared_memory_enabled {
-        None
-    } else {
-        memory_status.clone()
-    };
-    let session_memory_error = if shared_memory_enabled {
-        None
-    } else {
-        memory_error.clone()
-    };
-    let session_memory_progress_step = if shared_memory_enabled {
-        None
-    } else {
-        memory_progress_step
-    };
+    let StoredSessionMemoryFields {
+        memories_json: session_memories_json,
+        memory_embeddings_json: session_memory_embeddings_json,
+        memory_summary: session_memory_summary,
+        memory_summary_token_count: session_memory_summary_token_count,
+        memory_tool_events_json: session_memory_tool_events_json,
+        memory_status: session_memory_status,
+        memory_error: session_memory_error,
+        memory_progress_step: session_memory_progress_step,
+    } = memory_fields_for_session_save(&conn, &id, shared_memory_enabled, incoming_memory_fields)?;
 
     let adv = s.get("advancedModelSettings");
     let advanced_model_settings_json = serialize_session_advanced_model_settings(adv);
@@ -1469,6 +1533,9 @@ fn upsert_messages_batch_value(
         let tt = usage
             .and_then(|u| u.get("totalTokens"))
             .and_then(|v| v.as_i64());
+        let tts_characters = usage
+            .and_then(|u| u.get("ttsCharacters"))
+            .and_then(|v| v.as_i64());
         let selected_variant_id = m
             .get("selectedVariantId")
             .and_then(|v| v.as_str())
@@ -1492,8 +1559,8 @@ fn upsert_messages_batch_value(
         let tts_context_text = m.get("ttsContextText").and_then(|v| v.as_str());
 
         tx.execute(
-            r#"INSERT INTO messages (id, session_id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second, model_id, mtp_stats, tts_context_text)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            r#"INSERT INTO messages (id, session_id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second, model_id, mtp_stats, tts_context_text, tts_characters)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(id) DO UPDATE SET
                  session_id=excluded.session_id,
                  role=excluded.role,
@@ -1509,7 +1576,7 @@ fn upsert_messages_batch_value(
                  memory_refs=excluded.memory_refs,
                  used_lorebook_entries=excluded.used_lorebook_entries,
                  attachments=excluded.attachments,
-                 reasoning=excluded.reasoning, first_token_ms=excluded.first_token_ms, tokens_per_second=excluded.tokens_per_second, model_id=excluded.model_id, mtp_stats=excluded.mtp_stats, tts_context_text=excluded.tts_context_text"#,
+                 reasoning=excluded.reasoning, first_token_ms=excluded.first_token_ms, tokens_per_second=excluded.tokens_per_second, model_id=excluded.model_id, mtp_stats=excluded.mtp_stats, tts_context_text=excluded.tts_context_text, tts_characters=COALESCE(excluded.tts_characters, messages.tts_characters)"#,
             params![
                 &mid,
                 session_id,
@@ -1532,6 +1599,7 @@ fn upsert_messages_batch_value(
                 m.get("modelId").and_then(|v| v.as_str()),
                 usage.and_then(|u| u.get("mtpStats")).map(|v| v.to_string()),
                 tts_context_text,
+                tts_characters,
             ],
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -1561,14 +1629,17 @@ fn upsert_messages_batch_value(
                     let vt = u
                         .and_then(|u| u.get("totalTokens"))
                         .and_then(|v| v.as_i64());
+                    let vtts_characters = u
+                        .and_then(|u| u.get("ttsCharacters"))
+                        .and_then(|v| v.as_i64());
                     let vreasoning = v
                         .get("reasoning")
                         .and_then(|x| x.as_str())
                         .map(|s| s.to_string());
                     let vtts_context_text = v.get("ttsContextText").and_then(|x| x.as_str());
                     tx.execute(
-                        "INSERT INTO message_variants (id, message_id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second, mtp_stats, tts_context_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        params![vid, &mid, vcontent, vcreated, vp, vc, vt, vreasoning, u.and_then(|u| u.get("firstTokenMs")).and_then(|v| v.as_i64()), u.and_then(|u| u.get("tokensPerSecond")).and_then(|v| v.as_f64()), u.and_then(|u| u.get("mtpStats")).map(|v| v.to_string()), vtts_context_text],
+                        "INSERT INTO message_variants (id, message_id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second, mtp_stats, tts_context_text, tts_characters) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        params![vid, &mid, vcontent, vcreated, vp, vc, vt, vreasoning, u.and_then(|u| u.get("firstTokenMs")).and_then(|v| v.as_i64()), u.and_then(|u| u.get("tokensPerSecond")).and_then(|v| v.as_f64()), u.and_then(|u| u.get("mtpStats")).map(|v| v.to_string()), vtts_context_text, vtts_characters],
                     )
                     .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
                 }
@@ -2034,7 +2105,7 @@ fn read_session(conn: &rusqlite::Connection, id: &str) -> Result<Option<JsonValu
     };
 
     // messages
-    let mut mstmt = conn.prepare("SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second, model_id, mtp_stats, tts_context_text FROM messages WHERE session_id = ? ORDER BY created_at ASC").map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+    let mut mstmt = conn.prepare("SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second, model_id, mtp_stats, tts_context_text, tts_characters FROM messages WHERE session_id = ? ORDER BY created_at ASC").map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
     let mrows = mstmt
         .query_map(params![id], |r| {
             Ok((
@@ -2058,6 +2129,7 @@ fn read_session(conn: &rusqlite::Connection, id: &str) -> Result<Option<JsonValu
                 r.get::<_, Option<String>>(17)?,
                 r.get::<_, Option<String>>(18)?,
                 r.get::<_, Option<String>>(19)?,
+                r.get::<_, Option<i64>>(20)?,
             ))
         })
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -2084,8 +2156,9 @@ fn read_session(conn: &rusqlite::Connection, id: &str) -> Result<Option<JsonValu
             model_id,
             mtp_stats,
             tts_context_text,
+            tts_characters,
         ) = mr.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
-        let mut vstmt = conn.prepare("SELECT id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second, mtp_stats, tts_context_text FROM message_variants WHERE message_id = ? ORDER BY created_at ASC").map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+        let mut vstmt = conn.prepare("SELECT id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second, mtp_stats, tts_context_text, tts_characters FROM message_variants WHERE message_id = ? ORDER BY created_at ASC").map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
         let vrows = vstmt
             .query_map(params![&mid], |r| {
                 Ok((
@@ -2100,18 +2173,31 @@ fn read_session(conn: &rusqlite::Connection, id: &str) -> Result<Option<JsonValu
                     r.get::<_, Option<f64>>(8)?,
                     r.get::<_, Option<String>>(9)?,
                     r.get::<_, Option<String>>(10)?,
+                    r.get::<_, Option<i64>>(11)?,
                 ))
             })
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
         let mut variants: Vec<JsonValue> = Vec::new();
         for vr in vrows {
-            let (vid, vcontent, vcreated, vp, vc, vt, vreasoning, vftm, vtps, vmtp, vtts) =
-                vr.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
+            let (
+                vid,
+                vcontent,
+                vcreated,
+                vp,
+                vc,
+                vt,
+                vreasoning,
+                vftm,
+                vtps,
+                vmtp,
+                vtts,
+                vtts_characters,
+            ) = vr.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
             let mut vobj = JsonMap::new();
             vobj.insert("id".into(), JsonValue::String(vid));
             vobj.insert("content".into(), JsonValue::String(vcontent));
             vobj.insert("createdAt".into(), JsonValue::from(vcreated));
-            if let Some(usage) = json_usage_summary(vp, vc, vt, vftm, vtps, vmtp) {
+            if let Some(usage) = json_usage_summary(vp, vc, vt, vftm, vtps, vmtp, vtts_characters) {
                 vobj.insert("usage".into(), usage);
             }
             if let Some(r) = vreasoning {
@@ -2143,6 +2229,7 @@ fn read_session(conn: &rusqlite::Connection, id: &str) -> Result<Option<JsonValu
             first_token_ms,
             tokens_per_second,
             mtp_stats,
+            tts_characters,
         ) {
             mobj.insert("usage".into(), usage);
         }
@@ -2291,7 +2378,7 @@ fn fetch_messages_page(
     before_id: Option<&str>,
 ) -> Result<Vec<JsonValue>, String> {
     let mut sql = String::from(
-        "SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second, model_id, mtp_stats, tts_context_text FROM messages WHERE session_id = ?1",
+        "SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second, model_id, mtp_stats, tts_context_text, tts_characters FROM messages WHERE session_id = ?1",
     );
 
     let use_before = before_created_at.is_some() && before_id.is_some();
@@ -2333,6 +2420,7 @@ fn fetch_messages_page(
                             r.get::<_, Option<String>>(17)?,
                             r.get::<_, Option<String>>(18)?,
                             r.get::<_, Option<String>>(19)?,
+                            r.get::<_, Option<i64>>(20)?,
                         ))
                     },
                 )
@@ -2367,6 +2455,7 @@ fn fetch_messages_page(
                         r.get::<_, Option<String>>(17)?,
                         r.get::<_, Option<String>>(18)?,
                         r.get::<_, Option<String>>(19)?,
+                        r.get::<_, Option<i64>>(20)?,
                     ))
                 })
                 .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -2387,7 +2476,7 @@ fn fetch_messages_page(
             .collect::<Vec<_>>()
             .join(",");
         let vsql = format!(
-            "SELECT message_id, id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second, mtp_stats, tts_context_text FROM message_variants WHERE message_id IN ({}) ORDER BY created_at ASC",
+            "SELECT message_id, id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second, mtp_stats, tts_context_text, tts_characters FROM message_variants WHERE message_id IN ({}) ORDER BY created_at ASC",
             placeholders
         );
         let mut vstmt = conn
@@ -2408,6 +2497,7 @@ fn fetch_messages_page(
                     r.get::<_, Option<f64>>(9)?,
                     r.get::<_, Option<String>>(10)?,
                     r.get::<_, Option<String>>(11)?,
+                    r.get::<_, Option<i64>>(12)?,
                 ))
             })
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -2426,6 +2516,7 @@ fn fetch_messages_page(
                 vtps,
                 vmtp,
                 vtts,
+                vtts_characters,
             ) = vr.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
             variants_by_message.entry(message_id).or_default().push({
                 let mut vobj = JsonMap::new();
@@ -2438,7 +2529,9 @@ fn fetch_messages_page(
                 }
                 vobj.insert("content".into(), JsonValue::String(vcontent));
                 vobj.insert("createdAt".into(), JsonValue::from(vcreated));
-                if let Some(usage) = json_usage_summary(vp, vc, vt, vftm, vtps, vmtp) {
+                if let Some(usage) =
+                    json_usage_summary(vp, vc, vt, vftm, vtps, vmtp, vtts_characters)
+                {
                     vobj.insert("usage".into(), usage);
                 }
                 JsonValue::Object(vobj)
@@ -2468,6 +2561,7 @@ fn fetch_messages_page(
         model_id,
         mtp_stats,
         tts_context_text,
+        tts_characters,
     ) in raw_messages
     {
         let mut mobj = JsonMap::new();
@@ -2491,6 +2585,7 @@ fn fetch_messages_page(
             first_token_ms,
             tokens_per_second,
             mtp_stats,
+            tts_characters,
         ) {
             mobj.insert("usage".into(), usage);
         }
@@ -2699,6 +2794,41 @@ pub fn session_get(app: tauri::AppHandle, id: String) -> Result<Option<String>, 
     })
 }
 
+fn build_session_debug_json(app: &tauri::AppHandle, id: &str) -> Result<String, String> {
+    let conn = open_db(app)?;
+    let mut value = read_session(&conn, id)?.ok_or_else(|| "Session not found".to_string())?;
+    reconcile_stale_dynamic_memory_session_state(app, &conn, id, &mut value)?;
+    serde_json::to_string_pretty(&value)
+        .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
+}
+
+#[tauri::command]
+pub fn session_debug_json(app: tauri::AppHandle, session_id: String) -> Result<String, String> {
+    build_session_debug_json(&app, &session_id)
+}
+
+#[tauri::command]
+pub fn session_debug_export_json(
+    app: tauri::AppHandle,
+    session_id: String,
+) -> Result<String, String> {
+    let json = build_session_debug_json(&app, &session_id)?;
+    let safe_session_id: String = session_id
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_'))
+        .collect();
+    let filename = format!(
+        "caibao-session-debug-{}-{}.json",
+        if safe_session_id.is_empty() {
+            "session"
+        } else {
+            &safe_session_id
+        },
+        now_ms()
+    );
+    super::entity_transfer::save_json_to_downloads(app, filename, json)
+}
+
 #[tauri::command]
 pub fn session_get_meta(app: tauri::AppHandle, id: String) -> Result<Option<String>, String> {
     let conn = open_db(&app)?;
@@ -2895,7 +3025,7 @@ pub fn messages_list_pinned(app: tauri::AppHandle, session_id: String) -> Result
 
     let placeholders = pinned_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
     let sql = format!(
-        "SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second, model_id, mtp_stats, tts_context_text FROM messages WHERE session_id = ?1 AND id IN ({}) ORDER BY created_at ASC, id ASC",
+        "SELECT id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second, model_id, mtp_stats, tts_context_text, tts_characters FROM messages WHERE session_id = ?1 AND id IN ({}) ORDER BY created_at ASC, id ASC",
         placeholders
     );
     let mut mstmt = conn
@@ -2930,6 +3060,7 @@ pub fn messages_list_pinned(app: tauri::AppHandle, session_id: String) -> Result
                 r.get::<_, Option<String>>(17)?,
                 r.get::<_, Option<String>>(18)?,
                 r.get::<_, Option<String>>(19)?,
+                r.get::<_, Option<i64>>(20)?,
             ))
         })
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -2950,7 +3081,7 @@ pub fn messages_list_pinned(app: tauri::AppHandle, session_id: String) -> Result
             .collect::<Vec<_>>()
             .join(",");
         let vsql = format!(
-            "SELECT message_id, id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second, mtp_stats, tts_context_text FROM message_variants WHERE message_id IN ({}) ORDER BY created_at ASC",
+            "SELECT message_id, id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second, mtp_stats, tts_context_text, tts_characters FROM message_variants WHERE message_id IN ({}) ORDER BY created_at ASC",
             placeholders
         );
         let mut vstmt = conn
@@ -2971,6 +3102,7 @@ pub fn messages_list_pinned(app: tauri::AppHandle, session_id: String) -> Result
                     r.get::<_, Option<f64>>(9)?,
                     r.get::<_, Option<String>>(10)?,
                     r.get::<_, Option<String>>(11)?,
+                    r.get::<_, Option<i64>>(12)?,
                 ))
             })
             .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -2989,6 +3121,7 @@ pub fn messages_list_pinned(app: tauri::AppHandle, session_id: String) -> Result
                 vtps,
                 vmtp,
                 vtts,
+                vtts_characters,
             ) = vr.map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
             variants_by_message.entry(message_id).or_default().push({
                 let mut vobj = JsonMap::new();
@@ -3001,7 +3134,9 @@ pub fn messages_list_pinned(app: tauri::AppHandle, session_id: String) -> Result
                 }
                 vobj.insert("content".into(), JsonValue::String(vcontent));
                 vobj.insert("createdAt".into(), JsonValue::from(vcreated));
-                if let Some(usage) = json_usage_summary(vp, vc, vt, vftm, vtps, vmtp) {
+                if let Some(usage) =
+                    json_usage_summary(vp, vc, vt, vftm, vtps, vmtp, vtts_characters)
+                {
                     vobj.insert("usage".into(), usage);
                 }
                 JsonValue::Object(vobj)
@@ -3031,6 +3166,7 @@ pub fn messages_list_pinned(app: tauri::AppHandle, session_id: String) -> Result
         model_id,
         mtp_stats,
         tts_context_text,
+        tts_characters,
     ) in raw_messages
     {
         let mut mobj = JsonMap::new();
@@ -3054,6 +3190,7 @@ pub fn messages_list_pinned(app: tauri::AppHandle, session_id: String) -> Result
             first_token_ms,
             tokens_per_second,
             mtp_stats,
+            tts_characters,
         ) {
             mobj.insert("usage".into(), usage);
         }
@@ -3194,61 +3331,34 @@ pub fn session_upsert_meta(app: tauri::AppHandle, session_json: String) -> Resul
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
     let memory_progress_step = s.get("memoryProgressStep").and_then(|v| v.as_i64());
+    let incoming_memory_fields = StoredSessionMemoryFields {
+        memories_json,
+        memory_embeddings_json,
+        memory_summary,
+        memory_summary_token_count,
+        memory_tool_events_json,
+        memory_status,
+        memory_error,
+        memory_progress_step,
+    };
     let shared_memory_enabled = persist_shared_memory_from_session_json(
         &mut conn,
         &id,
         &character_id,
         &mode,
-        &memories_json,
-        &memory_embeddings_json,
-        memory_summary.clone(),
-        memory_summary_token_count,
-        &memory_tool_events_json,
-        memory_status.clone(),
-        memory_error.clone(),
-        memory_progress_step,
+        &incoming_memory_fields,
         false,
     )?;
-    let session_memories_json = if shared_memory_enabled {
-        "[]".to_string()
-    } else {
-        memories_json.clone()
-    };
-    let session_memory_embeddings_json = if shared_memory_enabled {
-        "[]".to_string()
-    } else {
-        memory_embeddings_json.clone()
-    };
-    let session_memory_summary = if shared_memory_enabled {
-        None
-    } else {
-        memory_summary.clone()
-    };
-    let session_memory_summary_token_count = if shared_memory_enabled {
-        0
-    } else {
-        memory_summary_token_count
-    };
-    let session_memory_tool_events_json = if shared_memory_enabled {
-        "[]".to_string()
-    } else {
-        memory_tool_events_json.clone()
-    };
-    let session_memory_status = if shared_memory_enabled {
-        None
-    } else {
-        memory_status.clone()
-    };
-    let session_memory_error = if shared_memory_enabled {
-        None
-    } else {
-        memory_error.clone()
-    };
-    let session_memory_progress_step = if shared_memory_enabled {
-        None
-    } else {
-        memory_progress_step
-    };
+    let StoredSessionMemoryFields {
+        memories_json: session_memories_json,
+        memory_embeddings_json: session_memory_embeddings_json,
+        memory_summary: session_memory_summary,
+        memory_summary_token_count: session_memory_summary_token_count,
+        memory_tool_events_json: session_memory_tool_events_json,
+        memory_status: session_memory_status,
+        memory_error: session_memory_error,
+        memory_progress_step: session_memory_progress_step,
+    } = memory_fields_for_session_save(&conn, &id, shared_memory_enabled, incoming_memory_fields)?;
 
     let adv = s.get("advancedModelSettings");
     let advanced_model_settings_json = serialize_session_advanced_model_settings(adv);
@@ -3412,6 +3522,9 @@ pub fn messages_upsert_batch(
         let tt = usage
             .and_then(|u| u.get("totalTokens"))
             .and_then(|v| v.as_i64());
+        let tts_characters = usage
+            .and_then(|u| u.get("ttsCharacters"))
+            .and_then(|v| v.as_i64());
         let selected_variant_id = m
             .get("selectedVariantId")
             .and_then(|v| v.as_str())
@@ -3435,8 +3548,8 @@ pub fn messages_upsert_batch(
         let tts_context_text = m.get("ttsContextText").and_then(|v| v.as_str());
 
         tx.execute(
-            r#"INSERT INTO messages (id, session_id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second, model_id, mtp_stats, tts_context_text)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            r#"INSERT INTO messages (id, session_id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second, model_id, mtp_stats, tts_context_text, tts_characters)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(id) DO UPDATE SET
                  session_id=excluded.session_id,
                  role=excluded.role,
@@ -3452,7 +3565,7 @@ pub fn messages_upsert_batch(
                  memory_refs=excluded.memory_refs,
                  used_lorebook_entries=excluded.used_lorebook_entries,
                  attachments=excluded.attachments,
-                 reasoning=excluded.reasoning, first_token_ms=excluded.first_token_ms, tokens_per_second=excluded.tokens_per_second, model_id=excluded.model_id, mtp_stats=excluded.mtp_stats, tts_context_text=excluded.tts_context_text"#,
+                 reasoning=excluded.reasoning, first_token_ms=excluded.first_token_ms, tokens_per_second=excluded.tokens_per_second, model_id=excluded.model_id, mtp_stats=excluded.mtp_stats, tts_context_text=excluded.tts_context_text, tts_characters=COALESCE(excluded.tts_characters, messages.tts_characters)"#,
             params![
                 &mid,
                 &session_id,
@@ -3475,6 +3588,7 @@ pub fn messages_upsert_batch(
                 m.get("modelId").and_then(|v| v.as_str()),
                 usage.and_then(|u| u.get("mtpStats")).map(|v| v.to_string()),
                 tts_context_text,
+                tts_characters,
             ],
         )
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
@@ -3504,14 +3618,17 @@ pub fn messages_upsert_batch(
                     let vt = u
                         .and_then(|u| u.get("totalTokens"))
                         .and_then(|v| v.as_i64());
+                    let vtts_characters = u
+                        .and_then(|u| u.get("ttsCharacters"))
+                        .and_then(|v| v.as_i64());
                     let vreasoning = v
                         .get("reasoning")
                         .and_then(|x| x.as_str())
                         .map(|s| s.to_string());
                     let vtts_context_text = v.get("ttsContextText").and_then(|x| x.as_str());
                     tx.execute(
-                        "INSERT INTO message_variants (id, message_id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second, mtp_stats, tts_context_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        params![vid, &mid, vcontent, vcreated, vp, vc, vt, vreasoning, u.and_then(|u| u.get("firstTokenMs")).and_then(|v| v.as_i64()), u.and_then(|u| u.get("tokensPerSecond")).and_then(|v| v.as_f64()), u.and_then(|u| u.get("mtpStats")).map(|v| v.to_string()), vtts_context_text],
+                        "INSERT INTO message_variants (id, message_id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second, mtp_stats, tts_context_text, tts_characters) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        params![vid, &mid, vcontent, vcreated, vp, vc, vt, vreasoning, u.and_then(|u| u.get("firstTokenMs")).and_then(|v| v.as_i64()), u.and_then(|u| u.get("tokensPerSecond")).and_then(|v| v.as_f64()), u.and_then(|u| u.get("mtpStats")).map(|v| v.to_string()), vtts_context_text, vtts_characters],
                     )
                     .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
                 }
@@ -3789,46 +3906,30 @@ pub fn session_upsert(
         None => "[]".to_string(),
     };
     let companion_state_json = resolve_companion_state_json(&conn, &character_id, &mode, &s)?;
+    let incoming_memory_fields = StoredSessionMemoryFields {
+        memories_json,
+        memory_embeddings_json,
+        memory_summary,
+        memory_summary_token_count,
+        memory_tool_events_json,
+        ..StoredSessionMemoryFields::default()
+    };
     let shared_memory_enabled = persist_shared_memory_from_session_json(
         &mut conn,
         &id,
         &character_id,
         &mode,
-        &memories_json,
-        &memory_embeddings_json,
-        memory_summary.clone(),
-        memory_summary_token_count,
-        &memory_tool_events_json,
-        None,
-        None,
-        None,
+        &incoming_memory_fields,
         persist_memory_state.unwrap_or(false),
     )?;
-    let session_memories_json = if shared_memory_enabled {
-        "[]".to_string()
-    } else {
-        memories_json.clone()
-    };
-    let session_memory_embeddings_json = if shared_memory_enabled {
-        "[]".to_string()
-    } else {
-        memory_embeddings_json.clone()
-    };
-    let session_memory_summary = if shared_memory_enabled {
-        None
-    } else {
-        memory_summary.clone()
-    };
-    let session_memory_summary_token_count = if shared_memory_enabled {
-        0
-    } else {
-        memory_summary_token_count
-    };
-    let session_memory_tool_events_json = if shared_memory_enabled {
-        "[]".to_string()
-    } else {
-        memory_tool_events_json.clone()
-    };
+    let StoredSessionMemoryFields {
+        memories_json: session_memories_json,
+        memory_embeddings_json: session_memory_embeddings_json,
+        memory_summary: session_memory_summary,
+        memory_summary_token_count: session_memory_summary_token_count,
+        memory_tool_events_json: session_memory_tool_events_json,
+        ..
+    } = memory_fields_for_session_save(&conn, &id, shared_memory_enabled, incoming_memory_fields)?;
 
     let adv = s.get("advancedModelSettings");
     let advanced_model_settings_json = serialize_session_advanced_model_settings(adv);
@@ -3919,6 +4020,9 @@ pub fn session_upsert(
             let tt = usage
                 .and_then(|u| u.get("totalTokens"))
                 .and_then(|v| v.as_i64());
+            let tts_characters = usage
+                .and_then(|u| u.get("ttsCharacters"))
+                .and_then(|v| v.as_i64());
             let selected_variant_id = m
                 .get("selectedVariantId")
                 .and_then(|v| v.as_str())
@@ -3941,8 +4045,8 @@ pub fn session_upsert(
                 .map(|s| s.to_string());
             let tts_context_text = m.get("ttsContextText").and_then(|v| v.as_str());
             tx.execute(
-                r#"INSERT INTO messages (id, session_id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second, model_id, mtp_stats, tts_context_text)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                r#"INSERT INTO messages (id, session_id, role, content, created_at, visible_in_chat, scene_edited, prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned, memory_refs, used_lorebook_entries, attachments, reasoning, first_token_ms, tokens_per_second, model_id, mtp_stats, tts_context_text, tts_characters)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(id) DO UPDATE SET
                      session_id=excluded.session_id,
                      role=excluded.role,
@@ -3958,7 +4062,7 @@ pub fn session_upsert(
                      memory_refs=excluded.memory_refs,
                      used_lorebook_entries=excluded.used_lorebook_entries,
                      attachments=excluded.attachments,
-                     reasoning=excluded.reasoning, first_token_ms=excluded.first_token_ms, tokens_per_second=excluded.tokens_per_second, model_id=excluded.model_id, mtp_stats=excluded.mtp_stats, tts_context_text=excluded.tts_context_text"#,
+                     reasoning=excluded.reasoning, first_token_ms=excluded.first_token_ms, tokens_per_second=excluded.tokens_per_second, model_id=excluded.model_id, mtp_stats=excluded.mtp_stats, tts_context_text=excluded.tts_context_text, tts_characters=COALESCE(excluded.tts_characters, messages.tts_characters)"#,
                 params![
                     &mid,
                     &id,
@@ -3981,6 +4085,7 @@ pub fn session_upsert(
                 m.get("modelId").and_then(|v| v.as_str()),
                 usage.and_then(|u| u.get("mtpStats")).map(|v| v.to_string()),
                 tts_context_text,
+                tts_characters,
                 ],
             ).map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
 
@@ -4012,14 +4117,17 @@ pub fn session_upsert(
                         let vt = u
                             .and_then(|u| u.get("totalTokens"))
                             .and_then(|v| v.as_i64());
+                        let vtts_characters = u
+                            .and_then(|u| u.get("ttsCharacters"))
+                            .and_then(|v| v.as_i64());
                         let vreasoning = v
                             .get("reasoning")
                             .and_then(|x| x.as_str())
                             .map(|s| s.to_string());
                         let vtts_context_text = v.get("ttsContextText").and_then(|x| x.as_str());
                         tx.execute(
-                            "INSERT INTO message_variants (id, message_id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second, mtp_stats, tts_context_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                            params![vid, &mid, vcontent, vcreated, vp, vc, vt, vreasoning, u.and_then(|u| u.get("firstTokenMs")).and_then(|v| v.as_i64()), u.and_then(|u| u.get("tokensPerSecond")).and_then(|v| v.as_f64()), u.and_then(|u| u.get("mtpStats")).map(|v| v.to_string()), vtts_context_text],
+                            "INSERT INTO message_variants (id, message_id, content, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, first_token_ms, tokens_per_second, mtp_stats, tts_context_text, tts_characters) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            params![vid, &mid, vcontent, vcreated, vp, vc, vt, vreasoning, u.and_then(|u| u.get("firstTokenMs")).and_then(|v| v.as_i64()), u.and_then(|u| u.get("tokensPerSecond")).and_then(|v| v.as_f64()), u.and_then(|u| u.get("mtpStats")).map(|v| v.to_string()), vtts_context_text, vtts_characters],
                         )
                         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))?;
                     }
@@ -4598,4 +4706,98 @@ pub fn session_set_memory_observed_at(
         })?));
     }
     Ok(None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    fn memory_fields(label: &str) -> StoredSessionMemoryFields {
+        StoredSessionMemoryFields {
+            memories_json: format!(r#"["{label}-manual"]"#),
+            memory_embeddings_json: format!(r#"[{{"id":"{label}-embedding"}}]"#),
+            memory_summary: Some(format!("{label}-summary")),
+            memory_summary_token_count: 17,
+            memory_tool_events_json: format!(r#"[{{"id":"{label}-event"}}]"#),
+            memory_status: Some("idle".to_string()),
+            memory_error: Some(format!("{label}-error")),
+            memory_progress_step: Some(3),
+        }
+    }
+
+    fn memory_test_connection() -> Connection {
+        let conn = Connection::open_in_memory().expect("open memory database");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE sessions (
+                id TEXT PRIMARY KEY,
+                memories TEXT NOT NULL,
+                memory_embeddings TEXT NOT NULL,
+                memory_summary TEXT,
+                memory_summary_token_count INTEGER NOT NULL,
+                memory_tool_events TEXT NOT NULL,
+                memory_status TEXT,
+                memory_error TEXT,
+                memory_progress_step INTEGER
+            );
+            "#,
+        )
+        .expect("create sessions table");
+        conn
+    }
+
+    #[test]
+    fn shared_save_preserves_existing_local_memory_fields() {
+        let conn = memory_test_connection();
+        let local = memory_fields("local");
+        conn.execute(
+            "INSERT INTO sessions (id, memories, memory_embeddings, memory_summary, memory_summary_token_count, memory_tool_events, memory_status, memory_error, memory_progress_step) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                "session-1",
+                &local.memories_json,
+                &local.memory_embeddings_json,
+                local.memory_summary.as_deref(),
+                local.memory_summary_token_count,
+                &local.memory_tool_events_json,
+                local.memory_status.as_deref(),
+                local.memory_error.as_deref(),
+                local.memory_progress_step,
+            ],
+        )
+        .expect("insert local memory fields");
+
+        let selected =
+            memory_fields_for_session_save(&conn, "session-1", true, memory_fields("shared"))
+                .expect("select local memory fields");
+
+        assert_eq!(selected, local);
+    }
+
+    #[test]
+    fn shared_save_keeps_new_session_local_memory_empty() {
+        let conn = memory_test_connection();
+
+        let selected = memory_fields_for_session_save(
+            &conn,
+            "new-shared-session",
+            true,
+            memory_fields("shared"),
+        )
+        .expect("select empty local memory fields");
+
+        assert_eq!(selected, StoredSessionMemoryFields::default());
+    }
+
+    #[test]
+    fn non_shared_save_uses_incoming_memory_fields() {
+        let conn = memory_test_connection();
+        let incoming = memory_fields("incoming");
+
+        let selected =
+            memory_fields_for_session_save(&conn, "local-session", false, incoming.clone())
+                .expect("select incoming memory fields");
+
+        assert_eq!(selected, incoming);
+    }
 }

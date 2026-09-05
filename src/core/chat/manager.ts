@@ -29,6 +29,7 @@ export interface ChatMessageDebugSnapshot {
   source: string;
   sessionId: string;
   messageId: string;
+  storedMessage: StoredMessage;
   role: string;
   operation: string;
   providerId: string;
@@ -311,4 +312,12 @@ export async function getMessageDebugSnapshot(params: {
       messageId: params.messageId,
     },
   });
+}
+
+export async function getSessionDebugJson(sessionId: string): Promise<string> {
+  return invoke<string>("session_debug_json", { sessionId });
+}
+
+export async function exportSessionDebugJson(sessionId: string): Promise<string> {
+  return invoke<string>("session_debug_export_json", { sessionId });
 }

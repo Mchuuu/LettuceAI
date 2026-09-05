@@ -24,6 +24,7 @@ import {
 import { GuidedTour, useGuidedTour } from "../../components/GuidedTour";
 import { listPromptTemplates } from "../../../core/prompts/service";
 import { storageBridge } from "../../../core/storage/files";
+import { MAX_DYNAMIC_MEMORY_ENTRIES } from "../../../core/storage/schemas";
 import type {
   DynamicMemorySettings,
   DynamicMemoryStructuredFallbackFormat,
@@ -1067,7 +1068,7 @@ export function DynamicMemoryPage() {
                             value={currentSettings.maxEntries}
                             unit={t("dynamicMemory.page.entriesUnit")}
                             min={10}
-                            max={500}
+                            max={MAX_DYNAMIC_MEMORY_ENTRIES}
                             step={10}
                             onChange={(val) => {
                               if (activeTab === "direct") {

@@ -225,8 +225,8 @@ impl ContinueFlow {
             }
         }
 
-        let prompt_entries = crate::chat_manager::speech_expression::apply_protocol(
-            if swap_places {
+        let prompt_entries =
+            crate::chat_manager::speech_expression::remove_protocol(if swap_places {
                 let (prompt_character, prompt_persona) =
                     swapped_prompt_entities(&character, persona.as_ref());
                 append_image_directive_instructions(
@@ -243,9 +243,7 @@ impl ContinueFlow {
                     context.build_system_prompt(&character, &model, persona.as_ref(), &session),
                     settings,
                 )
-            },
-            &character,
-        );
+            });
         let used_lorebook_entries =
             crate::chat_manager::prompt_engine::resolve_used_lorebook_entries(
                 &app,

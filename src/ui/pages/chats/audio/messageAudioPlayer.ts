@@ -8,7 +8,9 @@ import {
   playAudioFromBase64,
   saveTtsToCache,
   streamDoubaoTts,
+  streamDoubaoTtsSequence,
   type AudioProviderType,
+  type DoubaoTtsStreamSegment,
   type TtsCacheContext,
   type TtsPreviewResponse,
 } from "../../../../core/storage/audioProviders";
@@ -29,6 +31,8 @@ export interface MessageAudioRequest {
   voiceId: string;
   text: string;
   prompt?: string;
+  cachePrompt?: string;
+  doubaoSegments?: DoubaoTtsStreamSegment[];
   requestId: string;
   cacheContext?: TtsCacheContext;
   sampleRate?: number;
@@ -36,6 +40,7 @@ export interface MessageAudioRequest {
   streamDoubao?: boolean;
   onCache?: (response: TtsPreviewResponse) => void;
   onPlaybackStart?: () => void;
+  onTtsUsage?: (characters: number) => void;
 }
 
 async function associateInMemoryCache(
@@ -57,8 +62,8 @@ export interface MessageAudioPlayback {
 type DoubaoStreamPayload =
   | { type: "start"; sampleRate: number; format: string; mimeType: string; nativePcm?: boolean }
   | { type: "chunk"; audioBase64: string }
-  | { type: "end" }
-  | { type: "error"; message?: string };
+  | { type: "end"; ttsCharacters?: number | null }
+  | { type: "error"; message?: string; ttsCharacters?: number | null };
 
 function decodeBase64Bytes(value: string): Uint8Array {
   const binary = atob(value);
@@ -263,7 +268,7 @@ async function startBufferedPlayback(request: MessageAudioRequest): Promise<Mess
       request.modelId,
       request.voiceId,
       request.text,
-      request.prompt,
+      request.cachePrompt ?? request.prompt,
     );
     await associateInMemoryCache(cacheKey, request.cached, request.cacheContext);
   }
@@ -361,7 +366,7 @@ async function startDoubaoStreamPlayback(
     request.modelId,
     request.voiceId,
     request.text,
-    request.prompt,
+    request.cachePrompt ?? request.prompt,
   );
   const cached = request.cached ?? (await getTtsCached(cacheKey, request.cacheContext));
   if (cached) {
@@ -401,6 +406,14 @@ async function startDoubaoStreamPlayback(
   let streamSampleRate = resolvePcmSampleRate(request);
   let streamedBytes = 0;
   let loggedFirstChunk = false;
+  let reportedTtsCharacters: number | null = null;
+
+  const reportTtsUsage = (value: number | null | undefined) => {
+    if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return;
+    if (reportedTtsCharacters === value) return;
+    reportedTtsCharacters = value;
+    request.onTtsUsage?.(value);
+  };
 
   console.debug("[Doubao TTS] stream request", {
     providerId: request.providerId,
@@ -450,7 +463,11 @@ async function startDoubaoStreamPlayback(
       return;
     }
     if (payload.type === "end") {
-      console.debug("[Doubao TTS] stream end", { totalBytes: streamedBytes });
+      reportTtsUsage(payload.ttsCharacters);
+      console.debug("[Doubao TTS] stream end", {
+        totalBytes: streamedBytes,
+        ttsCharacters: payload.ttsCharacters ?? null,
+      });
       if (nativePcm) {
         resolvePlaybackDone?.();
         resolvePlaybackDone = null;
@@ -460,6 +477,7 @@ async function startDoubaoStreamPlayback(
       return;
     }
     if (payload.type === "error") {
+      reportTtsUsage(payload.ttsCharacters);
       streamError = new Error(payload.message || "Doubao TTS stream failed");
       queue.stop();
       resolvePlaybackDone?.();
@@ -467,14 +485,28 @@ async function startDoubaoStreamPlayback(
     }
   });
 
-  const command = streamDoubaoTts(
-    request.providerId,
-    request.modelId,
-    request.voiceId,
-    request.text,
-    request.requestId,
-    request.prompt,
-    request.cacheContext?.reference,
+  const command = (
+    request.doubaoSegments
+      ? streamDoubaoTtsSequence(
+          request.providerId,
+          request.modelId,
+          request.voiceId,
+          request.doubaoSegments,
+          request.text,
+          request.requestId,
+          request.prompt,
+          request.cachePrompt,
+          request.cacheContext?.reference,
+        )
+      : streamDoubaoTts(
+          request.providerId,
+          request.modelId,
+          request.voiceId,
+          request.text,
+          request.requestId,
+          request.prompt,
+          request.cacheContext?.reference,
+        )
   ).finally(() => {
     unlisten?.();
     unlisten = null;
@@ -529,6 +561,11 @@ export async function startMessageAudioPlayback(
       return await startDoubaoStreamPlayback(request);
     } catch (error) {
       console.warn("Doubao streaming TTS failed before playback; falling back to buffered TTS.", error);
+      return startBufferedPlayback({
+        ...request,
+        cachePrompt: undefined,
+        doubaoSegments: undefined,
+      });
     }
   }
   return startBufferedPlayback(request);

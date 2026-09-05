@@ -652,7 +652,7 @@ export function GroupChatFooter({
                       : "text-fg placeholder:text-fg/40",
                     "focus:outline-none",
                   )}
-                  disabled={sending || composerDisabled}
+                  disabled={composerDisabled}
                 />
               )}
 
@@ -708,6 +708,12 @@ export function GroupChatFooter({
               )}
 
               <button
+                onPointerDown={(event) => {
+                  // Keep the composer focused without reopening a dismissed keyboard.
+                  if (event.button === 0 && document.activeElement === textareaRef.current) {
+                    event.preventDefault();
+                  }
+                }}
                 onClick={handleSendClick}
                 disabled={(sending && !onAbort) || composerDisabled}
                 className={cn(

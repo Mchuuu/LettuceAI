@@ -1578,6 +1578,10 @@ export const enMessages = {
       finalProviderMessages: "Final Provider Messages",
       fullRequestBody: "Full Request Body",
       fullSessionJson: "Full Session JSON",
+      fullSessionJsonHint:
+        "Large sessions are not previewed on this page. Copy the JSON on demand or save it directly to Downloads.",
+      fullSessionJsonSaved: "Saved to {{path}}",
+      fullSessionJsonActionFailed: "Could not prepare the full session JSON: {{error}}",
       storedMessageJson: "Stored Message JSON",
       fullTraceEvents: "Full Trace Events",
     },
@@ -3345,7 +3349,7 @@ export const enMessages = {
       voiceLoudnessRate: "Volume",
       voiceSpeechExpression: "Enhanced voice expression",
       voiceSpeechExpressionHint:
-        "Lets the chat model direct emotion, accent, tone, speed, and pitch for Doubao TTS.",
+        "Uses parenthetical text as Doubao TTS performance direction and plays spoken segments in order.",
       voicePreviewPlaceholder: "你好呀，有什么我可以帮你的",
       voicePreviewPlay: "Preview",
       voicePreviewStop: "Stop",
@@ -3894,7 +3898,7 @@ export const enMessages = {
       voiceLoudnessRate: "Volume",
       voiceSpeechExpression: "Enhanced voice expression",
       voiceSpeechExpressionHint:
-        "Lets the chat model direct emotion, accent, tone, speed, and pitch for Doubao TTS.",
+        "Uses parenthetical text as Doubao TTS performance direction and plays spoken segments in order.",
       voicePreviewPlaceholder: "你好呀，有什么我可以帮你的",
       voicePreviewPlay: "Preview",
       voicePreviewStop: "Stop",
@@ -8788,7 +8792,8 @@ export const enMessages = {
     },
     webSearch: {
       title: "Web search",
-      description: "Override whether this conversation may use the provider-native web search tool.",
+      description:
+        "Override whether this conversation may use the provider-native web search tool.",
       inherit: "Follow model ({{state}})",
       enabled: "On",
       disabled: "Off",

@@ -1056,18 +1056,50 @@ pub async fn tts_preview(
     })
 }
 
-#[tauri::command]
-pub async fn tts_stream_doubao(
-    app: AppHandle,
-    provider_id: String,
-    model_id: String,
-    voice_id: String,
-    prompt: Option<String>,
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DoubaoTtsStreamSegment {
     text: String,
-    request_id: String,
-    cache_reference: Option<super::cache_metadata::TtsCacheReference>,
-) -> Result<(), String> {
-    let conn = open_db(&app)?;
+    context_text: Option<String>,
+}
+
+struct PreparedDoubaoStreamSegment {
+    text: String,
+    prompt: Option<String>,
+}
+
+struct DoubaoStreamProvider {
+    id: String,
+    api_key: String,
+    project_id: Option<String>,
+    resource_id: Option<String>,
+    secret_key: Option<String>,
+    base_url: Option<String>,
+    request_path: Option<String>,
+}
+
+impl DoubaoStreamProvider {
+    fn config(&self) -> doubao::DoubaoConfig<'_> {
+        doubao::DoubaoConfig {
+            api_key: &self.api_key,
+            openapi_access_key: self.project_id.as_deref(),
+            openapi_secret_key: doubao_openapi_secret_key(
+                self.secret_key.as_deref(),
+                self.request_path.as_deref(),
+            ),
+            resource_id: self.resource_id.as_deref(),
+            project_name: None,
+            base_url: self.base_url.as_deref(),
+            request_path: doubao_request_path_override(self.request_path.as_deref()),
+        }
+    }
+}
+
+fn load_doubao_stream_provider(
+    app: &AppHandle,
+    provider_id: &str,
+) -> Result<DoubaoStreamProvider, String> {
+    let conn = open_db(app)?;
     let (
         provider_type,
         api_key,
@@ -1106,19 +1138,30 @@ pub async fn tts_stream_doubao(
         ));
     }
 
-    let api_key = api_key.ok_or("API key not configured")?;
-    let prompt_json = prompt
-        .as_deref()
-        .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok());
-    let requested_sample_rate = prompt_json
+    Ok(DoubaoStreamProvider {
+        id: provider_id.to_string(),
+        api_key: api_key.ok_or("API key not configured")?,
+        project_id,
+        resource_id,
+        secret_key,
+        base_url,
+        request_path,
+    })
+}
+
+fn doubao_prompt_metadata(prompt: Option<&str>) -> (u32, String, usize, usize) {
+    let prompt_json =
+        prompt.and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok());
+    let sample_rate = prompt_json
         .as_ref()
         .and_then(|value| value.get("sampleRate").and_then(|rate| rate.as_u64()))
         .unwrap_or(44100)
         .clamp(8000, 48000) as u32;
-    let request_body_model = prompt_json
+    let model = prompt_json
         .as_ref()
         .and_then(|value| value.get("model").and_then(|model| model.as_str()))
-        .unwrap_or("<none>");
+        .unwrap_or("<none>")
+        .to_string();
     let context_texts = prompt_json
         .as_ref()
         .and_then(|value| value.get("contextTexts").and_then(|texts| texts.as_array()));
@@ -1130,21 +1173,98 @@ pub async fn tts_stream_doubao(
             .map(|text| text.chars().count())
             .sum::<usize>()
     });
+    (sample_rate, model, context_count, context_chars)
+}
+
+fn doubao_sequence_prompt(
+    base_prompt: Option<&str>,
+    context_text: Option<&str>,
+    section_id: &str,
+) -> Result<String, String> {
+    let mut payload = match base_prompt.map(str::trim).filter(|value| !value.is_empty()) {
+        Some(prompt) => serde_json::from_str::<serde_json::Value>(prompt).map_err(|error| {
+            crate::utils::err_msg(
+                module_path!(),
+                line!(),
+                format!("Invalid Doubao TTS prompt JSON: {error}"),
+            )
+        })?,
+        None => serde_json::Value::Object(serde_json::Map::new()),
+    };
+    let object = payload.as_object_mut().ok_or_else(|| {
+        crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            "Doubao TTS prompt must be a JSON object",
+        )
+    })?;
+    object.insert(
+        "sectionId".to_string(),
+        serde_json::Value::String(section_id.to_string()),
+    );
+    object.remove("contextTexts");
+    if let Some(context) = context_text
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        object.insert(
+            "contextTexts".to_string(),
+            serde_json::Value::Array(vec![serde_json::Value::String(context.to_string())]),
+        );
+    }
+    serde_json::to_string(&payload)
+        .map_err(|error| crate::utils::err_to_string(module_path!(), line!(), error))
+}
+
+async fn run_doubao_stream_session(
+    app: AppHandle,
+    provider: DoubaoStreamProvider,
+    model_id: String,
+    voice_id: String,
+    segments: Vec<PreparedDoubaoStreamSegment>,
+    request_id: String,
+    cache_text: String,
+    cache_prompt: Option<String>,
+    cache_reference: Option<super::cache_metadata::TtsCacheReference>,
+    section_id: Option<String>,
+) -> Result<(), String> {
+    let event_name = format!("tts-stream://{}", request_id);
+    if segments.is_empty() {
+        log_info(&app, "tts", "Doubao stream session skipped: no spoken text");
+        let _ = app.emit(&event_name, serde_json::json!({ "type": "end" }));
+        return Ok(());
+    }
+
+    let (requested_sample_rate, request_body_model, _, _) =
+        doubao_prompt_metadata(segments[0].prompt.as_deref());
+    if segments
+        .iter()
+        .skip(1)
+        .any(|segment| doubao_prompt_metadata(segment.prompt.as_deref()).0 != requested_sample_rate)
+    {
+        return Err(crate::utils::err_msg(
+            module_path!(),
+            line!(),
+            "Doubao TTS sequence segments must use the same sample rate",
+        ));
+    }
+
     log_info(
         &app,
         "tts",
         format!(
-            "Doubao stream request: resource_id={} model={} body_model={} voice_id={} format=pcm sample_rate={} text_len={} context_texts={} context_chars={}",
-            resource_id.as_deref().unwrap_or("<default>"),
+            "Doubao stream session: resource_id={} model={} body_model={} voice_id={} format=pcm sample_rate={} segments={} text_len={} section_id={}",
+            provider.resource_id.as_deref().unwrap_or("<default>"),
             model_id,
             request_body_model,
             voice_id,
             requested_sample_rate,
-            text.chars().count(),
-            context_count,
-            context_chars,
+            segments.len(),
+            segments.iter().map(|segment| segment.text.chars().count()).sum::<usize>(),
+            section_id.as_deref().unwrap_or("<single>"),
         ),
     );
+
     let mut native_pcm_player =
         match crate::tts_manager::android_pcm::Player::start(&app, requested_sample_rate) {
             Ok(player) => player,
@@ -1165,130 +1285,191 @@ pub async fn tts_stream_doubao(
         "tts",
         format!("Doubao PCM playback route: native_audio_track={native_pcm}"),
     );
-    let event_name = format!("tts-stream://{}", request_id);
+
     let mut streamed_bytes = 0usize;
     let mut streamed_pcm = if native_pcm { Some(Vec::new()) } else { None };
+    let usage_reference = cache_reference.clone();
     let cache_context = super::cache_metadata::TtsCacheContext::new(
-        provider_id.clone(),
+        provider.id.clone(),
         model_id.clone(),
         voice_id.clone(),
         cache_reference,
     );
     let native_cache_key = native_pcm.then(|| {
         super::audio_cache::generate_cache_key(
-            &provider_id,
+            &provider.id,
             &model_id,
             &voice_id,
-            &text,
-            prompt.as_deref(),
+            &cache_text,
+            cache_prompt.as_deref(),
         )
     });
-    let mut logged_stream_start = false;
+    let mut logged_first_chunk = false;
+    let mut emitted_stream_start = false;
+    let mut total_text_words = 0u64;
+    let mut reported_text_usage = false;
     let mut abort_rx = {
         use tauri::Manager;
         let registry = app.state::<AbortRegistry>();
         registry.register(request_id.clone())
     };
-
+    let client = reqwest::Client::new();
     let app_for_stream = app.clone();
-    let stream_audio = doubao::stream_speech(
-        doubao::DoubaoConfig {
-            api_key: &api_key,
-            openapi_access_key: project_id.as_deref(),
-            openapi_secret_key: doubao_openapi_secret_key(
-                secret_key.as_deref(),
-                request_path.as_deref(),
+    let mut result = Ok(());
+
+    for (index, segment) in segments.iter().enumerate() {
+        let (_, _, context_count, context_chars) =
+            doubao_prompt_metadata(segment.prompt.as_deref());
+        let segment_started = std::time::Instant::now();
+        let bytes_before_segment = streamed_bytes;
+        let mut segment_text_words = None;
+        log_info(
+            &app,
+            "tts",
+            format!(
+                "Doubao stream segment start: index={}/{} text_len={} context_texts={} context_chars={}",
+                index + 1,
+                segments.len(),
+                segment.text.chars().count(),
+                context_count,
+                context_chars,
             ),
-            resource_id: resource_id.as_deref(),
-            project_name: None,
-            base_url: base_url.as_deref(),
-            request_path: doubao_request_path_override(request_path.as_deref()),
-        },
-        &text,
-        &voice_id,
-        &model_id,
-        prompt.as_deref(),
-        |event| {
-            match event {
-                doubao::DoubaoAudioStreamEvent::Start(info) => {
-                    log_info(
-                        &app_for_stream,
-                        "tts",
-                        format!(
-                            "Doubao stream start: format={} sample_rate={} mime_type={}",
-                            info.format, info.sample_rate, info.mime_type
-                        ),
-                    );
-                    let _ = app_for_stream.emit(
-                        &event_name,
-                        serde_json::json!({
-                            "type": "start",
-                            "sampleRate": info.sample_rate,
-                            "format": info.format,
-                            "mimeType": info.mime_type,
-                            "nativePcm": native_pcm,
-                        }),
-                    );
-                }
-                doubao::DoubaoAudioStreamEvent::Chunk(bytes) => {
-                    streamed_bytes = streamed_bytes.saturating_add(bytes.len());
-                    if let Some(player) = native_pcm_player.as_ref() {
-                        player.write(&bytes)?;
-                        if streamed_bytes == bytes.len() {
+        );
+
+        let stream_audio = doubao::stream_speech_with_client(
+            &client,
+            provider.config(),
+            &segment.text,
+            &voice_id,
+            &model_id,
+            segment.prompt.as_deref(),
+            |event| {
+                match event {
+                    doubao::DoubaoAudioStreamEvent::Start(info) => {
+                        if info.sample_rate != requested_sample_rate {
+                            return Err(format!(
+                                "Doubao TTS sequence sample rate changed from {} to {}",
+                                requested_sample_rate, info.sample_rate
+                            ));
+                        }
+                        if !emitted_stream_start {
+                            emitted_stream_start = true;
                             log_info(
                                 &app_for_stream,
                                 "tts",
-                                format!("Native AudioTrack first write: bytes={}", bytes.len()),
+                                format!(
+                                    "Doubao stream start: format={} sample_rate={} mime_type={}",
+                                    info.format, info.sample_rate, info.mime_type
+                                ),
+                            );
+                            let _ = app_for_stream.emit(
+                                &event_name,
+                                serde_json::json!({
+                                    "type": "start",
+                                    "sampleRate": info.sample_rate,
+                                    "format": info.format,
+                                    "mimeType": info.mime_type,
+                                    "nativePcm": native_pcm,
+                                }),
                             );
                         }
                     }
-                    if let Some(pcm) = streamed_pcm.as_mut() {
-                        pcm.extend_from_slice(&bytes);
+                    doubao::DoubaoAudioStreamEvent::Chunk(bytes) => {
+                        streamed_bytes = streamed_bytes.saturating_add(bytes.len());
+                        if let Some(player) = native_pcm_player.as_ref() {
+                            player.write(&bytes)?;
+                            if streamed_bytes == bytes.len() {
+                                log_info(
+                                    &app_for_stream,
+                                    "tts",
+                                    format!("Native AudioTrack first write: bytes={}", bytes.len()),
+                                );
+                            }
+                        }
+                        if let Some(pcm) = streamed_pcm.as_mut() {
+                            pcm.extend_from_slice(&bytes);
+                        }
+                        if !logged_first_chunk {
+                            log_info(
+                                &app_for_stream,
+                                "tts",
+                                format!(
+                                    "Doubao first PCM chunk: bytes={} total_bytes={} first_bytes={}",
+                                    bytes.len(),
+                                    streamed_bytes,
+                                    bytes
+                                        .iter()
+                                        .take(16)
+                                        .map(|value| format!("{:02x}", value))
+                                        .collect::<Vec<_>>()
+                                        .join(" ")
+                                ),
+                            );
+                            logged_first_chunk = true;
+                        }
+                        if !native_pcm {
+                            let _ = app_for_stream.emit(
+                                &event_name,
+                                serde_json::json!({
+                                    "type": "chunk",
+                                    "audioBase64": STANDARD.encode(bytes),
+                                }),
+                            );
+                        }
                     }
-                    if !logged_stream_start {
-                        log_info(
-                            &app_for_stream,
-                            "tts",
-                            format!(
-                                "Doubao first PCM chunk: bytes={} total_bytes={} first_bytes={}",
-                                bytes.len(),
-                                streamed_bytes,
-                                bytes
-                                    .iter()
-                                    .take(16)
-                                    .map(|value| format!("{:02x}", value))
-                                    .collect::<Vec<_>>()
-                                    .join(" ")
-                            ),
-                        );
-                        logged_stream_start = true;
-                    }
-                    if !native_pcm {
-                        let _ = app_for_stream.emit(
-                            &event_name,
-                            serde_json::json!({
-                                "type": "chunk",
-                                "audioBase64": STANDARD.encode(bytes),
-                            }),
-                        );
+                    doubao::DoubaoAudioStreamEvent::End { text_words } => {
+                        reported_text_usage |= text_words.is_some();
+                        segment_text_words = text_words;
                     }
                 }
-                doubao::DoubaoAudioStreamEvent::End => {
-                    log_info(
-                        &app_for_stream,
-                        "tts",
-                        format!("Doubao stream end: total_pcm_bytes={}", streamed_bytes),
-                    );
-                }
-            }
-            Ok(())
-        },
-    );
+                Ok(())
+            },
+        );
 
-    let mut result = tokio::select! {
-        _ = &mut abort_rx => Err("Audio generation aborted".to_string()),
-        value = stream_audio => value,
-    };
+        let segment_result = tokio::select! {
+            _ = &mut abort_rx => Err("Audio generation aborted".to_string()),
+            value = stream_audio => value,
+        };
+        if let Err(error) = segment_result {
+            result = Err(error);
+            break;
+        }
+        total_text_words = total_text_words.saturating_add(segment_text_words.unwrap_or(0));
+        log_info(
+            &app,
+            "tts",
+            format!(
+                "Doubao stream segment complete: index={}/{} pcm_bytes={} elapsed_ms={}",
+                index + 1,
+                segments.len(),
+                streamed_bytes.saturating_sub(bytes_before_segment),
+                segment_started.elapsed().as_millis(),
+            ),
+        );
+    }
+
+    if reported_text_usage {
+        if let Some(reference) = usage_reference.as_ref() {
+            if let Err(error) =
+                super::usage::record_tts_characters(&app, reference, total_text_words)
+            {
+                log_warn(
+                    &app,
+                    "tts",
+                    format!("Failed to persist Doubao TTS character usage: {error}"),
+                );
+            } else {
+                log_info(
+                    &app,
+                    "tts",
+                    format!(
+                        "Doubao TTS character usage persisted: characters={total_text_words} complete={}",
+                        result.is_ok()
+                    ),
+                );
+            }
+        }
+    }
 
     if result.is_ok() {
         if let (Some(cache_key), Some(pcm)) = (native_cache_key.as_deref(), streamed_pcm.as_deref())
@@ -1312,7 +1493,8 @@ pub async fn tts_stream_doubao(
                             &app,
                             "tts",
                             format!(
-                                "Native PCM stream cached as WAV: pcm_bytes={} wav_bytes={} sample_rate={}",
+                                "Native PCM stream cached as WAV: segments={} pcm_bytes={} wav_bytes={} sample_rate={}",
+                                segments.len(),
                                 pcm.len(),
                                 wav.len(),
                                 requested_sample_rate
@@ -1386,10 +1568,26 @@ pub async fn tts_stream_doubao(
             serde_json::json!({
                 "type": "error",
                 "message": err,
+                "ttsCharacters": reported_text_usage.then_some(total_text_words),
             }),
         );
     } else {
-        let _ = app.emit(&event_name, serde_json::json!({ "type": "end" }));
+        log_info(
+            &app,
+            "tts",
+            format!(
+                "Doubao stream session complete: segments={} total_pcm_bytes={}",
+                segments.len(),
+                streamed_bytes
+            ),
+        );
+        let _ = app.emit(
+            &event_name,
+            serde_json::json!({
+                "type": "end",
+                "ttsCharacters": reported_text_usage.then_some(total_text_words),
+            }),
+        );
     }
 
     {
@@ -1399,6 +1597,90 @@ pub async fn tts_stream_doubao(
     }
 
     result
+}
+
+#[tauri::command]
+pub async fn tts_stream_doubao(
+    app: AppHandle,
+    provider_id: String,
+    model_id: String,
+    voice_id: String,
+    prompt: Option<String>,
+    text: String,
+    request_id: String,
+    cache_reference: Option<super::cache_metadata::TtsCacheReference>,
+) -> Result<(), String> {
+    let provider = load_doubao_stream_provider(&app, &provider_id)?;
+    run_doubao_stream_session(
+        app,
+        provider,
+        model_id,
+        voice_id,
+        vec![PreparedDoubaoStreamSegment {
+            text: text.clone(),
+            prompt: prompt.clone(),
+        }],
+        request_id,
+        text,
+        prompt,
+        cache_reference,
+        None,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn tts_stream_doubao_sequence(
+    app: AppHandle,
+    provider_id: String,
+    model_id: String,
+    voice_id: String,
+    prompt: Option<String>,
+    segments: Vec<DoubaoTtsStreamSegment>,
+    cache_text: String,
+    cache_prompt: Option<String>,
+    request_id: String,
+    cache_reference: Option<super::cache_metadata::TtsCacheReference>,
+) -> Result<(), String> {
+    let provider = load_doubao_stream_provider(&app, &provider_id)?;
+    let section_id = uuid::Uuid::new_v4().to_string();
+    let prepared_segments = segments
+        .into_iter()
+        .filter_map(|segment| {
+            let text = segment.text.trim().to_string();
+            (!text.is_empty()).then_some((text, segment.context_text))
+        })
+        .map(|(text, context_text)| {
+            Ok(PreparedDoubaoStreamSegment {
+                text,
+                prompt: Some(doubao_sequence_prompt(
+                    prompt.as_deref(),
+                    context_text.as_deref(),
+                    &section_id,
+                )?),
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    let stable_cache_prompt = cache_prompt.or_else(|| {
+        Some(format!(
+            "{}::parenthetical-context-v1",
+            prompt.as_deref().unwrap_or("")
+        ))
+    });
+
+    run_doubao_stream_session(
+        app,
+        provider,
+        model_id,
+        voice_id,
+        prepared_segments,
+        request_id,
+        cache_text,
+        stable_cache_prompt,
+        cache_reference,
+        Some(section_id),
+    )
+    .await
 }
 
 /// Verify API key for audio provider

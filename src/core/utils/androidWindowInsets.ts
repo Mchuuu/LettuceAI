@@ -14,6 +14,7 @@ declare global {
   interface Window {
     LettuceAndroidWindowInsets?: AndroidWindowInsetsBridge;
     __lettuceWindowInsets?: AndroidWindowInsetsSnapshot;
+    __lettuceDirectImeMotion?: boolean;
   }
 }
 

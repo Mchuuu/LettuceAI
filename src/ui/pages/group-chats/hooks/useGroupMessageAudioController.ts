@@ -38,15 +38,22 @@ function findLatestReply(messages: readonly GroupMessage[]): GroupMessage | unde
 interface GroupMessageAudioControllerOptions {
   groupSessionId?: string | null;
   characters: Character[];
+  onTtsUsage?: (messageId: string, variantId: string | undefined, ttsCharacters: number) => void;
 }
 
 export function useGroupMessageAudioController({
   groupSessionId,
   characters,
+  onTtsUsage,
 }: GroupMessageAudioControllerOptions) {
   const controller = useMessageAudioController(
     groupSessionId
-      ? { conversationKind: "group_session", conversationId: groupSessionId }
+      ? {
+          conversationKind: "group_session",
+          conversationId: groupSessionId,
+          onTtsUsage: (update) =>
+            onTtsUsage?.(update.messageId, update.variantId, update.ttsCharacters),
+        }
       : null,
   );
   const autoplaySignatureRef = useRef<string | null>(null);

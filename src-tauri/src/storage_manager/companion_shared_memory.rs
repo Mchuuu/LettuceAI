@@ -5,11 +5,38 @@ use tauri::AppHandle;
 use super::db::open_db;
 use crate::storage_manager::memory_embeddings::SessionKind;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EffectiveMemoryOwner {
     pub owner_id: String,
     pub kind: SessionKind,
     pub shared: bool,
+}
+
+pub const MEMORY_OWNER_CHANGED_DURING_TASK: &str =
+    "Memory sharing setting changed while processing";
+
+pub fn is_memory_owner_changed_error(error: &str) -> bool {
+    error.starts_with(MEMORY_OWNER_CHANGED_DURING_TASK)
+}
+
+pub fn validate_memory_owner(
+    session_id: &str,
+    expected: &EffectiveMemoryOwner,
+    current: &EffectiveMemoryOwner,
+) -> Result<(), String> {
+    if current == expected {
+        return Ok(());
+    }
+
+    Err(format!(
+        "{}: session_id={} expected={}:{} current={}:{}",
+        MEMORY_OWNER_CHANGED_DURING_TASK,
+        session_id,
+        expected.kind.as_str(),
+        expected.owner_id,
+        current.kind.as_str(),
+        current.owner_id,
+    ))
 }
 
 #[derive(Clone, Debug)]
@@ -275,6 +302,25 @@ pub fn initialize_from_latest_session(
         embeddings = super::memory_embeddings::parse_legacy_json(&legacy_embeddings_json);
     }
 
+    let source_state = SharedMemoryState {
+        memories_json,
+        memory_summary,
+        memory_summary_token_count: memory_summary_token_count.max(0),
+        memory_tool_events_json,
+        memory_status,
+        memory_error,
+        memory_progress_step,
+    };
+
+    // A legacy or interrupted migration can leave valid normalized shared
+    // embeddings without the companion state row. Rebuild only the metadata;
+    // replacing those embeddings with an empty local snapshot would destroy
+    // the last recoverable shared pool.
+    if !shared_state_exists && existing_shared_count > 0 {
+        upsert_state(conn, character_id, &source_state)?;
+        return Ok(Some(session_id));
+    }
+
     if shared_state_exists && existing_shared_count >= embeddings.len() as i64 {
         return Ok(None);
     }
@@ -285,19 +331,7 @@ pub fn initialize_from_latest_session(
         SessionKind::CompanionShared,
         &embeddings,
     )?;
-    upsert_state(
-        conn,
-        character_id,
-        &SharedMemoryState {
-            memories_json,
-            memory_summary,
-            memory_summary_token_count: memory_summary_token_count.max(0),
-            memory_tool_events_json,
-            memory_status,
-            memory_error,
-            memory_progress_step,
-        },
-    )?;
+    upsert_state(conn, character_id, &source_state)?;
 
     Ok(Some(session_id))
 }
@@ -335,4 +369,37 @@ pub fn export_all(app: &AppHandle) -> Result<Vec<JsonValue>, String> {
 
     rows.collect::<Result<Vec<_>, _>>()
         .map_err(|e| crate::utils::err_to_string(module_path!(), line!(), e))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn owner(id: &str, kind: SessionKind, shared: bool) -> EffectiveMemoryOwner {
+        EffectiveMemoryOwner {
+            owner_id: id.to_string(),
+            kind,
+            shared,
+        }
+    }
+
+    #[test]
+    fn accepts_unchanged_memory_owner() {
+        let expected = owner("session-1", SessionKind::Session, false);
+
+        assert!(validate_memory_owner("session-1", &expected, &expected).is_ok());
+    }
+
+    #[test]
+    fn rejects_memory_owner_switch() {
+        let expected = owner("session-1", SessionKind::Session, false);
+        let current = owner("character-1", SessionKind::CompanionShared, true);
+
+        let error = validate_memory_owner("session-1", &expected, &current)
+            .expect_err("owner switch must stop stale memory persistence");
+
+        assert!(is_memory_owner_changed_error(&error));
+        assert!(error.contains("expected=session:session-1"));
+        assert!(error.contains("current=companion_shared:character-1"));
+    }
 }

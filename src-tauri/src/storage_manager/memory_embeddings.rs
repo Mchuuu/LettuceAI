@@ -17,7 +17,7 @@ use crate::storage_manager::db::open_db;
 
 /// Distinguishes between rows owned by single-character `sessions` and
 /// multi-character `group_sessions`. Persisted as a TEXT column.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SessionKind {
     Session,
     GroupSession,

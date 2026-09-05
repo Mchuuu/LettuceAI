@@ -10,3 +10,4 @@ mod gemini;
 pub mod kokoro;
 mod openai_compatible;
 pub mod types;
+mod usage;

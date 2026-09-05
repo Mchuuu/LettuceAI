@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Edit3,
@@ -218,6 +218,7 @@ export function MessageActionsBottomSheet({
   const [companionEffectError, setCompanionEffectError] = useState<string | null>(null);
   const [perfDetail, setPerfDetail] = useState<LlmMetricDetail | null>(null);
   const [perfOpen, setPerfOpen] = useState(false);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const message = messageAction?.message;
@@ -267,6 +268,15 @@ export function MessageActionsBottomSheet({
       setEditingAttachmentId(null);
     }
   }, [messageAction]);
+
+  useEffect(() => {
+    if (messageAction?.mode !== "edit") return;
+
+    const focusFrame = requestAnimationFrame(() => {
+      editTextareaRef.current?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(focusFrame);
+  }, [messageAction?.message.id, messageAction?.mode]);
 
   useEffect(() => {
     const messageModelId = messageAction?.message.modelId ?? null;
@@ -373,6 +383,9 @@ export function MessageActionsBottomSheet({
         isOpen={Boolean(messageAction)}
         includeExitIcon={false}
         onClose={() => closeMessageActions(true)}
+        keyboardAvoidance="compositor"
+        syncKeyboardLayoutDuringAnimation={messageAction?.mode === "edit"}
+        backdropBlur={messageAction?.mode !== "edit"}
         title={
           isSceneMessage
             ? t("chats.message.sceneLabel")
@@ -813,6 +826,8 @@ export function MessageActionsBottomSheet({
           ) : (
             <div className="space-y-4">
               <textarea
+                ref={editTextareaRef}
+                data-keyboard-reveal="self"
                 value={editDraft}
                 onChange={(event) => setEditDraft(event.target.value)}
                 rows={14}
@@ -824,7 +839,6 @@ export function MessageActionsBottomSheet({
                 )}
                 placeholder={t("chats.actions.editPlaceholder")}
                 disabled={actionBusy}
-                autoFocus
               />
               {loadedEditAttachments.length > 0 && (
                 <div className="space-y-2">

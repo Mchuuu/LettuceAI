@@ -251,6 +251,8 @@ pub struct UsageSummary {
     pub completion_tokens: Option<i32>,
     pub total_tokens: Option<i32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tts_characters: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub first_token_ms: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tokens_per_second: Option<f64>,
@@ -588,7 +590,7 @@ fn read_group_messages(
         (Some(ts), Some(bid)) => (
             "SELECT id, session_id, role, content, speaker_character_id, turn_number, created_at,
                     prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned,
-                    attachments, used_lorebook_entries, reasoning, selection_reasoning, model_id, first_token_ms, tokens_per_second, memory_refs, mtp_stats
+                    attachments, used_lorebook_entries, reasoning, selection_reasoning, model_id, first_token_ms, tokens_per_second, memory_refs, mtp_stats, tts_characters
              FROM group_messages
              WHERE session_id = ?1 AND (created_at < ?2 OR (created_at = ?2 AND id < ?3))
              ORDER BY created_at DESC, id DESC
@@ -604,7 +606,7 @@ fn read_group_messages(
         _ => (
             "SELECT id, session_id, role, content, speaker_character_id, turn_number, created_at,
                     prompt_tokens, completion_tokens, total_tokens, selected_variant_id, is_pinned,
-                    attachments, used_lorebook_entries, reasoning, selection_reasoning, model_id, first_token_ms, tokens_per_second, memory_refs, mtp_stats
+                    attachments, used_lorebook_entries, reasoning, selection_reasoning, model_id, first_token_ms, tokens_per_second, memory_refs, mtp_stats, tts_characters
              FROM group_messages
              WHERE session_id = ?1
              ORDER BY created_at DESC, id DESC
@@ -656,20 +658,25 @@ fn read_group_messages(
             .ok()
             .flatten()
             .and_then(|s| serde_json::from_str(&s).ok());
+        let tts_characters: Option<i64> = row.get(21).ok();
 
-        let usage =
-            if prompt_tokens.is_some() || completion_tokens.is_some() || total_tokens.is_some() {
-                Some(UsageSummary {
-                    prompt_tokens,
-                    completion_tokens,
-                    total_tokens,
-                    first_token_ms,
-                    tokens_per_second,
-                    mtp_stats,
-                })
-            } else {
-                None
-            };
+        let usage = if prompt_tokens.is_some()
+            || completion_tokens.is_some()
+            || total_tokens.is_some()
+            || tts_characters.is_some()
+        {
+            Some(UsageSummary {
+                prompt_tokens,
+                completion_tokens,
+                total_tokens,
+                tts_characters,
+                first_token_ms,
+                tokens_per_second,
+                mtp_stats,
+            })
+        } else {
+            None
+        };
 
         // Load variants
         let variants = load_group_message_variants(conn, &message_id)?;
@@ -751,7 +758,7 @@ fn load_group_message_variants(
 ) -> Result<Vec<GroupMessageVariant>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT id, content, speaker_character_id, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, selection_reasoning, model_id, first_token_ms, tokens_per_second, mtp_stats
+            "SELECT id, content, speaker_character_id, created_at, prompt_tokens, completion_tokens, total_tokens, reasoning, selection_reasoning, model_id, first_token_ms, tokens_per_second, mtp_stats, tts_characters
              FROM group_message_variants
              WHERE message_id = ?1
              ORDER BY created_at ASC",
@@ -777,20 +784,25 @@ fn load_group_message_variants(
             .ok()
             .flatten()
             .and_then(|s| serde_json::from_str(&s).ok());
+        let tts_characters: Option<i64> = row.get(13).ok();
 
-        let usage =
-            if prompt_tokens.is_some() || completion_tokens.is_some() || total_tokens.is_some() {
-                Some(UsageSummary {
-                    prompt_tokens,
-                    completion_tokens,
-                    total_tokens,
-                    first_token_ms,
-                    tokens_per_second,
-                    mtp_stats,
-                })
-            } else {
-                None
-            };
+        let usage = if prompt_tokens.is_some()
+            || completion_tokens.is_some()
+            || total_tokens.is_some()
+            || tts_characters.is_some()
+        {
+            Some(UsageSummary {
+                prompt_tokens,
+                completion_tokens,
+                total_tokens,
+                tts_characters,
+                first_token_ms,
+                tokens_per_second,
+                mtp_stats,
+            })
+        } else {
+            None
+        };
 
         variants.push(GroupMessageVariant {
             id: row

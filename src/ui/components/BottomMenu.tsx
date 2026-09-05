@@ -67,6 +67,9 @@ export interface BottomMenuProps {
   className?: string;
   leftAction?: ReactNode;
   rightAction?: ReactNode;
+  keyboardAvoidance?: "layout" | "compositor";
+  syncKeyboardLayoutDuringAnimation?: boolean;
+  backdropBlur?: boolean;
 }
 
 export function BottomMenu({
@@ -79,6 +82,9 @@ export function BottomMenu({
   className = "",
   leftAction,
   rightAction,
+  keyboardAvoidance = "layout",
+  syncKeyboardLayoutDuringAnimation = false,
+  backdropBlur = true,
 }: BottomMenuProps) {
   const { t } = useI18n();
   const resolvedTitle = title ?? t("components.bottomMenu.defaultTitle");
@@ -86,9 +92,11 @@ export function BottomMenu({
   const dragControls = useDragControls();
   const titleId = useId();
   const menuRef = useRef<HTMLDivElement>(null);
-  const { keyboardInset } = useKeyboardAwareOverlay({
+  const { keyboardInset, keyboardTransform } = useKeyboardAwareOverlay({
     enabled: isOpen && isBottomMenu,
     containerRef: menuRef,
+    strategy: keyboardAvoidance,
+    syncLayoutInsetDuringAnimation: syncKeyboardLayoutDuringAnimation,
   });
 
   const handleDragEnd = useCallback(
@@ -148,17 +156,26 @@ export function BottomMenu({
     : "fixed top-[var(--titlebar-h,0px)] left-0 right-0 rounded-b-3xl";
   const bottomMenuStyle = isBottomMenu
     ? {
-        bottom: keyboardInset,
+        bottom: keyboardTransform ? 0 : keyboardInset,
         maxHeight: `calc(100dvh - var(--lettuce-safe-area-inset-top) - 8px - ${keyboardInset})`,
       }
     : undefined;
+  const menuTransformTemplate = useCallback(
+    (_: unknown, generatedTransform: string) => {
+      if (!keyboardTransform) return generatedTransform;
+      return generatedTransform === "none"
+        ? keyboardTransform
+        : `${keyboardTransform} ${generatedTransform}`;
+    },
+    [keyboardTransform],
+  );
 
   const menuContent = (
     <AnimatePresence>
       {isOpen && (
         <>
           <motion.div
-            className="fixed inset-0 z-100 bg-black/45 backdrop-blur-sm"
+            className={`fixed inset-0 z-100 bg-black/45 ${backdropBlur ? "backdrop-blur-sm" : ""}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -171,6 +188,7 @@ export function BottomMenu({
             ref={menuRef}
             className={`${menuClasses} z-110 mx-auto max-w-xl border border-fg/10 bg-surface-el/98 p-1 text-fg ${isBottomMenu ? "max-h-[90vh]" : "max-h-[95vh]"} overflow-hidden flex flex-col ${className}`}
             style={bottomMenuStyle}
+            transformTemplate={menuTransformTemplate}
             variants={menuVariants}
             initial="hidden"
             animate="visible"

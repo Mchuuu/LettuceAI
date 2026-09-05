@@ -12,7 +12,7 @@ use crate::storage_manager::{
     },
     settings::{read_settings_typed, write_settings_typed},
 };
-use crate::utils::log_info;
+use crate::utils::{log_info, log_warn};
 
 use crate::chat_manager::prompt_engine;
 use crate::chat_manager::types::{
@@ -377,6 +377,39 @@ pub fn save_session_memory_state(app: &AppHandle, session: &Session) -> Result<(
             app,
             &session.id,
         )?;
+    persist_session_memory_state(app, session, &owner)
+}
+
+pub fn save_session_memory_state_for_owner(
+    app: &AppHandle,
+    session: &Session,
+    expected_owner: &crate::storage_manager::companion_shared_memory::EffectiveMemoryOwner,
+) -> Result<(), String> {
+    let current_owner =
+        crate::storage_manager::companion_shared_memory::resolve_effective_memory_owner_for_session_app(
+            app,
+            &session.id,
+        )?;
+
+    if let Err(error) = crate::storage_manager::companion_shared_memory::validate_memory_owner(
+        &session.id,
+        expected_owner,
+        &current_owner,
+    ) {
+        log_warn(app, "dynamic_memory", &error);
+        return Err(error);
+    }
+
+    // Persist to the captured owner even if the setting changes immediately
+    // after validation. This guarantees an old snapshot can never cross pools.
+    persist_session_memory_state(app, session, expected_owner)
+}
+
+fn persist_session_memory_state(
+    app: &AppHandle,
+    session: &Session,
+    owner: &crate::storage_manager::companion_shared_memory::EffectiveMemoryOwner,
+) -> Result<(), String> {
     log_info(
         app,
         "dynamic_memory",

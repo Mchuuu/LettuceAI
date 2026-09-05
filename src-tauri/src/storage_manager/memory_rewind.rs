@@ -385,8 +385,10 @@ pub fn repair_orphaned_history(
     session_id: &str,
     recent_window_size: usize,
     now: u64,
+    expected_owner: &EffectiveMemoryOwner,
 ) -> Result<MemoryHistoryRepairOutcome, String> {
     let (owner, mut state) = load_rewind_state(conn, session_id)?;
+    super::companion_shared_memory::validate_memory_owner(session_id, expected_owner, &owner)?;
     let live_message_ids = conversation_message_ids(conn, session_id)?;
     let live_set: HashSet<&str> = live_message_ids.iter().map(String::as_str).collect();
     let missing_message_ids =

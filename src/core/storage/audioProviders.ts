@@ -234,6 +234,35 @@ export async function streamDoubaoTts(
   });
 }
 
+export interface DoubaoTtsStreamSegment {
+  text: string;
+  contextText?: string;
+}
+
+export async function streamDoubaoTtsSequence(
+  providerId: string,
+  modelId: string,
+  voiceId: string,
+  segments: DoubaoTtsStreamSegment[],
+  cacheText: string,
+  requestId: string,
+  prompt?: string,
+  cachePrompt?: string,
+  cacheReference?: TtsCacheReference,
+): Promise<void> {
+  return invoke("tts_stream_doubao_sequence", {
+    providerId,
+    modelId,
+    voiceId,
+    segments,
+    cacheText,
+    requestId,
+    prompt,
+    cachePrompt,
+    cacheReference: cacheReference ?? null,
+  });
+}
+
 export async function kokoroSupportedVariants(): Promise<KokoroSupportedVariant[]> {
   return invoke<KokoroSupportedVariant[]>("kokoro_supported_variants");
 }

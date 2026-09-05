@@ -7,6 +7,7 @@ import { impactFeedback } from "@tauri-apps/plugin-haptics";
 import { type as getPlatform } from "@tauri-apps/plugin-os";
 
 import { storageBridge } from "../../../core/storage/files";
+import { applyTtsUsageToMessage } from "../../../core/storage/messageUsage";
 import {
   generateGroupChatUserReply,
   readSettings,
@@ -204,6 +205,19 @@ export function GroupChatPage() {
     appearanceFieldUpdater,
     registerAppearanceFieldUpdater,
   } = useGroupChatLayoutContext();
+  const handleTtsUsage = useCallback(
+    (messageId: string, variantId: string | undefined, ttsCharacters: number) => {
+      setMessages((previous) => {
+        const updated = previous.map((message) =>
+          applyTtsUsageToMessage(message, messageId, variantId, ttsCharacters),
+        );
+        if (updated.every((message, index) => message === previous[index])) return previous;
+        messagesRef.current = updated;
+        return updated;
+      });
+    },
+    [],
+  );
   const {
     audioStatusByMessage,
     playMessageAudio,
@@ -212,7 +226,11 @@ export function GroupChatPage() {
     stopMessageAudio,
     cancelMessageAudio,
     getMessageCharacter,
-  } = useGroupMessageAudioController({ groupSessionId, characters });
+  } = useGroupMessageAudioController({
+    groupSessionId,
+    characters,
+    onTtsUsage: handleTtsUsage,
+  });
   const handlePlayMessageAudio = useCallback(
     async (message: GroupMessage, text: string) => {
       try {

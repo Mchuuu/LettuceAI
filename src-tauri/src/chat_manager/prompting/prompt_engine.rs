@@ -3003,7 +3003,6 @@ pub fn default_modular_prompt_entries() -> Vec<SystemPromptEntry> {
         conditions: None,
         prompt_entry_payload: None,
         },
-        crate::chat_manager::speech_expression::protocol_entry(),
         SystemPromptEntry {
             id: "entry_instructions".to_string(),
             name: "Instructions".to_string(),

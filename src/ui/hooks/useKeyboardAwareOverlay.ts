@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import {
   ANDROID_WINDOW_INSETS_EVENT,
   type AndroidWindowInsetsSnapshot,
@@ -15,11 +23,17 @@ const EDITABLE_CONTROL_SELECTOR = [
 interface KeyboardAwareOverlayOptions {
   enabled: boolean;
   containerRef: RefObject<HTMLElement | null>;
+  strategy?: "layout" | "compositor";
+  syncLayoutInsetDuringAnimation?: boolean;
 }
 
 interface KeyboardAwareOverlayResult {
   keyboardInset: string;
+  keyboardTransform?: string;
 }
+
+const OVERLAY_KEYBOARD_OFFSET = "--lettuce-overlay-keyboard-offset";
+const OVERLAY_KEYBOARD_LAYOUT_INSET = "--lettuce-overlay-keyboard-layout-inset";
 
 function isEditableControl(element: Element): element is HTMLElement {
   return element instanceof HTMLElement && element.matches(EDITABLE_CONTROL_SELECTOR);
@@ -36,10 +50,46 @@ function isAndroidPlatform() {
 export function useKeyboardAwareOverlay({
   enabled,
   containerRef,
+  strategy = "layout",
+  syncLayoutInsetDuringAnimation = false,
 }: KeyboardAwareOverlayOptions): KeyboardAwareOverlayResult {
   const isAndroid = useMemo(isAndroidPlatform, []);
+  const usesCompositorMotion = isAndroid && strategy === "compositor";
   const [fallbackInset, setFallbackInset] = useState(0);
   const revealFrameRef = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (!enabled || !usesCompositorMotion) return;
+
+    const applyInsets = (snapshot: AndroidWindowInsetsSnapshot = {}) => {
+      const rawInset = snapshot.imeBottomPx;
+      const inset =
+        typeof rawInset === "number" && Number.isFinite(rawInset)
+          ? Math.max(0, rawInset) / (window.devicePixelRatio || 1)
+          : 0;
+      const insetValue = `${inset}px`;
+      const container = containerRef.current;
+      if (!container) return;
+
+      container.style.setProperty(OVERLAY_KEYBOARD_OFFSET, insetValue);
+      if (syncLayoutInsetDuringAnimation || snapshot.source !== "animation_progress") {
+        container.style.setProperty(OVERLAY_KEYBOARD_LAYOUT_INSET, insetValue);
+      }
+    };
+
+    const handleWindowInsets = (event: Event) => {
+      applyInsets((event as CustomEvent<AndroidWindowInsetsSnapshot>).detail ?? {});
+    };
+
+    window.addEventListener(ANDROID_WINDOW_INSETS_EVENT, handleWindowInsets);
+    applyInsets(window.__lettuceWindowInsets);
+
+    return () => {
+      window.removeEventListener(ANDROID_WINDOW_INSETS_EVENT, handleWindowInsets);
+      containerRef.current?.style.removeProperty(OVERLAY_KEYBOARD_OFFSET);
+      containerRef.current?.style.removeProperty(OVERLAY_KEYBOARD_LAYOUT_INSET);
+    };
+  }, [containerRef, enabled, syncLayoutInsetDuringAnimation, usesCompositorMotion]);
 
   const revealFocusedControl = useCallback(() => {
     if (typeof document === "undefined") return;
@@ -48,6 +98,7 @@ export function useKeyboardAwareOverlay({
     const activeElement = document.activeElement;
     if (!container || !activeElement || !container.contains(activeElement)) return;
     if (!isEditableControl(activeElement)) return;
+    if (activeElement.dataset.keyboardReveal === "self") return;
 
     if (revealFrameRef.current !== null) {
       cancelAnimationFrame(revealFrameRef.current);
@@ -135,8 +186,13 @@ export function useKeyboardAwareOverlay({
   );
 
   return {
-    keyboardInset: isAndroid
-      ? "var(--lettuce-keyboard-inset, 0px)"
-      : `${fallbackInset}px`,
+    keyboardInset: usesCompositorMotion
+      ? `var(${OVERLAY_KEYBOARD_LAYOUT_INSET}, 0px)`
+      : isAndroid
+        ? "var(--lettuce-keyboard-inset, 0px)"
+        : `${fallbackInset}px`,
+    keyboardTransform: usesCompositorMotion
+      ? `translate3d(0, calc(var(${OVERLAY_KEYBOARD_OFFSET}, 0px) * -1), 0)`
+      : undefined,
   };
 }

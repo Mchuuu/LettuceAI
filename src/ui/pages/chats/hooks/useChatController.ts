@@ -12,6 +12,7 @@ import {
 import { useChatSessionController } from "./useChatSessionController";
 import { useChatStreamingController } from "./useChatStreamingController";
 import { logManager } from "../../../../core/utils/logger";
+import { applyTtsUsageToMessage } from "../../../../core/storage/messageUsage";
 import type {
   Character,
   Persona,
@@ -92,6 +93,7 @@ export interface ChatController {
   isStartingSceneMessage: (message: StoredMessage) => boolean;
   generateAiScenePrompt: (messageId: string) => Promise<string>;
   applySceneImagePrompt: (message: StoredMessage, scenePrompt: string) => Promise<void>;
+  applyTtsUsage: (messageId: string, variantId: string | undefined, ttsCharacters: number) => void;
 }
 
 export function useChatController(
@@ -278,6 +280,39 @@ export function useChatController(
     [dispatch, messagesRef, persistSession, state],
   );
 
+  const applyTtsUsage = useCallback(
+    (messageId: string, variantId: string | undefined, ttsCharacters: number) => {
+      const previousMessages = messagesRef.current;
+      const updatedMessages = previousMessages.map((message) =>
+        applyTtsUsageToMessage(message, messageId, variantId, ttsCharacters),
+      );
+      if (updatedMessages.every((message, index) => message === previousMessages[index])) return;
+
+      messagesRef.current = updatedMessages;
+      if (!state.session) {
+        dispatch({ type: "SET_MESSAGES", payload: updatedMessages });
+        return;
+      }
+
+      const updatedSession = { ...state.session, messages: updatedMessages };
+      dispatch({
+        type: "BATCH",
+        actions: [
+          { type: "SET_SESSION", payload: updatedSession },
+          { type: "SET_MESSAGES", payload: updatedMessages },
+        ],
+      });
+      applyLiveChatAction(state.session.id, state, {
+        type: "BATCH",
+        actions: [
+          { type: "SET_SESSION", payload: updatedSession },
+          { type: "SET_MESSAGES", payload: updatedMessages },
+        ],
+      });
+    },
+    [dispatch, messagesRef, state],
+  );
+
   return {
     // State
     character: state.character,
@@ -376,6 +411,7 @@ export function useChatController(
     initializeLongPressTimer,
     generateAiScenePrompt,
     applySceneImagePrompt,
+    applyTtsUsage,
     isStartingSceneMessage: useCallback((message: StoredMessage) => {
       return isStartingSceneMessage(message);
     }, []),

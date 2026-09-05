@@ -402,6 +402,30 @@ fn append_missing_entry(
     Ok(())
 }
 
+fn remove_deprecated_entry(app: &AppHandle, id: &str, entry_id: &str) -> Result<(), String> {
+    let template = match get_template(app, id)? {
+        Some(template) => template,
+        None => return Ok(()),
+    };
+    if !template.entries.iter().any(|entry| entry.id == entry_id) {
+        return Ok(());
+    }
+
+    let mut next_entries = template.entries;
+    next_entries.retain(|entry| entry.id != entry_id);
+    let next_content = template_entries_to_content(&next_entries);
+    let _ = update_template(
+        app,
+        id.to_string(),
+        None,
+        None,
+        Some(next_content),
+        Some(next_entries),
+        None,
+    )?;
+    Ok(())
+}
+
 fn backfill_missing_entry_conditions(
     app: &AppHandle,
     id: &str,
@@ -1070,16 +1094,10 @@ pub fn ensure_app_default_template(app: &AppHandle) -> Result<String, String> {
                 .find(|entry| entry.id == "entry_scene_image_protocol")
                 .expect("scene image protocol entry should exist"),
         );
-        let _ = append_missing_entry(
+        let _ = remove_deprecated_entry(
             app,
             APP_DEFAULT_TEMPLATE_ID,
             crate::chat_manager::speech_expression::SPEECH_EXPRESSION_ENTRY_ID,
-            defaults
-                .into_iter()
-                .find(|entry| {
-                    entry.id == crate::chat_manager::speech_expression::SPEECH_EXPRESSION_ENTRY_ID
-                })
-                .expect("speech expression protocol entry should exist"),
         );
         return Ok(existing.id);
     }

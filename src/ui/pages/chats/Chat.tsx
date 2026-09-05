@@ -59,6 +59,7 @@ import { playAccessibilitySound } from "../../../core/utils/accessibilityAudio";
 import { replacePlaceholders } from "../../../core/utils/placeholders";
 import { splitThinkTags } from "../../../core/utils/thinkTags";
 import { getPlatform } from "../../../core/utils/platform";
+import { useAndroidImeMotion } from "../../hooks/useAndroidImeMotion";
 import {
   ChatHeader,
   ChatFooter,
@@ -214,12 +215,18 @@ export function ChatConversationPage() {
   useEffect(() => {
     const el = footerRef.current;
     if (!el) return;
-    const update = () => setFooterHeight(el.offsetHeight);
-    update();
-    const observer = new ResizeObserver(update);
+    const publishHeight = (height: number) => {
+      const roundedHeight = Math.round(height);
+      setFooterHeight((current) => (current === roundedHeight ? current : roundedHeight));
+    };
+    publishHeight(el.offsetHeight);
+    const observer = new ResizeObserver(([entry]) => {
+      const borderBoxSize = entry?.borderBoxSize?.[0];
+      publishHeight(borderBoxSize?.blockSize ?? entry?.contentRect.height ?? el.offsetHeight);
+    });
     observer.observe(el);
     return () => observer.disconnect();
-  });
+  }, [footerInside]);
   const pressStartPosition = useRef<{ x: number; y: number } | null>(null);
   const [sessionForHeader, setSessionForHeader] = useState(chatController.session);
   const pendingScrollAdjustRef = useRef<{ prevScrollTop: number; prevScrollHeight: number } | null>(
@@ -243,7 +250,6 @@ export function ChatConversationPage() {
   const [supportsImageInput, setSupportsImageInput] = useState(false);
   const [supportsAudioInput, setSupportsAudioInput] = useState(false);
   const [imageUploadCredentialId, setImageUploadCredentialId] = useState<string | null>(null);
-  const [statusBarInset, setStatusBarInset] = useState(0);
   const [accessibilitySettings, setAccessibilitySettings] = useState<AccessibilitySettings>(
     createDefaultAccessibilitySettings(),
   );
@@ -300,6 +306,11 @@ export function ChatConversationPage() {
   const [personas, setPersonas] = useState<Persona[]>([]);
   const isMobile = useMemo(() => getPlatform().type === "mobile", []);
   const isAndroid = useMemo(() => getPlatform().os === "android", []);
+  const imeTranslateRefs = useMemo(() => [scrollContainerRef, footerRef] as const, []);
+  const statusBarInset = useAndroidImeMotion({
+    enabled: isAndroid,
+    translateRefs: imeTranslateRefs,
+  });
   const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
   const footerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const footerRecorderRef = useRef<FooterRecorderSession | null>(null);
@@ -1200,7 +1211,14 @@ export function ChatConversationPage() {
     stopMessageAudio: handleStopAudio,
     cancelMessageAudio: handleCancelAudio,
   } = useMessageAudioController(
-    sessionId ? { conversationKind: "session", conversationId: sessionId } : null,
+    sessionId
+      ? {
+          conversationKind: "session",
+          conversationId: sessionId,
+          onTtsUsage: ({ messageId, variantId, ttsCharacters }) =>
+            chatController.applyTtsUsage(messageId, variantId, ttsCharacters),
+        }
+      : null,
   );
 
   const handlePlayMessageAudio = useCallback(
@@ -1779,35 +1797,6 @@ export function ChatConversationPage() {
     observer.observe(list);
     return () => observer.disconnect();
   }, [updateIsAtBottom]);
-
-  useEffect(() => {
-    if (!isAndroid) {
-      document.documentElement.style.setProperty("--lettuce-keyboard-inset", "0px");
-      return;
-    }
-
-    const applyWindowInsets = (detail: { imeBottomPx?: unknown; statusBarTopPx?: unknown }) => {
-      const statusTopPx = detail?.statusBarTopPx;
-      if (typeof statusTopPx === "number" && Number.isFinite(statusTopPx)) {
-        setStatusBarInset(Math.max(0, Math.round(statusTopPx / window.devicePixelRatio)));
-      }
-    };
-
-    const handleWindowInsets = (event: Event) => {
-      applyWindowInsets(
-        (event as CustomEvent<{ imeBottomPx?: unknown; statusBarTopPx?: unknown }>).detail ?? {},
-      );
-    };
-
-    window.addEventListener("lettuce:window-insets", handleWindowInsets);
-    const initialInsets = (window as Window & {
-      __lettuceWindowInsets?: { imeBottomPx?: unknown; statusBarTopPx?: unknown };
-    }).__lettuceWindowInsets;
-    if (initialInsets) {
-      applyWindowInsets(initialInsets);
-    }
-    return () => window.removeEventListener("lettuce:window-insets", handleWindowInsets);
-  }, [isAndroid, scrollToBottom]);
 
   const handleContextMenu = useCallback(
     (message: StoredMessage) => (event: React.MouseEvent<HTMLDivElement>) => {
@@ -2404,7 +2393,7 @@ export function ChatConversationPage() {
   }
 
   const footerBottomOffset = "env(safe-area-inset-bottom)";
-  const footerTransform = "translate3d(0, calc(var(--lettuce-keyboard-inset, 0px) * -1), 0)";
+  const idleImeTransform = "translate3d(0, 0, 0)";
   const scrollButtonBottomOffset =
     footerHeight > 0
       ? `calc(${footerHeight + 12}px + var(--lettuce-keyboard-inset, 0px))`
@@ -2549,19 +2538,22 @@ export function ChatConversationPage() {
       </AnimatePresence>
 
       {/* Main content area */}
-      <main
-        ref={scrollContainerRef}
-        className="relative z-10 flex-1 overflow-y-auto"
-        onScroll={handleScroll}
-      >
+      <div className="relative z-10 flex min-h-0 flex-1 overflow-hidden">
+        <main
+          ref={scrollContainerRef}
+          className="relative min-h-0 flex-1 overflow-y-auto"
+          onScroll={handleScroll}
+          style={{
+            transform: isAndroid ? idleImeTransform : undefined,
+            willChange: isAndroid ? "transform" : undefined,
+          }}
+        >
         <div
           ref={messageListRef}
           className={`${getChatColumnLayout(chatAppearance).className} ${chatAppearance.messageGap === "tight" ? "space-y-2" : chatAppearance.messageGap === "relaxed" ? "space-y-6" : "space-y-4"} px-3 pb-8 pt-4`}
           style={{
             ...getChatColumnLayout(chatAppearance).style,
             paddingBottom: "32px",
-            transform: "translate3d(0, calc(var(--lettuce-keyboard-inset, 0px) * -1), 0)",
-            willChange: "transform",
             backgroundColor: backgroundImageData
               ? swapPlaces
                 ? isBackgroundLight
@@ -2731,8 +2723,9 @@ export function ChatConversationPage() {
               );
             })}
           </LayoutGroup>
-        </div>
-      </main>
+          </div>
+        </main>
+      </div>
 
       <AnimatePresence>
         {!isAtBottom && (
@@ -2763,8 +2756,8 @@ export function ChatConversationPage() {
         className="relative z-10"
         style={{
           paddingBottom: footerBottomOffset,
-          transform: footerTransform,
-          willChange: "transform",
+          transform: isAndroid ? idleImeTransform : undefined,
+          willChange: isAndroid ? "transform" : undefined,
         }}
       >
         <ChatFooter
@@ -2842,8 +2835,8 @@ export function ChatConversationPage() {
         className={`relative z-10 ${applyFooterColumnClass ? getChatColumnLayout(chatAppearance).className : ""}`}
         style={{
           paddingBottom: footerBottomOffset,
-          transform: footerTransform,
-          willChange: "transform",
+          transform: isAndroid ? idleImeTransform : undefined,
+          willChange: isAndroid ? "transform" : undefined,
           ...(applyFooterColumnClass ? getChatColumnLayout(chatAppearance).style : {}),
         }}
       >

@@ -721,6 +721,7 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           attachments TEXT NOT NULL DEFAULT '[]',
           reasoning TEXT,
           tts_context_text TEXT,
+          tts_characters INTEGER,
           FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
         );
 
@@ -795,6 +796,7 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           mtp_stats TEXT,
           reasoning TEXT,
           tts_context_text TEXT,
+          tts_characters INTEGER,
           FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE
         );
 
@@ -995,6 +997,7 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           reasoning TEXT,
           selection_reasoning TEXT,
           model_id TEXT,
+          tts_characters INTEGER,
           FOREIGN KEY(session_id) REFERENCES group_sessions(id) ON DELETE CASCADE
         );
 
@@ -1014,6 +1017,7 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
           reasoning TEXT,
           selection_reasoning TEXT,
           model_id TEXT,
+          tts_characters INTEGER,
           FOREIGN KEY(message_id) REFERENCES group_messages(id) ON DELETE CASCADE
         );
 
@@ -1472,6 +1476,19 @@ pub fn init_db(_app: &tauri::AppHandle, conn: &Connection) -> Result<(), String>
     let _ = conn.execute("ALTER TABLE messages ADD COLUMN tts_context_text TEXT", []);
     let _ = conn.execute(
         "ALTER TABLE message_variants ADD COLUMN tts_context_text TEXT",
+        [],
+    );
+    let _ = conn.execute("ALTER TABLE messages ADD COLUMN tts_characters INTEGER", []);
+    let _ = conn.execute(
+        "ALTER TABLE message_variants ADD COLUMN tts_characters INTEGER",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE group_messages ADD COLUMN tts_characters INTEGER",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE group_message_variants ADD COLUMN tts_characters INTEGER",
         [],
     );
 

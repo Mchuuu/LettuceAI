@@ -17,7 +17,14 @@ import {
 } from "../../../../core/storage/audioProviders";
 import type { Character } from "../../../../core/storage/schemas";
 import { resolveCharacterVoiceTarget } from "../../../../core/voice/characterVoiceTarget";
-import { buildDoubaoVoicePrompt } from "../../../../core/voice/doubaoVoiceSettings";
+import {
+  buildDoubaoSpeechPlan,
+  buildDoubaoSpeechPlanCachePrompt,
+} from "../../../../core/voice/doubaoSpeechPlan";
+import {
+  buildDoubaoVoicePrompt,
+  normalizeDoubaoVoiceSettings,
+} from "../../../../core/voice/doubaoVoiceSettings";
 import { getCachedDoubaoVoicePreviewMetadata } from "../../../../core/voice/doubaoVoicePreview";
 import { startMessageAudioPlayback, type MessageAudioPlayback } from "./messageAudioPlayer";
 
@@ -41,6 +48,13 @@ export interface PlayableAudioMessage {
 export interface MessageAudioScope {
   conversationKind: TtsCacheConversationKind;
   conversationId: string;
+  onTtsUsage?: (update: MessageTtsUsageUpdate) => void;
+}
+
+export interface MessageTtsUsageUpdate {
+  messageId: string;
+  variantId?: string;
+  ttsCharacters: number;
 }
 
 interface AudioResourceCache {
@@ -82,6 +96,7 @@ export function useMessageAudioController(scope?: MessageAudioScope | null) {
   const { t } = useI18n();
   const conversationKind = scope?.conversationKind;
   const conversationId = scope?.conversationId;
+  const onTtsUsage = scope?.onTtsUsage;
   const scopeKey =
     conversationKind && conversationId ? `${conversationKind}:${conversationId}` : null;
   const resourceCacheRef = useRef<AudioResourceCache>({
@@ -266,25 +281,56 @@ export function useMessageAudioController(scope?: MessageAudioScope | null) {
             ? getCachedDoubaoVoicePreviewMetadata(providerId, voiceId)?.sampleRate
             : undefined;
         const ttsContextText = resolveTtsContextText(message);
+        const normalizedDoubaoSettings =
+          provider.providerType === "doubao_tts"
+            ? normalizeDoubaoVoiceSettings(voiceConfig.doubaoVoiceSettings)
+            : null;
+        const speechPlan = normalizedDoubaoSettings?.speechExpressionEnabled
+          ? buildDoubaoSpeechPlan(trimmedText, ttsContextText)
+          : null;
+        const useSpeechPlan = Boolean(
+          speechPlan?.extractedParentheticals &&
+          !speechPlan.malformedParentheticals &&
+          speechPlan.segments.length > 0,
+        );
+        if (
+          speechPlan?.extractedParentheticals &&
+          !speechPlan.malformedParentheticals &&
+          speechPlan.segments.length === 0
+        ) {
+          console.debug("[Doubao TTS] skipped parenthetical-only message", {
+            messageId: message.id,
+          });
+          if (requestRef.current?.requestId === requestId) requestRef.current = null;
+          setAudioStatus(message.id, null);
+          return;
+        }
+        if (speechPlan?.malformedParentheticals) {
+          console.warn("[Doubao TTS] malformed parenthetical text; using the original text", {
+            messageId: message.id,
+          });
+        }
         const prompt =
           provider.providerType === "doubao_tts"
             ? buildDoubaoVoicePrompt(voiceConfig.doubaoVoiceSettings, cloneSampleRate, {
-                contextText: ttsContextText,
+                contextText: useSpeechPlan ? undefined : ttsContextText,
                 expressiveClone:
                   provider.resourceId === "seed-icl-2.0" || modelId === "seed-icl-2.0",
               })
             : voiceTarget.source === "user"
               ? resolveUserVoicePrompt(provider.providerType, voiceTarget.userVoice.prompt)
               : undefined;
+        const cachePrompt = useSpeechPlan ? buildDoubaoSpeechPlanCachePrompt(prompt) : prompt;
         const cacheKey = buildAudioCacheKey({
           providerId,
           modelId,
           voiceId,
           text: trimmedText,
-          prompt,
+          prompt: cachePrompt,
         });
         const cached = previewCacheRef.current.get(cacheKey);
         const fallbackVariant = message.variants?.[message.variants.length - 1];
+        const playbackVariantId = message.selectedVariantId ?? fallbackVariant?.id ?? undefined;
         const cacheContext: TtsCacheContext | undefined =
           conversationKind && conversationId
             ? {
@@ -295,7 +341,7 @@ export function useMessageAudioController(scope?: MessageAudioScope | null) {
                   conversationKind,
                   conversationId,
                   messageId: message.id,
-                  variantId: message.selectedVariantId ?? fallbackVariant?.id ?? undefined,
+                  variantId: playbackVariantId,
                   characterId: character.id,
                 },
               }
@@ -308,6 +354,8 @@ export function useMessageAudioController(scope?: MessageAudioScope | null) {
           voiceId,
           text: trimmedText,
           prompt,
+          cachePrompt,
+          doubaoSegments: useSpeechPlan ? speechPlan?.segments : undefined,
           requestId,
           cacheContext,
           sampleRate: cloneSampleRate,
@@ -317,6 +365,13 @@ export function useMessageAudioController(scope?: MessageAudioScope | null) {
           onPlaybackStart: () => {
             if (requestRef.current?.requestId === requestId) requestRef.current = null;
             setAudioStatus(message.id, "playing");
+          },
+          onTtsUsage: (ttsCharacters) => {
+            onTtsUsage?.({
+              messageId: message.id,
+              variantId: playbackVariantId,
+              ttsCharacters,
+            });
           },
         });
 
@@ -361,6 +416,7 @@ export function useMessageAudioController(scope?: MessageAudioScope | null) {
       ensureAudioModels,
       ensureAudioProviders,
       ensureUserVoices,
+      onTtsUsage,
       setAudioStatus,
       stopAudioPlayback,
       t,
